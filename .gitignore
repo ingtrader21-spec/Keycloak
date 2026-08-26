@@ -5,7 +5,15 @@
 artifacts/
 backups/
 exports/
+plans/
 tmp/
+
+# Live runtime values belong in protected GitHub Environments or server files.
+deploy/runtime-paths.env
+deploy/runtime-paths.*.env
+runtime-preflight*.txt
+keycloak-plan*.json
+keycloak-plan*.sha256
 
 *.log
 *.pem

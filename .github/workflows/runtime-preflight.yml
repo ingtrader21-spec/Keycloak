@@ -1,0 +1,111 @@
+name: Verify Keycloak runtime paths
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Protected GitHub Environment containing the server path variables
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      confirm_sha:
+        description: Paste the exact 40-character main-branch SHA to inspect
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keycloak-runtime-preflight-${{ inputs.environment }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  guard:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out selected main commit without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Require reviewed main and exact SHA confirmation
+        env:
+          CONFIRM_SHA: ${{ inputs.confirm_sha }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$GITHUB_REF" == 'refs/heads/main' ]] || {
+            echo 'ERROR=runtime_preflight_must_run_from_main' >&2
+            exit 1
+          }
+          [[ "$CONFIRM_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo 'ERROR=confirm_sha_must_be_40_lowercase_hex_characters' >&2
+            exit 1
+          }
+          [[ "$CONFIRM_SHA" == "$GITHUB_SHA" ]] || {
+            echo 'ERROR=confirmed_sha_does_not_match_selected_commit' >&2
+            exit 1
+          }
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]] || {
+            echo 'ERROR=checkout_sha_mismatch' >&2
+            exit 1
+          }
+
+      - name: Validate reviewed repository state
+        run: ./scripts/validate.sh
+
+  inspect:
+    needs: guard
+    runs-on: [self-hosted, linux, x64, codestra-keycloak]
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 10
+
+    env:
+      EXPECTED_DEPLOY_SHA: ${{ github.sha }}
+      RUNTIME_REPO_DIR: ${{ vars.RUNTIME_REPO_DIR }}
+      RUNTIME_COMPOSE_FILE: ${{ vars.RUNTIME_COMPOSE_FILE }}
+      RUNTIME_ENV_FILE: ${{ vars.RUNTIME_ENV_FILE }}
+      RUNTIME_CADDY_FILE: ${{ vars.RUNTIME_CADDY_FILE }}
+      RUNTIME_GIT_SSH_KEY: ${{ vars.RUNTIME_GIT_SSH_KEY }}
+      RUNTIME_GIT_KNOWN_HOSTS: ${{ vars.RUNTIME_GIT_KNOWN_HOSTS }}
+      RUNTIME_GIT_REMOTE: ${{ vars.RUNTIME_GIT_REMOTE }}
+      RUNTIME_GIT_BRANCH: ${{ vars.RUNTIME_GIT_BRANCH }}
+
+    steps:
+      - name: Check out reviewed commit without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Run read-only runtime, SHA, and GitHub SSH read-access verification
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]] || {
+            echo 'ERROR=workspace_sha_mismatch' >&2
+            exit 1
+          }
+          ./scripts/runtime-preflight.sh \
+            --expected-deploy-sha "$GITHUB_SHA" \
+            --report "$RUNNER_TEMP/keycloak-runtime-preflight.txt" \
+            | tee "$RUNNER_TEMP/keycloak-runtime-preflight.log"
+          cat "$RUNNER_TEMP/keycloak-runtime-preflight.txt" >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Upload redacted preflight evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: keycloak-runtime-preflight-${{ inputs.environment }}-${{ github.sha }}
+          path: ${{ runner.temp }}/keycloak-runtime-preflight.txt
+          if-no-files-found: error
+          retention-days: 30

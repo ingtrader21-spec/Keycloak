@@ -1,0 +1,65 @@
+# Server-to-GitHub SSH bootstrap
+
+## Security model
+
+`65.109.65.169` receives a repository-scoped Ed25519 deploy key for
+`appolon1908-hue/Keycloak`. GitHub write access must remain disabled. The server
+must not receive a personal GitHub key, broad token, or write-enabled deploy key.
+
+The runtime preflight proves repository **read access**. It cannot prove the
+GitHub-side write checkbox is disabled, so reviewers must verify that setting
+and match the public-key fingerprint independently.
+
+## Required paths
+
+Use verified canonical paths, not guessed placeholders:
+
+```text
+RUNTIME_REPO_DIR
+RUNTIME_COMPOSE_FILE
+RUNTIME_ENV_FILE
+RUNTIME_CADDY_FILE
+RUNTIME_GIT_SSH_KEY
+RUNTIME_GIT_KNOWN_HOSTS
+```
+
+Run the restricted self-hosted runner service under the dedicated
+`keycloak-deploy` Unix account. The private key and `known_hosts` file must be
+owned by that same runner account, must not grant group or world access, and
+must remain outside the Git checkout.
+
+## Exclusive GitHub host trust
+
+The dedicated `known_hosts` file may contain only explicit `github.com`
+Ed25519 entries. Runtime SSH uses:
+
+```text
+-F /dev/null
+StrictHostKeyChecking=yes
+UpdateHostKeys=no
+GlobalKnownHostsFile=/dev/null
+UserKnownHostsFile=<dedicated file>
+HostKeyAlgorithms=ssh-ed25519
+IdentitiesOnly=yes
+IdentityAgent=none
+```
+
+No user SSH configuration, SSH agent, global known-hosts file, password, or
+keyboard-interactive fallback participates in the connection.
+
+## Release preparation
+
+After the runtime paths are independently verified and the read-only deploy key
+is registered in GitHub, synchronize the server checkout to the exact protected
+merged SHA. Do not run a floating production `git pull`. Confirm:
+
+```bash
+GIT_CONFIG_NOSYSTEM=1 \
+GIT_CONFIG_GLOBAL=/dev/null \
+GIT_OPTIONAL_LOCKS=0 \
+git -C "$RUNTIME_REPO_DIR" rev-parse HEAD
+```
+
+The value must equal the exact SHA selected in the manual workflow. The preflight
+also checks that GitHub's remote `main` returns the same SHA using `git ls-remote`.
+It makes no live Keycloak, Docker, or Caddy change.
