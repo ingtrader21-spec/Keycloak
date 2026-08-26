@@ -1,0 +1,14 @@
+.git
+.github
+.env
+.env.*
+artifacts
+backups
+exports
+tmp
+*.log
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore

@@ -1,0 +1,29 @@
+{
+  "clientId": "klyrow-portal",
+  "name": "Klyrow Portal",
+  "description": "Klyrow browser portal using Authorization Code Flow with PKCE.",
+  "enabled": true,
+  "protocol": "openid-connect",
+  "publicClient": true,
+  "bearerOnly": false,
+  "consentRequired": false,
+  "standardFlowEnabled": true,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "serviceAccountsEnabled": false,
+  "frontchannelLogout": true,
+  "rootUrl": "https://klyrow.com",
+  "baseUrl": "https://klyrow.com/",
+  "redirectUris": [
+    "https://klyrow.com/"
+  ],
+  "webOrigins": [
+    "https://klyrow.com"
+  ],
+  "attributes": {
+    "pkce.code.challenge.method": "S256",
+    "post.logout.redirect.uris": "https://klyrow.com/",
+    "oauth2.device.authorization.grant.enabled": "false",
+    "oidc.ciba.grant.enabled": "false"
+  }
+}
