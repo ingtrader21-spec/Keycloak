@@ -1,0 +1,14 @@
+{
+  "publicUrl": "https://auth.codestra.co",
+  "adminApiBaseUrl": "https://auth.codestra.co",
+  "realm": "codestra",
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "discoveryUrl": "https://auth.codestra.co/realms/codestra/.well-known/openid-configuration",
+  "authorizationEndpoint": "https://auth.codestra.co/realms/codestra/protocol/openid-connect/auth",
+  "tokenEndpoint": "https://auth.codestra.co/realms/codestra/protocol/openid-connect/token",
+  "userInfoEndpoint": "https://auth.codestra.co/realms/codestra/protocol/openid-connect/userinfo",
+  "jwksUri": "https://auth.codestra.co/realms/codestra/protocol/openid-connect/certs",
+  "introspectionEndpoint": "https://auth.codestra.co/realms/codestra/protocol/openid-connect/token/introspect",
+  "logoutEndpoint": "https://auth.codestra.co/realms/codestra/protocol/openid-connect/logout",
+  "adminRealmEndpoint": "https://auth.codestra.co/admin/realms/codestra"
+}

@@ -1,50 +1,79 @@
 # Codestra Keycloak
 
-GitOps repository for the Codestra identity service at `https://auth.codestra.co`.
-
-This repository manages **reviewable Keycloak desired state**, deployment packaging, validation, drift checks, and controlled application of configuration. It intentionally does not store the Keycloak database, users, passwords, client secrets, private keys, access tokens, or recovery codes.
-
-## Current managed fix
-
-The `klyrow-portal` OIDC client is declared with the exact production callback currently sent by Klyrow:
+GitOps repository for the Codestra identity service.
 
 ```text
-https://klyrow.com/
+Public URL:       https://auth.codestra.co
+Canonical issuer: https://auth.codestra.co/realms/codestra
+Discovery:        https://auth.codestra.co/realms/codestra/.well-known/openid-configuration
 ```
 
-The client is configured as a browser/public client using Authorization Code Flow with PKCE `S256`. Implicit flow, password/direct grants, service accounts, wildcard redirects, and wildcard web origins are disabled.
+The repository manages reviewable desired state, exact-source and merge-result
+CI, runtime identity verification, deterministic drift plans, protected apply,
+and read-only OIDC acceptance checks. It never stores client secrets, user
+credentials, access tokens, private keys, OTP seeds, signing material, database
+data, or live server environment files.
+
+## Authentication policy
+
+Human browser clients use Authorization Code Flow with PKCE `S256`. Implicit
+flow and password/direct grants are prohibited.
+
+Machine clients use confidential service accounts with short-lived Client
+Credentials tokens. Every service receives its own client ID, scope namespace,
+and audience. The twelve recommended machine identities are declared in
+`config/contracts/machine-clients.json`; they are deliberately marked
+`declared-not-created` until caller-to-audience access contracts and client-
+specific fine-grained administration are independently reviewed.
+
+The normal protected apply remains scoped to the existing `klyrow-portal`
+client. It cannot create realms or clients and does not require `manage-realm`
+or realm-wide `manage-clients`.
+
+## Secure change flow
+
+1. Create a feature branch and edit reviewed desired state.
+2. Open a pull request.
+3. Run CI for the exact source-head SHA and GitHub's synthetic merge-result SHA.
+4. Obtain independent review and merge through protected `main`.
+5. Synchronize the server's read-only checkout to the exact merged SHA.
+6. Run **Verify Keycloak runtime paths** for that exact SHA.
+7. Independently approve the stable runtime-path fingerprint.
+8. Run **Deploy Keycloak configuration** in `check` mode.
+9. Review `plan.json`, the run ID, and `PLAN_SHA256`.
+10. Run the same workflow in `apply` mode with the prior run ID and reviewed hash.
+11. The workflow downloads that exact artifact, verifies the hash, rechecks every
+    live pre-change hash, exports an allowlisted rollback overlay, applies only
+    the reviewed plan, verifies convergence, and runs the OIDC smoke test.
+
+A merge never changes the live Keycloak instance. `apply` cannot run without a
+successful prior check artifact for the same environment and exact commit SHA.
 
 ## Repository layout
 
 ```text
 config/
-  realms/                 Safe realm-level desired-state overlays
-  clients/                One declarative JSON file per OIDC/SAML client
-deploy/caddy/              Reverse-proxy snippet for auth.codestra.co
+  clients/                    Active Git-managed client overlays
+  contracts/                  Declared identity contracts not yet provisioned
+  endpoints/                  Canonical issuer and API endpoint contract
+  export-allowlists/          Per-client rollback export allowlists
+  github/                     Desired main-branch ruleset
+  policy/                     Explicit active managed-client boundary
+  realms/                     Read-only realm invariant
 scripts/
-  lib/keycloak-admin.sh    Authentication and Admin REST helpers
-  validate.sh              Offline policy and syntax validation
-  reconcile.sh             Idempotent check/apply reconciler
-  export-client.sh         Sanitized pre-change export for rollback/adoption
-  smoke-test.sh            Read-only OIDC and redirect validation
+  validate-workflows.py       Parsed YAML Actions policy validator
+  validate.sh                 Desired-state, endpoint, secret, and syntax policy
+  runtime-preflight.sh        Read-only paths, SHA, host-key, and SSH read access
+  plan.sh                     Deterministic, non-mutating drift plan generator
+  apply-plan.sh               Reviewed plan-hash and optimistic-state apply
+  export-client.sh            Client-specific allowlisted rollback export
+  reconcile.sh                Check wrapper; direct unplanned apply is disabled
+  smoke-test.sh               Read-only discovery and redirect acceptance test
 .github/workflows/
-  validate.yml             Pull-request and main-branch validation
-  deploy.yml               Manual, environment-gated check/apply workflow
+  validate.yml                Exact source-head and merge-result CI
+  runtime-preflight.yml       Manual read-only server verification
+  deploy.yml                  Manual plan/check and reviewed-plan apply
 ```
-
-## Change flow
-
-1. Create a branch.
-2. Edit the appropriate JSON under `config/`.
-3. Open a pull request.
-4. Let `validate.yml` verify JSON, shell scripts, Docker Compose, the container build, redirect safety, PKCE, and secret policy.
-5. Merge the reviewed commit.
-6. Run **Deploy Keycloak configuration** in `check` mode.
-7. Review the reported drift.
-8. Run the same workflow in `apply` mode through the protected GitHub Environment.
-9. Confirm the read-only smoke test passes.
-
-The deploy workflow is manual by design. A merge does not silently alter production identity configuration.
 
 ## Local validation
 
@@ -52,58 +81,15 @@ The deploy workflow is manual by design. A merge does not silently alter product
 make validate
 ```
 
-## Local container test environment
+CI additionally validates Docker Compose and builds the pinned Keycloak image
+without publishing it.
 
-```bash
-cp .env.example .env
-# Replace every CHANGE_ME value in .env.
-docker compose up -d --build
-```
+## Governance that remains external to Git
 
-Caddy should proxy only to Keycloak's loopback HTTP listener. The management port stays on loopback and must not be exposed publicly.
+Repository rules, protected GitHub Environments, reviewer identities,
+service-account secrets, and the server deploy key are configured outside the
+public repository. `config/github/main-ruleset.json` records the required `main`
+policy, but an administrator must apply it after both CI check contexts exist.
 
-## Check live drift
-
-Use a least-privilege Keycloak service-account client and export its secret into the current shell:
-
-```bash
-export KC_BASE_URL="https://auth.codestra.co"
-export KC_TARGET_REALM="codestra"
-export KC_ADMIN_REALM="codestra"
-export KC_ADMIN_CLIENT_ID="keycloak-gitops"
-export KC_ADMIN_CLIENT_SECRET="<secret>"
-
-./scripts/reconcile.sh --check
-```
-
-Apply only after review:
-
-```bash
-./scripts/export-client.sh --output ./artifacts/before klyrow-portal
-./scripts/reconcile.sh --apply
-./scripts/smoke-test.sh
-```
-
-## Required GitHub Environment configuration
-
-Create `staging` and `production` environments. Require approval for `production`, then configure:
-
-Variables:
-
-- `KC_BASE_URL`
-- `KC_PUBLIC_URL`
-- `KC_TARGET_REALM`
-- `KC_ADMIN_REALM`
-
-Secrets:
-
-- `KC_ADMIN_CLIENT_ID`
-- `KC_ADMIN_CLIENT_SECRET`
-
-The workflow expects a self-hosted runner labeled:
-
-```text
-self-hosted, linux, x64, codestra-keycloak
-```
-
-See [docs/GITOPS.md](docs/GITOPS.md) for bootstrap, rollback, and operating rules.
+See `docs/GITOPS.md`, `docs/GITHUB_SECURITY.md`, and
+`docs/SERVER_GIT_SSH.md` for the operating procedure.

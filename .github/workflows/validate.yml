@@ -10,36 +10,123 @@ permissions:
   contents: read
 
 concurrency:
-  group: keycloak-validate-${{ github.ref }}
+  group: keycloak-validate-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
-  validate:
+  validate-source:
+    name: validate-source
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
+    env:
+      EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - name: Check out exact source SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ env.EXPECTED_SHA }}
+
+      - name: Verify exact source identity
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git rev-parse HEAD)" == "$EXPECTED_SHA" ]] || {
+            echo 'ERROR=source_checkout_sha_mismatch' >&2
+            exit 1
+          }
+          echo "SOURCE_SHA=$EXPECTED_SHA"
 
       - name: Install validation tools
         run: |
+          set -Eeuo pipefail
           sudo apt-get update
-          sudo apt-get install --yes jq shellcheck
+          sudo apt-get install --yes jq shellcheck openssh-client python3-yaml
 
-      - name: Validate desired state and scripts
+      - name: Validate exact source desired state and policy
         run: ./scripts/validate.sh
 
-      - name: Validate Docker Compose
+      - name: Validate source governance bootstrap and final policy
+        run: ./scripts/validate-governance.sh
+
+      - name: Test exact source reviewed plan-hash gate
         env:
-          POSTGRES_PASSWORD: ${{ format('ci-only-{0}', github.run_id) }}
+          TEST_KC_CLIENT_SECRET: ${{ format('ci-only-{0}-plan-source', github.run_id) }}
+        run: ./scripts/test-plan-gate.sh
+
+      - name: Validate source Docker Compose without starting services
+        env:
+          POSTGRES_PASSWORD: ${{ format('ci-only-{0}-source', github.run_id) }}
           KC_BOOTSTRAP_ADMIN_USERNAME: ci-bootstrap-admin
-          KC_BOOTSTRAP_ADMIN_PASSWORD: ${{ format('ci-only-{0}', github.run_id) }}
+          KC_BOOTSTRAP_ADMIN_PASSWORD: ${{ format('ci-only-{0}-source', github.run_id) }}
         run: docker compose config --quiet
 
-      - name: Build optimized Keycloak image
+      - name: Build exact source Keycloak image without publishing
         run: |
+          set -Eeuo pipefail
           docker build \
             --build-arg KEYCLOAK_VERSION=26.7.2 \
-            --tag codestra-keycloak:${{ github.sha }} \
+            --tag "codestra-keycloak:source-${EXPECTED_SHA}" \
+            .
+
+  validate-merge-result:
+    name: validate-merge-result
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      EXPECTED_SHA: ${{ github.sha }}
+
+    steps:
+      - name: Check out exact merge-result SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ env.EXPECTED_SHA }}
+
+      - name: Verify exact merge-result identity
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git rev-parse HEAD)" == "$EXPECTED_SHA" ]] || {
+            echo 'ERROR=merge_result_checkout_sha_mismatch' >&2
+            exit 1
+          }
+          echo "MERGE_RESULT_SHA=$EXPECTED_SHA"
+
+      - name: Install validation tools
+        run: |
+          set -Eeuo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes jq shellcheck openssh-client python3-yaml
+
+      - name: Validate exact merge result desired state and policy
+        run: ./scripts/validate.sh
+
+      - name: Validate merge-result governance bootstrap and final policy
+        run: ./scripts/validate-governance.sh
+
+      - name: Test merge-result reviewed plan-hash gate
+        env:
+          TEST_KC_CLIENT_SECRET: ${{ format('ci-only-{0}-plan-merge', github.run_id) }}
+        run: ./scripts/test-plan-gate.sh
+
+      - name: Validate merge-result Docker Compose without starting services
+        env:
+          POSTGRES_PASSWORD: ${{ format('ci-only-{0}-merge', github.run_id) }}
+          KC_BOOTSTRAP_ADMIN_USERNAME: ci-bootstrap-admin
+          KC_BOOTSTRAP_ADMIN_PASSWORD: ${{ format('ci-only-{0}-merge', github.run_id) }}
+        run: docker compose config --quiet
+
+      - name: Build exact merge-result Keycloak image without publishing
+        run: |
+          set -Eeuo pipefail
+          docker build \
+            --build-arg KEYCLOAK_VERSION=26.7.2 \
+            --tag "codestra-keycloak:merge-${EXPECTED_SHA}" \
             .

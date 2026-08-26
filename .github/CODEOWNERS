@@ -1,5 +1,7 @@
-* @appolon1908-hue
-/config/ @appolon1908-hue
-/.github/workflows/ @appolon1908-hue
-/scripts/ @appolon1908-hue
-/deploy/ @appolon1908-hue
+* @appolon1908-hue @kazan555
+/config/ @appolon1908-hue @kazan555
+/.github/workflows/ @appolon1908-hue @kazan555
+/scripts/ @appolon1908-hue @kazan555
+/deploy/ @appolon1908-hue @kazan555
+/docs/GITHUB_SECURITY.md @appolon1908-hue @kazan555
+/docs/SERVER_GIT_SSH.md @appolon1908-hue @kazan555

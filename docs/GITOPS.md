@@ -1,117 +1,91 @@
-# Codestra Keycloak GitOps Runbook
+# Codestra Keycloak GitOps runbook
 
-## Scope
-
-This repository controls reviewed configuration overlays for the `codestra` realm and its managed clients. It does not replace PostgreSQL backups and it must never contain user exports, credentials, OTP seeds, client secrets, private keys, SMTP passwords, or signing keys.
-
-Keycloak startup realm import is useful for a new environment, but it does not provide reliable ongoing updates to an already-existing realm. Ongoing production changes are therefore applied by the idempotent Admin REST reconciler.
-
-## One-time deployment identity
-
-Create a confidential client named `keycloak-gitops` in the `codestra` realm:
-
-- Client authentication: enabled
-- Service accounts: enabled
-- Standard flow: disabled
-- Direct access grants: disabled
-
-Assign only these service-account roles from the `realm-management` client:
-
-- `view-realm`
-- `manage-realm`
-- `view-clients`
-- `manage-clients`
-
-Store the client ID and secret in the protected GitHub Environment. Do not put them in repository files, workflow source, shell history, screenshots, issue comments, or pull-request comments.
-
-For stricter separation, use different clients and secrets for staging and production.
-
-## Required self-hosted runner
-
-The deploy workflow intentionally uses a runner labeled:
+## Canonical identity endpoint
 
 ```text
-self-hosted
-linux
-x64
-codestra-keycloak
+Public URL:       https://auth.codestra.co
+Canonical issuer: https://auth.codestra.co/realms/codestra
 ```
 
-Install the runner on a hardened management host that can reach the Keycloak Admin REST API. The runner account should not be root and should not have unrestricted Docker, sudo, or SSH privileges unless an approved deployment step specifically requires them.
+Applications discover authorization, token, logout, user-info, and signing-key
+endpoints through the realm discovery document. The exact expected endpoint
+contract is versioned in `config/endpoints/codestra.json`.
 
-## Pull-request rules
+## Active administration scope
 
-Every client change should be isolated to its own branch when practical. A redirect-URI change must show:
+The protected normal workflow manages only `klyrow-portal`. It treats the
+`codestra` realm file as a validation invariant and never creates or mutates a
+realm. Missing clients are blocked rather than created.
 
-- exact requested URI
-- exact client ID
-- whether the client is public or confidential
-- PKCE policy
-- web origin
-- post-logout redirect
-- staging test evidence
-- rollback snapshot
+Create a confidential service-account client dedicated to this workflow. Disable
+browser and password flows. Do not grant `manage-realm` or realm-wide
+`manage-clients`. Use Keycloak fine-grained administrative permissions on the
+`klyrow-portal` client for only the read/configure operations needed to inspect
+and update that client. Grant only the smallest discovery permission needed to
+resolve the client by ID.
 
-Do not merge changes containing `*`, `+`, or broad `/*` redirect patterns without an explicit security exception.
+The twelve machine identities in `config/contracts/machine-clients.json` are a
+reviewed naming and flow contract, not active provisioning. Each client must be
+promoted in its own pull request after its caller-to-audience map, scopes,
+secret destination, token lifetime, fine-grained administrative scope, and
+rollback policy are approved.
 
-## Check and apply
+## Pull-request validation
 
-Check mode is read-only:
+CI runs the full validation, Compose render, and image build twice:
 
-```bash
-./scripts/reconcile.sh --check
+1. exact pull-request source-head SHA
+2. GitHub's synthetic merge result against current `main`
+
+Both check contexts must be required on protected `main`.
+
+## Runtime preflight
+
+The manual preflight requires the exact selected `${{ github.sha }}` and verifies:
+
+- canonical non-symlink runtime paths
+- private runtime environment and SSH material
+- clean runtime repository on `main`
+- runtime repository HEAD equals the selected SHA
+- remote `main` equals the selected SHA
+- exact repository SSH origin
+- dedicated Ed25519 deploy-key fingerprint
+- a dedicated `known_hosts` file containing only explicit `github.com` entries
+- SSH read access with global and user SSH trust disabled
+
+It reports a stable path fingerprint and a release-identity hash. It does not
+fetch, pull, restart, reload, or call a mutating Keycloak endpoint.
+
+## Check and reviewed-plan apply
+
+Run **Deploy Keycloak configuration** in `check` mode first. It creates:
+
+```text
+plan.json
+plan.canonical.json
+plan.sha256
+evidence.json
 ```
 
-Exit codes:
+The plan is deterministic: it contains no timestamp and includes the exact Git
+SHA, target environment, canonical API URLs, managed current values, desired
+values, and pre-change hashes.
 
-- `0`: desired state and live state are synchronized
-- `2`: drift exists
-- any other nonzero code: authentication, authorization, transport, policy, or API failure
+Review the plan artifact, record the workflow run ID and the SHA-256 value, then
+run `apply` with both. Apply verifies the source run, downloads that exact
+artifact, confirms the human-approved hash, and rechecks every live pre-change
+hash before the first write. Any intervening drift invalidates the complete
+plan.
 
-Apply mode updates only the declared overlays, then automatically runs another check:
-
-```bash
-./scripts/reconcile.sh --apply
-```
-
-## Adoption of an existing client
-
-Export the live client before replacing hand-managed configuration:
-
-```bash
-./scripts/export-client.sh --output ./artifacts/adoption klyrow-portal
-```
-
-The export removes internal IDs and common secret-bearing fields. Review it again before committing because custom providers can add additional sensitive attributes.
+Mutating Keycloak calls are not automatically retried. After apply, the workflow
+regenerates the plan and requires zero drift, then runs the OIDC smoke test.
 
 ## Rollback
 
-Every `apply` workflow stores a sanitized pre-change artifact for 30 days.
+Before apply, `export-client.sh` creates a rollback overlay using the reviewed
+client-specific allowlist under `config/export-allowlists/`. A generic denylist
+is not used. Restore the artifact through a new check, review, and apply cycle;
+do not bypass the plan gate.
 
-1. Download the matching `keycloak-before-...` artifact.
-2. Inspect the JSON.
-3. Point the reconciler at the downloaded configuration root.
-4. Apply through the same protected environment.
-5. Run the smoke test.
-
-Example:
-
-```bash
-CONFIG_ROOT="$PWD/keycloak-before/config" ./scripts/reconcile.sh --apply
-./scripts/smoke-test.sh
-```
-
-A PostgreSQL restore is reserved for database-level failure and must follow the separate backup/restore procedure. Do not use a database rollback merely to reverse one client redirect.
-
-## Klyrow acceptance check
-
-The managed Klyrow authorization request must use:
-
-```text
-client_id=klyrow-portal
-redirect_uri=https://klyrow.com/
-response_type=code
-code_challenge_method=S256
-```
-
-A fresh browser transaction should show the Codestra login page instead of `Invalid parameter: redirect_uri`.
+A PostgreSQL restore is reserved for database-level failure and is not the
+normal rollback method for a client redirect or scope change.

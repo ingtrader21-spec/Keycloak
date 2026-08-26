@@ -11,26 +11,107 @@ on:
           - staging
           - production
       mode:
-        description: Check drift or apply the reviewed desired state
+        description: Generate a review plan or apply a previously reviewed plan
         required: true
         type: choice
         default: check
         options:
           - check
           - apply
+      confirm_sha:
+        description: Paste the exact 40-character main-branch SHA being authorized
+        required: true
+        type: string
+      plan_run_id:
+        description: Successful check-mode workflow run ID; required only for apply
+        required: false
+        type: string
+      approved_plan_sha256:
+        description: Reviewed 64-character plan hash; required only for apply
+        required: false
+        type: string
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: keycloak-config-${{ inputs.environment }}
   cancel-in-progress: false
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
+  guard:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out selected main commit without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Require reviewed main, exact SHA, and valid plan inputs
+        env:
+          CONFIRM_SHA: ${{ inputs.confirm_sha }}
+          MODE: ${{ inputs.mode }}
+          PLAN_RUN_ID: ${{ inputs.plan_run_id }}
+          APPROVED_PLAN_SHA256: ${{ inputs.approved_plan_sha256 }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$GITHUB_REF" == 'refs/heads/main' ]] || {
+            echo 'ERROR=deployment_must_run_from_main' >&2
+            exit 1
+          }
+          [[ "$CONFIRM_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo 'ERROR=confirm_sha_must_be_40_lowercase_hex_characters' >&2
+            exit 1
+          }
+          [[ "$CONFIRM_SHA" == "$GITHUB_SHA" ]] || {
+            echo 'ERROR=confirmed_sha_does_not_match_selected_commit' >&2
+            exit 1
+          }
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]] || {
+            echo 'ERROR=checkout_sha_mismatch' >&2
+            exit 1
+          }
+
+          case "$MODE" in
+            check)
+              [[ -z "$PLAN_RUN_ID" && -z "$APPROVED_PLAN_SHA256" ]] || {
+                echo 'ERROR=check_mode_must_not_supply_apply_plan_inputs' >&2
+                exit 1
+              }
+              ;;
+            apply)
+              [[ "$PLAN_RUN_ID" =~ ^[0-9]+$ ]] || {
+                echo 'ERROR=apply_requires_numeric_plan_run_id' >&2
+                exit 1
+              }
+              [[ "$APPROVED_PLAN_SHA256" =~ ^[0-9a-f]{64}$ ]] || {
+                echo 'ERROR=apply_requires_reviewed_plan_sha256' >&2
+                exit 1
+              }
+              ;;
+            *)
+              echo 'ERROR=unsupported_mode' >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Validate reviewed repository state
+        run: ./scripts/validate.sh
+
   reconcile:
+    needs: guard
     runs-on: [self-hosted, linux, x64, codestra-keycloak]
     environment: ${{ inputs.environment }}
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     env:
       KC_BASE_URL: ${{ vars.KC_BASE_URL }}
@@ -39,36 +120,219 @@ jobs:
       KC_ADMIN_REALM: ${{ vars.KC_ADMIN_REALM }}
       KC_ADMIN_CLIENT_ID: ${{ secrets.KC_ADMIN_CLIENT_ID }}
       KC_ADMIN_CLIENT_SECRET: ${{ secrets.KC_ADMIN_CLIENT_SECRET }}
+      DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
+      EXPECTED_DEPLOY_SHA: ${{ github.sha }}
+
+      RUNTIME_REPO_DIR: ${{ vars.RUNTIME_REPO_DIR }}
+      RUNTIME_COMPOSE_FILE: ${{ vars.RUNTIME_COMPOSE_FILE }}
+      RUNTIME_ENV_FILE: ${{ vars.RUNTIME_ENV_FILE }}
+      RUNTIME_CADDY_FILE: ${{ vars.RUNTIME_CADDY_FILE }}
+      RUNTIME_GIT_SSH_KEY: ${{ vars.RUNTIME_GIT_SSH_KEY }}
+      RUNTIME_GIT_KNOWN_HOSTS: ${{ vars.RUNTIME_GIT_KNOWN_HOSTS }}
+      RUNTIME_GIT_REMOTE: ${{ vars.RUNTIME_GIT_REMOTE }}
+      RUNTIME_GIT_BRANCH: ${{ vars.RUNTIME_GIT_BRANCH }}
+      RUNTIME_PATHS_APPROVED_SHA256: ${{ vars.RUNTIME_PATHS_APPROVED_SHA256 }}
 
     steps:
-      - name: Check out reviewed commit
-        uses: actions/checkout@v4
+      - name: Check out reviewed commit without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.sha }}
 
-      - name: Validate desired state
+      - name: Verify exact workspace and approved runtime release identity
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]] || {
+            echo 'ERROR=workspace_sha_mismatch' >&2
+            exit 1
+          }
+          ./scripts/runtime-preflight.sh \
+            --expected-deploy-sha "$GITHUB_SHA" \
+            --require-approved "$RUNTIME_PATHS_APPROVED_SHA256"
+
+      - name: Validate desired state and canonical API URLs
         run: ./scripts/validate.sh
 
-      - name: Export sanitized pre-change clients
+      - name: Generate deterministic check plan
+        id: plan
+        if: ${{ inputs.mode == 'check' }}
+        run: |
+          set -Eeuo pipefail
+          plan_dir="$RUNNER_TEMP/keycloak-plan"
+          ./scripts/plan.sh \
+            --output-dir "$plan_dir" \
+            --expected-deploy-sha "$GITHUB_SHA" \
+            | tee "$RUNNER_TEMP/keycloak-plan.log"
+
+          plan_sha256="$(awk 'NR == 1 {print $1}' "$plan_dir/plan.sha256")"
+          jq -n \
+            --arg sourceRunId "$GITHUB_RUN_ID" \
+            --arg sourceRunAttempt "$GITHUB_RUN_ATTEMPT" \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg workflow "$GITHUB_WORKFLOW" \
+            --arg environment "$DEPLOY_ENVIRONMENT" \
+            --arg repositorySha "$GITHUB_SHA" \
+            --arg mode check \
+            --arg planSha256 "$plan_sha256" \
+            '{
+              sourceRunId: $sourceRunId,
+              sourceRunAttempt: $sourceRunAttempt,
+              repository: $repository,
+              workflow: $workflow,
+              environment: $environment,
+              repositorySha: $repositorySha,
+              mode: $mode,
+              planSha256: $planSha256
+            }' >"$plan_dir/evidence.json"
+          chmod 600 "$plan_dir/evidence.json"
+
+          {
+            echo '## Keycloak check plan'
+            echo
+            echo "- Environment: $DEPLOY_ENVIRONMENT"
+            echo "- Repository SHA: $GITHUB_SHA"
+            echo "- Workflow run ID: $GITHUB_RUN_ID"
+            echo "- Plan SHA-256: $plan_sha256"
+            echo
+            echo '```json'
+            cat "$plan_dir/plan.json"
+            echo '```'
+          } >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Upload reviewed-plan candidate
+        if: ${{ inputs.mode == 'check' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: keycloak-plan-${{ inputs.environment }}-${{ github.sha }}
+          path: ${{ runner.temp }}/keycloak-plan
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Verify prior successful check workflow run
+        if: ${{ inputs.mode == 'apply' }}
+        env:
+          PLAN_RUN_ID: ${{ inputs.plan_run_id }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          run_json="$RUNNER_TEMP/plan-run.json"
+          curl \
+            --silent \
+            --show-error \
+            --fail-with-body \
+            --proto '=https' \
+            --tlsv1.2 \
+            --connect-timeout 10 \
+            --max-time 30 \
+            --header 'Accept: application/vnd.github+json' \
+            --header "Authorization: Bearer $GITHUB_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$PLAN_RUN_ID" \
+            >"$run_json"
+
+          jq -e \
+            --arg expectedSha "$GITHUB_SHA" \
+            --arg expectedPath '.github/workflows/deploy.yml' '
+              .event == "workflow_dispatch"
+              and .conclusion == "success"
+              and .head_sha == $expectedSha
+              and .path == $expectedPath
+            ' "$run_json" >/dev/null || {
+              echo 'ERROR=plan_run_is_not_a_successful_check_for_this_exact_sha' >&2
+              exit 1
+            }
+
+      - name: Download exact reviewed plan artifact
+        if: ${{ inputs.mode == 'apply' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: keycloak-plan-${{ inputs.environment }}-${{ github.sha }}
+          path: ${{ runner.temp }}/reviewed-plan
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.plan_run_id }}
+
+      - name: Verify reviewed plan evidence and hash
+        if: ${{ inputs.mode == 'apply' }}
+        env:
+          PLAN_RUN_ID: ${{ inputs.plan_run_id }}
+          APPROVED_PLAN_SHA256: ${{ inputs.approved_plan_sha256 }}
+        run: |
+          set -Eeuo pipefail
+          plan_dir="$RUNNER_TEMP/reviewed-plan"
+          [[ -f "$plan_dir/plan.json" ]] || {
+            echo 'ERROR=reviewed_plan_json_missing' >&2
+            exit 1
+          }
+          [[ -f "$plan_dir/plan.canonical.json" ]] || {
+            echo 'ERROR=reviewed_plan_canonical_json_missing' >&2
+            exit 1
+          }
+          [[ -f "$plan_dir/plan.sha256" ]] || {
+            echo 'ERROR=reviewed_plan_hash_file_missing' >&2
+            exit 1
+          }
+          [[ -f "$plan_dir/evidence.json" ]] || {
+            echo 'ERROR=reviewed_plan_evidence_missing' >&2
+            exit 1
+          }
+
+          (
+            cd "$plan_dir"
+            sha256sum --check plan.sha256
+          )
+          artifact_plan_sha256="$(awk 'NR == 1 {print $1}' "$plan_dir/plan.sha256")"
+          [[ "$artifact_plan_sha256" == "$APPROVED_PLAN_SHA256" ]] || {
+            echo 'ERROR=approved_plan_hash_does_not_match_artifact' >&2
+            exit 1
+          }
+
+          jq -e \
+            --arg sourceRunId "$PLAN_RUN_ID" \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg environment "$DEPLOY_ENVIRONMENT" \
+            --arg repositorySha "$GITHUB_SHA" \
+            --arg planSha256 "$APPROVED_PLAN_SHA256" '
+              .sourceRunId == $sourceRunId
+              and .repository == $repository
+              and .environment == $environment
+              and .repositorySha == $repositorySha
+              and .mode == "check"
+              and .planSha256 == $planSha256
+            ' "$plan_dir/evidence.json" >/dev/null || {
+              echo 'ERROR=reviewed_plan_evidence_mismatch' >&2
+              exit 1
+            }
+
+      - name: Export client-specific allowlisted rollback overlay
         if: ${{ inputs.mode == 'apply' }}
         run: |
-          mapfile -t clients < <(jq -r '.clientId' config/clients/*.json)
-          ./scripts/export-client.sh --output "$RUNNER_TEMP/keycloak-before" "${clients[@]}"
+          set -Eeuo pipefail
+          mapfile -t clients < <(jq -r '.clients[]' config/policy/managed-clients.json)
+          ./scripts/export-client.sh \
+            --output "$RUNNER_TEMP/keycloak-before" \
+            "${clients[@]}"
 
-      - name: Upload rollback snapshot
+      - name: Upload rollback overlay before apply
         if: ${{ inputs.mode == 'apply' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: keycloak-before-${{ inputs.environment }}-${{ github.sha }}
           path: ${{ runner.temp }}/keycloak-before
           if-no-files-found: error
           retention-days: 30
 
-      - name: Check drift
-        if: ${{ inputs.mode == 'check' }}
-        run: ./scripts/reconcile.sh --check
-
-      - name: Apply desired state
+      - name: Apply exact reviewed plan and verify convergence
         if: ${{ inputs.mode == 'apply' }}
-        run: ./scripts/reconcile.sh --apply
+        env:
+          APPROVED_PLAN_SHA256: ${{ inputs.approved_plan_sha256 }}
+        run: |
+          set -Eeuo pipefail
+          ./scripts/apply-plan.sh \
+            --plan "$RUNNER_TEMP/reviewed-plan/plan.json" \
+            --expected-plan-sha "$APPROVED_PLAN_SHA256" \
+            --expected-deploy-sha "$GITHUB_SHA"
 
       - name: Run read-only OIDC smoke test
         if: ${{ inputs.mode == 'apply' }}

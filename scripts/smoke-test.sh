@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+endpoint_file="$ROOT_DIR/config/endpoints/codestra.json"
+
 command -v curl >/dev/null 2>&1 || {
   printf 'ERROR=curl_is_required\n' >&2
   exit 1
@@ -10,21 +13,36 @@ command -v jq >/dev/null 2>&1 || {
   exit 1
 }
 
-KC_PUBLIC_URL="${KC_PUBLIC_URL:-${KC_BASE_URL:-https://auth.codestra.co}}"
+canonical_public_url="$(jq -er '.publicUrl' "$endpoint_file")"
+canonical_realm="$(jq -er '.realm' "$endpoint_file")"
+canonical_discovery_url="$(jq -er '.discoveryUrl' "$endpoint_file")"
+
+KC_PUBLIC_URL="${KC_PUBLIC_URL:-${KC_BASE_URL:-$canonical_public_url}}"
 KC_PUBLIC_URL="${KC_PUBLIC_URL%/}"
-KC_TARGET_REALM="${KC_TARGET_REALM:-codestra}"
+KC_TARGET_REALM="${KC_TARGET_REALM:-$canonical_realm}"
 SMOKE_CLIENT_ID="${SMOKE_CLIENT_ID:-klyrow-portal}"
 SMOKE_REDIRECT_URI="${SMOKE_REDIRECT_URI:-https://klyrow.com/}"
 
-discovery_url="${KC_PUBLIC_URL}/realms/${KC_TARGET_REALM}/.well-known/openid-configuration"
+[[ "$KC_PUBLIC_URL" == "$canonical_public_url" ]] || {
+  printf 'ERROR=noncanonical_public_url actual=%s expected=%s\n' \
+    "$KC_PUBLIC_URL" "$canonical_public_url" >&2
+  exit 1
+}
+[[ "$KC_TARGET_REALM" == "$canonical_realm" ]] || {
+  printf 'ERROR=noncanonical_realm actual=%s expected=%s\n' \
+    "$KC_TARGET_REALM" "$canonical_realm" >&2
+  exit 1
+}
+
 discovery="$(
   curl --silent --show-error --fail-with-body \
+    --proto '=https' --tlsv1.2 \
     --retry 3 --retry-delay 2 --retry-connrefused \
     --connect-timeout 10 --max-time 30 \
-    "$discovery_url"
+    "$canonical_discovery_url"
 )"
 
-expected_issuer="${KC_PUBLIC_URL}/realms/${KC_TARGET_REALM}"
+expected_issuer="$(jq -er '.issuer' "$endpoint_file")"
 actual_issuer="$(jq -er '.issuer' <<<"$discovery")"
 [[ "$actual_issuer" == "$expected_issuer" ]] || {
   printf 'ERROR=issuer_mismatch expected=%s actual=%s\n' "$expected_issuer" "$actual_issuer" >&2
@@ -32,6 +50,11 @@ actual_issuer="$(jq -er '.issuer' <<<"$discovery")"
 }
 
 authorization_endpoint="$(jq -er '.authorization_endpoint' <<<"$discovery")"
+expected_authorization_endpoint="$(jq -er '.authorizationEndpoint' "$endpoint_file")"
+[[ "$authorization_endpoint" == "$expected_authorization_endpoint" ]] || {
+  printf 'ERROR=authorization_endpoint_mismatch\n' >&2
+  exit 1
+}
 encoded_redirect="$(jq -rn --arg value "$SMOKE_REDIRECT_URI" '$value | @uri')"
 encoded_client="$(jq -rn --arg value "$SMOKE_CLIENT_ID" '$value | @uri')"
 
@@ -41,6 +64,7 @@ trap 'rm -f "$tmp_headers" "$tmp_body"' EXIT
 
 http_status="$(
   curl --silent --show-error \
+    --proto '=https' --tlsv1.2 \
     --output "$tmp_body" \
     --dump-header "$tmp_headers" \
     --write-out '%{http_code}' \
@@ -63,6 +87,8 @@ case "$http_status" in
     ;;
 esac
 
+printf 'PUBLIC_URL=%s\n' "$KC_PUBLIC_URL"
+printf 'DISCOVERY_URL=%s\n' "$canonical_discovery_url"
 printf 'DISCOVERY=PASS\n'
 printf 'ISSUER=PASS\n'
 printf 'CLIENT=%s\n' "$SMOKE_CLIENT_ID"
