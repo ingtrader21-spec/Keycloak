@@ -1,0 +1,30 @@
+{
+  "clientId": "moneybee-lender",
+  "name": "MoneyBee Lender Portal",
+  "description": "MoneyBee lender browser portal using Authorization Code Flow with PKCE S256.",
+  "enabled": true,
+  "protocol": "openid-connect",
+  "publicClient": true,
+  "bearerOnly": false,
+  "consentRequired": false,
+  "standardFlowEnabled": true,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "serviceAccountsEnabled": false,
+  "frontchannelLogout": true,
+  "rootUrl": "https://lenders.moneybeeloan.com",
+  "baseUrl": "https://lenders.moneybeeloan.com/",
+  "redirectUris": [
+    "https://lenders.moneybeeloan.com/auth/callback",
+    "https://lenders.moneybeeloan.com/auth/silent-callback"
+  ],
+  "webOrigins": [
+    "https://lenders.moneybeeloan.com"
+  ],
+  "attributes": {
+    "pkce.code.challenge.method": "S256",
+    "post.logout.redirect.uris": "https://lenders.moneybeeloan.com/auth/login",
+    "oauth2.device.authorization.grant.enabled": "false",
+    "oidc.ciba.grant.enabled": "false"
+  }
+}
