@@ -42,12 +42,6 @@
       "audience": "middleware-worker"
     },
     {
-      "clientId": "moneybee-backend",
-      "kind": "workload",
-      "resourceServer": false,
-      "audience": "moneybee-backend"
-    },
-    {
       "clientId": "odoo-integration",
       "kind": "adapter",
       "resourceServer": true,
@@ -128,14 +122,6 @@
         "dlq.replay",
         "inbox.process",
         "outbox.dispatch"
-      ]
-    },
-    {
-      "callerClientId": "moneybee-backend",
-      "targetClientId": "middleware-api",
-      "audience": "middleware-api",
-      "scopes": [
-        "moneybee.events.publish"
       ]
     },
     {
@@ -370,16 +356,6 @@
   "administrativeBoundaries": {
     "provisioning-service": {
       "keycloakAdminApiAccess": false,
-      "prohibitedRealmManagementRoles": [
-        "realm-admin",
-        "manage-realm",
-        "manage-clients"
-      ]
-    },
-    "moneybee-backend": {
-      "keycloakAdminApiAccess": false,
-      "allowedTarget": "middleware-api",
-      "allowedScopes": ["moneybee.events.publish"],
       "prohibitedRealmManagementRoles": [
         "realm-admin",
         "manage-realm",
