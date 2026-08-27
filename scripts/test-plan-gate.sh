@@ -14,11 +14,18 @@ cleanup() {
 }
 trap cleanup EXIT
 
-state_file="$test_root/client.json"
+state_file="$test_root/clients.json"
 port_file="$test_root/port"
-cp "$ROOT_DIR/config/clients/klyrow-portal.json" "$state_file"
-jq '.redirectUris = ["https://wrong.example/callback"]' "$state_file" >"$state_file.tmp"
-mv "$state_file.tmp" "$state_file"
+
+jq -S -n \
+  --slurpfile klyrow "$ROOT_DIR/config/clients/klyrow-portal.json" '
+    {
+      "klyrow-portal": {
+        id: "uuid-klyrow",
+        representation: ($klyrow[0] | .redirectUris = ["https://wrong.example/callback"])
+      }
+    }
+  ' >"$state_file"
 
 cat >"$test_root/mock_keycloak.py" <<'PY'
 #!/usr/bin/env python3
@@ -34,8 +41,27 @@ state_path = Path(os.environ["MOCK_STATE_FILE"])
 port_path = Path(os.environ["MOCK_PORT_FILE"])
 
 
+def load_state() -> dict[str, dict]:
+    return json.loads(state_path.read_text())
+
+
+def save_state(value: dict[str, dict]) -> None:
+    state_path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
+
+
+def live_representation(client_id: str, item: dict) -> dict:
+    value = json.loads(json.dumps(item["representation"]))
+    value["id"] = item["id"]
+    mappers = value.get("protocolMappers")
+    if isinstance(mappers, list):
+        for index, mapper in enumerate(mappers):
+            if isinstance(mapper, dict):
+                mapper.setdefault("id", f"mapper-{client_id}-{index}")
+    return value
+
+
 class Handler(BaseHTTPRequestHandler):
-    server_version = "MockKeycloak/1"
+    server_version = "MockKeycloak/2"
 
     def log_message(self, _format: str, *_args: object) -> None:
         return
@@ -48,33 +74,76 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def read_json(self) -> dict:
+        content_length = int(self.headers.get("Content-Length", "0"))
+        return json.loads(self.rfile.read(content_length))
+
     def do_POST(self) -> None:  # noqa: N802
-        if self.path == "/realms/codestra/protocol/openid-connect/token":
+        parsed = urlparse(self.path)
+        if parsed.path == "/realms/codestra/protocol/openid-connect/token":
             self.send_json(200, {"access_token": "test-token", "expires_in": 60})
+            return
+        if parsed.path == "/admin/realms/codestra/clients":
+            payload = self.read_json()
+            client_id = str(payload.get("clientId") or "")
+            state = load_state()
+            if not client_id or client_id in state:
+                self.send_json(409, {"error": "client_exists_or_invalid"})
+                return
+            state[client_id] = {
+                "id": f"uuid-{client_id}",
+                "representation": payload,
+            }
+            save_state(state)
+            self.send_response(201)
+            self.end_headers()
             return
         self.send_json(404, {"error": "not_found"})
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
+        state = load_state()
         if parsed.path == "/admin/realms/codestra/clients":
             query = parse_qs(parsed.query)
-            if query.get("clientId") == ["klyrow-portal"]:
-                self.send_json(200, [{"id": "client-uuid", "clientId": "klyrow-portal"}])
-                return
-        if parsed.path == "/admin/realms/codestra/clients/client-uuid":
-            self.send_json(200, json.loads(state_path.read_text()))
+            client_ids = query.get("clientId") or []
+            client_id = client_ids[0] if client_ids else ""
+            item = state.get(client_id)
+            if item is None:
+                self.send_json(200, [])
+            else:
+                self.send_json(200, [{"id": item["id"], "clientId": client_id}])
+            return
+
+        prefix = "/admin/realms/codestra/clients/"
+        if parsed.path.startswith(prefix):
+            client_uuid = parsed.path.removeprefix(prefix)
+            for client_id, item in state.items():
+                if item["id"] == client_uuid:
+                    self.send_json(200, live_representation(client_id, item))
+                    return
+            self.send_json(404, {"error": "not_found"})
             return
         self.send_json(404, {"error": "not_found"})
 
     def do_PUT(self) -> None:  # noqa: N802
-        if self.path != "/admin/realms/codestra/clients/client-uuid":
+        parsed = urlparse(self.path)
+        prefix = "/admin/realms/codestra/clients/"
+        if not parsed.path.startswith(prefix):
             self.send_json(404, {"error": "not_found"})
             return
-        content_length = int(self.headers.get("Content-Length", "0"))
-        payload = json.loads(self.rfile.read(content_length))
-        state_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-        self.send_response(204)
-        self.end_headers()
+        client_uuid = parsed.path.removeprefix(prefix)
+        state = load_state()
+        for client_id, item in state.items():
+            if item["id"] == client_uuid:
+                payload = self.read_json()
+                payload.pop("id", None)
+                item["representation"] = payload
+                state[client_id] = item
+                save_state(state)
+                self.send_response(204)
+                self.end_headers()
+                return
+        self.send_json(404, {"error": "not_found"})
 
 
 server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
@@ -114,11 +183,37 @@ plan_dir="$test_root/plan"
   --output-dir "$plan_dir" \
   --expected-deploy-sha "$expected_sha" >/dev/null
 
-[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 1 ]]
+[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 4 ]]
 [[ "$(jq -er '.blockedCount' "$plan_dir/plan.json")" -eq 0 ]]
-[[ "$(jq -er '.clients[0].action' "$plan_dir/plan.json")" == "update" ]]
+[[ "$(jq -er '.createCount' "$plan_dir/plan.json")" -eq 3 ]]
+[[ "$(jq -er '.updateCount' "$plan_dir/plan.json")" -eq 1 ]]
+[[ "$(jq -er '.clients[] | select(.clientId == "klyrow-portal") | .action' "$plan_dir/plan.json")" == "update" ]]
+for client_id in moneybee-admin moneybee-borrower moneybee-lender; do
+  [[ "$(jq -er --arg client_id "$client_id" '.clients[] | select(.clientId == $client_id) | .action' "$plan_dir/plan.json")" == "create" ]]
+  jq -e --arg client_id "$client_id" '
+    .clients[]
+    | select(.clientId == $client_id)
+    | .before == {}
+      and .rollback.kind == "disable_then_reviewed_delete"
+      and .rollback.disableFirst == true
+      and .rollback.deleteRequiresSeparateReviewedRollback == true
+  ' "$plan_dir/plan.json" >/dev/null
+done
+
 plan_sha256="$(awk 'NR == 1 {print $1}' "$plan_dir/plan.sha256")"
 [[ "$plan_sha256" =~ ^[0-9a-f]{64}$ ]]
+
+# Rollback evidence must succeed even though reviewed-creatable MoneyBee clients
+# are absent. Existing Klyrow gets an allowlisted overlay; absent MoneyBee
+# clients get explicit disable/delete rollback metadata.
+rollback_dir="$test_root/rollback"
+mapfile -t managed_clients < <(jq -r '.clients[]' "$ROOT_DIR/config/policy/managed-clients.json")
+"$ROOT_DIR/scripts/export-client.sh" \
+  --output "$rollback_dir" \
+  "${managed_clients[@]}" >/dev/null
+[[ -f "$rollback_dir/config/clients/klyrow-portal.json" ]]
+[[ "$(jq -er '.existingClientCount' "$rollback_dir/rollback-metadata.json")" -eq 1 ]]
+[[ "$(jq -er '.absentCreatableClientCount' "$rollback_dir/rollback-metadata.json")" -eq 3 ]]
 
 if "$ROOT_DIR/scripts/apply-plan.sh" \
   --plan "$plan_dir/plan.json" \
@@ -128,18 +223,78 @@ if "$ROOT_DIR/scripts/apply-plan.sh" \
   exit 1
 fi
 
+# Simulate a race after plan review: another operator creates moneybee-admin.
+# The protected apply must reject the stale create before updating Klyrow or
+# creating any other MoneyBee client.
+jq -S \
+  --slurpfile admin "$ROOT_DIR/config/clients/moneybee-admin.json" '
+    .["moneybee-admin"] = {
+      id: "uuid-race-moneybee-admin",
+      representation: $admin[0]
+    }
+  ' "$state_file" >"$state_file.tmp"
+mv "$state_file.tmp" "$state_file"
+
+if "$ROOT_DIR/scripts/apply-plan.sh" \
+  --plan "$plan_dir/plan.json" \
+  --expected-plan-sha "$plan_sha256" \
+  --expected-deploy-sha "$expected_sha" >/dev/null 2>&1; then
+  echo 'TEST_ERROR=create_race_was_not_rejected' >&2
+  exit 1
+fi
+
+jq -e '
+  .["klyrow-portal"].representation.redirectUris == ["https://wrong.example/callback"]
+  and has("moneybee-admin")
+  and (has("moneybee-borrower") | not)
+  and (has("moneybee-lender") | not)
+' "$state_file" >/dev/null
+
+jq -S 'del(."moneybee-admin")' "$state_file" >"$state_file.tmp"
+mv "$state_file.tmp" "$state_file"
+
 "$ROOT_DIR/scripts/apply-plan.sh" \
   --plan "$plan_dir/plan.json" \
   --expected-plan-sha "$plan_sha256" \
   --expected-deploy-sha "$expected_sha" >/dev/null
 
-jq -e --slurpfile desired "$ROOT_DIR/config/clients/klyrow-portal.json" \
-  '. == $desired[0]' "$state_file" >/dev/null
+for client_id in klyrow-portal moneybee-admin moneybee-borrower moneybee-lender; do
+  jq -e --arg client_id "$client_id" 'has($client_id)' "$state_file" >/dev/null
+done
+jq -e --slurpfile desired "$ROOT_DIR/config/clients/klyrow-portal.json" '
+  .["klyrow-portal"].representation == $desired[0]
+' "$state_file" >/dev/null
 
 converged_dir="$test_root/converged"
 "$ROOT_DIR/scripts/plan.sh" \
   --output-dir "$converged_dir" \
   --expected-deploy-sha "$expected_sha" >/dev/null
 [[ "$(jq -er '.driftCount' "$converged_dir/plan.json")" -eq 0 ]]
+[[ "$(jq -er '.blockedCount' "$converged_dir/plan.json")" -eq 0 ]]
+[[ "$(jq -er '.createCount' "$converged_dir/plan.json")" -eq 0 ]]
+[[ "$(jq -er '.updateCount' "$converged_dir/plan.json")" -eq 0 ]]
+
+# Generated Keycloak mapper IDs must not cause permanent drift.
+for client_id in moneybee-admin moneybee-borrower moneybee-lender; do
+  jq -e --arg client_id "$client_id" '
+    .[$client_id].representation.protocolMappers[0].name == "moneybee-api-audience"
+  ' "$state_file" >/dev/null
+done
+
+# Klyrow remains update-only: if it disappears, planner must block instead of
+# converting it into a create.
+jq -S 'del(."klyrow-portal")' "$state_file" >"$state_file.tmp"
+mv "$state_file.tmp" "$state_file"
+blocked_dir="$test_root/blocked"
+"$ROOT_DIR/scripts/plan.sh" \
+  --output-dir "$blocked_dir" \
+  --expected-deploy-sha "$expected_sha" >/dev/null
+[[ "$(jq -er '.blockedCount' "$blocked_dir/plan.json")" -eq 1 ]]
+[[ "$(jq -er '.clients[] | select(.clientId == "klyrow-portal") | .action' "$blocked_dir/plan.json")" == "blocked_missing" ]]
 
 printf 'PLAN_GATE_TESTS=PASS\n'
+printf 'REVIEWED_CREATE_TESTS=PASS\n'
+printf 'CREATE_PREWRITE_RACE_GUARD=PASS\n'
+printf 'ROLLBACK_EVIDENCE_TESTS=PASS\n'
+printf 'MAPPER_NORMALIZATION_TESTS=PASS\n'
+printf 'NON_CREATABLE_MISSING_BLOCK=PASS\n'
