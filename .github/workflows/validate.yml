@@ -54,6 +54,12 @@ jobs:
       - name: Validate source governance bootstrap and final policy
         run: ./scripts/validate-governance.sh
 
+      - name: Validate source service identities, audiences, APIs, and webhooks
+        run: python3 scripts/validate-service-integrations.py
+
+      - name: Validate source n8n command and result directions
+        run: python3 scripts/validate-n8n-flow.py
+
       - name: Test exact source reviewed plan-hash gate
         env:
           TEST_KC_CLIENT_SECRET: ${{ format('ci-only-{0}-plan-source', github.run_id) }}
@@ -110,6 +116,12 @@ jobs:
 
       - name: Validate merge-result governance bootstrap and final policy
         run: ./scripts/validate-governance.sh
+
+      - name: Validate merge-result service identities, audiences, APIs, and webhooks
+        run: python3 scripts/validate-service-integrations.py
+
+      - name: Validate merge-result n8n command and result directions
+        run: python3 scripts/validate-n8n-flow.py
 
       - name: Test merge-result reviewed plan-hash gate
         env:
