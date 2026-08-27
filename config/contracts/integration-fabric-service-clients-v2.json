@@ -1,0 +1,72 @@
+{
+  "schema_version": "2.0",
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "audience": "middleware-api",
+  "maximum_access_token_lifetime_seconds": 300,
+  "provisioning_state": "declared-not-created",
+  "generic_scopes_prohibited": ["automation.execute", "automation.command"],
+  "clients": [
+    {
+      "client_id": "middleware-api",
+      "kind": "resource-server",
+      "service_account": false,
+      "browser_flow": false,
+      "accepted_audience": "middleware-api",
+      "realm_management_roles": []
+    },
+    {
+      "client_id": "n8n-core-automation",
+      "kind": "service-account",
+      "cell": "core-communications",
+      "workflow_families": ["platform", "identity", "crm", "email.klyrow", "sms.telnexa", "social.postly", "crawler.kyqra", "forms", "provisioning"],
+      "command_prefixes": ["platform.", "identity.", "crm.", "email.", "sms.", "social.", "crawler.", "forms.", "provisioning."],
+      "scopes": ["automation.job.claim", "automation.job.read", "automation.job.heartbeat", "automation.job.step.write", "automation.job.complete", "automation.job.fail", "automation.command.read", "automation.command.identity", "automation.command.crm", "automation.command.messaging", "automation.command.social", "automation.command.crawler", "automation.command.product", "automation.approval.request", "automation.approval.read", "automation.capability.read"]
+    },
+    {
+      "client_id": "n8n-beyvra-automation",
+      "kind": "service-account",
+      "cell": "beyvra-financial",
+      "workflow_families": ["product.beyvra-nonfinancial"],
+      "command_prefixes": ["beyvra.operations."],
+      "forbidden_prefixes": ["trade.", "order.", "wallet.", "ledger.", "hold.", "payment.", "withdrawal.", "deposit.", "transfer.", "custody.", "chain.", "broker.", "provider."],
+      "scopes": ["automation.job.claim", "automation.job.read", "automation.job.heartbeat", "automation.job.step.write", "automation.job.complete", "automation.job.fail", "automation.command.read", "automation.command.product", "automation.approval.request", "automation.approval.read", "automation.capability.read"]
+    },
+    {
+      "client_id": "n8n-contact-center-automation",
+      "kind": "service-account",
+      "cell": "telephony-private",
+      "workflow_families": ["telephony", "crm.contact-center"],
+      "command_prefixes": ["telephony.", "crm.callback.", "crm.appointment."],
+      "scopes": ["automation.job.claim", "automation.job.read", "automation.job.heartbeat", "automation.job.step.write", "automation.job.complete", "automation.job.fail", "automation.command.read", "automation.command.telephony", "automation.command.crm", "automation.approval.request", "automation.approval.read", "automation.capability.read"]
+    },
+    {
+      "client_id": "n8n-operations-automation",
+      "kind": "service-account",
+      "cell": "management",
+      "workflow_families": ["operations", "reconciliation"],
+      "command_prefixes": ["operations."],
+      "scopes": ["automation.job.claim", "automation.job.read", "automation.job.heartbeat", "automation.job.step.write", "automation.job.complete", "automation.job.fail", "automation.operations.reconcile", "automation.dead-letter.read", "automation.operations.replay.request", "automation.capability.read"]
+    },
+    {"client_id":"odoo-integration","kind":"service-account","cell":"core-communications","workflow_families":[],"command_prefixes":[],"scopes":["adapter.odoo.events.write","adapter.odoo.status.read"]},
+    {"client_id":"klyrow-adapter","kind":"service-account","cell":"core-communications","workflow_families":[],"command_prefixes":[],"scopes":["adapter.klyrow.events.write","adapter.klyrow.status.read"]},
+    {"client_id":"telnexa-adapter","kind":"service-account","cell":"core-communications","workflow_families":[],"command_prefixes":[],"scopes":["adapter.telnexa.events.write","adapter.telnexa.status.read"]},
+    {"client_id":"postly-adapter","kind":"service-account","cell":"core-communications","workflow_families":[],"command_prefixes":[],"scopes":["adapter.postly.events.write","adapter.postly.status.read"]},
+    {"client_id":"kyqra-adapter","kind":"service-account","cell":"core-communications","workflow_families":[],"command_prefixes":[],"scopes":["adapter.kyqra.events.write","adapter.kyqra.status.read"]},
+    {"client_id":"vicidial-adapter","kind":"service-account","cell":"telephony-private","workflow_families":[],"command_prefixes":[],"scopes":["adapter.vicidial.events.write","adapter.vicidial.status.read"]},
+    {"client_id":"provisioning-service","kind":"service-account","cell":"core-communications","workflow_families":[],"command_prefixes":[],"scopes":["adapter.provisioning.events.write","adapter.provisioning.status.read"]}
+  ],
+  "client_defaults": {
+    "client_authentication": true,
+    "service_accounts_enabled": true,
+    "standard_flow_enabled": false,
+    "implicit_flow_enabled": false,
+    "direct_access_grants_enabled": false,
+    "device_authorization_grant_enabled": false,
+    "refresh_tokens_enabled": false,
+    "human_login": false,
+    "secrets_in_git": false,
+    "realm_management_roles": [],
+    "provider_credentials": false,
+    "platform_admin_role": false
+  }
+}
