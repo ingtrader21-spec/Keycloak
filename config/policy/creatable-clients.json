@@ -1,6 +1,5 @@
 {
   "clients": [
-    "klyrow-portal",
     "moneybee-admin",
     "moneybee-borrower",
     "moneybee-lender"

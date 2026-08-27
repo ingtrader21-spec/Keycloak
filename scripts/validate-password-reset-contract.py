@@ -16,10 +16,11 @@ CANONICAL_ISSUER = "https://auth.codestra.co/realms/codestra"
 EXPECTED_APPLICATIONS = {
     "codestra.co": ("codestra-portal-production", "declared-runtime-binding-required"),
     "nativoenglish.com": ("nativoenglish-portal", "declared-runtime-binding-required"),
-    "moneybeeloan.com": ("moneybee-portal", "declared-runtime-binding-required"),
+    "app.moneybeeloan.com": ("moneybee-borrower", "managed-multi-client"),
+    "lenders.moneybeeloan.com": ("moneybee-lender", "managed-multi-client"),
+    "admin.moneybeeloan.com": ("moneybee-admin", "managed-multi-client"),
     "codestra.digital": ("codestra-digital-portal", "declared-runtime-binding-required"),
     "codestra.media": ("codestra-media-portal", "declared-runtime-binding-required"),
-    "moneybee.loan": ("moneybee-portal", "declared-runtime-binding-required"),
     "klyrow.com": ("klyrow-portal", "managed"),
     "beyvra.com": ("beyvra-web-production", "declared-runtime-binding-required"),
     "kyqra.com": ("kyqra-portal", "declared-runtime-binding-required"),
@@ -30,6 +31,20 @@ EXPECTED_APPLICATIONS = {
         "booked4seasons-portal",
         "declared-blocked-dns-unconfirmed",
     ),
+}
+EXPECTED_DELEGATED_DOMAINS = {
+    "codestra.co",
+    "nativoenglish.com",
+    "moneybeeloan.com",
+    "codestra.digital",
+    "codestra.media",
+    "klyrow.com",
+    "beyvra.com",
+    "kyqra.com",
+    "breero.com",
+    "breero.shop",
+    "telnexa.co",
+    "booked4seasons.com",
 }
 EXPECTED_FORBIDDEN_CONSUMERS = {
     "kong-gateway",
@@ -223,7 +238,7 @@ def validate() -> None:
             "passwordResetDelegatedToKeycloak"
         )
     }
-    if delegated != set(EXPECTED_APPLICATIONS):
+    if delegated != EXPECTED_DELEGATED_DOMAINS:
         fail(
             "password-reset applications do not match the fifteen-domain "
             "identity registry"

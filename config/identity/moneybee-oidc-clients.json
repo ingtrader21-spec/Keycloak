@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "realm": "codestra",
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "canonicalDomain": "moneybeeloan.com",
+  "apiAudience": "moneybee-api",
+  "forbiddenRuntimeDomains": [
+    "moneybeeloans.com",
+    "moneybee.loan"
+  ],
+  "policy": {
+    "publicClientsOnly": true,
+    "authorizationCodeFlow": true,
+    "pkceMethod": "S256",
+    "implicitFlow": false,
+    "directAccessGrants": false,
+    "serviceAccounts": false,
+    "wildcardRedirectUris": false,
+    "exactWebOrigins": true
+  },
+  "clients": [
+    {
+      "portal": "borrower",
+      "clientId": "moneybee-borrower",
+      "origin": "https://app.moneybeeloan.com",
+      "redirectUris": [
+        "https://app.moneybeeloan.com/auth/callback",
+        "https://app.moneybeeloan.com/auth/silent-callback"
+      ],
+      "postLogoutRedirectUris": [
+        "https://app.moneybeeloan.com/auth/login"
+      ],
+      "webOrigins": [
+        "https://app.moneybeeloan.com"
+      ]
+    },
+    {
+      "portal": "lender",
+      "clientId": "moneybee-lender",
+      "origin": "https://lenders.moneybeeloan.com",
+      "redirectUris": [
+        "https://lenders.moneybeeloan.com/auth/callback",
+        "https://lenders.moneybeeloan.com/auth/silent-callback"
+      ],
+      "postLogoutRedirectUris": [
+        "https://lenders.moneybeeloan.com/auth/login"
+      ],
+      "webOrigins": [
+        "https://lenders.moneybeeloan.com"
+      ]
+    },
+    {
+      "portal": "admin",
+      "clientId": "moneybee-admin",
+      "origin": "https://admin.moneybeeloan.com",
+      "redirectUris": [
+        "https://admin.moneybeeloan.com/auth/callback",
+        "https://admin.moneybeeloan.com/auth/silent-callback"
+      ],
+      "postLogoutRedirectUris": [
+        "https://admin.moneybeeloan.com/auth/login"
+      ],
+      "webOrigins": [
+        "https://admin.moneybeeloan.com"
+      ]
+    }
+  ]
+}

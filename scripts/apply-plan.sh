@@ -20,7 +20,8 @@ Usage: scripts/apply-plan.sh \
 
 Applies only a previously generated and human-reviewed plan. Before the first
 write, the script verifies the plan hash, repository SHA, environment, managed
-client set, desired-state hashes, and every live pre-change hash. A changed live
+client set, desired-state hashes, every existing client's pre-change hash, and
+re-checks that every reviewed create target is still absent. A changed live
 state invalidates the entire plan.
 USAGE
 }
@@ -85,8 +86,11 @@ jq -e \
     and .targetRealm == $target_realm
     and (.clients | type == "array")
     and (.blockedCount == 0)
+    and (.createCount == ([.clients[] | select(.action == "create")] | length))
+    and (.updateCount == ([.clients[] | select(.action == "update")] | length))
+    and (.driftCount == ([.clients[] | select(.action != "noop")] | length))
   ' "$PLAN_FILE" >/dev/null ||
-  die "Plan metadata, target environment, or blocked-resource policy is invalid"
+  die "Plan metadata, counters, target environment, or blocked-resource policy is invalid"
 
 endpoint_file="$ROOT_DIR/config/endpoints/codestra.json"
 jq -e \
@@ -95,9 +99,15 @@ jq -e \
   "$PLAN_FILE" >/dev/null || die "Plan API URLs do not match the canonical Codestra endpoints"
 
 mapfile -t policy_clients < <(jq -r '.clients[]' "$ROOT_DIR/config/policy/managed-clients.json" | sort)
+mapfile -t creatable_clients < <(jq -r '.clients[]' "$ROOT_DIR/config/policy/creatable-clients.json" | sort)
 mapfile -t plan_clients < <(jq -r '.clients[].clientId' "$PLAN_FILE" | sort)
 [[ "${policy_clients[*]}" == "${plan_clients[*]}" ]] ||
   die "Plan client set does not match the reviewed managed-client policy"
+
+declare -A creatable_client_set=()
+for client_id in "${creatable_clients[@]}"; do
+  creatable_client_set["$client_id"]=1
+done
 
 keycloak_authenticate
 
@@ -124,7 +134,15 @@ project_live_to_desired_shape() {
           reduce ($wanted | keys_unsorted[]) as $key
             ({}; .[$key] = project($current[$key]; $wanted[$key]))
         elif ($wanted | type) == "array" then
-          ($current // [])
+          if all($wanted[]?; (type == "object" and has("name"))) then
+            [
+              $wanted[] as $wanted_item
+              | (($current // []) | map(select(.name == $wanted_item.name)) | .[0] // {}) as $current_item
+              | project($current_item; $wanted_item)
+            ]
+          else
+            ($current // [])
+          end
         else
           $current
         end;
@@ -143,8 +161,11 @@ find_desired_file() {
   printf '%s\n' "${matches[0]}"
 }
 
-# Preflight every resource before the first write. This prevents a stale plan
-# from partially updating one client before another client's drift is detected.
+empty_state_file="$tmp_dir/empty.json"
+printf '{}\n' >"$empty_state_file"
+empty_state_sha256="$(canonical_hash "$empty_state_file")"
+
+# Phase 1: validate every resource against the reviewed plan before any write.
 resource_index=0
 while IFS= read -r resource; do
   client_id="$(jq -er '.clientId' <<<"$resource")"
@@ -153,10 +174,10 @@ while IFS= read -r resource; do
   expected_desired_sha256="$(jq -er '.desiredSha256' <<<"$resource")"
 
   case "$action" in
-    noop | update)
+    noop | update | create)
       ;;
     blocked_missing)
-      die "Reviewed plan contains a missing client that normal deployment cannot create: $client_id"
+      die "Reviewed plan contains a blocked missing client: $client_id"
       ;;
     *)
       die "Unsupported plan action for client ${client_id}: ${action}"
@@ -173,7 +194,40 @@ while IFS= read -r resource; do
   keycloak_api GET \
     "/admin/realms/$(urlencode "$KC_TARGET_REALM")/clients?clientId=${encoded_client_id}&exact=true" \
     >"$client_list_file"
-  [[ "$(jq -er 'length' "$client_list_file")" -eq 1 ]] ||
+  client_match_count="$(jq -er 'length' "$client_list_file")"
+
+  if [[ "$action" == "create" ]]; then
+    [[ -n "${creatable_client_set[$client_id]:-}" ]] ||
+      die "Reviewed create is not allowlisted for client ${client_id}"
+    [[ "$client_match_count" -eq 0 ]] ||
+      die "Reviewed plan recorded absence but client now exists: ${client_id}"
+    [[ "$expected_before_sha256" == "$empty_state_sha256" ]] ||
+      die "Reviewed create does not contain the canonical absent-state hash: ${client_id}"
+    jq -e '
+      .before == {}
+      and .rollback.kind == "disable_then_reviewed_delete"
+      and .rollback.preApplyState == "absent"
+      and .rollback.disableFirst == true
+      and .rollback.deleteRequiresSeparateReviewedRollback == true
+      and .rollback.requiresReviewedPlan == true
+    ' <<<"$resource" >/dev/null ||
+      die "Reviewed create rollback metadata is invalid for client ${client_id}"
+
+    jq -c -n \
+      --arg client_id "$client_id" \
+      --arg action "$action" \
+      --arg desired_file "$desired_file" '
+        {
+          clientId: $client_id,
+          action: $action,
+          desiredFile: $desired_file
+        }
+      ' >>"$apply_manifest"
+    resource_index=$((resource_index + 1))
+    continue
+  fi
+
+  [[ "$client_match_count" -eq 1 ]] ||
     die "Expected exactly one live client for clientId=${client_id}"
 
   client_uuid="$(jq -er '.[0].id' "$client_list_file")"
@@ -187,6 +241,13 @@ while IFS= read -r resource; do
   project_live_to_desired_shape "$live_file" "$desired_file" "$before_file"
   [[ "$(canonical_hash "$before_file")" == "$expected_before_sha256" ]] ||
     die "Live Keycloak state changed after plan review for client ${client_id}"
+
+  jq -e '
+    .rollback.kind == "restore_allowlisted_overlay"
+    and .rollback.preApplyState == "existing"
+    and .rollback.requiresReviewedPlan == true
+  ' <<<"$resource" >/dev/null ||
+    die "Existing-client rollback metadata is invalid for client ${client_id}"
 
   if [[ "$action" == "noop" ]]; then
     jq -e -n \
@@ -226,21 +287,56 @@ done < <(jq -c '.clients[]' "$PLAN_FILE")
 [[ "$resource_index" -eq "${#policy_clients[@]}" ]] ||
   die "Plan resource count does not match the managed-client policy"
 
+# Phase 2: immediately before the first mutation, re-check every reviewed create
+# target is still absent. Any race or operator-created client invalidates the
+# whole plan before update/create writes begin.
+while IFS= read -r operation; do
+  [[ "$(jq -er '.action' <<<"$operation")" == "create" ]] || continue
+  client_id="$(jq -er '.clientId' <<<"$operation")"
+  live_matches="$(
+    keycloak_api GET \
+      "/admin/realms/$(urlencode "$KC_TARGET_REALM")/clients?clientId=$(urlencode "$client_id")&exact=true" |
+      jq -er 'length'
+  )"
+  [[ "$live_matches" -eq 0 ]] ||
+    die "Pre-write absence recheck failed for reviewed create: ${client_id}"
+done <"$apply_manifest"
+
 changed_count=0
+created_count=0
+updated_count=0
 while IFS= read -r operation; do
   action="$(jq -er '.action' <<<"$operation")"
   client_id="$(jq -er '.clientId' <<<"$operation")"
-  if [[ "$action" == "update" ]]; then
-    client_uuid="$(jq -er '.clientUuid' <<<"$operation")"
-    merged_file="$(jq -er '.mergedFile' <<<"$operation")"
-    keycloak_api PUT \
-      "/admin/realms/$(urlencode "$KC_TARGET_REALM")/clients/$(urlencode "$client_uuid")" \
-      "$merged_file" >/dev/null
-    changed_count=$((changed_count + 1))
-    printf 'APPLIED=client:%s\n' "$client_id"
-  else
-    printf 'UNCHANGED=client:%s\n' "$client_id"
-  fi
+  case "$action" in
+    create)
+      desired_file="$(jq -er '.desiredFile' <<<"$operation")"
+      keycloak_api POST \
+        "/admin/realms/$(urlencode "$KC_TARGET_REALM")/clients" \
+        "$desired_file" >/dev/null
+      created_count=$((created_count + 1))
+      changed_count=$((changed_count + 1))
+      [[ "$(keycloak_api GET "/admin/realms/$(urlencode "$KC_TARGET_REALM")/clients?clientId=$(urlencode "$client_id")&exact=true" | jq -er 'length')" -eq 1 ]] ||
+        die "Created client could not be read back uniquely: ${client_id}"
+      printf 'CREATED=client:%s\n' "$client_id"
+      ;;
+    update)
+      client_uuid="$(jq -er '.clientUuid' <<<"$operation")"
+      merged_file="$(jq -er '.mergedFile' <<<"$operation")"
+      keycloak_api PUT \
+        "/admin/realms/$(urlencode "$KC_TARGET_REALM")/clients/$(urlencode "$client_uuid")" \
+        "$merged_file" >/dev/null
+      updated_count=$((updated_count + 1))
+      changed_count=$((changed_count + 1))
+      printf 'UPDATED=client:%s\n' "$client_id"
+      ;;
+    noop)
+      printf 'UNCHANGED=client:%s\n' "$client_id"
+      ;;
+    *)
+      die "Unexpected apply-manifest action for client ${client_id}: ${action}"
+      ;;
+  esac
 done <"$apply_manifest"
 
 convergence_dir="$tmp_dir/convergence"
@@ -252,7 +348,15 @@ convergence_dir="$tmp_dir/convergence"
   die "Applied configuration did not converge"
 [[ "$(jq -er '.blockedCount' "$convergence_dir/plan.json")" -eq 0 ]] ||
   die "Convergence check found blocked resources"
+[[ "$(jq -er '.createCount' "$convergence_dir/plan.json")" -eq 0 ]] ||
+  die "Convergence check still contains create actions"
+[[ "$(jq -er '.updateCount' "$convergence_dir/plan.json")" -eq 0 ]] ||
+  die "Convergence check still contains update actions"
 
 printf 'EXPECTED_PLAN_SHA256=%s\n' "$EXPECTED_PLAN_SHA256"
+printf 'CREATED_COUNT=%s\n' "$created_count"
+printf 'UPDATED_COUNT=%s\n' "$updated_count"
 printf 'CHANGED_COUNT=%s\n' "$changed_count"
+printf 'DRIFT_COUNT=0\n'
+printf 'BLOCKED_COUNT=0\n'
 printf 'RECONCILE=APPLIED_AND_VERIFIED\n'

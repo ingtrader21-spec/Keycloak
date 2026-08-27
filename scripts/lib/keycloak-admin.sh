@@ -37,10 +37,11 @@ keycloak_assert_canonical_configuration() {
   local endpoint_file="$KEYCLOAK_REPOSITORY_ROOT/config/endpoints/codestra.json"
   [[ -f "$endpoint_file" ]] || die "Canonical endpoint file is missing: $endpoint_file"
 
-  local expected_base_url expected_public_url expected_realm
+  local expected_base_url expected_public_url expected_realm expected_admin_auth_realm
   expected_base_url="$(jq -er '.adminApiBaseUrl' "$endpoint_file")"
   expected_public_url="$(jq -er '.publicUrl' "$endpoint_file")"
   expected_realm="$(jq -er '.realm' "$endpoint_file")"
+  expected_admin_auth_realm="$(jq -er '.adminAuthenticationRealm' "$endpoint_file")"
 
   if [[ "${KC_BASE_URL%/}" != "$expected_base_url" ]]; then
     case "${KC_BASE_URL%/}" in
@@ -57,8 +58,8 @@ keycloak_assert_canonical_configuration() {
     die "KC_PUBLIC_URL must equal the canonical Codestra public URL: $expected_public_url"
   [[ "${KC_TARGET_REALM:-$expected_realm}" == "$expected_realm" ]] ||
     die "KC_TARGET_REALM must equal $expected_realm"
-  [[ "${KC_ADMIN_REALM:-$expected_realm}" == "$expected_realm" ]] ||
-    die "KC_ADMIN_REALM must equal $expected_realm"
+  [[ "${KC_ADMIN_REALM:-$expected_admin_auth_realm}" == "$expected_admin_auth_realm" ]] ||
+    die "KC_ADMIN_REALM must equal the canonical administrative authentication realm: $expected_admin_auth_realm"
 }
 
 keycloak_initialize() {
@@ -67,9 +68,14 @@ keycloak_initialize() {
   require_env KC_BASE_URL
   require_env KC_ADMIN_CLIENT_ID
 
+  local endpoint_file="$KEYCLOAK_REPOSITORY_ROOT/config/endpoints/codestra.json"
+  local default_admin_auth_realm default_target_realm
+  default_admin_auth_realm="$(jq -er '.adminAuthenticationRealm' "$endpoint_file")"
+  default_target_realm="$(jq -er '.realm' "$endpoint_file")"
+
   KC_BASE_URL="${KC_BASE_URL%/}"
-  KC_ADMIN_REALM="${KC_ADMIN_REALM:-codestra}"
-  KC_TARGET_REALM="${KC_TARGET_REALM:-codestra}"
+  KC_ADMIN_REALM="${KC_ADMIN_REALM:-$default_admin_auth_realm}"
+  KC_TARGET_REALM="${KC_TARGET_REALM:-$default_target_realm}"
   KC_CONNECT_TIMEOUT="${KC_CONNECT_TIMEOUT:-10}"
   KC_MAX_TIME="${KC_MAX_TIME:-45}"
 
@@ -176,8 +182,6 @@ keycloak_api() {
       )
       ;;
     POST | PUT | PATCH | DELETE)
-      # Mutations are deliberately not retried. A transport failure after the
-      # server accepted a write is ambiguous and must be reconciled explicitly.
       ;;
     *)
       die "Unsupported Keycloak API method: $method"

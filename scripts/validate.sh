@@ -68,13 +68,30 @@ jq -e '.realm == "codestra" and .enabled == true' "$realm_file" >/dev/null ||
   fail "codestra realm invariant must identify an enabled codestra realm"
 
 managed_policy="$CONFIG_ROOT/policy/managed-clients.json"
+creatable_policy="$CONFIG_ROOT/policy/creatable-clients.json"
 [[ -f "$managed_policy" ]] || fail "Managed-client policy is missing"
+[[ -f "$creatable_policy" ]] || fail "Creatable-client policy is missing"
 jq -e '
-  (.clients | type == "array" and length > 0)
+  (.clients | type == "array" and length == 4)
   and ((.clients | unique | length) == (.clients | length))
-  and (.clients == ["klyrow-portal"])
+  and (.clients == [
+    "klyrow-portal",
+    "moneybee-admin",
+    "moneybee-borrower",
+    "moneybee-lender"
+  ])
 ' "$managed_policy" >/dev/null ||
-  fail "Normal protected deployment must remain scoped only to klyrow-portal"
+  fail "Protected managed-client policy must contain Klyrow and all three MoneyBee clients"
+
+jq -e \
+  --slurpfile managed "$managed_policy" '
+    (.clients | type == "array" and length == 3)
+    and ((.clients | unique | length) == (.clients | length))
+    and (.clients == ["moneybee-admin", "moneybee-borrower", "moneybee-lender"])
+    and all(.clients[]; ($managed[0].clients | index(.)) != null)
+    and ((.clients | index("klyrow-portal")) == null)
+  ' "$creatable_policy" >/dev/null ||
+  fail "Only the three reviewed MoneyBee clients may be created by protected GitOps"
 
 ruleset_file="$CONFIG_ROOT/github/main-ruleset.json"
 [[ -f "$ruleset_file" ]] || fail "Main-branch ruleset desired state is missing"
@@ -166,7 +183,8 @@ allowed_top_level_fields='[
   "baseUrl",
   "redirectUris",
   "webOrigins",
-  "attributes"
+  "attributes",
+  "protocolMappers"
 ]'
 allowed_attribute_fields='[
   "pkce.code.challenge.method",
@@ -217,6 +235,26 @@ for file in "${client_files[@]}"; do
       fail "Public client must use Authorization Code + PKCE S256 only: $file"
   fi
 
+  case "$client_id" in
+    moneybee-admin | moneybee-borrower | moneybee-lender)
+      jq -e '
+        (.protocolMappers | type == "array" and length == 1)
+        and .protocolMappers[0].name == "moneybee-api-audience"
+        and .protocolMappers[0].protocol == "openid-connect"
+        and .protocolMappers[0].protocolMapper == "oidc-audience-mapper"
+        and .protocolMappers[0].consentRequired == false
+        and .protocolMappers[0].config["included.custom.audience"] == "moneybee-api"
+        and .protocolMappers[0].config["access.token.claim"] == "true"
+        and .protocolMappers[0].config["id.token.claim"] == "false"
+      ' "$file" >/dev/null ||
+        fail "MoneyBee portal must emit the moneybee-api access-token audience: $file"
+      ;;
+    klyrow-portal)
+      jq -e 'has("protocolMappers") | not' "$file" >/dev/null ||
+        fail "Klyrow desired state changed unexpectedly"
+      ;;
+  esac
+
   [[ -f "$allowlist_file" && ! -L "$allowlist_file" ]] ||
     fail "Client-specific export allowlist is missing: $allowlist_file"
   jq -e \
@@ -244,6 +282,9 @@ for file in "${client_files[@]}"; do
   [[ "${desired_attributes[*]}" == "${allowlisted_attributes[*]}" ]] ||
     fail "Export allowlist must exactly cover managed attributes for $client_id"
 done
+
+python3 "$ROOT_DIR/scripts/validate-moneybee-oidc-contract.py"
+python3 "$ROOT_DIR/scripts/validate-domain-application-registry.py"
 
 while IFS= read -r script; do
   bash -n "$script" || fail "Bash syntax failed: $script"
@@ -287,6 +328,9 @@ printf 'JSON_FILES=%s\n' "${#json_files[@]}"
 printf 'CLIENT_FILES=%s\n' "${#client_files[@]}"
 printf 'ENDPOINT_POLICY=PASS\n'
 printf 'MACHINE_IDENTITY_CONTRACT=PASS\n'
+printf 'MANAGED_CLIENT_POLICY=PASS\n'
+printf 'CREATABLE_CLIENT_POLICY=PASS\n'
+printf 'MONEYBEE_API_AUDIENCE=PASS\n'
 printf 'GITHUB_RULESET_POLICY=PASS\n'
 printf 'KEYCLOAK_POLICY=PASS\n'
 printf 'VALIDATION=PASS\n'

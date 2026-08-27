@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed validation for the fifteen-domain Codestra identity registry."""
+"""Fail-closed validation for the Codestra application/domain identity registry."""
 
 from __future__ import annotations
 
@@ -13,6 +13,8 @@ from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = ROOT / "config" / "identity" / "application-domain-registry.json"
+MONEYBEE_CONTRACT = ROOT / "config" / "identity" / "moneybee-oidc-clients.json"
+MANAGED_CLIENTS = ROOT / "config" / "policy" / "managed-clients.json"
 CANONICAL_ISSUER = "https://auth.codestra.co/realms/codestra"
 EXPECTED_DOMAINS = {
     "codestra.agency",
@@ -33,8 +35,12 @@ EXPECTED_DOMAINS = {
 }
 EXPECTED_ALIAS_CLIENTS = {
     "codestra-portal-production": {"codestra.agency", "codestra.co"},
-    "moneybee-portal": {"moneybeeloan.com", "moneybee.loan"},
     "breero-portal": {"breero.com", "breero.shop"},
+}
+EXPECTED_MONEYBEE_CLIENTS = {
+    "moneybee-admin",
+    "moneybee-borrower",
+    "moneybee-lender",
 }
 POSTAL_OK = "reported-spf-dkim-mx-return-path-ok"
 POSTAL_UNCONFIRMED = "not-confirmed-no-completed-postal-dns-check"
@@ -80,13 +86,15 @@ def validate_https_uri(value: str, label: str) -> None:
         fail(f"{label} contains prohibited URL components")
 
 
-def validate() -> None:
+def load_json(path: Path, label: str) -> dict[str, Any]:
     try:
-        document = json.loads(REGISTRY.read_text(encoding="utf-8"))
+        return object_at(json.loads(path.read_text(encoding="utf-8")), label)
     except (OSError, json.JSONDecodeError) as exc:
-        fail(f"unable to load {REGISTRY}: {exc}")
+        fail(f"unable to load {path}: {exc}")
 
-    document = object_at(document, "registry")
+
+def validate() -> None:
+    document = load_json(REGISTRY, "registry")
     exact_keys(
         document,
         {
@@ -126,18 +134,6 @@ def validate() -> None:
         fail("Postal DNS evidence contract changed")
 
     policy = object_at(document["policy"], "policy")
-    exact_keys(
-        policy,
-        {
-            "separateClientPerApplication",
-            "exactRedirectUrisRequired",
-            "wildcardRedirectUrisAllowed",
-            "clientCreationBeforeRuntimeVerification",
-            "localPasswordResetAllowed",
-            "legacyIssuerAllowed",
-        },
-        "policy",
-    )
     expected_policy = {
         "separateClientPerApplication": True,
         "exactRedirectUrisRequired": True,
@@ -192,16 +188,15 @@ def validate() -> None:
         ):
             fail(f"{domain}: canonicalDomain is invalid")
 
-        application = entry["application"]
-        classification = entry["classification"]
-        if not isinstance(application, str) or not application:
+        if not isinstance(entry["application"], str) or not entry["application"]:
             fail(f"{domain}: application is required")
-        if not isinstance(classification, str) or not classification:
+        if not isinstance(entry["classification"], str) or not entry["classification"]:
             fail(f"{domain}: classification is required")
 
         client_kind = entry["clientKind"]
         if client_kind not in {
             "public-pkce",
+            "multi-public-pkce",
             "confidential-service",
             "legacy-disabled",
         }:
@@ -221,6 +216,7 @@ def validate() -> None:
         state = entry["state"]
         if state not in {
             "managed",
+            "managed-multi-client",
             "declared-runtime-binding-required",
             "declared-blocked-dns-unconfirmed",
             "legacy-disabled",
@@ -278,7 +274,7 @@ def validate() -> None:
                 fail(f"{domain}: public client must delegate password reset")
             if state == "managed":
                 if domain != "klyrow.com":
-                    fail("only klyrow.com may be managed before runtime verification")
+                    fail("only klyrow.com may use single-client managed mode")
                 if redirects != ["https://klyrow.com/"] or origins != [
                     "https://klyrow.com"
                 ]:
@@ -291,6 +287,19 @@ def validate() -> None:
                         f"{domain}: unverified public client must remain disabled "
                         "with empty redirect/origin lists"
                     )
+        elif client_kind == "multi-public-pkce":
+            if domain != "moneybeeloan.com":
+                fail("only moneybeeloan.com may use multi-public-pkce")
+            if human_client is not None or api_audience != "moneybee-api":
+                fail("moneybeeloan.com must delegate clients and declare moneybee-api")
+            if state != "managed-multi-client" or canonical_domain != "moneybeeloan.com":
+                fail("MoneyBee canonical multi-client state changed")
+            if redirects or origins:
+                fail("MoneyBee portal redirects belong in the dedicated OIDC contract")
+            if entry["enabled"] is not True:
+                fail("MoneyBee canonical application identity must be enabled")
+            if entry["passwordResetDelegatedToKeycloak"] is not True:
+                fail("MoneyBee must delegate password reset to Keycloak")
         elif client_kind == "confidential-service":
             if human_client is not None or not api_audience:
                 fail(f"{domain}: service-only entry has invalid client mapping")
@@ -299,16 +308,22 @@ def validate() -> None:
             if entry["passwordResetDelegatedToKeycloak"] is not False:
                 fail(f"{domain}: service-only entry cannot use password reset")
         else:
-            if domain != "codestra.agency":
-                fail("only codestra.agency may use legacy-disabled mode")
-            if state != "legacy-disabled" or canonical_domain != "codestra.co":
-                fail("codestra.agency legacy mapping changed")
+            if domain == "codestra.agency":
+                if state != "legacy-disabled" or canonical_domain != "codestra.co":
+                    fail("codestra.agency legacy mapping changed")
+                if human_client:
+                    clients_to_domains[human_client].add(domain)
+            elif domain == "moneybee.loan":
+                if state != "legacy-disabled" or canonical_domain != "moneybeeloan.com":
+                    fail("moneybee.loan must remain a disabled alias of moneybeeloan.com")
+                if human_client is not None or api_audience is not None:
+                    fail("moneybee.loan must not define a runtime client or audience")
+            else:
+                fail("unsupported legacy-disabled domain")
             if redirects or origins or entry["enabled"] is not False:
                 fail("legacy domain must remain disabled without redirect origins")
             if entry["passwordResetDelegatedToKeycloak"] is not False:
                 fail("legacy domain must not initiate password recovery")
-            if human_client:
-                clients_to_domains[human_client].add(domain)
 
     if seen_domains != EXPECTED_DOMAINS:
         fail(
@@ -341,8 +356,30 @@ def validate() -> None:
     if by_domain["codestra.cloud"]["clientKind"] != "confidential-service":
         fail("codestra.cloud must remain service-only")
 
-    if len(human_domains) != 13:
-        fail(f"expected thirteen public human domains, found {len(human_domains)}")
+    moneybee = load_json(MONEYBEE_CONTRACT, "MoneyBee OIDC contract")
+    if moneybee.get("canonicalDomain") != "moneybeeloan.com":
+        fail("MoneyBee dedicated contract canonical domain changed")
+    if moneybee.get("apiAudience") != "moneybee-api":
+        fail("MoneyBee dedicated contract API audience changed")
+    moneybee_clients = {
+        item.get("clientId") for item in array_at(moneybee.get("clients"), "MoneyBee clients")
+    }
+    if moneybee_clients != EXPECTED_MONEYBEE_CLIENTS:
+        fail("MoneyBee dedicated portal client membership changed")
+
+    managed = load_json(MANAGED_CLIENTS, "managed-client policy")
+    managed_clients = set(array_at(managed.get("clients"), "managed clients"))
+    if not EXPECTED_MONEYBEE_CLIENTS.issubset(managed_clients):
+        fail("all MoneyBee portal clients must be protected managed clients")
+
+    canonical_moneybee = by_domain["moneybeeloan.com"]
+    legacy_moneybee = by_domain["moneybee.loan"]
+    if canonical_moneybee["canonicalDomain"] != moneybee["canonicalDomain"]:
+        fail("MoneyBee registry and dedicated contract disagree on canonical domain")
+    if canonical_moneybee["apiAudience"] != moneybee["apiAudience"]:
+        fail("MoneyBee registry and dedicated contract disagree on API audience")
+    if legacy_moneybee["canonicalDomain"] != moneybee["canonicalDomain"]:
+        fail("MoneyBee legacy alias does not point at the canonical domain")
 
     serialized = REGISTRY.read_text(encoding="utf-8").lower()
     retired_issuer = "auth.codestra" + ".agency/realms/codestra"
@@ -351,9 +388,13 @@ def validate() -> None:
         "begin private key",
         "smtp_password",
         retired_issuer,
+        "moneybee-portal",
     )
     if any(marker in serialized for marker in prohibited):
-        fail("registry contains a secret-bearing or retired-issuer literal")
+        fail("registry contains a secret-bearing, retired, or superseded identity literal")
+
+    if len(human_domains) != 11:
+        fail(f"expected eleven single-client public human domains, found {len(human_domains)}")
 
 
 def main() -> int:
@@ -364,9 +405,12 @@ def main() -> int:
         return 1
     print("DOMAIN_IDENTITY_REGISTRY=PASS")
     print("DOMAIN_COUNT=15")
-    print("HUMAN_PKCE_DOMAINS=13")
+    print("SINGLE_CLIENT_HUMAN_PKCE_DOMAINS=11")
+    print("MONEYBEE_MULTI_CLIENT_DOMAIN=PASS")
+    print("MONEYBEE_CANONICAL_DOMAIN=moneybeeloan.com")
+    print("MONEYBEE_LEGACY_ALIAS_DISABLED=PASS")
     print("SERVICE_ONLY_DOMAINS=1")
-    print("LEGACY_DISABLED_DOMAINS=1")
+    print("LEGACY_DISABLED_DOMAINS=2")
     print("POSTAL_DNS_REPORTED_OK_DOMAINS=14")
     print("BOOKED4SEASONS_DNS_BLOCK=PASS")
     print("BEYVRA_TRADING_IDENTITY_MAPPING=PASS")
