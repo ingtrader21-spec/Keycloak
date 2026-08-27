@@ -35,9 +35,18 @@ assert realm["emailTheme"] == "codestra-identity"
 
 gate = (root / "extensions/moneybee-email-otp/src/main/java/co/codestra/keycloak/moneybee/MoneyBeeRegistrationGate.java").read_text()
 otp = (root / "extensions/moneybee-email-otp/src/main/java/co/codestra/keycloak/moneybee/MoneyBeeEmailOtpRequiredAction.java").read_text()
+plan = (root / "scripts/plan-moneybee-registration.sh").read_text()
 assert 'BORROWER_CLIENT_ID = "moneybee-borrower"' in gate
 assert 'addRequiredAction' in gate
+assert 'isUserSetupAllowed()' in gate
 assert 'MONEYBEE_EMAIL_OTP_HMAC_KEY' in otp
 assert 'setEmailVerified(true)' in otp
+assert 'moneybee.security.emailOtp.window' in otp
+assert 'moneybee.security.emailOtp.sends' in otp
+assert 'moneybee.security.emailOtp.lastSent' in otp
+assert 'setSingleAttribute' in otp
+assert '.requirement == "REQUIRED"' in plan
+assert 'scope:"registration-form"' in plan
+assert 'not REQUIRED inside the registration-form scope' in plan
 assert 'plaintext' not in contract.get("verification", {})
 print("MONEYBEE_REGISTRATION_CONTRACT=PASS")
