@@ -3,13 +3,21 @@
 ## Canonical identity endpoint
 
 ```text
-Public URL:       https://auth.codestra.co
-Canonical issuer: https://auth.codestra.co/realms/codestra
+Public URL:                    https://auth.codestra.co
+Canonical issuer:              https://auth.codestra.co/realms/codestra
+Target realm:                  codestra
+Administrative auth realm:     master
 ```
 
 Applications discover authorization, token, logout, user-info, and signing-key
-endpoints through the realm discovery document. The exact expected endpoint
-contract is versioned in `config/endpoints/codestra.json`.
+endpoints through the `codestra` realm discovery document. The exact expected
+endpoint contract is versioned in `config/endpoints/codestra.json`.
+
+The protected deployment identity authenticates through the `master` realm but
+all reviewed client administration continues to target the `codestra` realm.
+This split is deliberate: `KC_ADMIN_REALM=master` controls where the deployment
+service obtains its administrative token, while `KC_TARGET_REALM=codestra`
+controls which realm may be read or mutated by the reviewed plan.
 
 ## Active administration scope
 
@@ -37,10 +45,27 @@ first mutation. Any race invalidates the whole plan before writes begin.
 
 Use a dedicated protected Keycloak administration identity for this workflow.
 Do not place its credential in Git, shell history, the runtime checkout, or
-operator logs. The credential must have only the Keycloak permissions actually
-required by the reviewed managed operations. If the deployed Keycloak version
-cannot grant client-create capability without a broader realm-level permission,
-do not silently broaden the identity: keep create operations blocked until that
+operator logs. The `production` GitHub Environment should provide these
+non-secret variables:
+
+```text
+KC_BASE_URL=https://auth.codestra.co
+KC_PUBLIC_URL=https://auth.codestra.co
+KC_TARGET_REALM=codestra
+KC_ADMIN_REALM=master
+```
+
+and these values only as Environment secrets:
+
+```text
+KC_ADMIN_CLIENT_ID
+KC_ADMIN_CLIENT_SECRET
+```
+
+The credential must have only the Keycloak permissions actually required by the
+reviewed managed operations. If the deployed Keycloak version cannot grant
+client-create capability without a broader realm-level permission, do not
+silently broaden the identity: keep create operations blocked until that
 administrative permission change is separately reviewed and approved.
 
 The twelve machine identities in `config/contracts/machine-clients.json` are a
