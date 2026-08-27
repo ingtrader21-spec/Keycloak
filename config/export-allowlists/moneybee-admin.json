@@ -1,0 +1,29 @@
+{
+  "clientId": "moneybee-admin",
+  "topLevelFields": [
+    "clientId",
+    "name",
+    "description",
+    "enabled",
+    "protocol",
+    "publicClient",
+    "bearerOnly",
+    "consentRequired",
+    "standardFlowEnabled",
+    "implicitFlowEnabled",
+    "directAccessGrantsEnabled",
+    "serviceAccountsEnabled",
+    "frontchannelLogout",
+    "rootUrl",
+    "baseUrl",
+    "redirectUris",
+    "webOrigins",
+    "attributes"
+  ],
+  "attributeFields": [
+    "pkce.code.challenge.method",
+    "post.logout.redirect.uris",
+    "oauth2.device.authorization.grant.enabled",
+    "oidc.ciba.grant.enabled"
+  ]
+}
