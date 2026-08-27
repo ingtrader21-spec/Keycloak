@@ -30,26 +30,6 @@
     "senderMustBeVerified": true,
     "credentialsMustBeDedicated": true
   },
-  "applicationSenderPolicies": {
-    "moneybee": {
-      "canonicalDomain": "moneybeeloan.com",
-      "preferredFrom": "security@moneybeeloan.com",
-      "preferredDisplayName": "MoneyBee Security",
-      "preferredEnvelopeFrom": "security@moneybeeloan.com",
-      "eligibleClientIds": [
-        "moneybee-borrower",
-        "moneybee-lender",
-        "moneybee-admin"
-      ],
-      "requiredKlyrowStream": "SECURITY",
-      "operatorReportedDomainVerified": true,
-      "operatorReportedSendingEnabled": true,
-      "runtimeReverificationRequired": true,
-      "legacyDomain": "moneybee.loan",
-      "legacyDomainAllowedForIdentityMail": false,
-      "activationRequiresClientAwareSenderPolicy": true
-    }
-  },
   "humanApplications": [
     {
       "application": "codestra.co",
