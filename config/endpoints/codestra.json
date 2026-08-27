@@ -2,6 +2,7 @@
   "publicUrl": "https://auth.codestra.co",
   "adminApiBaseUrl": "https://auth.codestra.co",
   "realm": "codestra",
+  "adminAuthenticationRealm": "master",
   "issuer": "https://auth.codestra.co/realms/codestra",
   "discoveryUrl": "https://auth.codestra.co/realms/codestra/.well-known/openid-configuration",
   "authorizationEndpoint": "https://auth.codestra.co/realms/codestra/protocol/openid-connect/auth",
