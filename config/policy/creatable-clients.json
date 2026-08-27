@@ -1,0 +1,7 @@
+{
+  "clients": [
+    "moneybee-admin",
+    "moneybee-borrower",
+    "moneybee-lender"
+  ]
+}
