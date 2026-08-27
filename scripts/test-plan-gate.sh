@@ -80,7 +80,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
-        if parsed.path == "/realms/codestra/protocol/openid-connect/token":
+        if parsed.path == "/realms/master/protocol/openid-connect/token":
             self.send_json(200, {"access_token": "test-token", "expires_in": 60})
             return
         if parsed.path == "/admin/realms/codestra/clients":
@@ -169,7 +169,7 @@ port="$(cat "$port_file")"
 export KC_BASE_URL="http://127.0.0.1:${port}"
 export KC_PUBLIC_URL="https://auth.codestra.co"
 export KC_TARGET_REALM="codestra"
-export KC_ADMIN_REALM="codestra"
+export KC_ADMIN_REALM="master"
 export KC_ADMIN_CLIENT_ID="test-gitops-client"
 : "${TEST_KC_CLIENT_SECRET:?Set TEST_KC_CLIENT_SECRET for the mock test}"
 export KC_ADMIN_CLIENT_SECRET=$TEST_KC_CLIENT_SECRET
@@ -203,9 +203,6 @@ done
 plan_sha256="$(awk 'NR == 1 {print $1}' "$plan_dir/plan.sha256")"
 [[ "$plan_sha256" =~ ^[0-9a-f]{64}$ ]]
 
-# Rollback evidence must succeed even though reviewed-creatable MoneyBee clients
-# are absent. Existing Klyrow gets an allowlisted overlay; absent MoneyBee
-# clients get explicit disable/delete rollback metadata.
 rollback_dir="$test_root/rollback"
 mapfile -t managed_clients < <(jq -r '.clients[]' "$ROOT_DIR/config/policy/managed-clients.json")
 "$ROOT_DIR/scripts/export-client.sh" \
@@ -223,9 +220,6 @@ if "$ROOT_DIR/scripts/apply-plan.sh" \
   exit 1
 fi
 
-# Simulate a race after plan review: another operator creates moneybee-admin.
-# The protected apply must reject the stale create before updating Klyrow or
-# creating any other MoneyBee client.
 jq -S \
   --slurpfile admin "$ROOT_DIR/config/clients/moneybee-admin.json" '
     .["moneybee-admin"] = {
@@ -274,15 +268,12 @@ converged_dir="$test_root/converged"
 [[ "$(jq -er '.createCount' "$converged_dir/plan.json")" -eq 0 ]]
 [[ "$(jq -er '.updateCount' "$converged_dir/plan.json")" -eq 0 ]]
 
-# Generated Keycloak mapper IDs must not cause permanent drift.
 for client_id in moneybee-admin moneybee-borrower moneybee-lender; do
   jq -e --arg client_id "$client_id" '
     .[$client_id].representation.protocolMappers[0].name == "moneybee-api-audience"
   ' "$state_file" >/dev/null
 done
 
-# Klyrow remains update-only: if it disappears, planner must block instead of
-# converting it into a create.
 jq -S 'del(."klyrow-portal")' "$state_file" >"$state_file.tmp"
 mv "$state_file.tmp" "$state_file"
 blocked_dir="$test_root/blocked"
@@ -293,6 +284,8 @@ blocked_dir="$test_root/blocked"
 [[ "$(jq -er '.clients[] | select(.clientId == "klyrow-portal") | .action' "$blocked_dir/plan.json")" == "blocked_missing" ]]
 
 printf 'PLAN_GATE_TESTS=PASS\n'
+printf 'ADMIN_AUTH_REALM=master\n'
+printf 'TARGET_REALM=codestra\n'
 printf 'REVIEWED_CREATE_TESTS=PASS\n'
 printf 'CREATE_PREWRITE_RACE_GUARD=PASS\n'
 printf 'ROLLBACK_EVIDENCE_TESTS=PASS\n'
