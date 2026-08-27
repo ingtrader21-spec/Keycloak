@@ -13,31 +13,52 @@ contract is versioned in `config/endpoints/codestra.json`.
 
 ## Active administration scope
 
-The protected normal workflow manages only `klyrow-portal`. It treats the
-`codestra` realm file as a validation invariant and never creates or mutates a
-realm. Missing clients are blocked rather than created.
+The protected normal workflow manages exactly the client IDs listed in
+`config/policy/managed-clients.json`:
 
-Create a confidential service-account client dedicated to this workflow. Disable
-browser and password flows. Do not grant `manage-realm` or realm-wide
-`manage-clients`. Use Keycloak fine-grained administrative permissions on the
-`klyrow-portal` client for only the read/configure operations needed to inspect
-and update that client. Grant only the smallest discovery permission needed to
-resolve the client by ID.
+- `klyrow-portal`
+- `moneybee-admin`
+- `moneybee-borrower`
+- `moneybee-lender`
+
+It treats the `codestra` realm file as a validation invariant and never creates
+or mutates a realm.
+
+Client creation is a separate, narrower policy. Only the three MoneyBee IDs in
+`config/policy/creatable-clients.json` may receive a reviewed `create` action.
+`klyrow-portal` remains update-only: if it is absent, the plan reports
+`blocked_missing`.
+
+A missing creatable MoneyBee client does not authorize an immediate write. The
+check plan must record the exact absent state, desired-state hash, `create`
+action, and disable-first/separate-reviewed-delete rollback metadata. Apply then
+rechecks all reviewed create targets are still absent immediately before the
+first mutation. Any race invalidates the whole plan before writes begin.
+
+Use a dedicated protected Keycloak administration identity for this workflow.
+Do not place its credential in Git, shell history, the runtime checkout, or
+operator logs. The credential must have only the Keycloak permissions actually
+required by the reviewed managed operations. If the deployed Keycloak version
+cannot grant client-create capability without a broader realm-level permission,
+do not silently broaden the identity: keep create operations blocked until that
+administrative permission change is separately reviewed and approved.
 
 The twelve machine identities in `config/contracts/machine-clients.json` are a
 reviewed naming and flow contract, not active provisioning. Each client must be
 promoted in its own pull request after its caller-to-audience map, scopes,
-secret destination, token lifetime, fine-grained administrative scope, and
-rollback policy are approved.
+secret destination, token lifetime, administrative scope, and rollback policy
+are approved.
 
 ## Pull-request validation
 
-CI runs the full validation, Compose render, and image build twice:
+CI runs the full validation, Compose render, plan-gate tests, and image build for:
 
-1. exact pull-request source-head SHA
+1. the exact pull-request source-head SHA
 2. GitHub's synthetic merge result against current `main`
 
-Both check contexts must be required on protected `main`.
+Both check contexts must be required on protected `main`. A dismissed or stale
+review is not approval of a later head. Any push changes the SHA that must be
+covered by CI and fresh approval.
 
 ## Runtime preflight
 
@@ -56,6 +77,22 @@ The manual preflight requires the exact selected `${{ github.sha }}` and verifie
 It reports a stable path fingerprint and a release-identity hash. It does not
 fetch, pull, restart, reload, or call a mutating Keycloak endpoint.
 
+## Merge before production check
+
+The protected `Deploy Keycloak configuration` workflow is intentionally guarded
+so deployment must run from `refs/heads/main`. Its `confirm_sha` must exactly
+equal the selected `GITHUB_SHA`.
+
+Therefore, never dispatch a production check against a PR-branch SHA. The order
+is:
+
+1. freeze an exact PR head;
+2. obtain successful source-head and merge-result CI for that unchanged head;
+3. obtain fresh independent approval applying to that exact head;
+4. merge through protected `main`;
+5. record the resulting exact 40-character `main` SHA;
+6. dispatch production `check` mode with `confirm_sha` equal to that `main` SHA.
+
 ## Check and reviewed-plan apply
 
 Run **Deploy Keycloak configuration** in `check` mode first. It creates:
@@ -69,23 +106,51 @@ evidence.json
 
 The plan is deterministic: it contains no timestamp and includes the exact Git
 SHA, target environment, canonical API URLs, managed current values, desired
-values, and pre-change hashes.
+values, pre-change hashes, create/update/noop actions, and rollback metadata.
 
-Review the plan artifact, record the workflow run ID and the SHA-256 value, then
-run `apply` with both. Apply verifies the source run, downloads that exact
-artifact, confirms the human-approved hash, and rechecks every live pre-change
-hash before the first write. Any intervening drift invalidates the complete
-plan.
+Review every action. `blockedCount` must be zero before apply is eligible. For a
+`create`, verify the plan recorded `before: {}` and the exact intended client ID.
+Record the successful check run ID and `PLAN_SHA256`.
 
-Mutating Keycloak calls are not automatically retried. After apply, the workflow
-regenerates the plan and requires zero drift, then runs the OIDC smoke test.
+Apply must use:
+
+- the same merged `main` SHA;
+- the same protected environment;
+- the successful check-run ID;
+- the exact reviewed plan SHA-256.
+
+Apply verifies the source run and artifact, confirms the human-approved hash,
+rechecks every existing pre-change hash, then rechecks every reviewed create is
+still absent immediately before the first write. Mutating Keycloak calls are not
+automatically retried.
+
+After apply, the planner is regenerated and apply requires all of:
+
+```text
+driftCount=0
+blockedCount=0
+createCount=0
+updateCount=0
+```
+
+Only then may the read-only OIDC smoke tests be treated as post-apply evidence.
 
 ## Rollback
 
-Before apply, `export-client.sh` creates a rollback overlay using the reviewed
-client-specific allowlist under `config/export-allowlists/`. A generic denylist
-is not used. Restore the artifact through a new check, review, and apply cycle;
-do not bypass the plan gate.
+Before apply, `export-client.sh` creates rollback evidence using the reviewed
+client-specific allowlists under `config/export-allowlists/`.
 
-A PostgreSQL restore is reserved for database-level failure and is not the
-normal rollback method for a client redirect or scope change.
+For clients that already exist, the artifact contains an allowlisted before-state
+overlay. Restore that state only through another reviewed check/plan/apply cycle.
+
+For a reviewed create whose pre-apply state is absent, the rollback artifact
+records:
+
+- `preApplyState=absent`;
+- disable first (`enabled=false`);
+- deletion only after disable;
+- deletion requires a separate reviewed rollback authorization.
+
+Do not bypass the plan/hash/environment boundary to delete a newly created
+client. A PostgreSQL restore is reserved for database-level failure and is not
+the normal rollback method for a client redirect, mapper, or scope change.
