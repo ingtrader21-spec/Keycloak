@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "realm": "codestra",
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "domainRegistry": "config/identity/application-domain-registry.json",
+  "passwordReset": {
+    "enabled": true,
+    "updatePasswordRequiredActionEnabled": true,
+    "forceLoginAfterReset": true,
+    "resetTokenLifespanSeconds": 900,
+    "genericAccountLookupResponse": true,
+    "passwordAuthority": "keycloak-only"
+  },
+  "smtp": {
+    "provider": "klyrow-postal",
+    "connectivity": "private-vlan-only",
+    "hostEnvironment": "KC_SMTP_HOST",
+    "portEnvironment": "KC_SMTP_PORT",
+    "defaultHost": "10.40.0.4",
+    "defaultPort": 587,
+    "encryption": "starttls",
+    "authenticationType": "password",
+    "usernameSecret": "KC_SMTP_USERNAME",
+    "passwordSecret": "KC_SMTP_PASSWORD",
+    "fromAddressEnvironment": "KC_SMTP_FROM",
+    "fromDisplayNameEnvironment": "KC_SMTP_FROM_DISPLAY_NAME",
+    "replyToEnvironment": "KC_SMTP_REPLY_TO",
+    "envelopeFromEnvironment": "KC_SMTP_ENVELOPE_FROM",
+    "requiredKlyrowStream": "SECURITY",
+    "senderMustBeVerified": true,
+    "credentialsMustBeDedicated": true
+  },
+  "humanApplications": [
+    {
+      "application": "codestra.co",
+      "clientId": "codestra-portal-production",
+      "state": "declared-runtime-binding-required",
+      "localPasswordResetAllowed": false
+    },
+    {
+      "application": "nativoenglish.com",
+      "clientId": "nativoenglish-portal",
+      "state": "declared-runtime-binding-required",
+      "localPasswordResetAllowed": false
+    },
+    {
+      "application": "moneybeeloan.com",
+      "clientId": "moneybee-portal",
+      "state": "declared-runtime-binding-required",
+      "localPasswordResetAllowed": false
+    },
+    {
+      "application": "codestra.digital",
+      "clientId": "codestra-digital-portal",
+      "state": "declared-runtime-binding-required",
+      "localPasswordResetAllowed": false
+    },
+    {
+      "application": "codestra.media",
+      "clientId": "codestra-media-portal",
+      "state": "declared-runtime-binding-required",
+      "localPasswordResetAllowed": false
+    },
+    {
+      "application": "moneybee.loan",
+      "clientId": "moneybee-portal",
+      "state": "declared-runtime-binding-required",
+      "localPasswordResetAllowed": false
+    },
+    {
+      "application": "klyrow.com",
+      "clientId": "klyrow-portal",
+      "state": "managed",
+      "localPasswordResetAllowed": false
+    },
+    {
+      "application": "beyvra.com",
+      "clientId": "beyvra-web-production",
+      "state": "declared-runtime-binding-required",
+      "localPasswordResetAllowed": false
+    },
+    {
+      "application": "kyqra.com",
+      "clientId": "kyqra-portal",
+      "state": "declared-runtime-binding-required",
+      "localPasswordResetAllowed": false
+    },
+    {
+      "application": "breero.com",
+      "clientId": "breero-portal",
+      "state": "declared-runtime-binding-required",
+      "localPasswordResetAllowed": false
+    },
+    {
+      "application": "breero.shop",
+      "clientId": "breero-portal",
+      "state": "declared-runtime-binding-required",
+      "localPasswordResetAllowed": false
+    },
+    {
+      "application": "telnexa.co",
+      "clientId": "telnexa-portal",
+      "state": "declared-runtime-binding-required",
+      "localPasswordResetAllowed": false
+    },
+    {
+      "application": "booked4seasons.com",
+      "clientId": "booked4seasons-portal",
+      "state": "declared-blocked-dns-unconfirmed",
+      "localPasswordResetAllowed": false
+    }
+  ],
+  "forbiddenResetDataConsumers": [
+    "kong-gateway",
+    "middleware-api",
+    "middleware-worker",
+    "odoo-integration",
+    "n8n-automation",
+    "vicidial-adapter",
+    "telnexa-gateway",
+    "klyrow-gateway",
+    "kyqra-gateway",
+    "postly-adapter",
+    "provisioning-service",
+    "monitoring-readonly",
+    "codestra-api-production",
+    "beyvra-api-production",
+    "breero-api-production"
+  ]
+}

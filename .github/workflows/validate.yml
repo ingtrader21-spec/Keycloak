@@ -60,6 +60,12 @@ jobs:
       - name: Validate source n8n command and result directions
         run: python3 scripts/validate-n8n-flow.py
 
+      - name: Validate source fifteen-domain identity registry
+        run: python3 scripts/validate-domain-application-registry.py
+
+      - name: Validate source password-reset and Klyrow SMTP contract
+        run: python3 scripts/validate-password-reset-contract.py
+
       - name: Test exact source reviewed plan-hash gate
         env:
           TEST_KC_CLIENT_SECRET: ${{ format('ci-only-{0}-plan-source', github.run_id) }}
@@ -122,6 +128,12 @@ jobs:
 
       - name: Validate merge-result n8n command and result directions
         run: python3 scripts/validate-n8n-flow.py
+
+      - name: Validate merge-result fifteen-domain identity registry
+        run: python3 scripts/validate-domain-application-registry.py
+
+      - name: Validate merge-result password-reset and Klyrow SMTP contract
+        run: python3 scripts/validate-password-reset-contract.py
 
       - name: Test merge-result reviewed plan-hash gate
         env:
