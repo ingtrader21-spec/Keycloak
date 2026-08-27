@@ -46,7 +46,15 @@ public final class MoneyBeeRegistrationGate implements FormAction, FormActionFac
 
     @Override
     public void success(FormContext context) {
-        // User creation remains owned by Keycloak's built-in registration actions.
+        UserModel user = context.getUser();
+        String clientId = context.getAuthenticationSession().getClient().getClientId();
+        if (
+            user != null
+            && BORROWER_CLIENT_ID.equals(clientId)
+            && !user.isEmailVerified()
+        ) {
+            user.addRequiredAction(MoneyBeeEmailOtpRequiredAction.PROVIDER_ID);
+        }
     }
 
     @Override
