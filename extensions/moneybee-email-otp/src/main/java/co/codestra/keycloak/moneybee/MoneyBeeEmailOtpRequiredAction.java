@@ -19,6 +19,7 @@ import org.keycloak.email.EmailException;
 import org.keycloak.email.EmailTemplateProvider;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
+import org.keycloak.models.UserModel;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
@@ -28,9 +29,14 @@ public final class MoneyBeeEmailOtpRequiredAction implements RequiredActionProvi
     private static final String HASH_NOTE = "moneybee_email_otp_hash";
     private static final String EXPIRES_NOTE = "moneybee_email_otp_expires";
     private static final String ATTEMPTS_NOTE = "moneybee_email_otp_attempts";
-    private static final String LAST_SENT_NOTE = "moneybee_email_otp_last_sent";
-    private static final String SENDS_NOTE = "moneybee_email_otp_sends";
-    private static final String WINDOW_NOTE = "moneybee_email_otp_window";
+
+    // Send throttling must survive a restarted browser/login flow. Authentication
+    // session notes are intentionally not used for these counters because a new
+    // authentication session would reset them. These internal attributes are not
+    // mapped into MoneyBee tokens or downstream events.
+    private static final String LAST_SENT_ATTRIBUTE = "moneybee.security.emailOtp.lastSent";
+    private static final String SENDS_ATTRIBUTE = "moneybee.security.emailOtp.sends";
+    private static final String WINDOW_ATTRIBUTE = "moneybee.security.emailOtp.window";
 
     private static final int TTL_SECONDS = 600;
     private static final int MAX_ATTEMPTS = 5;
@@ -47,7 +53,7 @@ public final class MoneyBeeEmailOtpRequiredAction implements RequiredActionProvi
     @Override
     public void requiredActionChallenge(RequiredActionContext context) {
         if (context.getUser().isEmailVerified()) {
-            clear(context.getAuthenticationSession());
+            clearSessionCode(context.getAuthenticationSession());
             context.success();
             return;
         }
@@ -66,7 +72,7 @@ public final class MoneyBeeEmailOtpRequiredAction implements RequiredActionProvi
         if ("resend".equals(action)) {
             try {
                 long now = Instant.now().getEpochSecond();
-                long lastSent = longNote(authSession, LAST_SENT_NOTE, 0);
+                long lastSent = longUserAttribute(context.getUser(), LAST_SENT_ATTRIBUTE, 0);
                 if (lastSent > 0 && now - lastSent < RESEND_COOLDOWN_SECONDS) {
                     context.challenge(form(context, "Wait a moment before requesting another code."));
                     return;
@@ -107,14 +113,14 @@ public final class MoneyBeeEmailOtpRequiredAction implements RequiredActionProvi
         }
 
         context.getUser().setEmailVerified(true);
-        clear(authSession);
+        clearSessionCode(authSession);
         context.success();
     }
 
     private static jakarta.ws.rs.core.Response form(RequiredActionContext context, String info) {
         long now = Instant.now().getEpochSecond();
         long expires = longNote(context.getAuthenticationSession(), EXPIRES_NOTE, 0);
-        long lastSent = longNote(context.getAuthenticationSession(), LAST_SENT_NOTE, 0);
+        long lastSent = longUserAttribute(context.getUser(), LAST_SENT_ATTRIBUTE, 0);
         long resendWait = Math.max(0, RESEND_COOLDOWN_SECONDS - Math.max(0, now - lastSent));
         var form = context.form()
             .setAttribute("maskedEmail", maskEmail(context.getUser().getEmail()))
@@ -128,14 +134,15 @@ public final class MoneyBeeEmailOtpRequiredAction implements RequiredActionProvi
 
     private static void ensureCode(RequiredActionContext context, boolean force) throws EmailException {
         AuthenticationSessionModel authSession = context.getAuthenticationSession();
+        UserModel user = context.getUser();
         long now = Instant.now().getEpochSecond();
         long expires = longNote(authSession, EXPIRES_NOTE, 0);
         if (!force && authSession.getAuthNote(HASH_NOTE) != null && expires > now) {
             return;
         }
 
-        long window = longNote(authSession, WINDOW_NOTE, 0);
-        int sends = intNote(authSession, SENDS_NOTE, 0);
+        long window = longUserAttribute(user, WINDOW_ATTRIBUTE, 0);
+        int sends = intUserAttribute(user, SENDS_ATTRIBUTE, 0);
         if (window == 0 || now - window >= 3600) {
             window = now;
             sends = 0;
@@ -145,22 +152,24 @@ public final class MoneyBeeEmailOtpRequiredAction implements RequiredActionProvi
         }
 
         String code = String.format("%06d", RANDOM.nextInt(1_000_000));
-        authSession.setAuthNote(HASH_NOTE, hash(context.getUser().getId(), code));
-        authSession.setAuthNote(EXPIRES_NOTE, Long.toString(now + TTL_SECONDS));
-        authSession.setAuthNote(ATTEMPTS_NOTE, "0");
-        authSession.setAuthNote(LAST_SENT_NOTE, Long.toString(now));
-        authSession.setAuthNote(WINDOW_NOTE, Long.toString(window));
-        authSession.setAuthNote(SENDS_NOTE, Integer.toString(sends + 1));
-
         context.getSession().getProvider(EmailTemplateProvider.class)
             .setAuthenticationSession(authSession)
             .setRealm(context.getRealm())
-            .setUser(context.getUser())
+            .setUser(user)
             .send(
                 "moneybeeEmailOtpSubject",
                 "moneybee-email-otp.ftl",
                 Map.of("code", code, "expiresInMinutes", TTL_SECONDS / 60)
             );
+
+        // Only make a successfully submitted code usable and count it against
+        // the user-persistent quota after the SECURITY email provider accepted it.
+        authSession.setAuthNote(HASH_NOTE, hash(user.getId(), code));
+        authSession.setAuthNote(EXPIRES_NOTE, Long.toString(now + TTL_SECONDS));
+        authSession.setAuthNote(ATTEMPTS_NOTE, "0");
+        user.setSingleAttribute(LAST_SENT_ATTRIBUTE, Long.toString(now));
+        user.setSingleAttribute(WINDOW_ATTRIBUTE, Long.toString(window));
+        user.setSingleAttribute(SENDS_ATTRIBUTE, Integer.toString(sends + 1));
     }
 
     private static String hash(String userId, String code) {
@@ -202,6 +211,24 @@ public final class MoneyBeeEmailOtpRequiredAction implements RequiredActionProvi
         }
     }
 
+    private static long longUserAttribute(UserModel user, String name, long fallback) {
+        try {
+            String value = user.getFirstAttribute(name);
+            return value == null ? fallback : Long.parseLong(value);
+        } catch (NumberFormatException exc) {
+            return fallback;
+        }
+    }
+
+    private static int intUserAttribute(UserModel user, String name, int fallback) {
+        try {
+            String value = user.getFirstAttribute(name);
+            return value == null ? fallback : Integer.parseInt(value);
+        } catch (NumberFormatException exc) {
+            return fallback;
+        }
+    }
+
     private static String maskEmail(String email) {
         if (email == null || !email.contains("@")) return "your email address";
         String[] parts = email.split("@", 2);
@@ -210,13 +237,10 @@ public final class MoneyBeeEmailOtpRequiredAction implements RequiredActionProvi
         return masked + "@" + parts[1];
     }
 
-    private static void clear(AuthenticationSessionModel session) {
+    private static void clearSessionCode(AuthenticationSessionModel session) {
         session.removeAuthNote(HASH_NOTE);
         session.removeAuthNote(EXPIRES_NOTE);
         session.removeAuthNote(ATTEMPTS_NOTE);
-        session.removeAuthNote(LAST_SENT_NOTE);
-        session.removeAuthNote(SENDS_NOTE);
-        session.removeAuthNote(WINDOW_NOTE);
     }
 
     @Override public RequiredActionProvider create(KeycloakSession session) { return this; }
