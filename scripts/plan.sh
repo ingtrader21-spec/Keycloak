@@ -16,6 +16,8 @@ Usage: scripts/plan.sh --output-dir PATH --expected-deploy-sha SHA
 
 Generates a deterministic, reviewable Keycloak client plan. The plan contains
 only fields declared by the Git-managed client overlays and performs no writes.
+Missing managed clients are only planned as create when their client ID is also
+explicitly allowlisted in config/policy/creatable-clients.json.
 
 Required environment:
   KC_BASE_URL
@@ -23,7 +25,7 @@ Required environment:
   KC_TARGET_REALM
   KC_ADMIN_REALM
   KC_ADMIN_CLIENT_ID
-  KC_ADMIN_CLIENT_SECRET
+  plus either KC_ADMIN_CLIENT_SECRET or KC_ADMIN_USERNAME/KC_ADMIN_PASSWORD
   DEPLOY_ENVIRONMENT=staging|production
 USAGE
 }
@@ -102,8 +104,15 @@ project_live_to_desired_shape() {
 }
 
 managed_policy="$ROOT_DIR/config/policy/managed-clients.json"
-mapfile -t managed_clients < <(jq -er '.clients[]' "$managed_policy")
+creatable_policy="$ROOT_DIR/config/policy/creatable-clients.json"
+mapfile -t managed_clients < <(jq -er '.clients[]' "$managed_policy" | sort)
+mapfile -t creatable_client_ids < <(jq -er '.clients[]' "$creatable_policy" | sort)
 ((${#managed_clients[@]} > 0)) || die "No managed clients are declared"
+
+declare -A creatable_clients=()
+for client_id in "${creatable_client_ids[@]}"; do
+  creatable_clients["$client_id"]=1
+done
 
 for client_id in "${managed_clients[@]}"; do
   mapfile -t matching_files < <(
@@ -128,9 +137,16 @@ for client_id in "${managed_clients[@]}"; do
 
   before_file="$tmp_dir/before-${safe_client_id}.json"
   action="noop"
+  rollback_kind="restore_allowlisted_overlay"
   if [[ "$matches" -eq 0 ]]; then
     printf '{}\n' >"$before_file"
-    action="blocked_missing"
+    if [[ -n "${creatable_clients[$client_id]:-}" ]]; then
+      action="create"
+      rollback_kind="disable_then_reviewed_delete"
+    else
+      action="blocked_missing"
+      rollback_kind="blocked_missing"
+    fi
   else
     client_uuid="$(jq -er '.[0].id' "$client_list_file")"
     live_file="$tmp_dir/live-${safe_client_id}.json"
@@ -155,6 +171,7 @@ for client_id in "${managed_clients[@]}"; do
     --arg action "$action" \
     --arg before_sha256 "$before_sha256" \
     --arg desired_sha256 "$desired_sha256" \
+    --arg rollback_kind "$rollback_kind" \
     --slurpfile before "$before_file" \
     --slurpfile desired "$desired_file" '
       {
@@ -164,7 +181,27 @@ for client_id in "${managed_clients[@]}"; do
         beforeSha256: $before_sha256,
         desiredSha256: $desired_sha256,
         before: $before[0],
-        desired: $desired[0]
+        desired: $desired[0],
+        rollback: (
+          if $rollback_kind == "restore_allowlisted_overlay" then {
+            kind: $rollback_kind,
+            preApplyState: "existing",
+            requiresReviewedPlan: true
+          }
+          elif $rollback_kind == "disable_then_reviewed_delete" then {
+            kind: $rollback_kind,
+            preApplyState: "absent",
+            disableFirst: true,
+            deleteRequiresSeparateReviewedRollback: true,
+            requiresReviewedPlan: true
+          }
+          else {
+            kind: $rollback_kind,
+            preApplyState: "absent",
+            requiresReviewedPlan: true
+          }
+          end
+        )
       }
     ' >>"$resources_ndjson"
 done
@@ -189,7 +226,9 @@ jq -S -s \
         api: $api[0],
         clients: $clients,
         driftCount: ($clients | map(select(.action != "noop")) | length),
-        blockedCount: ($clients | map(select(.action == "blocked_missing")) | length)
+        blockedCount: ($clients | map(select(.action == "blocked_missing")) | length),
+        createCount: ($clients | map(select(.action == "create")) | length),
+        updateCount: ($clients | map(select(.action == "update")) | length)
       }
   ' "$resources_ndjson" >"$plan_file"
 
@@ -200,10 +239,14 @@ chmod 600 "$plan_file" "$canonical_plan_file" "$plan_hash_file"
 
 drift_count="$(jq -er '.driftCount' "$plan_file")"
 blocked_count="$(jq -er '.blockedCount' "$plan_file")"
+create_count="$(jq -er '.createCount' "$plan_file")"
+update_count="$(jq -er '.updateCount' "$plan_file")"
 
 printf 'PLAN_FILE=%s\n' "$plan_file"
 printf 'PLAN_CANONICAL_FILE=%s\n' "$canonical_plan_file"
 printf 'PLAN_SHA256=%s\n' "$plan_sha256"
 printf 'DRIFT_COUNT=%s\n' "$drift_count"
 printf 'BLOCKED_COUNT=%s\n' "$blocked_count"
+printf 'CREATE_COUNT=%s\n' "$create_count"
+printf 'UPDATE_COUNT=%s\n' "$update_count"
 printf 'PLAN=READY_FOR_REVIEW\n'
