@@ -194,12 +194,12 @@ while IFS= read -r resource; do
   keycloak_api GET \
     "/admin/realms/$(urlencode "$KC_TARGET_REALM")/clients?clientId=${encoded_client_id}&exact=true" \
     >"$client_list_file"
-  matches="$(jq -er 'length' "$client_list_file")"
+  client_match_count="$(jq -er 'length' "$client_list_file")"
 
   if [[ "$action" == "create" ]]; then
     [[ -n "${creatable_client_set[$client_id]:-}" ]] ||
       die "Reviewed create is not allowlisted for client ${client_id}"
-    [[ "$matches" -eq 0 ]] ||
+    [[ "$client_match_count" -eq 0 ]] ||
       die "Reviewed plan recorded absence but client now exists: ${client_id}"
     [[ "$expected_before_sha256" == "$empty_state_sha256" ]] ||
       die "Reviewed create does not contain the canonical absent-state hash: ${client_id}"
@@ -227,7 +227,7 @@ while IFS= read -r resource; do
     continue
   fi
 
-  [[ "$matches" -eq 1 ]] ||
+  [[ "$client_match_count" -eq 1 ]] ||
     die "Expected exactly one live client for clientId=${client_id}"
 
   client_uuid="$(jq -er '.[0].id' "$client_list_file")"
