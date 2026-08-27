@@ -18,7 +18,8 @@
     "baseUrl",
     "redirectUris",
     "webOrigins",
-    "attributes"
+    "attributes",
+    "protocolMappers"
   ],
   "attributeFields": [
     "pkce.code.challenge.method",
