@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 2,
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "grantType": "client_credentials",
+  "maximumAccessTokenLifetimeSeconds": 300,
+  "secretStorage": "external-secret-store-only",
+  "audience": "middleware-api",
+  "provisioningState": "declared-not-created",
+  "clients": [
+    {
+      "clientId": "n8n-platform-runtime",
+      "clientType": "confidential",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "scopes": [
+        "automation.job.claim",
+        "automation.job.heartbeat",
+        "automation.job.complete"
+      ]
+    },
+    {
+      "clientId": "n8n-crm-automation",
+      "clientType": "confidential",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "scopes": [
+        "automation.job.claim",
+        "automation.job.heartbeat",
+        "automation.job.complete",
+        "automation.command.crm",
+        "automation.approval.read"
+      ]
+    },
+    {
+      "clientId": "n8n-telephony-automation",
+      "clientType": "confidential",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "scopes": [
+        "automation.job.claim",
+        "automation.job.heartbeat",
+        "automation.job.complete",
+        "automation.command.telephony",
+        "automation.approval.read"
+      ]
+    },
+    {
+      "clientId": "n8n-messaging-automation",
+      "clientType": "confidential",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "scopes": [
+        "automation.job.claim",
+        "automation.job.heartbeat",
+        "automation.job.complete",
+        "automation.command.messaging",
+        "automation.approval.read"
+      ]
+    },
+    {
+      "clientId": "n8n-crawler-automation",
+      "clientType": "confidential",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "scopes": [
+        "automation.job.claim",
+        "automation.job.heartbeat",
+        "automation.job.complete",
+        "automation.command.crawler",
+        "automation.approval.read"
+      ]
+    },
+    {
+      "clientId": "n8n-product-automation",
+      "clientType": "confidential",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "scopes": [
+        "automation.job.claim",
+        "automation.job.heartbeat",
+        "automation.job.complete",
+        "automation.command.product",
+        "automation.approval.read"
+      ]
+    },
+    {
+      "clientId": "n8n-privacy-automation",
+      "clientType": "confidential",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "scopes": [
+        "automation.job.claim",
+        "automation.job.heartbeat",
+        "automation.job.complete",
+        "automation.command.privacy",
+        "automation.approval.read"
+      ]
+    },
+    {
+      "clientId": "n8n-operations-automation",
+      "clientType": "confidential",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "scopes": [
+        "automation.job.claim",
+        "automation.job.heartbeat",
+        "automation.job.complete",
+        "automation.operations.reconcile",
+        "automation.operations.replay",
+        "automation.approval.read"
+      ]
+    }
+  ],
+  "invariants": {
+    "fullScopeAllowed": false,
+    "humanLoginAllowed": false,
+    "directProviderAudienceAllowed": false,
+    "tenantHeaderIsAuthoritative": false,
+    "platformAdminTenantMappingAllowed": false,
+    "liveApplyAuthorized": false
+  }
+}
