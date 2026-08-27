@@ -1,11 +1,20 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": "2.1",
   "issuer": "https://auth.codestra.co/realms/codestra",
   "grantType": "client_credentials",
   "maximumAccessTokenLifetimeSeconds": 300,
   "secretStorage": "external-secret-store-only",
   "audience": "middleware-api",
   "provisioningState": "declared-not-created",
+  "operationPolicyReference": {
+    "repository": "appolon1908-hue/Middleware-",
+    "branch": "integration/n8n-control-plane-v2-20260827",
+    "path": "contracts/automation/operation-policy.v2.json"
+  },
+  "prohibitedScopes": [
+    "automation.execute",
+    "automation.command"
+  ],
   "clients": [
     {
       "clientId": "n8n-platform-runtime",
@@ -14,10 +23,39 @@
       "standardFlowEnabled": false,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
+      "workflowFamilies": ["platform.shared"],
+      "commandPrefixes": [],
       "scopes": [
         "automation.job.claim",
+        "automation.job.read",
         "automation.job.heartbeat",
-        "automation.job.complete"
+        "automation.job.step.write",
+        "automation.job.complete",
+        "automation.job.fail",
+        "automation.capability.read"
+      ]
+    },
+    {
+      "clientId": "n8n-identity-automation",
+      "clientType": "confidential",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "workflowFamilies": ["identity", "provisioning"],
+      "commandPrefixes": ["identity.", "provisioning."],
+      "scopes": [
+        "automation.job.claim",
+        "automation.job.read",
+        "automation.job.heartbeat",
+        "automation.job.step.write",
+        "automation.job.complete",
+        "automation.job.fail",
+        "automation.command.read",
+        "automation.command.identity",
+        "automation.approval.request",
+        "automation.approval.read",
+        "automation.capability.read"
       ]
     },
     {
@@ -27,12 +65,20 @@
       "standardFlowEnabled": false,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
+      "workflowFamilies": ["crm", "support"],
+      "commandPrefixes": ["crm.", "support."],
       "scopes": [
         "automation.job.claim",
+        "automation.job.read",
         "automation.job.heartbeat",
+        "automation.job.step.write",
         "automation.job.complete",
+        "automation.job.fail",
+        "automation.command.read",
         "automation.command.crm",
-        "automation.approval.read"
+        "automation.approval.request",
+        "automation.approval.read",
+        "automation.capability.read"
       ]
     },
     {
@@ -42,12 +88,20 @@
       "standardFlowEnabled": false,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
+      "workflowFamilies": ["telephony"],
+      "commandPrefixes": ["telephony."],
       "scopes": [
         "automation.job.claim",
+        "automation.job.read",
         "automation.job.heartbeat",
+        "automation.job.step.write",
         "automation.job.complete",
+        "automation.job.fail",
+        "automation.command.read",
         "automation.command.telephony",
-        "automation.approval.read"
+        "automation.approval.request",
+        "automation.approval.read",
+        "automation.capability.read"
       ]
     },
     {
@@ -57,12 +111,43 @@
       "standardFlowEnabled": false,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
+      "workflowFamilies": ["messaging.email", "messaging.sms"],
+      "commandPrefixes": ["email.", "sms."],
       "scopes": [
         "automation.job.claim",
+        "automation.job.read",
         "automation.job.heartbeat",
+        "automation.job.step.write",
         "automation.job.complete",
+        "automation.job.fail",
+        "automation.command.read",
         "automation.command.messaging",
-        "automation.approval.read"
+        "automation.approval.request",
+        "automation.approval.read",
+        "automation.capability.read"
+      ]
+    },
+    {
+      "clientId": "n8n-social-automation",
+      "clientType": "confidential",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "workflowFamilies": ["social.postly"],
+      "commandPrefixes": ["social."],
+      "scopes": [
+        "automation.job.claim",
+        "automation.job.read",
+        "automation.job.heartbeat",
+        "automation.job.step.write",
+        "automation.job.complete",
+        "automation.job.fail",
+        "automation.command.read",
+        "automation.command.social",
+        "automation.approval.request",
+        "automation.approval.read",
+        "automation.capability.read"
       ]
     },
     {
@@ -72,12 +157,20 @@
       "standardFlowEnabled": false,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
+      "workflowFamilies": ["crawler.kyqra"],
+      "commandPrefixes": ["crawler."],
       "scopes": [
         "automation.job.claim",
+        "automation.job.read",
         "automation.job.heartbeat",
+        "automation.job.step.write",
         "automation.job.complete",
+        "automation.job.fail",
+        "automation.command.read",
         "automation.command.crawler",
-        "automation.approval.read"
+        "automation.approval.request",
+        "automation.approval.read",
+        "automation.capability.read"
       ]
     },
     {
@@ -87,12 +180,37 @@
       "standardFlowEnabled": false,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
+      "workflowFamilies": [
+        "product.moneybee",
+        "product.breero",
+        "product.larim-a",
+        "product.freight",
+        "product.beyvra",
+        "product.booked4seasons",
+        "product.trading-nonfinancial"
+      ],
+      "commandPrefixes": [
+        "moneybee.",
+        "breero.",
+        "larim.",
+        "freight.",
+        "beyvra.",
+        "booked4seasons.",
+        "trading.operations.",
+        "real-wallet.operations."
+      ],
       "scopes": [
         "automation.job.claim",
+        "automation.job.read",
         "automation.job.heartbeat",
+        "automation.job.step.write",
         "automation.job.complete",
+        "automation.job.fail",
+        "automation.command.read",
         "automation.command.product",
-        "automation.approval.read"
+        "automation.approval.request",
+        "automation.approval.read",
+        "automation.capability.read"
       ]
     },
     {
@@ -102,12 +220,20 @@
       "standardFlowEnabled": false,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
+      "workflowFamilies": ["privacy"],
+      "commandPrefixes": ["privacy."],
       "scopes": [
         "automation.job.claim",
+        "automation.job.read",
         "automation.job.heartbeat",
+        "automation.job.step.write",
         "automation.job.complete",
+        "automation.job.fail",
+        "automation.command.read",
         "automation.command.privacy",
-        "automation.approval.read"
+        "automation.approval.request",
+        "automation.approval.read",
+        "automation.capability.read"
       ]
     },
     {
@@ -117,13 +243,21 @@
       "standardFlowEnabled": false,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
+      "workflowFamilies": ["operations"],
+      "commandPrefixes": ["operations."],
       "scopes": [
         "automation.job.claim",
+        "automation.job.read",
         "automation.job.heartbeat",
+        "automation.job.step.write",
         "automation.job.complete",
+        "automation.job.fail",
+        "automation.approval.request",
+        "automation.approval.read",
+        "automation.capability.read",
         "automation.operations.reconcile",
-        "automation.operations.replay",
-        "automation.approval.read"
+        "automation.dead-letter.read",
+        "automation.operations.replay.request"
       ]
     }
   ],
@@ -131,6 +265,9 @@
     "fullScopeAllowed": false,
     "humanLoginAllowed": false,
     "directProviderAudienceAllowed": false,
+    "genericExecuteScopeAllowed": false,
+    "genericCommandScopeAllowed": false,
+    "clientCanClaimOtherWorkflowFamily": false,
     "tenantHeaderIsAuthoritative": false,
     "platformAdminTenantMappingAllowed": false,
     "liveApplyAuthorized": false
