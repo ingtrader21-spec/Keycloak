@@ -134,7 +134,15 @@ project_live_to_desired_shape() {
           reduce ($wanted | keys_unsorted[]) as $key
             ({}; .[$key] = project($current[$key]; $wanted[$key]))
         elif ($wanted | type) == "array" then
-          ($current // [])
+          if all($wanted[]?; (type == "object" and has("name"))) then
+            [
+              $wanted[] as $wanted_item
+              | (($current // []) | map(select(.name == $wanted_item.name)) | .[0] // {}) as $current_item
+              | project($current_item; $wanted_item)
+            ]
+          else
+            ($current // [])
+          end
         else
           $current
         end;
