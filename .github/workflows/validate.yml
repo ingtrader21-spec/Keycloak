@@ -63,6 +63,9 @@ jobs:
       - name: Validate source fifteen-domain identity registry
         run: python3 scripts/validate-domain-application-registry.py
 
+      - name: Validate source MoneyBee OIDC contract
+        run: python3 scripts/validate-moneybee-oidc-contract.py
+
       - name: Validate source password-reset and Klyrow SMTP contract
         run: python3 scripts/validate-password-reset-contract.py
 
@@ -131,6 +134,9 @@ jobs:
 
       - name: Validate merge-result fifteen-domain identity registry
         run: python3 scripts/validate-domain-application-registry.py
+
+      - name: Validate merge-result MoneyBee OIDC contract
+        run: python3 scripts/validate-moneybee-oidc-contract.py
 
       - name: Validate merge-result password-reset and Klyrow SMTP contract
         run: python3 scripts/validate-password-reset-contract.py
