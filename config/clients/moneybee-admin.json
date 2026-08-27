@@ -26,5 +26,18 @@
     "post.logout.redirect.uris": "https://admin.moneybeeloan.com/auth/login",
     "oauth2.device.authorization.grant.enabled": "false",
     "oidc.ciba.grant.enabled": "false"
-  }
+  },
+  "protocolMappers": [
+    {
+      "name": "moneybee-api-audience",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "consentRequired": false,
+      "config": {
+        "included.custom.audience": "moneybee-api",
+        "id.token.claim": "false",
+        "access.token.claim": "true"
+      }
+    }
+  ]
 }
