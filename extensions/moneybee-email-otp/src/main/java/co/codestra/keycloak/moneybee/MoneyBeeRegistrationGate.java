@@ -91,6 +91,11 @@ public final class MoneyBeeRegistrationGate implements FormAction, FormActionFac
     }
 
     @Override
+    public boolean isUserSetupAllowed() {
+        return false;
+    }
+
+    @Override
     public AuthenticationExecutionModel.Requirement[] getRequirementChoices() {
         return REQUIREMENTS;
     }
