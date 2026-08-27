@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 2,
+  "realm": "codestra",
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "audience": "codestra-middleware-api",
+  "state": "declared-not-created",
+  "productionActivationAuthorized": false,
+  "rules": {
+    "grantType": "client_credentials",
+    "humanLogin": false,
+    "directAccessGrants": false,
+    "implicitFlow": false,
+    "deviceFlow": false,
+    "serviceAccount": true,
+    "shortLivedAccessTokenRequired": true,
+    "refreshTokenAllowed": false,
+    "oneClientPerAutomationClass": true,
+    "sharedSecretAcrossClients": false,
+    "credentialsInGit": false,
+    "targetAudienceIsMiddlewareOnly": true,
+    "keycloakAdminScopeAllowed": false,
+    "providerScopeAllowed": false,
+    "platformAdminRoleAllowed": false
+  },
+  "clients": [
+    {
+      "clientId": "n8n-platform-runtime",
+      "name": "n8n Platform Runtime",
+      "scopes": [
+        "automation.job.claim",
+        "automation.job.heartbeat",
+        "automation.job.complete",
+        "automation.approval.read"
+      ]
+    },
+    {
+      "clientId": "n8n-crm-automation",
+      "name": "n8n CRM Automation",
+      "scopes": [
+        "automation.job.claim",
+        "automation.job.heartbeat",
+        "automation.job.complete",
+        "automation.command.crm",
+        "automation.approval.read"
+      ]
+    },
+    {
+      "clientId": "n8n-telephony-automation",
+      "name": "n8n Telephony Automation",
+      "scopes": [
+        "automation.job.claim",
+        "automation.job.heartbeat",
+        "automation.job.complete",
+        "automation.command.telephony",
+        "automation.approval.read"
+      ]
+    },
+    {
+      "clientId": "n8n-messaging-automation",
+      "name": "n8n Messaging Automation",
+      "scopes": [
+        "automation.job.claim",
+        "automation.job.heartbeat",
+        "automation.job.complete",
+        "automation.command.messaging",
+        "automation.approval.read"
+      ]
+    },
+    {
+      "clientId": "n8n-crawler-automation",
+      "name": "n8n Crawler Automation",
+      "scopes": [
+        "automation.job.claim",
+        "automation.job.heartbeat",
+        "automation.job.complete",
+        "automation.command.crawler",
+        "automation.approval.read"
+      ]
+    },
+    {
+      "clientId": "n8n-product-automation",
+      "name": "n8n Product Automation",
+      "scopes": [
+        "automation.job.claim",
+        "automation.job.heartbeat",
+        "automation.job.complete",
+        "automation.command.product",
+        "automation.approval.read"
+      ]
+    },
+    {
+      "clientId": "n8n-privacy-automation",
+      "name": "n8n Privacy Automation",
+      "scopes": [
+        "automation.job.claim",
+        "automation.job.heartbeat",
+        "automation.job.complete",
+        "automation.command.privacy",
+        "automation.approval.read"
+      ],
+      "additionalControls": [
+        "two-person approval for destructive actions",
+        "no automatic deletion repair",
+        "dedicated credential and audit stream"
+      ]
+    },
+    {
+      "clientId": "n8n-operations-automation",
+      "name": "n8n Operations Automation",
+      "scopes": [
+        "automation.job.claim",
+        "automation.job.heartbeat",
+        "automation.job.complete",
+        "automation.operations.reconcile",
+        "automation.operations.replay",
+        "automation.approval.read"
+      ],
+      "additionalControls": [
+        "protected operator approval",
+        "dead-letter replay capability disabled by default",
+        "no provider administration"
+      ]
+    }
+  ],
+  "crossRepositoryContract": {
+    "n8nRepository": "appolon1908-hue/N8N",
+    "n8nContractBranch": "contract/automation-control-plane-v2",
+    "n8nContractSha": "e3a3e97ab0da0d7df78bba52b18904e5f83e6dbe",
+    "middlewareRepository": "appolon1908-hue/Middleware-",
+    "middlewareContractBranch": "contract/n8n-automation-control-plane-v2",
+    "middlewareContractSha": "bd6c7c0a470a74ef648fe2a21e2d9dcd4c2328a4"
+  }
+}
