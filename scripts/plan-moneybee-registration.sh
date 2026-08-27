@@ -52,11 +52,30 @@ flow_exists=false
 if jq -e 'any(.[]; .alias == "moneybee-registration")' "$output_dir/flows.json" >/dev/null; then
   flow_exists=true
   keycloak_api GET "$auth_path/flows/$(urlencode moneybee-registration)/executions" >"$output_dir/moneybee-registration-executions.json"
-  if ! jq -e 'any(.[]; .providerId == "moneybee-registration-gate")' "$output_dir/moneybee-registration-executions.json" >/dev/null; then
-    actions="$(jq -c '. + [{action:"ensure_registration_gate", providerId:"moneybee-registration-gate"}]' <<<"$actions")"
+
+  gate_present=false
+  gate_required_in_form=false
+  if jq -e 'any(.[]; .providerId == "moneybee-registration-gate")' "$output_dir/moneybee-registration-executions.json" >/dev/null; then
+    gate_present=true
+  fi
+  if jq -e 'any(.[];
+      .providerId == "moneybee-registration-gate"
+      and .requirement == "REQUIRED"
+      and ((.authenticationFlow // false) == false)
+      and ((.level // 0) > 0)
+    )' "$output_dir/moneybee-registration-executions.json" >/dev/null; then
+    gate_required_in_form=true
+  fi
+
+  if [[ "$gate_required_in_form" != true ]]; then
+    if [[ "$gate_present" == true ]]; then
+      blocked+=("moneybee-registration-gate exists but is not REQUIRED inside the registration-form scope")
+    else
+      actions="$(jq -c '. + [{action:"ensure_registration_gate", providerId:"moneybee-registration-gate", requirement:"REQUIRED", scope:"registration-form"}]' <<<"$actions")"
+    fi
   fi
 else
-  actions="$(jq -c '. + [{action:"copy_registration_flow", source:"registration", target:"moneybee-registration"},{action:"ensure_registration_gate", providerId:"moneybee-registration-gate"}]' <<<"$actions")"
+  actions="$(jq -c '. + [{action:"copy_registration_flow", source:"registration", target:"moneybee-registration"},{action:"ensure_registration_gate", providerId:"moneybee-registration-gate", requirement:"REQUIRED", scope:"registration-form"}]' <<<"$actions")"
 fi
 
 realm_changes='{}'
