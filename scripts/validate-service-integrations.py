@@ -16,7 +16,6 @@ EXPECTED_CLIENTS = [
     "kong-gateway",
     "middleware-api",
     "middleware-worker",
-    "moneybee-backend",
     "odoo-integration",
     "n8n-automation",
     "vicidial-adapter",
@@ -181,7 +180,6 @@ def validate() -> None:
 
     required_edges = {
         ("middleware-worker", "middleware-api"),
-        ("moneybee-backend", "middleware-api"),
         ("odoo-integration", "middleware-api"),
         ("middleware-api", "odoo-integration"),
         ("n8n-automation", "middleware-api"),
@@ -217,40 +215,19 @@ def validate() -> None:
         if ("n8n-automation", target) in grant_index:
             fail(f"n8n must not receive a direct grant to {target}")
 
-    boundaries = access.get("administrativeBoundaries", {})
-    provisioning_boundary = boundaries.get("provisioning-service")
-    if not isinstance(provisioning_boundary, dict):
+    admin_boundary = access.get("administrativeBoundaries", {}).get("provisioning-service")
+    if not isinstance(admin_boundary, dict):
         fail("provisioning-service administrative boundary is missing")
-    if provisioning_boundary.get("keycloakAdminApiAccess") is not False:
+    if admin_boundary.get("keycloakAdminApiAccess") is not False:
         fail("provisioning-service must not receive Keycloak Admin API access")
-    if provisioning_boundary.get("prohibitedRealmManagementRoles") != [
+    if admin_boundary.get("prohibitedRealmManagementRoles") != [
         "realm-admin",
         "manage-realm",
         "manage-clients",
     ]:
         fail("provisioning-service realm-management prohibition is invalid")
 
-    moneybee_boundary = boundaries.get("moneybee-backend")
-    if not isinstance(moneybee_boundary, dict):
-        fail("moneybee-backend administrative boundary is missing")
-    if moneybee_boundary.get("keycloakAdminApiAccess") is not False:
-        fail("moneybee-backend must not receive Keycloak Admin API access")
-    if moneybee_boundary.get("allowedTarget") != "middleware-api":
-        fail("moneybee-backend may target only middleware-api")
-    if moneybee_boundary.get("allowedScopes") != ["moneybee.events.publish"]:
-        fail("moneybee-backend scope boundary is invalid")
-    if moneybee_boundary.get("prohibitedRealmManagementRoles") != [
-        "realm-admin",
-        "manage-realm",
-        "manage-clients",
-    ]:
-        fail("moneybee-backend realm-management prohibition is invalid")
-    if grant_index.get(("moneybee-backend", "middleware-api")) != {
-        "moneybee.events.publish"
-    }:
-        fail("moneybee-backend must receive only moneybee.events.publish to middleware-api")
-
-    for (caller, target), scopes in grant_index.items():
+    for (caller, _target), scopes in grant_index.items():
         if caller == "monitoring-readonly":
             if scopes != {"health.read", "metrics.read"}:
                 fail("monitoring-readonly may receive only health.read and metrics.read")
@@ -258,10 +235,6 @@ def validate() -> None:
             word in scope for scope in scopes for word in ("admin", "realm", "client.manage")
         ):
             fail("provisioning-service has a prohibited administrative scope")
-        if caller == "moneybee-backend" and (
-            target != "middleware-api" or scopes != {"moneybee.events.publish"}
-        ):
-            fail("moneybee-backend has a grant outside its event-publisher boundary")
         if "*" in scopes:
             fail("wildcard scopes are prohibited")
 
