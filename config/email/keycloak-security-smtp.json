@@ -44,9 +44,21 @@
       "localPasswordResetAllowed": false
     },
     {
-      "application": "moneybeeloan.com",
-      "clientId": "moneybee-portal",
-      "state": "declared-runtime-binding-required",
+      "application": "app.moneybeeloan.com",
+      "clientId": "moneybee-borrower",
+      "state": "managed-multi-client",
+      "localPasswordResetAllowed": false
+    },
+    {
+      "application": "lenders.moneybeeloan.com",
+      "clientId": "moneybee-lender",
+      "state": "managed-multi-client",
+      "localPasswordResetAllowed": false
+    },
+    {
+      "application": "admin.moneybeeloan.com",
+      "clientId": "moneybee-admin",
+      "state": "managed-multi-client",
       "localPasswordResetAllowed": false
     },
     {
@@ -58,12 +70,6 @@
     {
       "application": "codestra.media",
       "clientId": "codestra-media-portal",
-      "state": "declared-runtime-binding-required",
-      "localPasswordResetAllowed": false
-    },
-    {
-      "application": "moneybee.loan",
-      "clientId": "moneybee-portal",
       "state": "declared-runtime-binding-required",
       "localPasswordResetAllowed": false
     },
