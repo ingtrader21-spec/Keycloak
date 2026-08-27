@@ -66,6 +66,45 @@ For all three clients:
 - Wildcard redirect URIs: prohibited
 - Web origins: exact values only
 
+## Reviewed reconciliation
+
+The dedicated reconciler plans by default and does not modify Keycloak unless `--apply` and the explicit confirmation variable are both supplied.
+
+Use the exact reviewed Git SHA:
+
+```bash
+KEYCLOAK_SHA="$(git rev-parse HEAD)"
+
+KC_BASE_URL=https://auth.codestra.co \
+KC_PUBLIC_URL=https://auth.codestra.co \
+KC_TARGET_REALM=codestra \
+KC_ADMIN_REALM=codestra \
+KC_ADMIN_CLIENT_ID="$KC_ADMIN_CLIENT_ID" \
+KC_ADMIN_CLIENT_SECRET="$KC_ADMIN_CLIENT_SECRET" \
+./scripts/reconcile-moneybee-oidc.sh \
+  --plan \
+  --expected-deploy-sha "$KEYCLOAK_SHA"
+```
+
+Review the printed actions. `moneybee-borrower` should show `update` when the live client exists but is missing the exact callback URI; missing lender/admin clients will show `create`.
+
+Only after reviewing that plan:
+
+```bash
+MONEYBEE_OIDC_APPLY_CONFIRM=YES \
+KC_BASE_URL=https://auth.codestra.co \
+KC_PUBLIC_URL=https://auth.codestra.co \
+KC_TARGET_REALM=codestra \
+KC_ADMIN_REALM=codestra \
+KC_ADMIN_CLIENT_ID="$KC_ADMIN_CLIENT_ID" \
+KC_ADMIN_CLIENT_SECRET="$KC_ADMIN_CLIENT_SECRET" \
+./scripts/reconcile-moneybee-oidc.sh \
+  --apply \
+  --expected-deploy-sha "$KEYCLOAK_SHA"
+```
+
+The reconciler creates missing MoneyBee clients, updates drifted clients, and then reads all three back from the live realm to verify convergence. It does not change unrelated clients.
+
 ## Runtime verification
 
 Before enabling production login, verify all of the following against the live `codestra` realm:
@@ -77,7 +116,7 @@ Before enabling production login, verify all of the following against the live `
 5. Redirect URIs and web origins exactly match this document.
 6. `https://auth.codestra.co/realms/codestra/.well-known/openid-configuration` is reachable.
 7. `https://auth.codestra.co/realms/codestra/protocol/openid-connect/certs` is reachable.
-8. Browser authorization to each portal no longer returns `Client not found`.
+8. Browser authorization to each portal no longer returns `Client not found` or `Invalid parameter: redirect_uri`.
 9. The authorization request uses the portal-specific client ID and the matching origin callback.
 10. After callback, the MoneyBee API resolves `/api/v2/me` and the selected `X-Organization-ID` without cross-tenant access.
 
