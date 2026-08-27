@@ -24,15 +24,30 @@ def main():
     client = document["client"]
     require(client["clientId"] == "beyvra-web-production", "client id changed")
     require(client["enabled"] is False, "client must remain disabled before runtime verification")
+    require(client["protocol"] == "openid-connect", "OIDC protocol is required")
     require(client["publicClient"] is True, "browser client must be public")
     require(client["standardFlowEnabled"] is True, "authorization code flow is required")
     require(client["implicitFlowEnabled"] is False, "implicit flow is forbidden")
     require(client["directAccessGrantsEnabled"] is False, "password grant is forbidden")
+    require(client["deviceAuthorizationGrantEnabled"] is False, "device grant is forbidden")
+    require(client["cibaGrantEnabled"] is False, "CIBA grant is forbidden")
     require(client["serviceAccountsEnabled"] is False, "browser service account is forbidden")
     require(client["pkceCodeChallengeMethod"] == "S256", "PKCE S256 is required")
     require(client["redirectUris"] == ["https://beyvra.com/api/v1/auth/oidc/callback/"], "redirect URI must be exact")
     require(client["postLogoutRedirectUris"] == ["https://beyvra.com/signIn?logged_out=1"], "post-logout URI must be exact")
     require(client["webOrigins"] == ["https://beyvra.com"], "web origin must be exact")
+    require(document["apiAudience"] == "beyvra-api-production", "API audience changed")
+    require(client["protocolMappers"] == [{
+        "name": "beyvra-api-audience",
+        "protocol": "openid-connect",
+        "protocolMapper": "oidc-audience-mapper",
+        "consentRequired": False,
+        "config": {
+            "included.custom.audience": "beyvra-api-production",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+        },
+    }], "API audience mapper changed")
 
     roles = document["roles"]
     require(roles["default"] == ["beyvra-user"], "default role changed")

@@ -12,6 +12,8 @@
     "standardFlowEnabled": true,
     "implicitFlowEnabled": false,
     "directAccessGrantsEnabled": false,
+    "deviceAuthorizationGrantEnabled": false,
+    "cibaGrantEnabled": false,
     "serviceAccountsEnabled": false,
     "pkceCodeChallengeMethod": "S256",
     "redirectUris": [
@@ -22,8 +24,22 @@
     ],
     "webOrigins": [
       "https://beyvra.com"
+    ],
+    "protocolMappers": [
+      {
+        "name": "beyvra-api-audience",
+        "protocol": "openid-connect",
+        "protocolMapper": "oidc-audience-mapper",
+        "consentRequired": false,
+        "config": {
+          "included.custom.audience": "beyvra-api-production",
+          "access.token.claim": "true",
+          "id.token.claim": "false"
+        }
+      }
     ]
   },
+  "apiAudience": "beyvra-api-production",
   "roles": {
     "default": [
       "beyvra-user"

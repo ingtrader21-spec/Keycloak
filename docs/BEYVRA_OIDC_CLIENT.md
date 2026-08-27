@@ -13,6 +13,7 @@ required before creating or enabling it.
 - Redirect: `https://beyvra.com/api/v1/auth/oidc/callback/`
 - Post logout: `https://beyvra.com/signIn?logged_out=1`
 - Origin: `https://beyvra.com`
+- Access-token audience: `beyvra-api-production`
 - No wildcard redirects or origins
 - No implicit, password, device, CIBA, or client-credentials grant
 - Roles: `beyvra-user`, `beyvra-admin`, `beyvra-super-admin`
