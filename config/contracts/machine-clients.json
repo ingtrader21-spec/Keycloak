@@ -39,17 +39,6 @@
       "provisioningState": "declared-not-created"
     },
     {
-      "clientId": "moneybee-backend",
-      "clientType": "confidential",
-      "serviceAccountsEnabled": true,
-      "standardFlowEnabled": false,
-      "implicitFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
-      "audience": "moneybee-backend",
-      "scopes": ["moneybee-backend.access"],
-      "provisioningState": "declared-not-created"
-    },
-    {
       "clientId": "odoo-integration",
       "clientType": "confidential",
       "serviceAccountsEnabled": true,
