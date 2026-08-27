@@ -1,0 +1,51 @@
+name: Scrapper identity contract validation
+
+on:
+  pull_request:
+    paths:
+      - 'contracts/scrapper-turnkey-identity-v1.json'
+      - 'docs/SCRAPPER_TURNKEY_IDENTITY.md'
+      - '.github/workflows/scrapper-identity-contract.yml'
+  push:
+    branches:
+      - feat/scrapper-turnkey-identity-v1
+
+permissions:
+  contents: read
+
+jobs:
+  scrapper-identity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Validate identity contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m json.tool contracts/scrapper-turnkey-identity-v1.json >/dev/null
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          contract = json.loads(Path('contracts/scrapper-turnkey-identity-v1.json').read_text())
+          assert contract['issuer'] == 'https://auth.codestra.co/realms/codestra'
+          assert contract['status'] == 'disabled-until-staging-approved'
+          assert contract['tenant_membership']['required_for_tenant_routes'] is True
+          assert contract['security']['browser_tokens_stored_in_local_storage'] is False
+          assert contract['security']['machine_secrets_committed_to_git'] is False
+          assert contract['security']['wildcard_scope_assignment'] is False
+          clients = {item['client_id']: item for item in contract['clients']}
+          assert clients['codestra-scrapper-bff']['pkce_method'] == 'S256'
+          assert clients['codestra-scrapper-bff']['implicit_flow'] is False
+          assert clients['codestra-scrapper-middleware-events']['audiences'] == ['codestra-middleware']
+          assert 'scraper.inbox.write' in clients['codestra-middleware-scrapper-commands']['service_scopes']
+          assert contract['token_policy']['access_token_lifespan_seconds'] <= 300
+          assert contract['token_policy']['service_token_lifespan_seconds'] <= 300
+          PY
+          ! grep -RniE 'BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|client_secret[[:space:]]*[:=][[:space:]]*[A-Za-z0-9_-]{16,}' contracts docs
+
+      - name: Validate clean patch
+        run: git diff --check
