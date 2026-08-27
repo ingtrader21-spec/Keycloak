@@ -66,6 +66,9 @@ jobs:
       - name: Validate source MoneyBee OIDC contract
         run: python3 scripts/validate-moneybee-oidc-contract.py
 
+      - name: Validate source MoneyBee registration and email OTP contract
+        run: python3 scripts/validate-moneybee-registration.py
+
       - name: Validate source password-reset and Klyrow SMTP contract
         run: python3 scripts/validate-password-reset-contract.py
 
@@ -79,6 +82,7 @@ jobs:
           POSTGRES_PASSWORD: ${{ format('ci-only-{0}-source', github.run_id) }}
           KC_BOOTSTRAP_ADMIN_USERNAME: ci-bootstrap-admin
           KC_BOOTSTRAP_ADMIN_PASSWORD: ${{ format('ci-only-{0}-source', github.run_id) }}
+          MONEYBEE_EMAIL_OTP_HMAC_KEY: ${{ format('ci-only-moneybee-otp-hmac-{0}-source-validation', github.run_id) }}
         run: docker compose config --quiet
 
       - name: Build exact source Keycloak image without publishing
@@ -138,6 +142,9 @@ jobs:
       - name: Validate merge-result MoneyBee OIDC contract
         run: python3 scripts/validate-moneybee-oidc-contract.py
 
+      - name: Validate merge-result MoneyBee registration and email OTP contract
+        run: python3 scripts/validate-moneybee-registration.py
+
       - name: Validate merge-result password-reset and Klyrow SMTP contract
         run: python3 scripts/validate-password-reset-contract.py
 
@@ -151,6 +158,7 @@ jobs:
           POSTGRES_PASSWORD: ${{ format('ci-only-{0}-merge', github.run_id) }}
           KC_BOOTSTRAP_ADMIN_USERNAME: ci-bootstrap-admin
           KC_BOOTSTRAP_ADMIN_PASSWORD: ${{ format('ci-only-{0}-merge', github.run_id) }}
+          MONEYBEE_EMAIL_OTP_HMAC_KEY: ${{ format('ci-only-moneybee-otp-hmac-{0}-merge-validation', github.run_id) }}
         run: docker compose config --quiet
 
       - name: Build exact merge-result Keycloak image without publishing
