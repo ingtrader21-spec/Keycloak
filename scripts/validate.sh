@@ -285,6 +285,7 @@ done
 
 python3 "$ROOT_DIR/scripts/validate-moneybee-oidc-contract.py"
 python3 "$ROOT_DIR/scripts/validate-domain-application-registry.py"
+python3 "$ROOT_DIR/scripts/validate-beyvra-oidc-contract.py"
 
 while IFS= read -r script; do
   bash -n "$script" || fail "Bash syntax failed: $script"
