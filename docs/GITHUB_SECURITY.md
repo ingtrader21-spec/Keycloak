@@ -68,7 +68,7 @@ Required variables:
 KC_BASE_URL=https://auth.codestra.co
 KC_PUBLIC_URL=https://auth.codestra.co
 KC_TARGET_REALM=codestra
-KC_ADMIN_REALM=codestra
+KC_ADMIN_REALM=master
 RUNTIME_REPO_DIR
 RUNTIME_COMPOSE_FILE
 RUNTIME_ENV_FILE
@@ -80,6 +80,10 @@ RUNTIME_GIT_BRANCH=main
 RUNTIME_PATHS_APPROVED_SHA256
 ```
 
+`KC_ADMIN_REALM=master` is the administrative authentication realm only. The
+protected planner and apply engine must continue to target `KC_TARGET_REALM=codestra`.
+The admin credential does not authorize mutation of `master` realm resources.
+
 Required secrets:
 
 ```text
@@ -89,4 +93,7 @@ KC_ADMIN_CLIENT_SECRET
 
 Use different fine-grained Keycloak service-account clients and secrets for
 staging and production. Neither identity may receive `realm-admin`,
-`manage-realm`, or realm-wide `manage-clients`.
+`manage-realm`, or unrestricted realm-wide `manage-clients`. Any permission
+required for reviewed creation of the explicitly creatable MoneyBee clients must
+be separately reviewed and limited to the smallest Keycloak administrative scope
+supported by the deployed version.
