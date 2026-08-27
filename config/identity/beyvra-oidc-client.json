@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "realm": "codestra",
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "provisioningState": "declared-runtime-verification-required",
+  "client": {
+    "clientId": "beyvra-web-production",
+    "name": "Beyvra Web Production",
+    "enabled": false,
+    "protocol": "openid-connect",
+    "publicClient": true,
+    "standardFlowEnabled": true,
+    "implicitFlowEnabled": false,
+    "directAccessGrantsEnabled": false,
+    "serviceAccountsEnabled": false,
+    "pkceCodeChallengeMethod": "S256",
+    "redirectUris": [
+      "https://beyvra.com/api/v1/auth/oidc/callback/"
+    ],
+    "postLogoutRedirectUris": [
+      "https://beyvra.com/signIn?logged_out=1"
+    ],
+    "webOrigins": [
+      "https://beyvra.com"
+    ]
+  },
+  "roles": {
+    "default": [
+      "beyvra-user"
+    ],
+    "managed": [
+      "beyvra-user",
+      "beyvra-admin",
+      "beyvra-super-admin"
+    ]
+  },
+  "registrationPolicy": {
+    "selfRegistration": true,
+    "verifyEmail": true,
+    "termsAcceptanceRequired": true,
+    "passwordAuthority": "keycloak-only",
+    "mfaAuthority": "keycloak-only",
+    "adminMfaRequired": true
+  },
+  "backendForFrontend": {
+    "callbackOwner": "beyvra-backend",
+    "browserBearerStorageAllowed": false,
+    "browserRefreshStorageAllowed": false,
+    "identityBinding": "issuer-and-subject",
+    "provisioningEvent": "identity.account.provisioned"
+  },
+  "passwordRecovery": {
+    "localResetAllowed": false,
+    "authority": "keycloak",
+    "securityMailContract": "config/email/keycloak-security-smtp.json",
+    "resetTokenLifetimeSeconds": 900
+  },
+  "activationGates": [
+    "runtime-client-does-not-exist-or-matches-reviewed-export",
+    "exact-redirect-and-origin-probe-passes",
+    "beyvra-same-origin-api-proxy-passes",
+    "klyrow-security-smtp-starttls-auth-passes",
+    "password-reset-send-and-consume-smoke-test-passes",
+    "rollback-plan-and-reviewed-apply-plan-hash-exist"
+  ]
+}
