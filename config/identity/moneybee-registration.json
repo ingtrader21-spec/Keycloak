@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "realm": "codestra",
+  "registrationAllowed": true,
+  "registrationClient": "moneybee-borrower",
+  "deniedPublicRegistrationClients": ["moneybee-lender", "moneybee-admin"],
+  "registrationGateProvider": "moneybee-registration-gate",
+  "emailVerificationRequiredAction": "moneybee-verify-email-otp",
+  "verification": {
+    "type": "numeric-email-otp",
+    "length": 6,
+    "ttlSeconds": 600,
+    "maxAttempts": 5,
+    "resendCooldownSeconds": 60,
+    "maxSendsPerHour": 5,
+    "oneTimeUse": true,
+    "invalidatePreviousOnResend": true,
+    "plaintextPersistence": false,
+    "hmacSecretEnvironment": "MONEYBEE_EMAIL_OTP_HMAC_KEY"
+  },
+  "smtpAuthority": "config/email/keycloak-security-smtp.json",
+  "passwordAuthority": "keycloak-only",
+  "applicationPasswordCollection": "prohibited"
+}
