@@ -1,5 +1,8 @@
 {
   "clients": [
-    "klyrow-portal"
+    "klyrow-portal",
+    "moneybee-admin",
+    "moneybee-borrower",
+    "moneybee-lender"
   ]
 }
