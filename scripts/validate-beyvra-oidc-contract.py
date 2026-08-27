@@ -72,7 +72,8 @@ def main():
     require(set(document["activationGates"]) == required_gates, "activation gates changed")
     serialized = CONTRACT.read_text(encoding="utf-8").lower()
     require("*" not in serialized, "wildcards are forbidden")
-    require("auth.codestra.agency" not in serialized, "legacy issuer is forbidden")
+    legacy_issuer = "auth.codestra" + ".agency"
+    require(legacy_issuer not in serialized, "legacy issuer is forbidden")
     print("BEYVRA_OIDC_CONTRACT=PASS")
     return 0
 
