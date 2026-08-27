@@ -2,7 +2,7 @@
 
 ## Authority
 
-Keycloak is the machine-identity authority. n8n workflow clients authenticate to Middleware only. They do not receive direct access to Odoo, VICIdial, Asterisk, Telnexa/Jasmin, Klyrow/Postal/Mautic, Postly/Postiz or social providers, Kyqra/Crawlee, product databases or provider APIs.
+Keycloak is the machine-identity authority. n8n workflow clients authenticate to Middleware only. They do not receive direct access to Odoo, VICIdial, Asterisk, Telnexa/Jasmin, Klyrow/Postal/Mautic, Postly/Postiz or social providers, Kyqra/Crawlee, Beyvra, product databases or provider APIs.
 
 Canonical issuer:
 
@@ -41,60 +41,32 @@ n8n-operations-automation
 
 Every client is confidential, has service accounts enabled, has a maximum access-token lifetime of 300 seconds, targets the `middleware-api` audience, and has no browser or direct-grant flow.
 
-## Granular runtime scopes
+## Beyvra boundary
+
+Beyvra uses the existing `n8n-product-automation` identity only for:
 
 ```text
-automation.job.claim
-automation.job.read
-automation.job.heartbeat
-automation.job.step.write
-automation.job.complete
-automation.job.fail
-automation.command.read
-automation.approval.request
-automation.approval.read
-automation.capability.read
+workflow_family = product.beyvra-nonfinancial
+command_prefix  = beyvra.operations.
 ```
 
-Domain command scopes are separated:
+The Beyvra frontend is not a machine client. No browser receives an n8n or Middleware service token. Financial and demo-order effects remain prohibited:
 
 ```text
-automation.command.identity
-automation.command.crm
-automation.command.telephony
-automation.command.messaging
-automation.command.social
-automation.command.crawler
-automation.command.product
-automation.command.privacy
+trade.*
+order.*
+wallet.*
+ledger.*
+hold.*
+payment.*
+withdrawal.*
+deposit.*
+transfer.*
+custody.*
+chain.*
+broker.*
+provider.*
 ```
-
-Protected operations scopes are separated:
-
-```text
-automation.operations.reconcile
-automation.dead-letter.read
-automation.operations.replay.request
-```
-
-`automation.operations.replay.request` authorizes only a request. Middleware still requires a protected non-self approval, expected record version, original-effect fingerprint, safe-replay classification, original tenant, idempotency key and `DEAD_LETTER_REPLAY=true`.
-
-## Workflow-family separation
-
-| Client | Workflow families | Command prefixes |
-|---|---|---|
-| `n8n-platform-runtime` | `platform.shared` | none |
-| `n8n-identity-automation` | `identity`, `provisioning` | `identity.`, `provisioning.` |
-| `n8n-crm-automation` | `crm`, `support` | `crm.`, `support.` |
-| `n8n-telephony-automation` | `telephony` | `telephony.` |
-| `n8n-messaging-automation` | `messaging.email`, `messaging.sms` | `email.`, `sms.` |
-| `n8n-social-automation` | `social.postly` | `social.` |
-| `n8n-crawler-automation` | `crawler.kyqra` | `crawler.` |
-| `n8n-product-automation` | reviewed product families | reviewed product prefixes |
-| `n8n-privacy-automation` | `privacy` | `privacy.` |
-| `n8n-operations-automation` | `operations` | `operations.` |
-
-The dedicated social client prevents Postly publication privileges from being inherited by the SMS/email messaging client. Postly continues to own provider OAuth tokens and publication truth.
 
 ## Token and claim requirements
 
@@ -128,10 +100,11 @@ Creation or update requires the existing protected Keycloak check/plan/apply pro
 ## Branch dependencies
 
 ```text
-Keycloak/main
 Middleware PR #15
 N8N PR #9
 social.codestra.co PR #1
+beyvra-backend PR #52
+beyvra-frontend PR #24
 N8N/shared/automation-runtime-v2-20260827
 ```
 

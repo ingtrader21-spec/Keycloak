@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "2.1",
+  "schemaVersion": 2,
   "issuer": "https://auth.codestra.co/realms/codestra",
   "grantType": "client_credentials",
   "maximumAccessTokenLifetimeSeconds": 300,
@@ -185,7 +185,7 @@
         "product.breero",
         "product.larim-a",
         "product.freight",
-        "product.beyvra",
+        "product.beyvra-nonfinancial",
         "product.booked4seasons",
         "product.trading-nonfinancial"
       ],
@@ -194,7 +194,7 @@
         "breero.",
         "larim.",
         "freight.",
-        "beyvra.",
+        "beyvra.operations.",
         "booked4seasons.",
         "trading.operations.",
         "real-wallet.operations."
@@ -244,7 +244,7 @@
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "workflowFamilies": ["operations"],
-      "commandPrefixes": ["operations."],
+      "commandPrefixes": [],
       "scopes": [
         "automation.job.claim",
         "automation.job.read",
@@ -261,6 +261,16 @@
       ]
     }
   ],
+  "productBoundaries": {
+    "product.beyvra-nonfinancial": {
+      "backendRepository": "appolon1908-hue/beyvra-backend",
+      "frontendRepository": "appolon1908-hue/beyvra-frontend",
+      "frontendMachineClient": false,
+      "allowedCommandPrefixes": ["beyvra.operations."],
+      "financialEffectsAllowed": false,
+      "demoOrderEffectsAllowed": false
+    }
+  },
   "invariants": {
     "fullScopeAllowed": false,
     "humanLoginAllowed": false,
