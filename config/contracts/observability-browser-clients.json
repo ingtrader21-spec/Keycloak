@@ -26,7 +26,13 @@
         "observability-operator",
         "observability-admin"
       ],
-      "secretSource": "external-secret-manager",
+      "mfaRequiredRoles": [
+        "observability-operator",
+        "observability-admin"
+      ],
+      "sessionIdleSeconds": 900,
+      "sessionMaxSeconds": 14400,
+      "secretSource": "protected-generated-client-secret-export",
       "directAccessGrantsEnabled": false,
       "implicitFlowEnabled": false,
       "serviceAccountsEnabled": false
@@ -52,7 +58,13 @@
         "observability-operator",
         "observability-admin"
       ],
-      "secretSource": "external-secret-manager",
+      "mfaRequiredRoles": [
+        "observability-operator",
+        "observability-admin"
+      ],
+      "sessionIdleSeconds": 900,
+      "sessionMaxSeconds": 14400,
+      "secretSource": "protected-generated-client-secret-export",
       "directAccessGrantsEnabled": false,
       "implicitFlowEnabled": false,
       "serviceAccountsEnabled": false
@@ -79,7 +91,13 @@
         "secrets-operator",
         "secrets-admin"
       ],
-      "secretSource": "external-secret-manager",
+      "mfaRequiredRoles": [
+        "secrets-operator",
+        "secrets-admin"
+      ],
+      "sessionIdleSeconds": 600,
+      "sessionMaxSeconds": 3600,
+      "secretSource": "protected-generated-client-secret-export",
       "directAccessGrantsEnabled": false,
       "implicitFlowEnabled": false,
       "serviceAccountsEnabled": false
@@ -94,6 +112,9 @@
   "activation": {
     "contractReviewed": true,
     "managedClientApplySupportAdded": true,
+    "roleProvisioningSupportAdded": true,
+    "secretExportSupportAdded": true,
+    "roleAssignmentsApplied": false,
     "liveClientsCreated": false,
     "liveSecretsGenerated": false,
     "productionAccessEnabled": false
