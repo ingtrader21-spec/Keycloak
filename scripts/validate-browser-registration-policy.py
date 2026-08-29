@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate fail-closed browser self-registration for MoneyBee and Beyvra."""
+"""Validate fail-closed browser self-registration for MoneyBee, Beyvra, and Breero."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ POLICY = ROOT / "config" / "identity" / "browser-registration-policy.json"
 REALM = ROOT / "config" / "realms" / "codestra.json"
 MONEYBEE = ROOT / "config" / "identity" / "moneybee-oidc-clients.json"
 BEYVRA = ROOT / "config" / "identity" / "beyvra-oidc-client.json"
+DOMAIN_REGISTRY = ROOT / "config" / "identity" / "application-domain-registry.json"
 SMTP = ROOT / "config" / "email" / "keycloak-security-smtp.json"
 DOCKERFILE = ROOT / "Dockerfile"
 JAVA = (
@@ -40,7 +41,7 @@ SERVICE = (
 )
 
 CANONICAL_ISSUER = "https://auth.codestra.co/realms/codestra"
-ALLOWED = ["moneybee-borrower", "beyvra-web-production"]
+ALLOWED = ["moneybee-borrower", "beyvra-web-production", "breero-portal"]
 DENIED = ["moneybee-lender", "moneybee-admin"]
 
 
@@ -67,6 +68,7 @@ def validate() -> None:
     realm = load(REALM)
     moneybee = load(MONEYBEE)
     beyvra = load(BEYVRA)
+    registry = load(DOMAIN_REGISTRY)
     smtp = load(SMTP)
 
     if policy.get("schemaVersion") != 1:
@@ -80,7 +82,7 @@ def validate() -> None:
     if policy.get("registrationFlow") != "codestra-registration":
         fail("registration flow alias changed")
     if policy.get("allowedPublicRegistrationClients") != ALLOWED:
-        fail("only MoneyBee borrower and Beyvra may self-register")
+        fail("only MoneyBee borrower, Beyvra, and Breero may self-register")
     if policy.get("explicitlyDeniedRegistrationClients") != DENIED:
         fail("MoneyBee lender/admin denial policy changed")
     if policy.get("credentialAuthority") != "keycloak-only":
@@ -117,7 +119,7 @@ def validate() -> None:
     if activation.get("verifyAllowedClientsBeforeActivation") is not True:
         fail("positive registration tests are mandatory")
 
-    # The Git overlay intentionally stays closed until the custom flow exists in runtime.
+    # Source stays closed until the custom gated flow is installed and read back.
     if realm.get("registrationAllowed") is not False:
         fail("realm registration must remain disabled in source until gated-flow activation")
     if realm.get("verifyEmail") is not True:
@@ -143,6 +145,32 @@ def validate() -> None:
         fail("Beyvra contract must declare reviewed self-registration")
     if registration_policy.get("passwordAuthority") != "keycloak-only":
         fail("Beyvra password authority must be Keycloak")
+
+    domains = registry.get("domains")
+    if not isinstance(domains, list):
+        fail("application domain registry is missing domains")
+    breero_entries = {
+        item.get("domain"): item
+        for item in domains
+        if isinstance(item, dict) and item.get("domain") in {"breero.com", "breero.shop"}
+    }
+    if set(breero_entries) != {"breero.com", "breero.shop"}:
+        fail("Breero domain registry membership changed")
+    for domain, item in breero_entries.items():
+        if item.get("humanClientId") != "breero-portal":
+            fail(f"{domain}: Breero browser client changed")
+        if item.get("canonicalDomain") != "breero.com":
+            fail(f"{domain}: Breero canonical domain changed")
+        if item.get("passwordResetDelegatedToKeycloak") is not True:
+            fail(f"{domain}: password reset must remain delegated to Keycloak")
+        if item.get("localPasswordResetAllowed") is not False:
+            fail(f"{domain}: local password reset must remain disabled")
+        if item.get("state") != "declared-runtime-binding-required":
+            fail(f"{domain}: Breero client must remain runtime-binding gated")
+        if item.get("enabled") is not False:
+            fail(f"{domain}: Breero Keycloak client must stay disabled before callback verification")
+        if item.get("redirectUris") != [] or item.get("webOrigins") != []:
+            fail(f"{domain}: Breero redirects/origins must remain empty before runtime verification")
 
     if smtp.get("passwordReset", {}).get("passwordAuthority") != "keycloak-only":
         fail("SMTP contract must preserve Keycloak password authority")
@@ -195,7 +223,9 @@ def main() -> int:
     print("BROWSER_REGISTRATION_POLICY=PASS")
     print("MONEYBEE_BORROWER_SELF_REGISTRATION=DECLARED_GATED")
     print("BEYVRA_SELF_REGISTRATION=DECLARED_GATED")
+    print("BREERO_SELF_REGISTRATION=DECLARED_GATED")
     print("MONEYBEE_LENDER_ADMIN_SELF_REGISTRATION=BLOCKED")
+    print("BREERO_RUNTIME_CLIENT_ACTIVATION=BLOCKED_PENDING_CALLBACK_ORIGIN_VERIFICATION")
     print("KEYCLOAK_STANDARD_EMAIL_VERIFICATION=PASS")
     print("RESET_MATERIAL_OUTSIDE_KEYCLOAK=BLOCKED")
     print("REALM_REGISTRATION_ACTIVATION=FAIL_CLOSED_PENDING_GATED_FLOW_READBACK")
