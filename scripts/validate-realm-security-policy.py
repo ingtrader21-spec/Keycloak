@@ -67,8 +67,13 @@ require(POLICY["requiredActions"]["webauthnRegistrationForPrivilegedUsers"] is T
 
 smtp = REALM["smtpServer"]
 require(set(smtp) == {"host", "port", "from", "fromDisplayName", "replyTo", "envelopeFrom", "auth", "starttls", "ssl"}, "SMTP secret boundary")
-require(smtp["host"] == "10.40.0.4" and smtp["port"] == "587", "SMTP endpoint")
+require(smtp["host"] == "mail.klyrow.com" and smtp["port"] == "25", "SMTP endpoint")
 require(smtp["auth"] == "true" and smtp["starttls"] == "true" and smtp["ssl"] == "false", "SMTP transport")
+
+smtp_contract = SMTP["smtp"]
+require(smtp_contract["defaultHost"] == "mail.klyrow.com" and smtp_contract["defaultPort"] == 25, "SMTP contract endpoint")
+require(smtp_contract["encryption"] == "starttls", "SMTP contract STARTTLS")
+require(smtp_contract["requiredKlyrowStream"] == "SECURITY", "SECURITY stream")
 
 recovery = POLICY["accountRecovery"]
 require(recovery["smtpContract"] == "config/email/keycloak-security-smtp.json", "SMTP linkage")
@@ -83,3 +88,4 @@ print("SESSION_POLICY=PASS")
 print("TOKEN_POLICY=PASS")
 print("MFA_POLICY=PASS")
 print("ACCOUNT_RECOVERY_POLICY=PASS")
+print("KLYROW_SMTP_ENDPOINT=PASS")
