@@ -103,6 +103,11 @@ make validate
 CI additionally validates Docker Compose, exercises the protected plan gate,
 and builds the pinned Keycloak image without publishing it.
 
+Production Compose requires `KEYCLOAK_IMAGE` to be the approved GHCR release
+reference in `repository:source-SHA@sha256:digest` form. The protected manual
+image-release workflow builds once, publishes attestations, scans the exact
+digest, and emits checksummed release evidence; it never deploys Keycloak.
+
 ## Governance that remains external to Git
 
 Repository rules, protected GitHub Environments, reviewer identities,
