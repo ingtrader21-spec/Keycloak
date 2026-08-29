@@ -148,6 +148,12 @@ for client_id in "${creatable_clients[@]}"; do
   creatable_client_set["$client_id"]=1
 done
 
+declare -A machine_secret_environment=()
+machine_secret_contract="$ROOT_DIR/config/contracts/machine-secret-destinations.json"
+while IFS=$'\t' read -r client_id secret_environment; do
+  machine_secret_environment["$client_id"]="$secret_environment"
+done < <(jq -er '.clients[] | [.clientId, .applyEnvironment] | @tsv' "$machine_secret_contract")
+
 keycloak_authenticate
 
 tmp_dir="$(mktemp -d)"
@@ -350,9 +356,19 @@ while IFS= read -r operation; do
   case "$action" in
     create)
       desired_file="$(jq -er '.desiredFile' <<<"$operation")"
+      request_body_file="$desired_file"
+      secret_environment="${machine_secret_environment[$client_id]:-}"
+      if [[ -n "$secret_environment" ]]; then
+        require_env "$secret_environment"
+        create_body_file="$tmp_dir/create-${client_id}.json"
+        jq -S --arg client_secret "${!secret_environment}" \
+          '.secret = $client_secret' "$desired_file" >"$create_body_file"
+        chmod 600 "$create_body_file"
+        request_body_file="$create_body_file"
+      fi
       keycloak_api POST \
         "/admin/realms/$(urlencode "$KC_TARGET_REALM")/clients" \
-        "$desired_file" >/dev/null
+        "$request_body_file" >/dev/null
       created_count=$((created_count + 1))
       changed_count=$((changed_count + 1))
       [[ "$(keycloak_api GET "/admin/realms/$(urlencode "$KC_TARGET_REALM")/clients?clientId=$(urlencode "$client_id")&exact=true" | jq -er 'length')" -eq 1 ]] ||

@@ -173,6 +173,22 @@ export KC_ADMIN_REALM="master"
 export KC_ADMIN_CLIENT_ID="test-gitops-client"
 : "${TEST_KC_CLIENT_SECRET:?Set TEST_KC_CLIENT_SECRET for the mock test}"
 export KC_ADMIN_CLIENT_SECRET=$TEST_KC_CLIENT_SECRET
+for machine_secret_environment in \
+  KC_CLIENT_SECRET_KONG_GATEWAY \
+  KC_CLIENT_SECRET_MIDDLEWARE_API \
+  KC_CLIENT_SECRET_MIDDLEWARE_WORKER \
+  KC_CLIENT_SECRET_ODOO_INTEGRATION \
+  KC_CLIENT_SECRET_N8N_AUTOMATION \
+  KC_CLIENT_SECRET_VICIDIAL_ADAPTER \
+  KC_CLIENT_SECRET_TELNEXA_GATEWAY \
+  KC_CLIENT_SECRET_KLYROW_GATEWAY \
+  KC_CLIENT_SECRET_KYQRA_GATEWAY \
+  KC_CLIENT_SECRET_POSTLY_ADAPTER \
+  KC_CLIENT_SECRET_PROVISIONING_SERVICE \
+  KC_CLIENT_SECRET_MONITORING_READONLY; do
+  printf -v "$machine_secret_environment" 'test-only-%s' "$machine_secret_environment"
+  export "${machine_secret_environment?}"
+done
 export ALLOW_INSECURE_KC_BASE_URL="true"
 export ALLOW_NONCANONICAL_KC_BASE_URL_FOR_TESTS="true"
 export DEPLOY_ENVIRONMENT="staging"
@@ -183,12 +199,12 @@ plan_dir="$test_root/plan"
   --output-dir "$plan_dir" \
   --expected-deploy-sha "$expected_sha" >/dev/null
 
-[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 22 ]]
+[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 16 ]]
 [[ "$(jq -er '.blockedCount' "$plan_dir/plan.json")" -eq 0 ]]
-[[ "$(jq -er '.createCount' "$plan_dir/plan.json")" -eq 21 ]]
+[[ "$(jq -er '.createCount' "$plan_dir/plan.json")" -eq 15 ]]
 [[ "$(jq -er '.updateCount' "$plan_dir/plan.json")" -eq 1 ]]
 [[ "$(jq -er '.clients[] | select(.clientId == "klyrow-portal") | .action' "$plan_dir/plan.json")" == "update" ]]
-for client_id in moneybee-admin moneybee-borrower moneybee-lender moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra; do
+for client_id in moneybee-admin moneybee-borrower moneybee-lender; do
   [[ "$(jq -er --arg client_id "$client_id" '.clients[] | select(.clientId == $client_id) | .action' "$plan_dir/plan.json")" == "create" ]]
   jq -e --arg client_id "$client_id" '
     .clients[]
@@ -220,7 +236,7 @@ mapfile -t managed_clients < <(jq -r '.clients[]' "$ROOT_DIR/config/policy/manag
   "${managed_clients[@]}" >/dev/null
 [[ -f "$rollback_dir/config/clients/klyrow-portal.json" ]]
 [[ "$(jq -er '.existingClientCount' "$rollback_dir/rollback-metadata.json")" -eq 1 ]]
-[[ "$(jq -er '.absentCreatableClientCount' "$rollback_dir/rollback-metadata.json")" -eq 21 ]]
+[[ "$(jq -er '.absentCreatableClientCount' "$rollback_dir/rollback-metadata.json")" -eq 15 ]]
 
 if "$ROOT_DIR/scripts/apply-plan.sh" \
   --plan "$plan_dir/plan.json" \
@@ -256,12 +272,28 @@ jq -e '
   and has("moneybee-admin")
   and (has("moneybee-borrower") | not)
   and (has("moneybee-lender") | not)
-  and (has("moneybee-backend") | not)
-  and (has("social-codestra") | not)
 ' "$state_file" >/dev/null
 
 jq -S 'del(."moneybee-admin")' "$state_file" >"$state_file.tmp"
 mv "$state_file.tmp" "$state_file"
+
+# Every confidential machine create must fail closed before the first write if
+# its independently stored credential is unavailable.
+unset KC_CLIENT_SECRET_KLYROW_GATEWAY
+if "$ROOT_DIR/scripts/apply-plan.sh" \
+  --plan "$plan_dir/plan.json" \
+  --expected-plan-sha "$plan_sha256" \
+  --review "$review_file" \
+  --expected-review-sha "$review_sha256" \
+  --expected-deploy-sha "$expected_sha" >/dev/null 2>&1; then
+  echo 'TEST_ERROR=machine_create_without_external_secret_was_accepted' >&2
+  exit 1
+fi
+jq -e '
+  .["klyrow-portal"].representation.redirectUris == ["https://wrong.example/callback"]
+  and (has("klyrow-gateway") | not)
+' "$state_file" >/dev/null
+export KC_CLIENT_SECRET_KLYROW_GATEWAY="test-only-KC_CLIENT_SECRET_KLYROW_GATEWAY"
 
 "$ROOT_DIR/scripts/apply-plan.sh" \
   --plan "$plan_dir/plan.json" \
@@ -270,7 +302,7 @@ mv "$state_file.tmp" "$state_file"
   --expected-review-sha "$review_sha256" \
   --expected-deploy-sha "$expected_sha" >/dev/null
 
-for client_id in klyrow-portal moneybee-admin moneybee-borrower moneybee-lender moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra; do
+for client_id in klyrow-portal moneybee-admin moneybee-borrower moneybee-lender; do
   jq -e --arg client_id "$client_id" 'has($client_id)' "$state_file" >/dev/null
 done
 jq -e --slurpfile desired "$ROOT_DIR/config/clients/klyrow-portal.json" '
@@ -291,13 +323,18 @@ for client_id in moneybee-admin moneybee-borrower moneybee-lender; do
     .[$client_id].representation.protocolMappers[0].name == "moneybee-api-audience"
   ' "$state_file" >/dev/null
 done
-for client_id in moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra; do
+
+mapfile -t machine_client_ids < <(jq -r '.clients[].clientId' "$ROOT_DIR/config/contracts/machine-clients.json")
+for client_id in "${machine_client_ids[@]}"; do
   jq -e --arg client_id "$client_id" '
-    .[$client_id].representation.serviceAccountsEnabled == true
-    and .[$client_id].representation.publicClient == false
-    and .[$client_id].representation.attributes["access.token.lifespan"] == "300"
+    .[$client_id].representation.secret
+    | startswith("test-only-KC_CLIENT_SECRET_")
   ' "$state_file" >/dev/null
 done
+if rg -n 'test-only-KC_CLIENT_SECRET_' "$plan_dir" "$rollback_dir" "$review_file"; then
+  echo 'TEST_ERROR=machine_secret_leaked_into_evidence' >&2
+  exit 1
+fi
 
 jq -S 'del(."klyrow-portal")' "$state_file" >"$state_file.tmp"
 mv "$state_file.tmp" "$state_file"
@@ -316,5 +353,6 @@ printf 'REVIEWED_CREATE_TESTS=PASS\n'
 printf 'CREATE_PREWRITE_RACE_GUARD=PASS\n'
 printf 'ROLLBACK_EVIDENCE_TESTS=PASS\n'
 printf 'MAPPER_NORMALIZATION_TESTS=PASS\n'
-printf 'PRODUCT_MACHINE_CLIENT_CREATE_TESTS=PASS\n'
+printf 'MACHINE_EXTERNAL_SECRET_CREATE_GATE=PASS\n'
+printf 'MACHINE_SECRET_EVIDENCE_REDACTION=PASS\n'
 printf 'NON_CREATABLE_MISSING_BLOCK=PASS\n'
