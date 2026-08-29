@@ -77,11 +77,23 @@
       "baseUrlEnvironment": "KLYROW_GATEWAY_BASE_URL"
     },
     {
+      "clientId": "klyrow-saas",
+      "kind": "product",
+      "resourceServer": false,
+      "audience": "klyrow-saas"
+    },
+    {
       "clientId": "kyqra-gateway",
       "kind": "provider_gateway",
       "resourceServer": true,
       "audience": "kyqra-gateway",
       "baseUrlEnvironment": "KYQRA_GATEWAY_BASE_URL"
+    },
+    {
+      "clientId": "kyqra-saas",
+      "kind": "product",
+      "resourceServer": false,
+      "audience": "kyqra-saas"
     },
     {
       "clientId": "postly-adapter",
@@ -408,6 +420,22 @@
       "audience": "middleware-api",
       "scopes": [
         "moneybee.middleware.command.write"
+      ]
+    },
+    {
+      "callerClientId": "klyrow-saas",
+      "targetClientId": "middleware-api",
+      "audience": "middleware-api",
+      "scopes": [
+        "klyrow.middleware.command.write"
+      ]
+    },
+    {
+      "callerClientId": "kyqra-saas",
+      "targetClientId": "middleware-api",
+      "audience": "middleware-api",
+      "scopes": [
+        "kyqra.middleware.command.write"
       ]
     },
     {

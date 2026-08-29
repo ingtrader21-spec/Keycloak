@@ -72,13 +72,15 @@ creatable_policy="$CONFIG_ROOT/policy/creatable-clients.json"
 [[ -f "$managed_policy" ]] || fail "Managed-client policy is missing"
 [[ -f "$creatable_policy" ]] || fail "Creatable-client policy is missing"
 jq -e '
-  (.clients | type == "array" and length == 22)
+  (.clients | type == "array" and length == 24)
   and ((.clients | unique | length) == (.clients | length))
   and (.clients == [
     "klyrow-portal",
     "kong-gateway",
     "klyrow-gateway",
+    "klyrow-saas",
     "kyqra-gateway",
+    "kyqra-saas",
     "middleware-api",
     "middleware-worker",
     "monitoring-readonly",
@@ -103,12 +105,14 @@ jq -e '
 
 jq -e \
   --slurpfile managed "$managed_policy" '
-    (.clients | type == "array" and length == 21)
+    (.clients | type == "array" and length == 23)
     and ((.clients | unique | length) == (.clients | length))
     and (.clients == [
       "kong-gateway",
       "klyrow-gateway",
+      "klyrow-saas",
       "kyqra-gateway",
+      "kyqra-saas",
       "middleware-api",
       "middleware-worker",
       "monitoring-readonly",
@@ -163,8 +167,8 @@ jq -e '
   .issuer == "https://auth.codestra.co/realms/codestra"
   and .grantType == "client_credentials"
   and (.maximumAccessTokenLifetimeSeconds | type == "number" and . > 0 and . <= 300)
-  and (.clients | type == "array" and length == 18)
-  and ((.clients | map(.clientId) | unique | length) == 18)
+  and (.clients | type == "array" and length == 20)
+  and ((.clients | map(.clientId) | unique | length) == 20)
   and ([.clients[].clientId] == [
     "kong-gateway",
     "middleware-api",
@@ -174,7 +178,9 @@ jq -e '
     "vicidial-adapter",
     "telnexa-gateway",
     "klyrow-gateway",
+    "klyrow-saas",
     "kyqra-gateway",
+    "kyqra-saas",
     "postly-adapter",
     "provisioning-service",
     "monitoring-readonly",
