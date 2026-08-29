@@ -48,7 +48,7 @@ jq -e \
   ' "$PLAN_FILE" >/dev/null || die "plan is not eligible for review"
 
 mkdir -p "$(dirname -- "$OUTPUT_FILE")"
-jq -S -n \
+jq -S -c -n \
   --arg planSha256 "$EXPECTED_PLAN_SHA256" \
   --arg repositorySha "$EXPECTED_DEPLOY_SHA" \
   --arg environment "$DEPLOY_ENVIRONMENT" \
@@ -77,7 +77,7 @@ jq -S -n \
     }
   ' >"$OUTPUT_FILE"
 chmod 600 "$OUTPUT_FILE"
-review_sha256="$(jq -S -c . "$OUTPUT_FILE" | sha256sum | awk '{print $1}')"
+review_sha256="$(sha256sum "$OUTPUT_FILE" | awk '{print $1}')"
 printf '%s  %s\n' "$review_sha256" "$(basename -- "$OUTPUT_FILE")" >"${OUTPUT_FILE}.sha256"
 chmod 600 "${OUTPUT_FILE}.sha256"
 

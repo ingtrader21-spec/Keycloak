@@ -258,7 +258,7 @@ def validate_privileged_workflow(path: Path, workflow: dict[str, Any]) -> None:
         for required_fragment in (
             "plan_run_id",
             "approved_plan_sha256",
-            "change_author_id",
+            "commits/$GITHUB_SHA/pulls",
             "review-plan.sh",
             "keycloak-drift-review-",
         ):
