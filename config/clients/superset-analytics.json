@@ -35,7 +35,9 @@
     "post.logout.redirect.uris": "https://supe.codestra.media/",
     "oauth2.device.authorization.grant.enabled": "false",
     "oidc.ciba.grant.enabled": "false",
-    "access.token.lifespan": "300"
+    "access.token.lifespan": "300",
+    "client.session.idle.timeout": "900",
+    "client.session.max.lifespan": "14400"
   },
   "protocolMappers": [
     {
