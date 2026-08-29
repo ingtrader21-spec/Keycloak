@@ -33,6 +33,7 @@ EXPECTED_CLIENTS = {
     "openbao-secrets": {
         "applicationUrl": "https://bao.codestra.media",
         "redirectUris": [
+            "https://bao.codestra.media/v1/auth/oidc/callback",
             "https://bao.codestra.media/ui/vault/auth/oidc/oidc/callback",
             "http://localhost:8250/oidc/callback",
         ],
