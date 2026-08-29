@@ -1,0 +1,31 @@
+name: Observability OIDC contract
+
+on:
+  pull_request:
+    paths:
+      - config/contracts/observability-browser-clients.json
+      - scripts/validate-observability-oidc-contract.py
+      - docs/OBSERVABILITY-OIDC.md
+      - .github/workflows/observability-oidc-contract.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-observability-oidc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate observability OIDC contract
+        run: python3 scripts/validate-observability-oidc-contract.py
