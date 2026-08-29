@@ -22,7 +22,8 @@ public final class CodestraRegistrationGate implements FormAction, FormActionFac
 
     private static final Set<String> ALLOWED_CLIENT_IDS = Set.of(
         "moneybee-borrower",
-        "beyvra-web-production"
+        "beyvra-web-production",
+        "breero-portal"
     );
 
     private static final AuthenticationExecutionModel.Requirement[] REQUIREMENTS = {
@@ -117,7 +118,7 @@ public final class CodestraRegistrationGate implements FormAction, FormActionFac
 
     @Override
     public String getHelpText() {
-        return "Allows public self-registration only for the reviewed MoneyBee borrower and Beyvra browser clients.";
+        return "Allows public self-registration only for the reviewed MoneyBee borrower, Beyvra, and Breero browser clients.";
     }
 
     @Override
