@@ -183,9 +183,9 @@ plan_dir="$test_root/plan"
   --output-dir "$plan_dir" \
   --expected-deploy-sha "$expected_sha" >/dev/null
 
-[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 4 ]]
+[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 16 ]]
 [[ "$(jq -er '.blockedCount' "$plan_dir/plan.json")" -eq 0 ]]
-[[ "$(jq -er '.createCount' "$plan_dir/plan.json")" -eq 3 ]]
+[[ "$(jq -er '.createCount' "$plan_dir/plan.json")" -eq 15 ]]
 [[ "$(jq -er '.updateCount' "$plan_dir/plan.json")" -eq 1 ]]
 [[ "$(jq -er '.clients[] | select(.clientId == "klyrow-portal") | .action' "$plan_dir/plan.json")" == "update" ]]
 for client_id in moneybee-admin moneybee-borrower moneybee-lender; do
@@ -202,6 +202,16 @@ done
 
 plan_sha256="$(awk 'NR == 1 {print $1}' "$plan_dir/plan.sha256")"
 [[ "$plan_sha256" =~ ^[0-9a-f]{64}$ ]]
+export KEYCLOAK_REVIEWER_ID="independent-reviewer"
+export KEYCLOAK_CHANGE_AUTHOR_ID="change-author"
+export KEYCLOAK_CHANGE_TICKET="TEST-PLAN-GATE"
+review_file="$test_root/review.json"
+"$ROOT_DIR/scripts/review-plan.sh" \
+  --plan "$plan_dir/plan.json" \
+  --expected-plan-sha "$plan_sha256" \
+  --expected-deploy-sha "$expected_sha" \
+  --output "$review_file" >/dev/null
+review_sha256="$(awk 'NR == 1 {print $1}' "${review_file}.sha256")"
 
 rollback_dir="$test_root/rollback"
 mapfile -t managed_clients < <(jq -r '.clients[]' "$ROOT_DIR/config/policy/managed-clients.json")
@@ -210,11 +220,13 @@ mapfile -t managed_clients < <(jq -r '.clients[]' "$ROOT_DIR/config/policy/manag
   "${managed_clients[@]}" >/dev/null
 [[ -f "$rollback_dir/config/clients/klyrow-portal.json" ]]
 [[ "$(jq -er '.existingClientCount' "$rollback_dir/rollback-metadata.json")" -eq 1 ]]
-[[ "$(jq -er '.absentCreatableClientCount' "$rollback_dir/rollback-metadata.json")" -eq 3 ]]
+[[ "$(jq -er '.absentCreatableClientCount' "$rollback_dir/rollback-metadata.json")" -eq 15 ]]
 
 if "$ROOT_DIR/scripts/apply-plan.sh" \
   --plan "$plan_dir/plan.json" \
   --expected-plan-sha 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' \
+  --review "$review_file" \
+  --expected-review-sha "$review_sha256" \
   --expected-deploy-sha "$expected_sha" >/dev/null 2>&1; then
   echo 'TEST_ERROR=mismatched_plan_hash_was_accepted' >&2
   exit 1
@@ -232,6 +244,8 @@ mv "$state_file.tmp" "$state_file"
 if "$ROOT_DIR/scripts/apply-plan.sh" \
   --plan "$plan_dir/plan.json" \
   --expected-plan-sha "$plan_sha256" \
+  --review "$review_file" \
+  --expected-review-sha "$review_sha256" \
   --expected-deploy-sha "$expected_sha" >/dev/null 2>&1; then
   echo 'TEST_ERROR=create_race_was_not_rejected' >&2
   exit 1
@@ -250,6 +264,8 @@ mv "$state_file.tmp" "$state_file"
 "$ROOT_DIR/scripts/apply-plan.sh" \
   --plan "$plan_dir/plan.json" \
   --expected-plan-sha "$plan_sha256" \
+  --review "$review_file" \
+  --expected-review-sha "$review_sha256" \
   --expected-deploy-sha "$expected_sha" >/dev/null
 
 for client_id in klyrow-portal moneybee-admin moneybee-borrower moneybee-lender; do
@@ -284,6 +300,7 @@ blocked_dir="$test_root/blocked"
 [[ "$(jq -er '.clients[] | select(.clientId == "klyrow-portal") | .action' "$blocked_dir/plan.json")" == "blocked_missing" ]]
 
 printf 'PLAN_GATE_TESTS=PASS\n'
+printf 'INDEPENDENT_DRIFT_REVIEW_GATE=PASS\n'
 printf 'ADMIN_AUTH_REALM=master\n'
 printf 'TARGET_REALM=codestra\n'
 printf 'REVIEWED_CREATE_TESTS=PASS\n'

@@ -1,7 +1,19 @@
 {
   "clients": [
+    "kong-gateway",
+    "klyrow-gateway",
+    "kyqra-gateway",
+    "middleware-api",
+    "middleware-worker",
+    "monitoring-readonly",
     "moneybee-admin",
     "moneybee-borrower",
-    "moneybee-lender"
+    "moneybee-lender",
+    "n8n-automation",
+    "odoo-integration",
+    "postly-adapter",
+    "provisioning-service",
+    "telnexa-gateway",
+    "vicidial-adapter"
   ]
 }
