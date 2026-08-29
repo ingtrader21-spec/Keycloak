@@ -43,6 +43,13 @@ action, and disable-first/separate-reviewed-delete rollback metadata. Apply then
 rechecks all reviewed create targets are still absent immediately before the
 first mutation. Any race invalidates the whole plan before writes begin.
 
+For every update, apply also re-fetches that specific client immediately before
+its `PUT` and recomputes the reviewed managed-shape hash. A managed-field change
+aborts the operation. A concurrent unmanaged-field change is retained because
+the outgoing representation is rebuilt from that immediate live response plus
+the reviewed overlay; apply never writes a stale representation prepared during
+the earlier validation phase.
+
 Use a dedicated protected Keycloak administration identity for this workflow.
 Do not place its credential in Git, shell history, the runtime checkout, or
 operator logs. The `production` GitHub Environment should provide these
@@ -179,3 +186,16 @@ records:
 Do not bypass the plan/hash/environment boundary to delete a newly created
 client. A PostgreSQL restore is reserved for database-level failure and is not
 the normal rollback method for a client redirect, mapper, or scope change.
+
+Apply requires an absolute `--recovery-dir`. Before the first write it creates
+`recovery-manifest.json` with the repository SHA, environment, plan hash,
+workflow run, realm, rollback artifact reference, ordered operations, client
+identities, and pre/post hashes. Each transition is also appended to
+`operation-events.ndjson` and the manifest is atomically updated.
+
+If a command fails after any mutation, apply emits `PARTIAL_APPLY=true`, marks
+completed mutations `rollback-required` while retaining their last successful
+state, records the failed operation, and leaves later operations `pending`. The
+deploy workflow uploads this directory even when apply fails. Created clients
+are never automatically deleted: disable/delete still requires its separately
+reviewed rollback plan.

@@ -84,7 +84,7 @@ scripts/
   validate.sh                 Desired-state, endpoint, secret, and syntax policy
   runtime-preflight.sh        Read-only paths, SHA, host-key, and SSH read access
   plan.sh                     Deterministic, non-mutating drift/create plan
-  apply-plan.sh               Reviewed plan-hash and optimistic-state apply
+  apply-plan.sh               Race-safe apply with durable recovery evidence
   export-client.sh            Existing/absent rollback evidence export
   reconcile-moneybee-oidc.sh  Read-only MoneyBee view of protected plan engine
   smoke-test.sh               Read-only discovery and redirect acceptance test
