@@ -32,4 +32,4 @@ OIDC discovery, JWKS, Client Credentials, Kong acceptance and all rejection test
 
 ## Remaining blockers
 
-Production activation is blocked by ambiguous public authority, unsafe disk capacity, unverified backup/restore, unresolved image vulnerabilities, missing live SMTP/MFA/Kong evidence, unmerged PRs, absent approved image digests and production approval. No production mutation was performed by this mission work.
+Production activation is blocked by ambiguous public authority, unsafe disk capacity, unverified backup/restore, unresolved image vulnerabilities, missing live SMTP/MFA/Kong evidence, unmerged PRs, absent approved image digests and production approval. GitHub also reports all deployment environments as unprotected; required-reviewer protection was attempted and rejected with HTTP 422 because the current billing plan does not support it. No production mutation was performed by this mission work.
