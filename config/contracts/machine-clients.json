@@ -136,6 +136,72 @@
       "audience": "monitoring-readonly",
       "scopes": ["monitoring-readonly.access"],
       "provisioningState": "managed-protected-apply"
+    },
+    {
+      "clientId": "beyvra-backend",
+      "clientType": "confidential",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "audience": "beyvra-backend",
+      "scopes": ["beyvra-backend.access"],
+      "provisioningState": "managed-protected-apply"
+    },
+    {
+      "clientId": "breero-backend",
+      "clientType": "confidential",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "audience": "breero-backend",
+      "scopes": ["breero-backend.access"],
+      "provisioningState": "managed-protected-apply"
+    },
+    {
+      "clientId": "larim-a-backend",
+      "clientType": "confidential",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "audience": "larim-a-backend",
+      "scopes": ["larim-a-backend.access"],
+      "provisioningState": "managed-protected-apply"
+    },
+    {
+      "clientId": "moneybee-backend",
+      "clientType": "confidential",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "audience": "moneybee-backend",
+      "scopes": ["moneybee-backend.access"],
+      "provisioningState": "managed-protected-apply"
+    },
+    {
+      "clientId": "social-codestra",
+      "clientType": "confidential",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "audience": "social-codestra",
+      "scopes": ["social-codestra.access"],
+      "provisioningState": "managed-protected-apply"
+    },
+    {
+      "clientId": "transportation-backend",
+      "clientType": "confidential",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "audience": "transportation-backend",
+      "scopes": ["transportation-backend.access"],
+      "provisioningState": "managed-protected-apply"
     }
   ]
 }

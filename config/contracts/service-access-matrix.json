@@ -101,6 +101,42 @@
       "kind": "monitoring",
       "resourceServer": false,
       "audience": "monitoring-readonly"
+    },
+    {
+      "clientId": "beyvra-backend",
+      "kind": "product",
+      "resourceServer": false,
+      "audience": "beyvra-backend"
+    },
+    {
+      "clientId": "breero-backend",
+      "kind": "product",
+      "resourceServer": false,
+      "audience": "breero-backend"
+    },
+    {
+      "clientId": "larim-a-backend",
+      "kind": "product",
+      "resourceServer": false,
+      "audience": "larim-a-backend"
+    },
+    {
+      "clientId": "moneybee-backend",
+      "kind": "product",
+      "resourceServer": false,
+      "audience": "moneybee-backend"
+    },
+    {
+      "clientId": "social-codestra",
+      "kind": "product",
+      "resourceServer": false,
+      "audience": "social-codestra"
+    },
+    {
+      "clientId": "transportation-backend",
+      "kind": "product",
+      "resourceServer": false,
+      "audience": "transportation-backend"
     }
   ],
   "grants": [
@@ -340,6 +376,54 @@
       "scopes": [
         "health.read",
         "metrics.read"
+      ]
+    },
+    {
+      "callerClientId": "beyvra-backend",
+      "targetClientId": "middleware-api",
+      "audience": "middleware-api",
+      "scopes": [
+        "beyvra.middleware.command.write"
+      ]
+    },
+    {
+      "callerClientId": "breero-backend",
+      "targetClientId": "middleware-api",
+      "audience": "middleware-api",
+      "scopes": [
+        "breero.middleware.command.write"
+      ]
+    },
+    {
+      "callerClientId": "larim-a-backend",
+      "targetClientId": "middleware-api",
+      "audience": "middleware-api",
+      "scopes": [
+        "larim-a.middleware.command.write"
+      ]
+    },
+    {
+      "callerClientId": "moneybee-backend",
+      "targetClientId": "middleware-api",
+      "audience": "middleware-api",
+      "scopes": [
+        "moneybee.middleware.command.write"
+      ]
+    },
+    {
+      "callerClientId": "social-codestra",
+      "targetClientId": "middleware-api",
+      "audience": "middleware-api",
+      "scopes": [
+        "social.middleware.command.write"
+      ]
+    },
+    {
+      "callerClientId": "transportation-backend",
+      "targetClientId": "middleware-api",
+      "audience": "middleware-api",
+      "scopes": [
+        "transportation.middleware.command.write"
       ]
     }
   ],

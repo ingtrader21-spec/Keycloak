@@ -72,7 +72,7 @@ creatable_policy="$CONFIG_ROOT/policy/creatable-clients.json"
 [[ -f "$managed_policy" ]] || fail "Managed-client policy is missing"
 [[ -f "$creatable_policy" ]] || fail "Creatable-client policy is missing"
 jq -e '
-  (.clients | type == "array" and length == 16)
+  (.clients | type == "array" and length == 22)
   and ((.clients | unique | length) == (.clients | length))
   and (.clients == [
     "klyrow-portal",
@@ -82,6 +82,12 @@ jq -e '
     "middleware-api",
     "middleware-worker",
     "monitoring-readonly",
+    "beyvra-backend",
+    "breero-backend",
+    "larim-a-backend",
+    "moneybee-backend",
+    "social-codestra",
+    "transportation-backend",
     "moneybee-admin",
     "moneybee-borrower",
     "moneybee-lender",
@@ -97,7 +103,7 @@ jq -e '
 
 jq -e \
   --slurpfile managed "$managed_policy" '
-    (.clients | type == "array" and length == 15)
+    (.clients | type == "array" and length == 21)
     and ((.clients | unique | length) == (.clients | length))
     and (.clients == [
       "kong-gateway",
@@ -106,6 +112,12 @@ jq -e \
       "middleware-api",
       "middleware-worker",
       "monitoring-readonly",
+      "beyvra-backend",
+      "breero-backend",
+      "larim-a-backend",
+      "moneybee-backend",
+      "social-codestra",
+      "transportation-backend",
       "moneybee-admin",
       "moneybee-borrower",
       "moneybee-lender",
@@ -151,8 +163,8 @@ jq -e '
   .issuer == "https://auth.codestra.co/realms/codestra"
   and .grantType == "client_credentials"
   and (.maximumAccessTokenLifetimeSeconds | type == "number" and . > 0 and . <= 300)
-  and (.clients | type == "array" and length == 12)
-  and ((.clients | map(.clientId) | unique | length) == 12)
+  and (.clients | type == "array" and length == 18)
+  and ((.clients | map(.clientId) | unique | length) == 18)
   and ([.clients[].clientId] == [
     "kong-gateway",
     "middleware-api",
@@ -165,7 +177,13 @@ jq -e '
     "kyqra-gateway",
     "postly-adapter",
     "provisioning-service",
-    "monitoring-readonly"
+    "monitoring-readonly",
+    "beyvra-backend",
+    "breero-backend",
+    "larim-a-backend",
+    "moneybee-backend",
+    "social-codestra",
+    "transportation-backend"
   ])
   and all(
     .clients[];

@@ -25,6 +25,12 @@ EXPECTED_CLIENTS = [
     "postly-adapter",
     "provisioning-service",
     "monitoring-readonly",
+    "beyvra-backend",
+    "breero-backend",
+    "larim-a-backend",
+    "moneybee-backend",
+    "social-codestra",
+    "transportation-backend",
 ]
 EXPECTED_WEBHOOK_PRODUCERS = {
     "odoo-integration",
@@ -194,6 +200,12 @@ def validate() -> None:
         ("middleware-api", "postly-adapter"),
         ("postly-adapter", "middleware-api"),
         ("provisioning-service", "middleware-api"),
+        ("beyvra-backend", "middleware-api"),
+        ("breero-backend", "middleware-api"),
+        ("larim-a-backend", "middleware-api"),
+        ("moneybee-backend", "middleware-api"),
+        ("social-codestra", "middleware-api"),
+        ("transportation-backend", "middleware-api"),
     }
     missing_edges = required_edges - set(grant_index)
     if missing_edges:

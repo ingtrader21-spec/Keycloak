@@ -64,6 +64,13 @@ runtime hosts. Relative API paths remain versioned under `/api/v1/`.
 ## Call graph rules
 
 - Kong forwards authorized requests to `middleware-api`.
+- Product backends use confidential service-account clients when calling the
+  Middleware command plane through Kong. Their access tokens keep the original
+  product `azp`, carry `aud=middleware-api`, and contain exactly one reviewed
+  product command scope: `beyvra.middleware.command.write`,
+  `breero.middleware.command.write`, `larim-a.middleware.command.write`,
+  `moneybee.middleware.command.write`, `social.middleware.command.write`, or
+  `transportation.middleware.command.write`.
 - n8n calls only `middleware-api`; it receives no direct Odoo or provider grant.
 - Middleware is the only normal command boundary to Odoo, VICIdial, Telnexa,
   Klyrow, Kyqra, and Postly.
