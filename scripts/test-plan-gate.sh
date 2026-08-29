@@ -15,7 +15,9 @@ cleanup() {
 trap cleanup EXIT
 
 state_file="$test_root/clients.json"
+realm_state_file="$test_root/realm.json"
 port_file="$test_root/port"
+cp "$ROOT_DIR/config/realms/codestra.json" "$realm_state_file"
 
 jq -S -n \
   --slurpfile klyrow "$ROOT_DIR/config/clients/klyrow-portal.json" '
@@ -39,6 +41,7 @@ from urllib.parse import parse_qs, urlparse
 
 state_path = Path(os.environ["MOCK_STATE_FILE"])
 port_path = Path(os.environ["MOCK_PORT_FILE"])
+realm_path = Path(os.environ["MOCK_REALM_FILE"])
 
 
 def load_state() -> dict[str, dict]:
@@ -102,6 +105,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
+        if parsed.path == "/admin/realms/codestra":
+            self.send_json(200, json.loads(realm_path.read_text()))
+            return
         state = load_state()
         if parsed.path == "/admin/realms/codestra/clients":
             query = parse_qs(parsed.query)
@@ -127,6 +133,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_PUT(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
+        if parsed.path == "/admin/realms/codestra":
+            realm_path.write_text(json.dumps(self.read_json(), indent=2, sort_keys=True) + "\n")
+            self.send_response(204)
+            self.end_headers()
+            return
         prefix = "/admin/realms/codestra/clients/"
         if not parsed.path.startswith(prefix):
             self.send_json(404, {"error": "not_found"})
@@ -153,6 +164,7 @@ PY
 
 MOCK_STATE_FILE="$state_file" \
 MOCK_PORT_FILE="$port_file" \
+MOCK_REALM_FILE="$realm_state_file" \
 python3 "$test_root/mock_keycloak.py" &
 server_pid=$!
 
@@ -173,6 +185,8 @@ export KC_ADMIN_REALM="master"
 export KC_ADMIN_CLIENT_ID="test-gitops-client"
 : "${TEST_KC_CLIENT_SECRET:?Set TEST_KC_CLIENT_SECRET for the mock test}"
 export KC_ADMIN_CLIENT_SECRET=$TEST_KC_CLIENT_SECRET
+export KC_SMTP_USERNAME="test-smtp-user"
+export KC_SMTP_PASSWORD="test-smtp-password"
 export ALLOW_INSECURE_KC_BASE_URL="true"
 export ALLOW_NONCANONICAL_KC_BASE_URL_FOR_TESTS="true"
 export DEPLOY_ENVIRONMENT="staging"
@@ -290,6 +304,35 @@ for client_id in moneybee-admin moneybee-borrower moneybee-lender; do
   ' "$state_file" >/dev/null
 done
 
+# Realm security policy participates in the same deterministic plan and apply.
+jq -S '.accessTokenLifespan = 600' "$realm_state_file" >"$realm_state_file.tmp"
+mv "$realm_state_file.tmp" "$realm_state_file"
+realm_plan="$test_root/realm-plan"
+"$ROOT_DIR/scripts/plan.sh" \
+  --output-dir "$realm_plan" \
+  --expected-deploy-sha "$expected_sha" >/dev/null
+[[ "$(jq -er '.realmPolicy.action' "$realm_plan/plan.json")" == "update" ]]
+[[ "$(jq -er '.updateCount' "$realm_plan/plan.json")" -eq 1 ]]
+realm_plan_hash="$(awk 'NR == 1 {print $1}' "$realm_plan/plan.sha256")"
+realm_review_file="$test_root/realm-review.json"
+"$ROOT_DIR/scripts/review-plan.sh" \
+  --plan "$realm_plan/plan.json" \
+  --expected-plan-sha "$realm_plan_hash" \
+  --expected-deploy-sha "$expected_sha" \
+  --output "$realm_review_file" >/dev/null
+realm_review_hash="$(awk 'NR == 1 {print $1}' "${realm_review_file}.sha256")"
+"$ROOT_DIR/scripts/apply-plan.sh" \
+  --plan "$realm_plan/plan.json" \
+  --expected-plan-sha "$realm_plan_hash" \
+  --review "$realm_review_file" \
+  --expected-review-sha "$realm_review_hash" \
+  --expected-deploy-sha "$expected_sha" >/dev/null
+jq -e --slurpfile desired "$ROOT_DIR/config/realms/codestra.json" '
+  del(.smtpServer.user, .smtpServer.password) == $desired[0]
+  and .smtpServer.user == "test-smtp-user"
+  and .smtpServer.password == "test-smtp-password"
+' "$realm_state_file" >/dev/null
+
 jq -S 'del(."klyrow-portal")' "$state_file" >"$state_file.tmp"
 mv "$state_file.tmp" "$state_file"
 blocked_dir="$test_root/blocked"
@@ -307,4 +350,5 @@ printf 'REVIEWED_CREATE_TESTS=PASS\n'
 printf 'CREATE_PREWRITE_RACE_GUARD=PASS\n'
 printf 'ROLLBACK_EVIDENCE_TESTS=PASS\n'
 printf 'MAPPER_NORMALIZATION_TESTS=PASS\n'
+printf 'REALM_SECURITY_PLAN_APPLY=PASS\n'
 printf 'NON_CREATABLE_MISSING_BLOCK=PASS\n'
