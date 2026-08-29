@@ -1,7 +1,7 @@
 {
-  "clientId": "openbao",
-  "name": "Codestra OpenBao",
-  "description": "Protected OpenBao browser login using Authorization Code Flow with PKCE S256.",
+  "clientId": "superset-analytics",
+  "name": "Codestra Superset",
+  "description": "Superset browser login using Authorization Code Flow with PKCE S256.",
   "enabled": true,
   "protocol": "openid-connect",
   "clientAuthenticatorType": "client-secret",
@@ -15,13 +15,13 @@
   "authorizationServicesEnabled": false,
   "frontchannelLogout": true,
   "fullScopeAllowed": false,
-  "rootUrl": "https://bao.codestra.media",
-  "baseUrl": "https://bao.codestra.media/ui/",
+  "rootUrl": "https://supe.codestra.media",
+  "baseUrl": "https://supe.codestra.media/",
   "redirectUris": [
-    "https://bao.codestra.media/ui/vault/auth/oidc/oidc/callback"
+    "https://supe.codestra.media/oauth-authorized/keycloak"
   ],
   "webOrigins": [
-    "https://bao.codestra.media"
+    "https://supe.codestra.media"
   ],
   "defaultClientScopes": [
     "profile",
@@ -32,10 +32,10 @@
   "optionalClientScopes": [],
   "attributes": {
     "pkce.code.challenge.method": "S256",
-    "post.logout.redirect.uris": "https://bao.codestra.media/ui/",
+    "post.logout.redirect.uris": "https://supe.codestra.media/",
     "access.token.lifespan": "300",
-    "client.session.idle.timeout": "600",
-    "client.session.max.lifespan": "3600",
+    "client.session.idle.timeout": "900",
+    "client.session.max.lifespan": "14400",
     "oauth2.device.authorization.grant.enabled": "false",
     "oidc.ciba.grant.enabled": "false"
   }

@@ -1,5 +1,5 @@
 {
-  "clientId": "grafana",
+  "clientId": "grafana-observability",
   "name": "Codestra Grafana",
   "description": "Grafana browser login using Authorization Code Flow with PKCE S256.",
   "enabled": true,
@@ -32,7 +32,7 @@
   "optionalClientScopes": [],
   "attributes": {
     "pkce.code.challenge.method": "S256",
-    "post.logout.redirect.uris": "https://graf.codestra.media/login",
+    "post.logout.redirect.uris": "https://graf.codestra.media/",
     "access.token.lifespan": "300",
     "client.session.idle.timeout": "900",
     "client.session.max.lifespan": "14400",

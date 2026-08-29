@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "authorizationEndpoint": "https://auth.codestra.co/realms/codestra/protocol/openid-connect/auth",
+  "tokenEndpoint": "https://auth.codestra.co/realms/codestra/protocol/openid-connect/token",
+  "logoutEndpoint": "https://auth.codestra.co/realms/codestra/protocol/openid-connect/logout",
+  "clients": [
+    {
+      "clientId": "grafana-observability",
+      "name": "Codestra Grafana",
+      "applicationUrl": "https://graf.codestra.media",
+      "clientType": "confidential",
+      "grantType": "authorization_code",
+      "pkceCodeChallengeMethod": "S256",
+      "redirectUris": [
+        "https://graf.codestra.media/login/generic_oauth"
+      ],
+      "webOrigins": [
+        "https://graf.codestra.media"
+      ],
+      "postLogoutRedirectUris": [
+        "https://graf.codestra.media/"
+      ],
+      "requiredRoles": [
+        "observability-viewer",
+        "observability-operator",
+        "observability-admin"
+      ],
+      "mfaRequiredRoles": [
+        "observability-admin"
+      ],
+      "sessionIdleSeconds": 900,
+      "sessionMaxSeconds": 14400,
+      "secretSource": "external-secret-manager",
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false
+    },
+    {
+      "clientId": "superset-analytics",
+      "name": "Codestra Superset",
+      "applicationUrl": "https://supe.codestra.media",
+      "clientType": "confidential",
+      "grantType": "authorization_code",
+      "pkceCodeChallengeMethod": "S256",
+      "redirectUris": [
+        "https://supe.codestra.media/oauth-authorized/keycloak"
+      ],
+      "webOrigins": [
+        "https://supe.codestra.media"
+      ],
+      "postLogoutRedirectUris": [
+        "https://supe.codestra.media/"
+      ],
+      "requiredRoles": [
+        "observability-viewer",
+        "observability-operator",
+        "observability-admin"
+      ],
+      "mfaRequiredRoles": [
+        "observability-admin"
+      ],
+      "sessionIdleSeconds": 900,
+      "sessionMaxSeconds": 14400,
+      "secretSource": "external-secret-manager",
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false
+    },
+    {
+      "clientId": "openbao-secrets",
+      "name": "Codestra OpenBao",
+      "applicationUrl": "https://bao.codestra.media",
+      "clientType": "confidential",
+      "grantType": "authorization_code",
+      "pkceCodeChallengeMethod": "S256",
+      "redirectUris": [
+        "https://bao.codestra.media/v1/auth/oidc/callback",
+        "https://bao.codestra.media/ui/vault/auth/oidc/oidc/callback",
+        "http://localhost:8250/oidc/callback"
+      ],
+      "webOrigins": [
+        "https://bao.codestra.media"
+      ],
+      "postLogoutRedirectUris": [
+        "https://bao.codestra.media/"
+      ],
+      "requiredRoles": [
+        "secrets-operator",
+        "secrets-admin"
+      ],
+      "mfaRequiredRoles": [
+        "secrets-operator",
+        "secrets-admin"
+      ],
+      "sessionIdleSeconds": 600,
+      "sessionMaxSeconds": 3600,
+      "secretSource": "external-secret-manager",
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false
+    }
+  ],
+  "roleIsolation": {
+    "observabilityRolesDoNotGrantSecretsAccess": true,
+    "secretsRolesDoNotGrantObservabilityAdmin": true,
+    "administrativeMfaRequired": true,
+    "leastPrivilegeRequired": true
+  },
+  "activation": {
+    "contractReviewed": false,
+    "managedClientApplySupportAdded": true,
+    "roleProvisioningSupportAdded": false,
+    "roleAssignmentsApplied": false,
+    "liveClientsCreated": false,
+    "liveSecretsGenerated": false,
+    "productionAccessEnabled": false
+  }
+}

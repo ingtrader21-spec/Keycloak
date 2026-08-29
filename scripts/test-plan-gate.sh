@@ -188,7 +188,7 @@ plan_dir="$test_root/plan"
 [[ "$(jq -er '.createCount' "$plan_dir/plan.json")" -eq 24 ]]
 [[ "$(jq -er '.updateCount' "$plan_dir/plan.json")" -eq 1 ]]
 [[ "$(jq -er '.clients[] | select(.clientId == "klyrow-portal") | .action' "$plan_dir/plan.json")" == "update" ]]
-for client_id in moneybee-admin moneybee-borrower moneybee-lender moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra grafana superset openbao; do
+for client_id in moneybee-admin moneybee-borrower moneybee-lender moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra grafana-observability superset-analytics openbao-secrets; do
   [[ "$(jq -er --arg client_id "$client_id" '.clients[] | select(.clientId == $client_id) | .action' "$plan_dir/plan.json")" == "create" ]]
   jq -e --arg client_id "$client_id" '
     .clients[]
@@ -258,9 +258,9 @@ jq -e '
   and (has("moneybee-lender") | not)
   and (has("moneybee-backend") | not)
   and (has("social-codestra") | not)
-  and (has("grafana") | not)
-  and (has("superset") | not)
-  and (has("openbao") | not)
+  and (has("grafana-observability") | not)
+  and (has("superset-analytics") | not)
+  and (has("openbao-secrets") | not)
 ' "$state_file" >/dev/null
 
 jq -S 'del(."moneybee-admin")' "$state_file" >"$state_file.tmp"
@@ -273,7 +273,7 @@ mv "$state_file.tmp" "$state_file"
   --expected-review-sha "$review_sha256" \
   --expected-deploy-sha "$expected_sha" >/dev/null
 
-for client_id in klyrow-portal moneybee-admin moneybee-borrower moneybee-lender moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra grafana superset openbao; do
+for client_id in klyrow-portal moneybee-admin moneybee-borrower moneybee-lender moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra grafana-observability superset-analytics openbao-secrets; do
   jq -e --arg client_id "$client_id" 'has($client_id)' "$state_file" >/dev/null
 done
 jq -e --slurpfile desired "$ROOT_DIR/config/clients/klyrow-portal.json" '
@@ -301,7 +301,7 @@ for client_id in moneybee-backend breero-backend larim-a-backend transportation-
     and .[$client_id].representation.attributes["access.token.lifespan"] == "300"
   ' "$state_file" >/dev/null
 done
-for client_id in grafana superset openbao; do
+for client_id in grafana-observability superset-analytics openbao-secrets; do
   jq -e --arg client_id "$client_id" '
     .[$client_id].representation.standardFlowEnabled == true
     and .[$client_id].representation.publicClient == false

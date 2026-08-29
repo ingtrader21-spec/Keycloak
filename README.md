@@ -34,9 +34,10 @@ Superset, and OpenBao browser clients. Creation is separately allowlisted in
 `config/policy/creatable-clients.json`; Klyrow remains update-only.
 
 The observability clients are confidential Authorization Code clients with
-PKCE S256 and distinct externally stored credentials. Grafana/Superset roles
-are isolated from OpenBao secrets roles; see
-`docs/OBSERVABILITY_OIDC_CLIENTS.md`. Source merge never applies them live.
+PKCE S256 and distinct externally stored credentials. Their client IDs are
+`grafana-observability`, `superset-analytics`, and `openbao-secrets`.
+Grafana/Superset roles are isolated from OpenBao secrets roles; see
+`docs/OBSERVABILITY-OIDC.md`. Source merge never applies them live.
 
 MoneyBee uses three public PKCE clients:
 

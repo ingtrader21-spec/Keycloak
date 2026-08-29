@@ -1,5 +1,5 @@
 {
-  "clientId": "grafana",
+  "clientId": "superset-analytics",
   "topLevelFields": [
     "clientId",
     "name",

@@ -12,7 +12,7 @@ MANAGED_CLIENTS = ROOT / "config" / "policy" / "managed-clients.json"
 CREATABLE_CLIENTS = ROOT / "config" / "policy" / "creatable-clients.json"
 MACHINE_CLIENTS = ROOT / "config" / "contracts" / "machine-clients.json"
 PRODUCT_MIDDLEWARE_CLIENTS = ROOT / "config" / "contracts" / "product-middleware-clients.json"
-OBSERVABILITY_CLIENTS = ROOT / "config" / "identity" / "observability-oidc-clients.json"
+OBSERVABILITY_CLIENTS = ROOT / "config" / "contracts" / "observability-browser-clients.json"
 CLIENT_DIR = ROOT / "config" / "clients"
 
 EXPECTED_ISSUER = "https://auth.codestra.co/realms/codestra"
