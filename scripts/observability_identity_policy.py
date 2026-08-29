@@ -13,25 +13,47 @@ ROLE_IDS = ["observability-viewer", "observability-operator", "observability-adm
 CLIENTS = {
     "grafana-observability": {
         "origin": "https://graf.codestra.media",
+        "baseUrl": "https://graf.codestra.media/",
         "redirects": ["https://graf.codestra.media/login/generic_oauth"],
         "roles": {"observability-viewer", "observability-operator", "observability-admin"},
+        "mfaRoles": {"observability-operator", "observability-admin"},
+        "idle": 900,
+        "maximum": 14400,
     },
     "superset-analytics": {
         "origin": "https://supe.codestra.media",
+        "baseUrl": "https://supe.codestra.media/",
         "redirects": ["https://supe.codestra.media/oauth-authorized/keycloak"],
         "roles": {"observability-viewer", "observability-operator", "observability-admin"},
+        "mfaRoles": {"observability-operator", "observability-admin"},
+        "idle": 900,
+        "maximum": 14400,
     },
     "openbao-secrets": {
         "origin": "https://bao.codestra.media",
+        "baseUrl": "https://bao.codestra.media/ui/",
         "redirects": [
             "https://bao.codestra.media/v1/auth/oidc/callback",
             "https://bao.codestra.media/ui/vault/auth/oidc/oidc/callback",
             "http://localhost:8250/oidc/callback",
         ],
         "roles": {"secrets-operator", "secrets-admin"},
+        "mfaRoles": {"secrets-operator", "secrets-admin"},
+        "idle": 600,
+        "maximum": 3600,
     },
 }
 SENSITIVE = re.compile(r"^(secret|clientsecret|client_secret|password|privatekey|private_key|access_token|accesstoken|refresh_token|refreshtoken|credential|credentials)$", re.I)
+EXPECTED_ACTIVATION = {
+    "contractReviewed": True,
+    "managedClientApplySupportAdded": True,
+    "roleProvisioningSupportAdded": True,
+    "secretExportSupportAdded": True,
+    "roleAssignmentsApplied": False,
+    "liveClientsCreated": False,
+    "liveSecretsGenerated": False,
+    "productionAccessEnabled": False,
+}
 
 
 class PolicyError(ValueError):
@@ -59,7 +81,14 @@ def assert_no_secret(value: Any, label: str) -> None:
 def validate_client(client_id: str, client: dict[str, Any]) -> None:
     expected = CLIENTS[client_id]
     assert_no_secret(client, client_id)
-    required_false = ("publicClient", "bearerOnly", "implicitFlowEnabled", "directAccessGrantsEnabled", "serviceAccountsEnabled", "authorizationServicesEnabled")
+    required_false = (
+        "publicClient",
+        "bearerOnly",
+        "implicitFlowEnabled",
+        "directAccessGrantsEnabled",
+        "serviceAccountsEnabled",
+        "authorizationServicesEnabled",
+    )
     if client.get("clientId") != client_id or client.get("enabled") is not True or client.get("protocol") != "openid-connect":
         raise PolicyError(f"{client_id}: identity or protocol mismatch")
     if client.get("clientAuthenticatorType") != "client-secret" or client.get("standardFlowEnabled") is not True:
@@ -68,14 +97,30 @@ def validate_client(client_id: str, client: dict[str, Any]) -> None:
         raise PolicyError(f"{client_id}: unsafe grant, client mode, or authorization service enabled")
     if client.get("fullScopeAllowed") is not False:
         raise PolicyError(f"{client_id}: full scope is prohibited")
-    if client.get("rootUrl") != expected["origin"] or client.get("webOrigins") != [expected["origin"]] or client.get("redirectUris") != expected["redirects"]:
+    if (
+        client.get("rootUrl") != expected["origin"]
+        or client.get("baseUrl") != expected["baseUrl"]
+        or client.get("webOrigins") != [expected["origin"]]
+        or client.get("redirectUris") != expected["redirects"]
+    ):
         raise PolicyError(f"{client_id}: URL contract mismatch")
     attributes = client.get("attributes", {})
-    if attributes.get("pkce.code.challenge.method") != "S256" or attributes.get("access.token.lifespan") != "300":
-        raise PolicyError(f"{client_id}: PKCE S256 and 300-second access tokens are required")
-    if attributes.get("oauth2.device.authorization.grant.enabled") != "false" or attributes.get("oidc.ciba.grant.enabled") != "false":
-        raise PolicyError(f"{client_id}: device/CIBA grants are prohibited")
-    mappers = [item for item in client.get("protocolMappers", []) if isinstance(item, dict) and item.get("name") == "codestra-realm-roles"]
+    required_attributes = {
+        "pkce.code.challenge.method": "S256",
+        "access.token.lifespan": "300",
+        "client.session.idle.timeout": str(expected["idle"]),
+        "client.session.max.lifespan": str(expected["maximum"]),
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false",
+    }
+    for key, value in required_attributes.items():
+        if attributes.get(key) != value:
+            raise PolicyError(f"{client_id}: client attribute mismatch for {key}")
+    mappers = [
+        item
+        for item in client.get("protocolMappers", [])
+        if isinstance(item, dict) and item.get("name") == "codestra-realm-roles"
+    ]
     if len(mappers) != 1:
         raise PolicyError(f"{client_id}: exactly one realm-role mapper is required")
     mapper = mappers[0]
@@ -121,21 +166,37 @@ def validate_source(config: Path) -> None:
         validate_client(client_id, load(client_dir / f"{client_id}.json"))
     for role_name in ROLE_IDS:
         validate_role(role_name, load(role_dir / f"{role_name}.json"))
+
     contract = load(config / "contracts" / "observability-browser-clients.json")
     if [item.get("clientId") for item in contract.get("clients", [])] != CLIENT_IDS:
         raise PolicyError("contract client set/order mismatch")
     for item in contract["clients"]:
-        expected = CLIENTS[item["clientId"]]
-        if item.get("redirectUris") != expected["redirects"] or item.get("webOrigins") != [expected["origin"]] or set(item.get("requiredRoles", [])) != expected["roles"]:
-            raise PolicyError(f"{item['clientId']}: contract/managed-source mismatch")
-    if contract.get("activation") != {
-        "contractReviewed": True,
-        "managedClientApplySupportAdded": True,
-        "liveClientsCreated": False,
-        "liveSecretsGenerated": False,
-        "productionAccessEnabled": False,
-    }:
+        client_id = item["clientId"]
+        expected = CLIENTS[client_id]
+        if (
+            item.get("redirectUris") != expected["redirects"]
+            or item.get("webOrigins") != [expected["origin"]]
+            or item.get("postLogoutRedirectUris") != [expected["origin"] + "/"]
+            or set(item.get("requiredRoles", [])) != expected["roles"]
+            or set(item.get("mfaRequiredRoles", [])) != expected["mfaRoles"]
+            or item.get("sessionIdleSeconds") != expected["idle"]
+            or item.get("sessionMaxSeconds") != expected["maximum"]
+            or item.get("secretSource") != "protected-generated-client-secret-export"
+        ):
+            raise PolicyError(f"{client_id}: contract/managed-source mismatch")
+    if contract.get("activation") != EXPECTED_ACTIVATION:
         raise PolicyError("source support must not claim live activation")
+    isolation = contract.get("roleIsolation", {})
+    if not all(
+        isolation.get(key) is True
+        for key in (
+            "observabilityRolesDoNotGrantSecretsAccess",
+            "secretsRolesDoNotGrantObservabilityAdmin",
+            "administrativeMfaRequired",
+            "leastPrivilegeRequired",
+        )
+    ):
+        raise PolicyError("role-isolation contract is incomplete")
 
 
 def negative_self_test(config: Path) -> None:
@@ -156,6 +217,15 @@ def negative_self_test(config: Path) -> None:
         pass
     else:
         raise PolicyError("callback drift was not rejected")
+
+    client = copy.deepcopy(load(config / "clients" / "openbao-secrets.json"))
+    client["attributes"]["client.session.max.lifespan"] = "86400"
+    try:
+        validate_client("openbao-secrets", client)
+    except PolicyError:
+        pass
+    else:
+        raise PolicyError("unsafe OpenBao session extension was not rejected")
 
     role = copy.deepcopy(load(config / "realm-roles" / "secrets-admin.json"))
     role["attributes"]["codestra.role.family"] = ["observability"]
