@@ -29,8 +29,14 @@ Keycloak generates a distinct credential for every client; none enters Git.
 
 The protected managed-client boundary is explicit in
 `config/policy/managed-clients.json`. It contains the twelve machine clients,
-`klyrow-portal`, and the three MoneyBee browser clients. Creation is separately
-allowlisted in `config/policy/creatable-clients.json`; Klyrow remains update-only.
+`klyrow-portal`, the three MoneyBee browser clients, and the separate Grafana,
+Superset, and OpenBao browser clients. Creation is separately allowlisted in
+`config/policy/creatable-clients.json`; Klyrow remains update-only.
+
+The observability clients are confidential Authorization Code clients with
+PKCE S256 and distinct externally stored credentials. Grafana/Superset roles
+are isolated from OpenBao secrets roles; see
+`docs/OBSERVABILITY_OIDC_CLIENTS.md`. Source merge never applies them live.
 
 MoneyBee uses three public PKCE clients:
 

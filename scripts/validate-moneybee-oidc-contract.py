@@ -12,6 +12,7 @@ MANAGED_CLIENTS = ROOT / "config" / "policy" / "managed-clients.json"
 CREATABLE_CLIENTS = ROOT / "config" / "policy" / "creatable-clients.json"
 MACHINE_CLIENTS = ROOT / "config" / "contracts" / "machine-clients.json"
 PRODUCT_MIDDLEWARE_CLIENTS = ROOT / "config" / "contracts" / "product-middleware-clients.json"
+OBSERVABILITY_CLIENTS = ROOT / "config" / "identity" / "observability-oidc-clients.json"
 CLIENT_DIR = ROOT / "config" / "clients"
 
 EXPECTED_ISSUER = "https://auth.codestra.co/realms/codestra"
@@ -202,8 +203,16 @@ def main() -> int:
     }
     if None in product_ids:
         fail("product Middleware client contract contains an invalid clientId")
-    if set(creatable.get("clients") or []) != EXPECTED_CLIENT_IDS | machine_ids | product_ids:
-        fail("creatable clients must be exactly MoneyBee plus reviewed core and product machine identities")
+    observability_ids = {
+        item.get("clientId")
+        for item in load(OBSERVABILITY_CLIENTS).get("clients", [])
+        if isinstance(item, dict)
+    }
+    if None in observability_ids:
+        fail("observability client contract contains an invalid clientId")
+    expected_creatable = EXPECTED_CLIENT_IDS | machine_ids | product_ids | observability_ids
+    if set(creatable.get("clients") or []) != expected_creatable:
+        fail("creatable clients must exactly match reviewed browser and machine identity contracts")
 
     registry = load(DOMAIN_REGISTRY)
     domains = registry.get("domains")

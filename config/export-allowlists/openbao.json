@@ -1,0 +1,37 @@
+{
+  "clientId": "openbao",
+  "topLevelFields": [
+    "clientId",
+    "name",
+    "description",
+    "enabled",
+    "protocol",
+    "clientAuthenticatorType",
+    "publicClient",
+    "bearerOnly",
+    "consentRequired",
+    "standardFlowEnabled",
+    "implicitFlowEnabled",
+    "directAccessGrantsEnabled",
+    "serviceAccountsEnabled",
+    "authorizationServicesEnabled",
+    "frontchannelLogout",
+    "fullScopeAllowed",
+    "rootUrl",
+    "baseUrl",
+    "redirectUris",
+    "webOrigins",
+    "defaultClientScopes",
+    "optionalClientScopes",
+    "attributes"
+  ],
+  "attributeFields": [
+    "pkce.code.challenge.method",
+    "post.logout.redirect.uris",
+    "access.token.lifespan",
+    "client.session.idle.timeout",
+    "client.session.max.lifespan",
+    "oauth2.device.authorization.grant.enabled",
+    "oidc.ciba.grant.enabled"
+  ]
+}

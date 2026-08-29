@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "authorizationFlow": "authorization_code",
+  "pkceMethod": "S256",
+  "implicitFlowAllowed": false,
+  "directAccessGrantAllowed": false,
+  "deviceGrantAllowed": false,
+  "credentials": {
+    "externalSecretStoreOnly": true,
+    "distinctPerClient": true,
+    "sharedAcrossServices": false
+  },
+  "roleClaim": "realm_access.roles",
+  "clients": [
+    {
+      "clientId": "grafana",
+      "canonicalHost": "graf.codestra.media",
+      "redirectUris": [
+        "https://graf.codestra.media/login/generic_oauth"
+      ],
+      "allowedRealmRoles": [
+        "observability-viewer",
+        "observability-operator",
+        "observability-admin"
+      ],
+      "mfaRequiredRealmRoles": [
+        "observability-admin"
+      ]
+    },
+    {
+      "clientId": "superset",
+      "canonicalHost": "supe.codestra.media",
+      "redirectUris": [
+        "https://supe.codestra.media/oauth-authorized/keycloak"
+      ],
+      "allowedRealmRoles": [
+        "observability-viewer",
+        "observability-operator",
+        "observability-admin"
+      ],
+      "mfaRequiredRealmRoles": [
+        "observability-admin"
+      ]
+    },
+    {
+      "clientId": "openbao",
+      "canonicalHost": "bao.codestra.media",
+      "redirectUris": [
+        "https://bao.codestra.media/ui/vault/auth/oidc/oidc/callback"
+      ],
+      "allowedRealmRoles": [
+        "secrets-operator",
+        "secrets-admin"
+      ],
+      "deniedRealmRoles": [
+        "observability-viewer",
+        "observability-operator",
+        "observability-admin"
+      ],
+      "mfaRequiredRealmRoles": [
+        "secrets-operator",
+        "secrets-admin"
+      ]
+    }
+  ],
+  "activation": {
+    "sourceMergeAppliesRuntime": false,
+    "independentDriftReviewRequired": true,
+    "applicationRoleMappingEvidenceRequired": true,
+    "mfaAcceptanceEvidenceRequired": true
+  }
+}

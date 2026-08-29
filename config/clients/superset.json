@@ -1,0 +1,42 @@
+{
+  "clientId": "superset",
+  "name": "Codestra Superset",
+  "description": "Superset browser login using Authorization Code Flow with PKCE S256.",
+  "enabled": true,
+  "protocol": "openid-connect",
+  "clientAuthenticatorType": "client-secret",
+  "publicClient": false,
+  "bearerOnly": false,
+  "consentRequired": false,
+  "standardFlowEnabled": true,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "serviceAccountsEnabled": false,
+  "authorizationServicesEnabled": false,
+  "frontchannelLogout": true,
+  "fullScopeAllowed": false,
+  "rootUrl": "https://supe.codestra.media",
+  "baseUrl": "https://supe.codestra.media/",
+  "redirectUris": [
+    "https://supe.codestra.media/oauth-authorized/keycloak"
+  ],
+  "webOrigins": [
+    "https://supe.codestra.media"
+  ],
+  "defaultClientScopes": [
+    "profile",
+    "email",
+    "roles",
+    "web-origins"
+  ],
+  "optionalClientScopes": [],
+  "attributes": {
+    "pkce.code.challenge.method": "S256",
+    "post.logout.redirect.uris": "https://supe.codestra.media/login/",
+    "access.token.lifespan": "300",
+    "client.session.idle.timeout": "900",
+    "client.session.max.lifespan": "14400",
+    "oauth2.device.authorization.grant.enabled": "false",
+    "oidc.ciba.grant.enabled": "false"
+  }
+}

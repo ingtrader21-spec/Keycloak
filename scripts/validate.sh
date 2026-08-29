@@ -68,6 +68,7 @@ creatable_policy="$CONFIG_ROOT/policy/creatable-clients.json"
 expected_managed='[
   "beyvra-backend",
   "breero-backend",
+  "grafana",
   "klyrow-portal",
   "kong-gateway",
   "klyrow-gateway",
@@ -82,9 +83,11 @@ expected_managed='[
   "moneybee-lender",
   "n8n-automation",
   "odoo-integration",
+  "openbao",
   "postly-adapter",
   "provisioning-service",
   "social-codestra",
+  "superset",
   "telnexa-gateway",
   "transportation-backend",
   "vicidial-adapter"
@@ -92,6 +95,7 @@ expected_managed='[
 expected_creatable='[
   "beyvra-backend",
   "breero-backend",
+  "grafana",
   "kong-gateway",
   "klyrow-gateway",
   "kyqra-gateway",
@@ -105,9 +109,11 @@ expected_creatable='[
   "moneybee-lender",
   "n8n-automation",
   "odoo-integration",
+  "openbao",
   "postly-adapter",
   "provisioning-service",
   "social-codestra",
+  "superset",
   "telnexa-gateway",
   "transportation-backend",
   "vicidial-adapter"
@@ -207,6 +213,7 @@ allowed_top_level_fields='[
   "description",
   "enabled",
   "protocol",
+  "clientAuthenticatorType",
   "publicClient",
   "bearerOnly",
   "consentRequired",
@@ -231,7 +238,9 @@ allowed_attribute_fields='[
   "post.logout.redirect.uris",
   "oauth2.device.authorization.grant.enabled",
   "oidc.ciba.grant.enabled",
-  "access.token.lifespan"
+  "access.token.lifespan",
+  "client.session.idle.timeout",
+  "client.session.max.lifespan"
 ]'
 
 for file in "${client_files[@]}"; do
@@ -336,6 +345,7 @@ python3 "$ROOT_DIR/scripts/validate-moneybee-oidc-contract.py"
 python3 "$ROOT_DIR/scripts/validate-domain-application-registry.py"
 python3 "$ROOT_DIR/scripts/validate-beyvra-oidc-contract.py"
 python3 "$ROOT_DIR/scripts/validate-product-middleware-clients.py"
+python3 "$ROOT_DIR/scripts/validate-observability-oidc-contract.py"
 
 while IFS= read -r script; do
   bash -n "$script" || fail "Bash syntax failed: $script"
@@ -380,6 +390,7 @@ printf 'PRODUCT_MIDDLEWARE_IDENTITIES=PASS\n'
 printf 'MANAGED_CLIENT_POLICY=PASS\n'
 printf 'CREATABLE_CLIENT_POLICY=PASS\n'
 printf 'MONEYBEE_API_AUDIENCE=PASS\n'
+printf 'OBSERVABILITY_OIDC_POLICY=PASS\n'
 printf 'GITHUB_RULESET_POLICY=PASS\n'
 printf 'KEYCLOAK_POLICY=PASS\n'
 printf 'VALIDATION=PASS\n'
