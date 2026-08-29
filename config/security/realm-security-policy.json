@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "realmOverlay": "config/realms/codestra.json",
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "passwords": {
+    "minimumLength": 14,
+    "maximumLength": 128,
+    "history": 12,
+    "minimumUppercase": 1,
+    "minimumLowercase": 1,
+    "minimumDigits": 1,
+    "minimumSpecialCharacters": 1,
+    "rejectUsername": true,
+    "rejectEmail": true,
+    "hashIterations": 600000,
+    "commonPasswordProviderState": "blocked-requires-reviewed-provider"
+  },
+  "administrators": {
+    "mfaRequired": true,
+    "phishingResistantMfaPreferred": true,
+    "recoveryRequiresIndependentAdministrator": true,
+    "breakGlassCredentialState": "external-controlled-not-provisioned-by-git"
+  },
+  "requiredActions": {
+    "configureTotp": true,
+    "verifyEmail": true,
+    "updatePassword": true,
+    "webauthnRegistrationForPrivilegedUsers": true
+  },
+  "machineTokens": {
+    "maximumAccessTokenLifespanSeconds": 300,
+    "refreshTokensAllowed": false
+  },
+  "accountRecovery": {
+    "emailVerificationTokenLifespanSeconds": 900,
+    "resetPasswordTokenLifespanSeconds": 900,
+    "executeActionsTokenLifespanSeconds": 43200,
+    "smtpContract": "config/email/keycloak-security-smtp.json",
+    "liveTestState": "blocked-production-credentials-and-approval-required"
+  },
+  "liveVerificationRequired": true
+}
