@@ -11,6 +11,7 @@ DOMAIN_REGISTRY = ROOT / "config" / "identity" / "application-domain-registry.js
 MANAGED_CLIENTS = ROOT / "config" / "policy" / "managed-clients.json"
 CREATABLE_CLIENTS = ROOT / "config" / "policy" / "creatable-clients.json"
 MACHINE_CLIENTS = ROOT / "config" / "contracts" / "machine-clients.json"
+PRODUCT_MIDDLEWARE_CLIENTS = ROOT / "config" / "contracts" / "product-middleware-clients.json"
 CLIENT_DIR = ROOT / "config" / "clients"
 
 EXPECTED_ISSUER = "https://auth.codestra.co/realms/codestra"
@@ -194,8 +195,15 @@ def main() -> int:
         for item in load(MACHINE_CLIENTS).get("clients", [])
         if isinstance(item, dict)
     }
-    if set(creatable.get("clients") or []) != EXPECTED_CLIENT_IDS | machine_ids:
-        fail("creatable clients must be exactly MoneyBee plus reviewed machine identities")
+    product_ids = {
+        item.get("clientId")
+        for item in load(PRODUCT_MIDDLEWARE_CLIENTS).get("clients", [])
+        if isinstance(item, dict)
+    }
+    if None in product_ids:
+        fail("product Middleware client contract contains an invalid clientId")
+    if set(creatable.get("clients") or []) != EXPECTED_CLIENT_IDS | machine_ids | product_ids:
+        fail("creatable clients must be exactly MoneyBee plus reviewed core and product machine identities")
 
     registry = load(DOMAIN_REGISTRY)
     domains = registry.get("domains")
