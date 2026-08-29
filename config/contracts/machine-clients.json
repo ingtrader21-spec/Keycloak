@@ -14,7 +14,7 @@
       "directAccessGrantsEnabled": false,
       "audience": "kong-gateway",
       "scopes": ["kong-gateway.access"],
-      "provisioningState": "declared-not-created"
+      "provisioningState": "managed-protected-apply"
     },
     {
       "clientId": "middleware-api",
@@ -25,7 +25,7 @@
       "directAccessGrantsEnabled": false,
       "audience": "middleware-api",
       "scopes": ["middleware-api.access"],
-      "provisioningState": "declared-not-created"
+      "provisioningState": "managed-protected-apply"
     },
     {
       "clientId": "middleware-worker",
@@ -36,7 +36,7 @@
       "directAccessGrantsEnabled": false,
       "audience": "middleware-worker",
       "scopes": ["middleware-worker.access"],
-      "provisioningState": "declared-not-created"
+      "provisioningState": "managed-protected-apply"
     },
     {
       "clientId": "odoo-integration",
@@ -47,7 +47,7 @@
       "directAccessGrantsEnabled": false,
       "audience": "odoo-integration",
       "scopes": ["odoo-integration.access"],
-      "provisioningState": "declared-not-created"
+      "provisioningState": "managed-protected-apply"
     },
     {
       "clientId": "n8n-automation",
@@ -58,7 +58,7 @@
       "directAccessGrantsEnabled": false,
       "audience": "n8n-automation",
       "scopes": ["n8n-automation.access"],
-      "provisioningState": "declared-not-created"
+      "provisioningState": "managed-protected-apply"
     },
     {
       "clientId": "vicidial-adapter",
@@ -69,7 +69,7 @@
       "directAccessGrantsEnabled": false,
       "audience": "vicidial-adapter",
       "scopes": ["vicidial-adapter.access"],
-      "provisioningState": "declared-not-created"
+      "provisioningState": "managed-protected-apply"
     },
     {
       "clientId": "telnexa-gateway",
@@ -80,7 +80,7 @@
       "directAccessGrantsEnabled": false,
       "audience": "telnexa-gateway",
       "scopes": ["telnexa-gateway.access"],
-      "provisioningState": "declared-not-created"
+      "provisioningState": "managed-protected-apply"
     },
     {
       "clientId": "klyrow-gateway",
@@ -91,7 +91,7 @@
       "directAccessGrantsEnabled": false,
       "audience": "klyrow-gateway",
       "scopes": ["klyrow-gateway.access"],
-      "provisioningState": "declared-not-created"
+      "provisioningState": "managed-protected-apply"
     },
     {
       "clientId": "kyqra-gateway",
@@ -102,7 +102,7 @@
       "directAccessGrantsEnabled": false,
       "audience": "kyqra-gateway",
       "scopes": ["kyqra-gateway.access"],
-      "provisioningState": "declared-not-created"
+      "provisioningState": "managed-protected-apply"
     },
     {
       "clientId": "postly-adapter",
@@ -113,7 +113,7 @@
       "directAccessGrantsEnabled": false,
       "audience": "postly-adapter",
       "scopes": ["postly-adapter.access"],
-      "provisioningState": "declared-not-created"
+      "provisioningState": "managed-protected-apply"
     },
     {
       "clientId": "provisioning-service",
@@ -124,7 +124,7 @@
       "directAccessGrantsEnabled": false,
       "audience": "provisioning-service",
       "scopes": ["provisioning-service.access"],
-      "provisioningState": "declared-not-created"
+      "provisioningState": "managed-protected-apply"
     },
     {
       "clientId": "monitoring-readonly",
@@ -135,7 +135,7 @@
       "directAccessGrantsEnabled": false,
       "audience": "monitoring-readonly",
       "scopes": ["monitoring-readonly.access"],
-      "provisioningState": "declared-not-created"
+      "provisioningState": "managed-protected-apply"
     }
   ]
 }

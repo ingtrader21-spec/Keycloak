@@ -72,26 +72,54 @@ creatable_policy="$CONFIG_ROOT/policy/creatable-clients.json"
 [[ -f "$managed_policy" ]] || fail "Managed-client policy is missing"
 [[ -f "$creatable_policy" ]] || fail "Creatable-client policy is missing"
 jq -e '
-  (.clients | type == "array" and length == 4)
+  (.clients | type == "array" and length == 16)
   and ((.clients | unique | length) == (.clients | length))
   and (.clients == [
     "klyrow-portal",
+    "kong-gateway",
+    "klyrow-gateway",
+    "kyqra-gateway",
+    "middleware-api",
+    "middleware-worker",
+    "monitoring-readonly",
     "moneybee-admin",
     "moneybee-borrower",
-    "moneybee-lender"
+    "moneybee-lender",
+    "n8n-automation",
+    "odoo-integration",
+    "postly-adapter",
+    "provisioning-service",
+    "telnexa-gateway",
+    "vicidial-adapter"
   ])
 ' "$managed_policy" >/dev/null ||
-  fail "Protected managed-client policy must contain Klyrow and all three MoneyBee clients"
+  fail "Protected managed-client policy must contain the browser and machine clients"
 
 jq -e \
   --slurpfile managed "$managed_policy" '
-    (.clients | type == "array" and length == 3)
+    (.clients | type == "array" and length == 15)
     and ((.clients | unique | length) == (.clients | length))
-    and (.clients == ["moneybee-admin", "moneybee-borrower", "moneybee-lender"])
+    and (.clients == [
+      "kong-gateway",
+      "klyrow-gateway",
+      "kyqra-gateway",
+      "middleware-api",
+      "middleware-worker",
+      "monitoring-readonly",
+      "moneybee-admin",
+      "moneybee-borrower",
+      "moneybee-lender",
+      "n8n-automation",
+      "odoo-integration",
+      "postly-adapter",
+      "provisioning-service",
+      "telnexa-gateway",
+      "vicidial-adapter"
+    ])
     and all(.clients[]; ($managed[0].clients | index(.)) != null)
     and ((.clients | index("klyrow-portal")) == null)
-  ' "$creatable_policy" >/dev/null ||
-  fail "Only the three reviewed MoneyBee clients may be created by protected GitOps"
+' "$creatable_policy" >/dev/null ||
+  fail "Only explicitly reviewed browser and machine clients may be created"
 
 ruleset_file="$CONFIG_ROOT/github/main-ruleset.json"
 [[ -f "$ruleset_file" ]] || fail "Main-branch ruleset desired state is missing"
@@ -148,7 +176,7 @@ jq -e '
     and .directAccessGrantsEnabled == false
     and (.audience == .clientId)
     and (.scopes | type == "array" and length == 1)
-    and .provisioningState == "declared-not-created"
+    and .provisioningState == "managed-protected-apply"
   )
 ' "$machine_contract" >/dev/null || fail "Machine-client identity contract is invalid"
 
@@ -178,11 +206,15 @@ allowed_top_level_fields='[
   "implicitFlowEnabled",
   "directAccessGrantsEnabled",
   "serviceAccountsEnabled",
+  "authorizationServicesEnabled",
   "frontchannelLogout",
+  "fullScopeAllowed",
   "rootUrl",
   "baseUrl",
   "redirectUris",
   "webOrigins",
+  "defaultClientScopes",
+  "optionalClientScopes",
   "attributes",
   "protocolMappers"
 ]'
@@ -191,6 +223,7 @@ allowed_attribute_fields='[
   "post.logout.redirect.uris",
   "oauth2.device.authorization.grant.enabled",
   "oidc.ciba.grant.enabled"
+  ,"access.token.lifespan"
 ]'
 
 for file in "${client_files[@]}"; do
@@ -202,8 +235,21 @@ for file in "${client_files[@]}"; do
     (.clientId | type == "string" and length > 0)
     and (.protocol == "openid-connect")
     and (.enabled == true)
-    and (.redirectUris | type == "array" and length > 0)
-    and (.webOrigins | type == "array" and length > 0)
+    and (.redirectUris | type == "array")
+    and (.webOrigins | type == "array")
+    and (
+      if .serviceAccountsEnabled == true then
+        .publicClient == false
+        and .standardFlowEnabled == false
+        and .implicitFlowEnabled == false
+        and .directAccessGrantsEnabled == false
+        and .fullScopeAllowed == false
+        and (.redirectUris | length == 0)
+        and (.webOrigins | length == 0)
+      else
+        (.redirectUris | length > 0) and (.webOrigins | length > 0)
+      end
+    )
     and ((.redirectUris | unique | length) == (.redirectUris | length))
     and ((.webOrigins | unique | length) == (.webOrigins | length))
   ' "$file" >/dev/null || fail "Invalid OIDC client shape: $file"
@@ -282,6 +328,8 @@ for file in "${client_files[@]}"; do
   [[ "${desired_attributes[*]}" == "${allowlisted_attributes[*]}" ]] ||
     fail "Export allowlist must exactly cover managed attributes for $client_id"
 done
+
+python3 "$ROOT_DIR/scripts/render-machine-client-overlays.py" --check
 
 python3 "$ROOT_DIR/scripts/validate-moneybee-oidc-contract.py"
 python3 "$ROOT_DIR/scripts/validate-domain-application-registry.py"
