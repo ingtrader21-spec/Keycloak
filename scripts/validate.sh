@@ -21,13 +21,20 @@ mapfile -t json_files < <(find "$CONFIG_ROOT" -type f -name '*.json' -print | so
 
 for file in "${json_files[@]}"; do
   jq -e . "$file" >/dev/null || fail "Invalid JSON: $file"
+
   if ! jq -e '
     [
       paths(scalars) as $path
       | ($path[-1] | tostring | ascii_downcase) as $key
-      | select($key | test("^(secret|clientsecret|client_secret|password|privatekey|private_key|access_token|accesstoken|refresh_token|refreshtoken|credential)$"))
+      | select(
+          $key
+          | test(
+              "^(secret|clientsecret|client_secret|password|privatekey|private_key|access_token|accesstoken|refresh_token|refreshtoken|credential)$"
+            )
+        )
       | select((getpath($path) // "") != "")
-    ] | length == 0
+    ]
+    | length == 0
   ' "$file" >/dev/null; then
     fail "A prohibited secret-bearing field is populated in $file"
   fi
@@ -64,70 +71,27 @@ managed_policy="$CONFIG_ROOT/policy/managed-clients.json"
 creatable_policy="$CONFIG_ROOT/policy/creatable-clients.json"
 [[ -f "$managed_policy" ]] || fail "Managed-client policy is missing"
 [[ -f "$creatable_policy" ]] || fail "Creatable-client policy is missing"
-
-expected_managed='[
-  "beyvra-backend",
-  "breero-backend",
-  "klyrow-portal",
-  "kong-gateway",
-  "klyrow-gateway",
-  "kyqra-gateway",
-  "larim-a-backend",
-  "middleware-api",
-  "middleware-worker",
-  "monitoring-readonly",
-  "moneybee-admin",
-  "moneybee-backend",
-  "moneybee-borrower",
-  "moneybee-lender",
-  "n8n-automation",
-  "odoo-integration",
-  "postly-adapter",
-  "provisioning-service",
-  "social-codestra",
-  "telnexa-gateway",
-  "transportation-backend",
-  "vicidial-adapter"
-]'
-expected_creatable='[
-  "beyvra-backend",
-  "breero-backend",
-  "kong-gateway",
-  "klyrow-gateway",
-  "kyqra-gateway",
-  "larim-a-backend",
-  "middleware-api",
-  "middleware-worker",
-  "monitoring-readonly",
-  "moneybee-admin",
-  "moneybee-backend",
-  "moneybee-borrower",
-  "moneybee-lender",
-  "n8n-automation",
-  "odoo-integration",
-  "postly-adapter",
-  "provisioning-service",
-  "social-codestra",
-  "telnexa-gateway",
-  "transportation-backend",
-  "vicidial-adapter"
-]'
-
-jq -e --argjson expected "$expected_managed" '
-  (.clients | type == "array")
+jq -e '
+  (.clients | type == "array" and length == 4)
   and ((.clients | unique | length) == (.clients | length))
-  and .clients == $expected
+  and (.clients == [
+    "klyrow-portal",
+    "moneybee-admin",
+    "moneybee-borrower",
+    "moneybee-lender"
+  ])
 ' "$managed_policy" >/dev/null ||
-  fail "Protected managed-client policy must contain the reviewed browser and machine clients in canonical order"
+  fail "Protected managed-client policy must contain Klyrow and all three MoneyBee clients"
 
-jq -e --argjson expected "$expected_creatable" --slurpfile managed "$managed_policy" '
-  (.clients | type == "array")
-  and ((.clients | unique | length) == (.clients | length))
-  and .clients == $expected
-  and all(.clients[]; ($managed[0].clients | index(.)) != null)
-  and ((.clients | index("klyrow-portal")) == null)
-' "$creatable_policy" >/dev/null ||
-  fail "Only explicitly reviewed browser and machine clients may be created"
+jq -e \
+  --slurpfile managed "$managed_policy" '
+    (.clients | type == "array" and length == 3)
+    and ((.clients | unique | length) == (.clients | length))
+    and (.clients == ["moneybee-admin", "moneybee-borrower", "moneybee-lender"])
+    and all(.clients[]; ($managed[0].clients | index(.)) != null)
+    and ((.clients | index("klyrow-portal")) == null)
+  ' "$creatable_policy" >/dev/null ||
+  fail "Only the three reviewed MoneyBee clients may be created by protected GitOps"
 
 ruleset_file="$CONFIG_ROOT/github/main-ruleset.json"
 [[ -f "$ruleset_file" ]] || fail "Main-branch ruleset desired state is missing"
@@ -184,9 +148,9 @@ jq -e '
     and .directAccessGrantsEnabled == false
     and (.audience == .clientId)
     and (.scopes | type == "array" and length == 1)
-    and .provisioningState == "managed-protected-apply"
+    and .provisioningState == "declared-not-created"
   )
-' "$machine_contract" >/dev/null || fail "Core machine-client identity contract is invalid"
+' "$machine_contract" >/dev/null || fail "Machine-client identity contract is invalid"
 
 client_dir="$CONFIG_ROOT/clients"
 mapfile -t client_files < <(find "$client_dir" -maxdepth 1 -type f -name '*.json' -print | sort)
@@ -214,15 +178,11 @@ allowed_top_level_fields='[
   "implicitFlowEnabled",
   "directAccessGrantsEnabled",
   "serviceAccountsEnabled",
-  "authorizationServicesEnabled",
   "frontchannelLogout",
-  "fullScopeAllowed",
   "rootUrl",
   "baseUrl",
   "redirectUris",
   "webOrigins",
-  "defaultClientScopes",
-  "optionalClientScopes",
   "attributes",
   "protocolMappers"
 ]'
@@ -230,8 +190,7 @@ allowed_attribute_fields='[
   "pkce.code.challenge.method",
   "post.logout.redirect.uris",
   "oauth2.device.authorization.grant.enabled",
-  "oidc.ciba.grant.enabled",
-  "access.token.lifespan"
+  "oidc.ciba.grant.enabled"
 ]'
 
 for file in "${client_files[@]}"; do
@@ -243,21 +202,8 @@ for file in "${client_files[@]}"; do
     (.clientId | type == "string" and length > 0)
     and (.protocol == "openid-connect")
     and (.enabled == true)
-    and (.redirectUris | type == "array")
-    and (.webOrigins | type == "array")
-    and (
-      if .serviceAccountsEnabled == true then
-        .publicClient == false
-        and .standardFlowEnabled == false
-        and .implicitFlowEnabled == false
-        and .directAccessGrantsEnabled == false
-        and .fullScopeAllowed == false
-        and (.redirectUris | length == 0)
-        and (.webOrigins | length == 0)
-      else
-        (.redirectUris | length > 0) and (.webOrigins | length > 0)
-      end
-    )
+    and (.redirectUris | type == "array" and length > 0)
+    and (.webOrigins | type == "array" and length > 0)
     and ((.redirectUris | unique | length) == (.redirectUris | length))
     and ((.webOrigins | unique | length) == (.webOrigins | length))
   ' "$file" >/dev/null || fail "Invalid OIDC client shape: $file"
@@ -285,7 +231,8 @@ for file in "${client_files[@]}"; do
       and .directAccessGrantsEnabled == false
       and .serviceAccountsEnabled == false
       and .attributes["pkce.code.challenge.method"] == "S256"
-    ' "$file" >/dev/null || fail "Public client must use Authorization Code + PKCE S256 only: $file"
+    ' "$file" >/dev/null ||
+      fail "Public client must use Authorization Code + PKCE S256 only: $file"
   fi
 
   case "$client_id" in
@@ -299,14 +246,17 @@ for file in "${client_files[@]}"; do
         and .protocolMappers[0].config["included.custom.audience"] == "moneybee-api"
         and .protocolMappers[0].config["access.token.claim"] == "true"
         and .protocolMappers[0].config["id.token.claim"] == "false"
-      ' "$file" >/dev/null || fail "MoneyBee portal must emit the moneybee-api access-token audience: $file"
+      ' "$file" >/dev/null ||
+        fail "MoneyBee portal must emit the moneybee-api access-token audience: $file"
       ;;
     klyrow-portal)
-      jq -e 'has("protocolMappers") | not' "$file" >/dev/null || fail "Klyrow desired state changed unexpectedly"
+      jq -e 'has("protocolMappers") | not' "$file" >/dev/null ||
+        fail "Klyrow desired state changed unexpectedly"
       ;;
   esac
 
-  [[ -f "$allowlist_file" && ! -L "$allowlist_file" ]] || fail "Client-specific export allowlist is missing: $allowlist_file"
+  [[ -f "$allowlist_file" && ! -L "$allowlist_file" ]] ||
+    fail "Client-specific export allowlist is missing: $allowlist_file"
   jq -e \
     --arg client_id "$client_id" \
     --argjson allowed_top "$allowed_top_level_fields" \
@@ -324,18 +274,19 @@ for file in "${client_files[@]}"; do
 
   mapfile -t desired_top_level < <(jq -r 'keys[]' "$file" | sort)
   mapfile -t allowlisted_top_level < <(jq -r '.topLevelFields[]' "$allowlist_file" | sort)
-  [[ "${desired_top_level[*]}" == "${allowlisted_top_level[*]}" ]] || fail "Export allowlist must exactly cover managed top-level fields for $client_id"
+  [[ "${desired_top_level[*]}" == "${allowlisted_top_level[*]}" ]] ||
+    fail "Export allowlist must exactly cover managed top-level fields for $client_id"
 
   mapfile -t desired_attributes < <(jq -r '.attributes | keys[]' "$file" | sort)
   mapfile -t allowlisted_attributes < <(jq -r '.attributeFields[]' "$allowlist_file" | sort)
-  [[ "${desired_attributes[*]}" == "${allowlisted_attributes[*]}" ]] || fail "Export allowlist must exactly cover managed attributes for $client_id"
+  [[ "${desired_attributes[*]}" == "${allowlisted_attributes[*]}" ]] ||
+    fail "Export allowlist must exactly cover managed attributes for $client_id"
 done
 
-python3 "$ROOT_DIR/scripts/render-machine-client-overlays.py" --check
 python3 "$ROOT_DIR/scripts/validate-moneybee-oidc-contract.py"
 python3 "$ROOT_DIR/scripts/validate-domain-application-registry.py"
 python3 "$ROOT_DIR/scripts/validate-beyvra-oidc-contract.py"
-python3 "$ROOT_DIR/scripts/validate-product-middleware-clients.py"
+python3 "$ROOT_DIR/scripts/validate-realm-security-policy.py"
 
 while IFS= read -r script; do
   bash -n "$script" || fail "Bash syntax failed: $script"
@@ -350,11 +301,14 @@ fi
 
 python3 "$ROOT_DIR/scripts/validate-workflows.py"
 
-if grep -RInE --exclude-dir=.git 'BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY' .; then
+if grep -RInE --exclude-dir=.git \
+  'BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY' .; then
   fail "Private key material must not be committed"
 fi
 
-if grep -RInE --include='*.sh' '^[[:space:]]*(export[[:space:]]+)?(KC_ADMIN_CLIENT_SECRET|KC_ADMIN_PASSWORD|POSTGRES_PASSWORD)=[^$<[:space:]][^[:space:]]{7,}' scripts; then
+if grep -RInE --include='*.sh' \
+  '^[[:space:]]*(export[[:space:]]+)?(KC_ADMIN_CLIENT_SECRET|KC_ADMIN_PASSWORD|POSTGRES_PASSWORD)=[^$<[:space:]][^[:space:]]{7,}' \
+  scripts; then
   fail "Potential hard-coded shell secret detected"
 fi
 
@@ -376,7 +330,6 @@ printf 'JSON_FILES=%s\n' "${#json_files[@]}"
 printf 'CLIENT_FILES=%s\n' "${#client_files[@]}"
 printf 'ENDPOINT_POLICY=PASS\n'
 printf 'MACHINE_IDENTITY_CONTRACT=PASS\n'
-printf 'PRODUCT_MIDDLEWARE_IDENTITIES=PASS\n'
 printf 'MANAGED_CLIENT_POLICY=PASS\n'
 printf 'CREATABLE_CLIENT_POLICY=PASS\n'
 printf 'MONEYBEE_API_AUDIENCE=PASS\n'
