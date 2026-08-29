@@ -42,7 +42,7 @@
       "consentRequired": false,
       "config": {
         "claim.name": "scope",
-        "claim.value": "workflow.result.publish",
+        "claim.value": "middleware.request.forward middleware.status.read workflow.result.publish",
         "jsonType.label": "String",
         "id.token.claim": "false",
         "access.token.claim": "true",

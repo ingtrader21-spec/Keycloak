@@ -57,6 +57,9 @@ jobs:
       - name: Validate source service identities, audiences, APIs, and webhooks
         run: python3 scripts/validate-service-integrations.py
 
+      - name: Validate source Kong OIDC trust contract
+        run: python3 scripts/validate-kong-oidc-contract.py
+
       - name: Validate source n8n command and result directions
         run: python3 scripts/validate-n8n-flow.py
 
@@ -131,6 +134,9 @@ jobs:
 
       - name: Validate merge-result service identities, audiences, APIs, and webhooks
         run: python3 scripts/validate-service-integrations.py
+
+      - name: Validate merge-result Kong OIDC trust contract
+        run: python3 scripts/validate-kong-oidc-contract.py
 
       - name: Validate merge-result n8n command and result directions
         run: python3 scripts/validate-n8n-flow.py
