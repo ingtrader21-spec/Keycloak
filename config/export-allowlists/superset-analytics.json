@@ -1,0 +1,36 @@
+{
+  "clientId": "superset-analytics",
+  "topLevelFields": [
+    "clientId",
+    "name",
+    "description",
+    "enabled",
+    "protocol",
+    "clientAuthenticatorType",
+    "publicClient",
+    "bearerOnly",
+    "consentRequired",
+    "standardFlowEnabled",
+    "implicitFlowEnabled",
+    "directAccessGrantsEnabled",
+    "serviceAccountsEnabled",
+    "authorizationServicesEnabled",
+    "frontchannelLogout",
+    "fullScopeAllowed",
+    "rootUrl",
+    "baseUrl",
+    "redirectUris",
+    "webOrigins",
+    "defaultClientScopes",
+    "optionalClientScopes",
+    "attributes",
+    "protocolMappers"
+  ],
+  "attributeFields": [
+    "pkce.code.challenge.method",
+    "post.logout.redirect.uris",
+    "oauth2.device.authorization.grant.enabled",
+    "oidc.ciba.grant.enabled",
+    "access.token.lifespan"
+  ]
+}

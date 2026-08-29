@@ -92,8 +92,8 @@
     "leastPrivilegeRequired": true
   },
   "activation": {
-    "contractReviewed": false,
-    "managedClientApplySupportAdded": false,
+    "contractReviewed": true,
+    "managedClientApplySupportAdded": true,
     "liveClientsCreated": false,
     "liveSecretsGenerated": false,
     "productionAccessEnabled": false
