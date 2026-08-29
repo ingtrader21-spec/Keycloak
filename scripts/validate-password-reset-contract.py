@@ -12,6 +12,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / "config" / "email" / "keycloak-security-smtp.json"
 DOMAIN_REGISTRY = ROOT / "config" / "identity" / "application-domain-registry.json"
+REALM = ROOT / "config" / "realms" / "codestra.json"
 CANONICAL_ISSUER = "https://auth.codestra.co/realms/codestra"
 EXPECTED_APPLICATIONS = {
     "codestra.co": ("codestra-portal-production", "declared-runtime-binding-required"),
@@ -27,10 +28,7 @@ EXPECTED_APPLICATIONS = {
     "breero.com": ("breero-portal", "declared-runtime-binding-required"),
     "breero.shop": ("breero-portal", "declared-runtime-binding-required"),
     "telnexa.co": ("telnexa-portal", "declared-runtime-binding-required"),
-    "booked4seasons.com": (
-        "booked4seasons-portal",
-        "declared-blocked-dns-unconfirmed",
-    ),
+    "booked4seasons.com": ("booked4seasons-portal", "declared-blocked-dns-unconfirmed"),
 }
 EXPECTED_DELEGATED_DOMAINS = {
     "codestra.co",
@@ -176,10 +174,10 @@ def validate() -> None:
     )
     if smtp["provider"] != "klyrow-postal":
         fail("SMTP provider must be klyrow-postal")
-    if smtp["connectivity"] != "private-vlan-only":
-        fail("Keycloak SMTP must remain on the private network")
-    if smtp["defaultHost"] != "10.40.0.4" or smtp["defaultPort"] != 587:
-        fail("approved private Klyrow SMTP endpoint changed")
+    if smtp["connectivity"] != "approved-klyrow-smtp-endpoint":
+        fail("Keycloak SMTP must use the approved Klyrow SMTP endpoint")
+    if smtp["defaultHost"] != "mail.klyrow.com" or smtp["defaultPort"] != 25:
+        fail("approved Klyrow SMTP endpoint changed")
     if smtp["encryption"] != "starttls" or smtp["authenticationType"] != "password":
         fail("Klyrow SMTP must use authenticated STARTTLS")
     if smtp["requiredKlyrowStream"] != "SECURITY":
@@ -203,6 +201,15 @@ def validate() -> None:
             fail(f"smtp.{field} must be an environment or secret name")
     if smtp["usernameSecret"] != "KC_SMTP_USERNAME" or smtp["passwordSecret"] != "KC_SMTP_PASSWORD":
         fail("SMTP credential secret names changed")
+
+    realm = load_json(REALM, "realm")
+    realm_smtp = object_at(realm.get("smtpServer"), "realm smtpServer")
+    if realm_smtp.get("host") != "mail.klyrow.com" or realm_smtp.get("port") != "25":
+        fail("realm SMTP endpoint does not match the Klyrow contract")
+    if realm_smtp.get("auth") != "true" or realm_smtp.get("starttls") != "true" or realm_smtp.get("ssl") != "false":
+        fail("realm SMTP transport must require auth + STARTTLS without implicit SSL")
+    if realm.get("resetPasswordAllowed") is not True:
+        fail("realm password reset must remain enabled")
 
     applications = array_at(document["humanApplications"], "humanApplications")
     if len(applications) != len(EXPECTED_APPLICATIONS):
@@ -234,22 +241,16 @@ def validate() -> None:
     delegated = {
         entry["domain"]
         for entry in registry_entries
-        if object_at(entry, "domain registry entry").get(
-            "passwordResetDelegatedToKeycloak"
-        )
+        if object_at(entry, "domain registry entry").get("passwordResetDelegatedToKeycloak")
     }
     if delegated != EXPECTED_DELEGATED_DOMAINS:
-        fail(
-            "password-reset applications do not match the fifteen-domain "
-            "identity registry"
-        )
+        fail("password-reset applications do not match the fifteen-domain identity registry")
 
     by_domain = {entry["domain"]: entry for entry in registry_entries}
     booked = object_at(by_domain["booked4seasons.com"], "booked4seasons.com")
     if (
         booked.get("state") != "declared-blocked-dns-unconfirmed"
-        or booked.get("postalDnsState")
-        != "not-confirmed-no-completed-postal-dns-check"
+        or booked.get("postalDnsState") != "not-confirmed-no-completed-postal-dns-check"
         or booked.get("enabled") is not False
     ):
         fail("booked4seasons.com must remain blocked until Postal DNS is confirmed")
@@ -282,6 +283,8 @@ def main() -> int:
     print("PASSWORD_RESET_CONTRACT=PASS")
     print("KEYCLOAK_PASSWORD_AUTHORITY=PASS")
     print("KLYROW_SECURITY_SMTP_CONTRACT=PASS")
+    print("KLYROW_SMTP_ENDPOINT=mail.klyrow.com:25")
+    print("KLYROW_SMTP_STARTTLS=PASS")
     print("HUMAN_PASSWORD_RESET_APPLICATIONS=13")
     print("POSTAL_DNS_REPORTED_OK_DOMAINS=14")
     print("BOOKED4SEASONS_DNS_BLOCK=PASS")
