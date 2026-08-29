@@ -20,4 +20,25 @@ for script in ("scripts/backup-postgres.sh", "scripts/verify-backup.sh"):
     text = (root / script).read_text()
     if "STATUS=SUCCESS" not in text or "set -Eeuo pipefail" not in text:
         raise SystemExit(f"{script} is not fail-closed")
+alert_contract = (root / "config/observability/keycloak-alerts.yaml").read_text()
+required_alerts = {
+    "KeycloakUnavailable",
+    "KeycloakDatabaseUnavailable",
+    "KeycloakRestartLoop",
+    "KeycloakHighServerErrors",
+    "KeycloakHighRequestLatency",
+    "KeycloakLoginFailures",
+    "KeycloakTokenIssuanceFailures",
+    "KeycloakSmtpFailures",
+    "KeycloakAdminAuthenticationFailures",
+    "KeycloakBruteForceLockouts",
+    "KeycloakBackupStale",
+    "KeycloakReconciliationFailed",
+    "KeycloakConfigurationDrift",
+    "IdentityCertificateExpiring",
+    "IdentityHostDiskCritical",
+}
+missing_alerts = sorted(name for name in required_alerts if f"alert: {name}" not in alert_contract)
+if missing_alerts:
+    raise SystemExit("Missing observability alerts: " + ", ".join(missing_alerts))
 print("PRODUCTION_AUTHORITY_CONTROLS=PASS")
