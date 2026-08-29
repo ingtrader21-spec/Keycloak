@@ -30,6 +30,14 @@ on:
         description: Reviewed 64-character plan hash; required only for apply
         required: false
         type: string
+      review_run_id:
+        description: Successful independent drift-review workflow run ID; required only for apply
+        required: false
+        type: string
+      approved_review_sha256:
+        description: Reviewed 64-character drift-review artifact hash; required only for apply
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -62,6 +70,8 @@ jobs:
           MODE: ${{ inputs.mode }}
           PLAN_RUN_ID: ${{ inputs.plan_run_id }}
           APPROVED_PLAN_SHA256: ${{ inputs.approved_plan_sha256 }}
+          REVIEW_RUN_ID: ${{ inputs.review_run_id }}
+          APPROVED_REVIEW_SHA256: ${{ inputs.approved_review_sha256 }}
         run: |
           set -Eeuo pipefail
           [[ "$GITHUB_REF" == 'refs/heads/main' ]] || {
@@ -83,7 +93,7 @@ jobs:
 
           case "$MODE" in
             check)
-              [[ -z "$PLAN_RUN_ID" && -z "$APPROVED_PLAN_SHA256" ]] || {
+              [[ -z "$PLAN_RUN_ID" && -z "$APPROVED_PLAN_SHA256" && -z "$REVIEW_RUN_ID" && -z "$APPROVED_REVIEW_SHA256" ]] || {
                 echo 'ERROR=check_mode_must_not_supply_apply_plan_inputs' >&2
                 exit 1
               }
@@ -95,6 +105,14 @@ jobs:
               }
               [[ "$APPROVED_PLAN_SHA256" =~ ^[0-9a-f]{64}$ ]] || {
                 echo 'ERROR=apply_requires_reviewed_plan_sha256' >&2
+                exit 1
+              }
+              [[ "$REVIEW_RUN_ID" =~ ^[0-9]+$ ]] || {
+                echo 'ERROR=apply_requires_numeric_review_run_id' >&2
+                exit 1
+              }
+              [[ "$APPROVED_REVIEW_SHA256" =~ ^[0-9a-f]{64}$ ]] || {
+                echo 'ERROR=apply_requires_reviewed_review_sha256' >&2
                 exit 1
               }
               ;;
@@ -305,6 +323,68 @@ jobs:
               exit 1
             }
 
+      - name: Verify independent drift-review workflow run
+        if: ${{ inputs.mode == 'apply' }}
+        env:
+          REVIEW_RUN_ID: ${{ inputs.review_run_id }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          review_run_json="$RUNNER_TEMP/review-run.json"
+          curl --silent --show-error --fail-with-body --proto '=https' --tlsv1.2 \
+            --connect-timeout 10 --max-time 30 \
+            --header 'Accept: application/vnd.github+json' \
+            --header "Authorization: Bearer $GITHUB_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$REVIEW_RUN_ID" >"$review_run_json"
+          jq -e --arg expectedSha "$GITHUB_SHA" --arg expectedPath '.github/workflows/drift-review.yml' '
+            .event == "workflow_dispatch"
+            and .conclusion == "success"
+            and .head_sha == $expectedSha
+            and .path == $expectedPath
+          ' "$review_run_json" >/dev/null || {
+            echo 'ERROR=review_run_is_not_successful_for_this_exact_sha' >&2
+            exit 1
+          }
+
+      - name: Download independent drift-review artifact
+        if: ${{ inputs.mode == 'apply' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: keycloak-drift-review-${{ inputs.environment }}-${{ github.sha }}
+          path: ${{ runner.temp }}/reviewed-drift
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.review_run_id }}
+
+      - name: Verify independent drift-review artifact
+        if: ${{ inputs.mode == 'apply' }}
+        env:
+          APPROVED_REVIEW_SHA256: ${{ inputs.approved_review_sha256 }}
+          APPROVED_PLAN_SHA256: ${{ inputs.approved_plan_sha256 }}
+        run: |
+          set -Eeuo pipefail
+          review="$RUNNER_TEMP/reviewed-drift/review.json"
+          [[ -f "$review" && -f "${review}.sha256" ]] || {
+            echo 'ERROR=drift_review_artifact_missing' >&2
+            exit 1
+          }
+          (cd "$(dirname "$review")" && sha256sum --check review.json.sha256)
+          actual_review_sha="$(jq -S -c . "$review" | sha256sum | awk '{print $1}')"
+          [[ "$actual_review_sha" == "$APPROVED_REVIEW_SHA256" ]] || {
+            echo 'ERROR=approved_review_hash_mismatch' >&2
+            exit 1
+          }
+          jq -e --arg plan "$APPROVED_PLAN_SHA256" --arg sha "$GITHUB_SHA" --arg environment "$DEPLOY_ENVIRONMENT" '
+            .decision == "approved"
+            and .planSha256 == $plan
+            and .repositorySha == $sha
+            and .environment == $environment
+            and .reviewerId != .changeAuthorId
+          ' "$review" >/dev/null || {
+            echo 'ERROR=drift_review_evidence_mismatch' >&2
+            exit 1
+          }
+
       - name: Export client-specific allowlisted rollback overlay
         if: ${{ inputs.mode == 'apply' }}
         run: |
@@ -327,11 +407,14 @@ jobs:
         if: ${{ inputs.mode == 'apply' }}
         env:
           APPROVED_PLAN_SHA256: ${{ inputs.approved_plan_sha256 }}
+          APPROVED_REVIEW_SHA256: ${{ inputs.approved_review_sha256 }}
         run: |
           set -Eeuo pipefail
           ./scripts/apply-plan.sh \
             --plan "$RUNNER_TEMP/reviewed-plan/plan.json" \
             --expected-plan-sha "$APPROVED_PLAN_SHA256" \
+            --review "$RUNNER_TEMP/reviewed-drift/review.json" \
+            --expected-review-sha "$APPROVED_REVIEW_SHA256" \
             --expected-deploy-sha "$GITHUB_SHA" \
             --recovery-dir "$RUNNER_TEMP/keycloak-apply-recovery"
 

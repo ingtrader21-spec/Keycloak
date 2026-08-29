@@ -198,7 +198,7 @@ def validate_privileged_workflow(path: Path, workflow: dict[str, Any]) -> None:
         fail(f"{path}: privileged workflow must be workflow_dispatch-only")
 
     required_permissions = {"contents": "read"}
-    if path.name == "deploy.yml":
+    if path.name in {"deploy.yml", "drift-review.yml"}:
         required_permissions["actions"] = "read"
     validate_permissions(workflow.get("permissions"), f"{path}.permissions", required_permissions)
 
@@ -214,8 +214,12 @@ def validate_privileged_workflow(path: Path, workflow: dict[str, Any]) -> None:
             if "environment" not in job:
                 fail(f"{path}.jobs.{job_name}: self-hosted job must use a protected Environment")
         validate_steps(job, f"{path}.jobs.{job_name}")
-    if not found_self_hosted:
+    if not found_self_hosted and path.name != "drift-review.yml":
         fail(f"{path}: privileged workflow must contain a protected self-hosted job")
+    if path.name == "drift-review.yml":
+        review_job = as_mapping(jobs.get("review"), f"{path}.jobs.review")
+        if "environment" not in review_job:
+            fail(f"{path}: drift review must use a protected Environment")
 
     workflow_text = "\n".join(recursive_strings(workflow))
     if "refs/heads/main" not in workflow_text:
@@ -234,6 +238,8 @@ def validate_privileged_workflow(path: Path, workflow: dict[str, Any]) -> None:
             "confirm_sha",
             "plan_run_id",
             "approved_plan_sha256",
+            "review_run_id",
+            "approved_review_sha256",
         }
         if not required_inputs.issubset(inputs):
             fail(f"{path}: missing plan-gate inputs: {sorted(required_inputs - set(inputs))}")
@@ -243,16 +249,28 @@ def validate_privileged_workflow(path: Path, workflow: dict[str, Any]) -> None:
             "plan_run_id",
             "apply-plan.sh",
             "keycloak-plan-",
+            "keycloak-drift-review-",
+            "approved_review_sha256",
         ):
             if required_fragment not in workflow_text:
                 fail(f"{path}: reviewed plan gate is incomplete; missing {required_fragment}")
+    elif path.name == "drift-review.yml":
+        for required_fragment in (
+            "plan_run_id",
+            "approved_plan_sha256",
+            "commits/$GITHUB_SHA/pulls",
+            "review-plan.sh",
+            "keycloak-drift-review-",
+        ):
+            if required_fragment not in workflow_text:
+                fail(f"{path}: independent drift-review gate is incomplete; missing {required_fragment}")
 
 
 def validate() -> None:
     if not WORKFLOW_DIR.is_dir():
         fail(f"Workflow directory does not exist: {WORKFLOW_DIR}")
     workflow_files = sorted([*WORKFLOW_DIR.glob("*.yml"), *WORKFLOW_DIR.glob("*.yaml")])
-    expected_names = {"validate.yml", "runtime-preflight.yml", "deploy.yml"}
+    expected_names = {"validate.yml", "runtime-preflight.yml", "deploy.yml", "drift-review.yml"}
     actual_names = {path.name for path in workflow_files}
     if actual_names != expected_names:
         fail(f"Expected workflow files {sorted(expected_names)}, found {sorted(actual_names)}")

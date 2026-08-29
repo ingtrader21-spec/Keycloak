@@ -1,0 +1,101 @@
+name: Review Keycloak drift
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment from the check plan
+        required: true
+        type: choice
+        options: [staging, production]
+      confirm_sha:
+        description: Exact merged main SHA covered by the check plan
+        required: true
+        type: string
+      plan_run_id:
+        description: Successful check-mode workflow run ID
+        required: true
+        type: string
+      approved_plan_sha256:
+        description: Exact reviewed plan SHA-256
+        required: true
+        type: string
+      change_ticket:
+        description: Approved change or incident identifier
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    environment: keycloak-drift-review
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - name: Require exact merged main
+        env:
+          CONFIRM_SHA: ${{ inputs.confirm_sha }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$GITHUB_REF" == refs/heads/main && "$CONFIRM_SHA" == "$GITHUB_SHA" ]]
+      - name: Derive change author from trusted merged pull-request metadata
+        id: change
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          response="$RUNNER_TEMP/associated-pulls.json"
+          curl --silent --show-error --fail-with-body --proto '=https' --tlsv1.2 \
+            --connect-timeout 10 --max-time 30 \
+            --header 'Accept: application/vnd.github+json' \
+            --header "Authorization: Bearer $GITHUB_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" >"$response"
+          mapfile -t authors < <(jq -er --arg sha "$GITHUB_SHA" '
+            .[] | select(.merged_at != null and .merge_commit_sha == $sha) | .user.login
+          ' "$response")
+          [[ "${#authors[@]}" -eq 1 && -n "${authors[0]}" ]] || {
+            echo 'ERROR=exact_merged_pull_request_author_not_found' >&2
+            exit 1
+          }
+          [[ "${authors[0]}" != "$GITHUB_ACTOR" ]] || {
+            echo 'ERROR=reviewer_must_be_independent_from_trusted_change_author' >&2
+            exit 1
+          }
+          printf 'author=%s\n' "${authors[0]}" >>"$GITHUB_OUTPUT"
+      - name: Download exact check plan
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: keycloak-plan-${{ inputs.environment }}-${{ github.sha }}
+          path: ${{ runner.temp }}/reviewed-plan
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.plan_run_id }}
+      - name: Record independent drift approval
+        env:
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
+          KEYCLOAK_REVIEWER_ID: ${{ github.actor }}
+          KEYCLOAK_CHANGE_AUTHOR_ID: ${{ steps.change.outputs.author }}
+          KEYCLOAK_CHANGE_TICKET: ${{ inputs.change_ticket }}
+          APPROVED_PLAN_SHA256: ${{ inputs.approved_plan_sha256 }}
+        run: |
+          set -Eeuo pipefail
+          plan="$RUNNER_TEMP/reviewed-plan/plan.json"
+          ./scripts/review-plan.sh \
+            --plan "$plan" \
+            --expected-plan-sha "$APPROVED_PLAN_SHA256" \
+            --expected-deploy-sha "$GITHUB_SHA" \
+            --output "$RUNNER_TEMP/drift-review/review.json"
+      - name: Upload immutable drift-review artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: keycloak-drift-review-${{ inputs.environment }}-${{ github.sha }}
+          path: ${{ runner.temp }}/drift-review
+          if-no-files-found: error
+          retention-days: 30

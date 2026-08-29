@@ -1,6 +1,6 @@
 SHELL := /usr/bin/env bash
 
-.PHONY: validate test-runtime-preflight build up down logs check plan apply-plan export-klyrow smoke runtime-preflight
+.PHONY: validate test-runtime-preflight build up down logs check plan review-plan apply-plan export-klyrow smoke runtime-preflight
 
 validate:
 	./scripts/validate.sh
@@ -29,13 +29,22 @@ plan:
 	: "$${DEPLOY_ENVIRONMENT:?Set DEPLOY_ENVIRONMENT to staging or production}"
 	./scripts/plan.sh --output-dir "$${PLAN_DIR:-$${PWD}/artifacts/plan}" --expected-deploy-sha "$${EXPECTED_DEPLOY_SHA}"
 
+review-plan:
+	: "$${PLAN_FILE:?Set PLAN_FILE to plan.json}"
+	: "$${PLAN_SHA256:?Set PLAN_SHA256 to the plan hash}"
+	: "$${EXPECTED_DEPLOY_SHA:?Set EXPECTED_DEPLOY_SHA}"
+	: "$${DEPLOY_ENVIRONMENT:?Set DEPLOY_ENVIRONMENT to staging or production}"
+	./scripts/review-plan.sh --plan "$${PLAN_FILE}" --expected-plan-sha "$${PLAN_SHA256}" --expected-deploy-sha "$${EXPECTED_DEPLOY_SHA}" --output "$${REVIEW_FILE:-$${PWD}/artifacts/review/review.json}"
+
 apply-plan:
 	: "$${PLAN_FILE:?Set PLAN_FILE to reviewed plan.json}"
 	: "$${PLAN_SHA256:?Set PLAN_SHA256 to the reviewed plan hash}"
+	: "$${REVIEW_FILE:?Set REVIEW_FILE to review.json}"
+	: "$${REVIEW_SHA256:?Set REVIEW_SHA256 to the review hash}"
 	: "$${EXPECTED_DEPLOY_SHA:?Set EXPECTED_DEPLOY_SHA}"
 	: "$${DEPLOY_ENVIRONMENT:?Set DEPLOY_ENVIRONMENT to staging or production}"
 	: "$${RECOVERY_DIR:?Set RECOVERY_DIR to a durable absolute artifact directory}"
-	./scripts/apply-plan.sh --plan "$${PLAN_FILE}" --expected-plan-sha "$${PLAN_SHA256}" --expected-deploy-sha "$${EXPECTED_DEPLOY_SHA}" --recovery-dir "$${RECOVERY_DIR}"
+	./scripts/apply-plan.sh --plan "$${PLAN_FILE}" --expected-plan-sha "$${PLAN_SHA256}" --review "$${REVIEW_FILE}" --expected-review-sha "$${REVIEW_SHA256}" --expected-deploy-sha "$${EXPECTED_DEPLOY_SHA}" --recovery-dir "$${RECOVERY_DIR}"
 
 export-klyrow:
 	./scripts/export-client.sh --output "$${PWD}/artifacts/before" klyrow-portal

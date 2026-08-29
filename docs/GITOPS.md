@@ -75,11 +75,10 @@ client-create capability without a broader realm-level permission, do not
 silently broaden the identity: keep create operations blocked until that
 administrative permission change is separately reviewed and approved.
 
-The twelve machine identities in `config/contracts/machine-clients.json` are a
-reviewed naming and flow contract, not active provisioning. Each client must be
-promoted in its own pull request after its caller-to-audience map, scopes,
-secret destination, token lifetime, administrative scope, and rollback policy
-are approved.
+The twelve machine identities in `config/contracts/machine-clients.json` are
+active protected desired state. Each is a distinct confidential service-account
+client. Generated overlays and rollback allowlists are checked against the
+caller-to-audience matrix; shared credentials are neither declared nor accepted.
 
 ## Pull-request validation
 
@@ -125,7 +124,7 @@ is:
 5. record the resulting exact 40-character `main` SHA;
 6. dispatch production `check` mode with `confirm_sha` equal to that `main` SHA.
 
-## Check and reviewed-plan apply
+## Check, independent drift review, and protected apply
 
 Run **Deploy Keycloak configuration** in `check` mode first. It creates:
 
@@ -140,9 +139,12 @@ The plan is deterministic: it contains no timestamp and includes the exact Git
 SHA, target environment, canonical API URLs, managed current values, desired
 values, pre-change hashes, create/update/noop actions, and rollback metadata.
 
-Review every action. `blockedCount` must be zero before apply is eligible. For a
+Review every action through **Review Keycloak drift**. `blockedCount` must be
+zero before review is eligible. For a
 `create`, verify the plan recorded `before: {}` and the exact intended client ID.
-Record the successful check run ID and `PLAN_SHA256`.
+Record the successful check run ID and `PLAN_SHA256`. The reviewer must differ
+from the change author and records a change ticket. The review artifact binds
+every action and before/desired hash to the plan, repository SHA, and environment.
 
 Apply must use:
 
@@ -150,6 +152,7 @@ Apply must use:
 - the same protected environment;
 - the successful check-run ID;
 - the exact reviewed plan SHA-256.
+- the exact independent drift-review run and artifact SHA-256.
 
 Apply verifies the source run and artifact, confirms the human-approved hash,
 rechecks every existing pre-change hash, then rechecks every reviewed create is
