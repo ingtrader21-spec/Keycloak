@@ -73,7 +73,14 @@ jq -S -c -n \
           beforeSha256,
           desiredSha256
         }
-      ]
+      ],
+      reviewedRealmPolicy: ($plan[0].realmPolicy | {
+        resourceType,
+        realm,
+        action,
+        beforeSha256,
+        desiredSha256
+      })
     }
   ' >"$OUTPUT_FILE"
 chmod 600 "$OUTPUT_FILE"
