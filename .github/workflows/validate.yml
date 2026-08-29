@@ -63,6 +63,9 @@ jobs:
       - name: Validate source fifteen-domain identity registry
         run: python3 scripts/validate-domain-application-registry.py
 
+      - name: Validate source Beyvra OIDC contract
+        run: python3 scripts/validate-beyvra-oidc-contract.py
+
       - name: Validate source MoneyBee OIDC contract
         run: python3 scripts/validate-moneybee-oidc-contract.py
 
@@ -134,6 +137,9 @@ jobs:
 
       - name: Validate merge-result fifteen-domain identity registry
         run: python3 scripts/validate-domain-application-registry.py
+
+      - name: Validate merge-result Beyvra OIDC contract
+        run: python3 scripts/validate-beyvra-oidc-contract.py
 
       - name: Validate merge-result MoneyBee OIDC contract
         run: python3 scripts/validate-moneybee-oidc-contract.py
