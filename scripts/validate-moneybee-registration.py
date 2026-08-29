@@ -4,6 +4,7 @@ from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 contract = json.loads((root / "config/identity/moneybee-registration.json").read_text())
+enterprise = json.loads((root / "config/identity/moneybee-enterprise-access-policy.json").read_text())
 producer = json.loads((root / "config/contracts/moneybee-backend-producer.json").read_text())
 realm = json.loads((root / "config/realms/codestra.json").read_text())
 
@@ -33,6 +34,41 @@ assert realm["resetPasswordAllowed"] is True
 assert realm["verifyEmail"] is False
 assert realm["loginTheme"] == "codestra-identity"
 assert realm["emailTheme"] == "codestra-identity"
+
+assert enterprise["state"] == "desired-not-activated"
+assert enterprise["realm"] == "codestra"
+assert enterprise["issuer"] == "https://auth.codestra.co/realms/codestra"
+assert enterprise["canonicalDomain"] == "moneybeeloan.com"
+borrower = enterprise["personas"]["borrower"]
+lender = enterprise["personas"]["lender"]
+admin = enterprise["personas"]["admin"]
+assert borrower["clientId"] == "moneybee-borrower"
+assert borrower["publicRegistration"] is True
+assert borrower["registrationGateRequired"] is True
+assert borrower["emailVerification"] == "moneybee-verify-email-otp"
+assert borrower["passwordTransitToMoneyBee"] is False
+assert lender["clientId"] == "moneybee-lender"
+assert lender["publicRegistration"] is False
+assert lender["mfaRequired"] is True
+assert set(lender["allowedStrongAuthenticators"]) == {"otp", "webauthn"}
+assert lender["enterpriseSsoAllowed"] is True
+assert admin["clientId"] == "moneybee-admin"
+assert admin["publicRegistration"] is False
+assert admin["mfaRequired"] is True
+assert admin["preferredStrongAuthenticator"] == "webauthn"
+assert admin["maxSessionIdleMinutes"] <= 30
+assert admin["privilegedActionReauthenticationRequired"] is True
+assert enterprise["securityMail"]["preferredSender"] == "security@moneybeeloan.com"
+assert enterprise["securityMail"]["stream"] == "SECURITY"
+assert enterprise["securityMail"]["marketingTransportAllowed"] is False
+assert enterprise["realmIsolationRoadmap"]["evaluateDedicatedMoneyBeeRealm"] is True
+assert enterprise["realmIsolationRoadmap"]["automaticMigration"] is False
+assert enterprise["productionActivation"] == {
+    "featureBranchApplyAllowed": False,
+    "exactMergedShaRequired": True,
+    "protectedEnvironmentApprovalRequired": True,
+    "rollbackEvidenceRequired": True,
+}
 
 assert producer == {
     "schemaVersion": 1,
@@ -78,4 +114,5 @@ assert 'scope:"registration-form"' in plan
 assert 'not REQUIRED inside the registration-form scope' in plan
 assert 'plaintext' not in contract.get("verification", {})
 print("MONEYBEE_REGISTRATION_CONTRACT=PASS")
+print("MONEYBEE_ENTERPRISE_IDENTITY_POLICY=PASS")
 print("MONEYBEE_BACKEND_PRODUCER_CONTRACT=PASS")
