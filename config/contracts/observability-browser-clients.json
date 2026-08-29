@@ -65,6 +65,7 @@
       "grantType": "authorization_code",
       "pkceCodeChallengeMethod": "S256",
       "redirectUris": [
+        "https://bao.codestra.media/v1/auth/oidc/callback",
         "https://bao.codestra.media/ui/vault/auth/oidc/oidc/callback",
         "http://localhost:8250/oidc/callback"
       ],
