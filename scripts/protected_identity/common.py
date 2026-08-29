@@ -125,7 +125,7 @@ def project(current: Any, wanted: Any) -> Any:
         return {key: project(source.get(key), child) for key, child in wanted.items()}
     if isinstance(wanted, list):
         source = current if isinstance(current, list) else []
-        if all(isinstance(item, dict) and isinstance(item.get("name"), str) for item in wanted):
+        if wanted and all(isinstance(item, dict) and isinstance(item.get("name"), str) for item in wanted):
             by_name = {
                 item.get("name"): item
                 for item in source
@@ -143,7 +143,7 @@ def merge_overlay(current: Any, desired: Any) -> Any:
             result[key] = merge_overlay(result.get(key), child)
         return result
     if isinstance(desired, list):
-        if all(isinstance(item, dict) and isinstance(item.get("name"), str) for item in desired):
+        if desired and all(isinstance(item, dict) and isinstance(item.get("name"), str) for item in desired):
             existing = copy.deepcopy(current) if isinstance(current, list) else []
             by_name = {
                 item.get("name"): item
