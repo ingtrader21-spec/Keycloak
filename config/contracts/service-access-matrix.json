@@ -77,10 +77,10 @@
       "baseUrlEnvironment": "KLYROW_GATEWAY_BASE_URL"
     },
     {
-      "clientId": "klyrow-saas",
+      "clientId": "klyrow",
       "kind": "product",
       "resourceServer": false,
-      "audience": "klyrow-saas"
+      "audience": "klyrow"
     },
     {
       "clientId": "kyqra-gateway",
@@ -90,10 +90,10 @@
       "baseUrlEnvironment": "KYQRA_GATEWAY_BASE_URL"
     },
     {
-      "clientId": "kyqra-saas",
+      "clientId": "kyqra",
       "kind": "product",
       "resourceServer": false,
-      "audience": "kyqra-saas"
+      "audience": "kyqra"
     },
     {
       "clientId": "postly-adapter",
@@ -423,7 +423,7 @@
       ]
     },
     {
-      "callerClientId": "klyrow-saas",
+      "callerClientId": "klyrow",
       "targetClientId": "middleware-api",
       "audience": "middleware-api",
       "scopes": [
@@ -431,7 +431,7 @@
       ]
     },
     {
-      "callerClientId": "kyqra-saas",
+      "callerClientId": "kyqra",
       "targetClientId": "middleware-api",
       "audience": "middleware-api",
       "scopes": [

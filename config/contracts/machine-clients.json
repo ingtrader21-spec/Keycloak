@@ -94,14 +94,14 @@
       "provisioningState": "managed-protected-apply"
     },
     {
-      "clientId": "klyrow-saas",
+      "clientId": "klyrow",
       "clientType": "confidential",
       "serviceAccountsEnabled": true,
       "standardFlowEnabled": false,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
-      "audience": "klyrow-saas",
-      "scopes": ["klyrow-saas.access"],
+      "audience": "klyrow",
+      "scopes": ["klyrow.access"],
       "provisioningState": "managed-protected-apply"
     },
     {
@@ -116,14 +116,14 @@
       "provisioningState": "managed-protected-apply"
     },
     {
-      "clientId": "kyqra-saas",
+      "clientId": "kyqra",
       "clientType": "confidential",
       "serviceAccountsEnabled": true,
       "standardFlowEnabled": false,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
-      "audience": "kyqra-saas",
-      "scopes": ["kyqra-saas.access"],
+      "audience": "kyqra",
+      "scopes": ["kyqra.access"],
       "provisioningState": "managed-protected-apply"
     },
     {

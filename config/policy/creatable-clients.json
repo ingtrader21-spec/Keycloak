@@ -2,9 +2,9 @@
   "clients": [
     "kong-gateway",
     "klyrow-gateway",
-    "klyrow-saas",
+    "klyrow",
     "kyqra-gateway",
-    "kyqra-saas",
+    "kyqra",
     "middleware-api",
     "middleware-worker",
     "monitoring-readonly",

@@ -1,6 +1,6 @@
 {
-  "clientId": "klyrow-saas",
-  "name": "Codestra service identity: klyrow-saas",
+  "clientId": "klyrow",
+  "name": "Codestra service identity: klyrow",
   "description": "Confidential machine identity managed by protected Keycloak GitOps.",
   "enabled": true,
   "protocol": "openid-connect",

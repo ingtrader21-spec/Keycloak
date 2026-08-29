@@ -1,6 +1,6 @@
 {
-  "clientId": "kyqra-saas",
-  "name": "Codestra service identity: kyqra-saas",
+  "clientId": "kyqra",
+  "name": "Codestra service identity: kyqra",
   "description": "Confidential machine identity managed by protected Keycloak GitOps.",
   "enabled": true,
   "protocol": "openid-connect",
