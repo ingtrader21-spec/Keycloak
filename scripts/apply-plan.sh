@@ -8,6 +8,8 @@ source "$ROOT_DIR/scripts/lib/keycloak-admin.sh"
 
 PLAN_FILE=""
 EXPECTED_PLAN_SHA256=""
+REVIEW_FILE=""
+EXPECTED_REVIEW_SHA256=""
 EXPECTED_DEPLOY_SHA="${EXPECTED_DEPLOY_SHA:-}"
 DEPLOY_ENVIRONMENT="${DEPLOY_ENVIRONMENT:-}"
 
@@ -16,6 +18,8 @@ usage() {
 Usage: scripts/apply-plan.sh \
   --plan PATH \
   --expected-plan-sha SHA256 \
+  --review PATH \
+  --expected-review-sha SHA256 \
   --expected-deploy-sha SHA
 
 Applies only a previously generated and human-reviewed plan. Before the first
@@ -36,6 +40,16 @@ while (($#)); do
     --expected-plan-sha)
       [[ $# -ge 2 ]] || die "--expected-plan-sha requires a SHA-256 value"
       EXPECTED_PLAN_SHA256="$2"
+      shift 2
+      ;;
+    --review)
+      [[ $# -ge 2 ]] || die "--review requires a path"
+      REVIEW_FILE="$2"
+      shift 2
+      ;;
+    --expected-review-sha)
+      [[ $# -ge 2 ]] || die "--expected-review-sha requires a SHA-256 value"
+      EXPECTED_REVIEW_SHA256="$2"
       shift 2
       ;;
     --expected-deploy-sha)
@@ -59,6 +73,10 @@ done
 [[ -f "$PLAN_FILE" && ! -L "$PLAN_FILE" ]] || die "Plan must be a regular non-symlink file"
 [[ "$EXPECTED_PLAN_SHA256" =~ ^[0-9a-f]{64}$ ]] ||
   die "Expected plan hash must be 64 lowercase hexadecimal characters"
+[[ "$REVIEW_FILE" == /* && -f "$REVIEW_FILE" && ! -L "$REVIEW_FILE" ]] ||
+  die "Review must be an absolute regular non-symlink file"
+[[ "$EXPECTED_REVIEW_SHA256" =~ ^[0-9a-f]{64}$ ]] ||
+  die "Expected review hash must be 64 lowercase hexadecimal characters"
 [[ "$EXPECTED_DEPLOY_SHA" =~ ^[0-9a-f]{40}$ ]] ||
   die "Expected deployment SHA must be 40 lowercase hexadecimal characters"
 case "$DEPLOY_ENVIRONMENT" in
@@ -75,6 +93,27 @@ jq -e . "$PLAN_FILE" >/dev/null || die "Plan is not valid JSON"
 canonical_plan_sha256="$(jq -S -c . "$PLAN_FILE" | sha256sum | awk '{print $1}')"
 [[ "$canonical_plan_sha256" == "$EXPECTED_PLAN_SHA256" ]] ||
   die "Reviewed plan hash does not match the supplied plan"
+canonical_review_sha256="$(jq -S -c . "$REVIEW_FILE" | sha256sum | awk '{print $1}')"
+[[ "$canonical_review_sha256" == "$EXPECTED_REVIEW_SHA256" ]] ||
+  die "Drift-review hash does not match the supplied review"
+jq -e \
+  --arg plan_sha "$EXPECTED_PLAN_SHA256" \
+  --arg repository_sha "$EXPECTED_DEPLOY_SHA" \
+  --arg environment "$DEPLOY_ENVIRONMENT" \
+  --slurpfile plan "$PLAN_FILE" '
+    .schemaVersion == 1
+    and .decision == "approved"
+    and .planSha256 == $plan_sha
+    and .repositorySha == $repository_sha
+    and .environment == $environment
+    and .targetRealm == "codestra"
+    and .reviewerId != .changeAuthorId
+    and (.reviewerId | type == "string" and length >= 3)
+    and (.changeTicket | type == "string" and length >= 3)
+    and .reviewedActions == [
+      $plan[0].clients[] | {clientId, action, beforeSha256, desiredSha256}
+    ]
+  ' "$REVIEW_FILE" >/dev/null || die "Independent drift-review evidence is invalid"
 
 jq -e \
   --arg repository_sha "$EXPECTED_DEPLOY_SHA" \
@@ -418,6 +457,7 @@ convergence_dir="$tmp_dir/convergence"
   die "Convergence check still contains update actions"
 
 printf 'EXPECTED_PLAN_SHA256=%s\n' "$EXPECTED_PLAN_SHA256"
+printf 'EXPECTED_REVIEW_SHA256=%s\n' "$EXPECTED_REVIEW_SHA256"
 printf 'CREATED_COUNT=%s\n' "$created_count"
 printf 'UPDATED_COUNT=%s\n' "$updated_count"
 printf 'CHANGED_COUNT=%s\n' "$changed_count"
