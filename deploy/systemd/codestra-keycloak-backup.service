@@ -1,0 +1,15 @@
+[Unit]
+Description=Encrypted Codestra Keycloak PostgreSQL backup
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=keycloak-backup
+Group=keycloak-backup
+EnvironmentFile=/etc/codestra-keycloak/backup.env
+ExecStart=/srv/keycloak/scripts/backup-postgres.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/keycloak-backups

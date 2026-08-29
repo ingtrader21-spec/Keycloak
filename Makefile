@@ -1,6 +1,6 @@
 SHELL := /usr/bin/env bash
 
-.PHONY: validate test-runtime-preflight build up down logs check plan review-plan apply-plan export-klyrow smoke runtime-preflight
+.PHONY: validate test-runtime-preflight build up down logs check plan review-plan apply-plan export-klyrow smoke runtime-preflight backup verify-backup
 
 validate:
 	./scripts/validate.sh
@@ -54,3 +54,10 @@ smoke:
 runtime-preflight:
 	: "$${EXPECTED_DEPLOY_SHA:?Set EXPECTED_DEPLOY_SHA}"
 	./scripts/runtime-preflight.sh --expected-deploy-sha "$${EXPECTED_DEPLOY_SHA}"
+
+backup:
+	./scripts/backup-postgres.sh
+
+verify-backup:
+	: "$${BACKUP_FILE:?Set BACKUP_FILE to an encrypted backup}"
+	./scripts/verify-backup.sh "$${BACKUP_FILE}"
