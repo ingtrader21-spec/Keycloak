@@ -205,6 +205,8 @@
       "targetClientId": "middleware-api",
       "audience": "middleware-api",
       "scopes": [
+        "middleware.request.forward",
+        "middleware.status.read",
         "workflow.result.publish"
       ]
     },
