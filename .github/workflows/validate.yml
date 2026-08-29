@@ -72,6 +72,9 @@ jobs:
       - name: Validate source MoneyBee OIDC contract
         run: python3 scripts/validate-moneybee-oidc-contract.py
 
+      - name: Validate source MoneyBee and Beyvra registration gate
+        run: python3 scripts/validate-browser-registration-policy.py
+
       - name: Validate source password-reset and Klyrow SMTP contract
         run: python3 scripts/validate-password-reset-contract.py
 
@@ -149,6 +152,9 @@ jobs:
 
       - name: Validate merge-result MoneyBee OIDC contract
         run: python3 scripts/validate-moneybee-oidc-contract.py
+
+      - name: Validate merge-result MoneyBee and Beyvra registration gate
+        run: python3 scripts/validate-browser-registration-policy.py
 
       - name: Validate merge-result password-reset and Klyrow SMTP contract
         run: python3 scripts/validate-password-reset-contract.py
