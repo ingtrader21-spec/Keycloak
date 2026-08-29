@@ -1,6 +1,6 @@
 SHELL := /usr/bin/env bash
 
-.PHONY: validate test-runtime-preflight build up down logs check plan review-plan apply-plan export-klyrow smoke runtime-preflight backup verify-backup
+.PHONY: validate test-runtime-preflight build up down logs check plan review-plan apply-plan export-klyrow smoke runtime-preflight backup verify-backup certify-kong
 
 validate:
 	./scripts/validate.sh
@@ -61,3 +61,6 @@ backup:
 verify-backup:
 	: "$${BACKUP_FILE:?Set BACKUP_FILE to an encrypted backup}"
 	./scripts/verify-backup.sh "$${BACKUP_FILE}"
+
+certify-kong:
+	./scripts/certify-kong.sh
