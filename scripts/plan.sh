@@ -111,6 +111,45 @@ project_live_to_desired_shape() {
     ' >"$destination"
 }
 
+realm_desired_file="$ROOT_DIR/config/realms/codestra.json"
+realm_live_file="$tmp_dir/realm-live.json"
+realm_before_file="$tmp_dir/realm-before.json"
+keycloak_api GET \
+  "/admin/realms/$(urlencode "$KC_TARGET_REALM")" \
+  >"$realm_live_file"
+project_live_to_desired_shape "$realm_live_file" "$realm_desired_file" "$realm_before_file"
+realm_action="noop"
+if ! jq -e -n \
+  --slurpfile before "$realm_before_file" \
+  --slurpfile desired "$realm_desired_file" \
+  '$before[0] == $desired[0]' >/dev/null; then
+  realm_action="update"
+fi
+realm_before_sha256="$(canonical_hash "$realm_before_file")"
+realm_desired_sha256="$(canonical_hash "$realm_desired_file")"
+realm_resource_file="$tmp_dir/realm-resource.json"
+jq -S -n \
+  --arg realm "$KC_TARGET_REALM" \
+  --arg action "$realm_action" \
+  --arg before_sha256 "$realm_before_sha256" \
+  --arg desired_sha256 "$realm_desired_sha256" \
+  --slurpfile before "$realm_before_file" \
+  --slurpfile desired "$realm_desired_file" '
+    {
+      resourceType: "realm",
+      realm: $realm,
+      action: $action,
+      beforeSha256: $before_sha256,
+      desiredSha256: $desired_sha256,
+      before: $before[0],
+      desired: $desired[0],
+      rollback: {
+        kind: "restore_managed_realm_overlay",
+        requiresReviewedPlan: true
+      }
+    }
+  ' >"$realm_resource_file"
+
 managed_policy="$ROOT_DIR/config/policy/managed-clients.json"
 creatable_policy="$ROOT_DIR/config/policy/creatable-clients.json"
 mapfile -t managed_clients < <(jq -er '.clients[]' "$managed_policy" | sort)
@@ -224,7 +263,8 @@ jq -S -s \
   --arg repository_sha "$EXPECTED_DEPLOY_SHA" \
   --arg environment "$DEPLOY_ENVIRONMENT" \
   --arg target_realm "$KC_TARGET_REALM" \
-  --slurpfile api "$endpoint_file" '
+  --slurpfile api "$endpoint_file" \
+  --slurpfile realm_policy "$realm_resource_file" '
     sort_by(.clientId) as $clients
     | {
         schemaVersion: 1,
@@ -232,11 +272,18 @@ jq -S -s \
         environment: $environment,
         targetRealm: $target_realm,
         api: $api[0],
+        realmPolicy: $realm_policy[0],
         clients: $clients,
-        driftCount: ($clients | map(select(.action != "noop")) | length),
+        driftCount: (
+          ($clients | map(select(.action != "noop")) | length)
+          + (if $realm_policy[0].action == "update" then 1 else 0 end)
+        ),
         blockedCount: ($clients | map(select(.action == "blocked_missing")) | length),
         createCount: ($clients | map(select(.action == "create")) | length),
-        updateCount: ($clients | map(select(.action == "update")) | length)
+        updateCount: (
+          ($clients | map(select(.action == "update")) | length)
+          + (if $realm_policy[0].action == "update" then 1 else 0 end)
+        )
       }
   ' "$resources_ndjson" >"$plan_file"
 

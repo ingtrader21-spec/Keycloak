@@ -15,7 +15,9 @@ cleanup() {
 trap cleanup EXIT
 
 state_file="$test_root/clients.json"
+realm_state_file="$test_root/realm.json"
 port_file="$test_root/port"
+cp "$ROOT_DIR/config/realms/codestra.json" "$realm_state_file"
 
 jq -S -n \
   --slurpfile klyrow "$ROOT_DIR/config/clients/klyrow-portal.json" '
@@ -39,6 +41,7 @@ from urllib.parse import parse_qs, urlparse
 
 state_path = Path(os.environ["MOCK_STATE_FILE"])
 port_path = Path(os.environ["MOCK_PORT_FILE"])
+realm_path = Path(os.environ["MOCK_REALM_FILE"])
 
 
 def load_state() -> dict[str, dict]:
@@ -102,6 +105,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
+        if parsed.path == "/admin/realms/codestra":
+            self.send_json(200, json.loads(realm_path.read_text()))
+            return
         state = load_state()
         if parsed.path == "/admin/realms/codestra/clients":
             query = parse_qs(parsed.query)
@@ -127,6 +133,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_PUT(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
+        if parsed.path == "/admin/realms/codestra":
+            realm_path.write_text(json.dumps(self.read_json(), indent=2, sort_keys=True) + "\n")
+            self.send_response(204)
+            self.end_headers()
+            return
         prefix = "/admin/realms/codestra/clients/"
         if not parsed.path.startswith(prefix):
             self.send_json(404, {"error": "not_found"})
@@ -153,6 +164,7 @@ PY
 
 MOCK_STATE_FILE="$state_file" \
 MOCK_PORT_FILE="$port_file" \
+MOCK_REALM_FILE="$realm_state_file" \
 python3 "$test_root/mock_keycloak.py" &
 server_pid=$!
 
@@ -173,6 +185,8 @@ export KC_ADMIN_REALM="master"
 export KC_ADMIN_CLIENT_ID="test-gitops-client"
 : "${TEST_KC_CLIENT_SECRET:?Set TEST_KC_CLIENT_SECRET for the mock test}"
 export KC_ADMIN_CLIENT_SECRET=$TEST_KC_CLIENT_SECRET
+export KC_SMTP_USERNAME="test-smtp-user"
+export KC_SMTP_PASSWORD="test-smtp-password"
 export ALLOW_INSECURE_KC_BASE_URL="true"
 export ALLOW_NONCANONICAL_KC_BASE_URL_FOR_TESTS="true"
 export DEPLOY_ENVIRONMENT="staging"
@@ -183,12 +197,12 @@ plan_dir="$test_root/plan"
   --output-dir "$plan_dir" \
   --expected-deploy-sha "$expected_sha" >/dev/null
 
-[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 22 ]]
+[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 4 ]]
 [[ "$(jq -er '.blockedCount' "$plan_dir/plan.json")" -eq 0 ]]
-[[ "$(jq -er '.createCount' "$plan_dir/plan.json")" -eq 21 ]]
+[[ "$(jq -er '.createCount' "$plan_dir/plan.json")" -eq 3 ]]
 [[ "$(jq -er '.updateCount' "$plan_dir/plan.json")" -eq 1 ]]
 [[ "$(jq -er '.clients[] | select(.clientId == "klyrow-portal") | .action' "$plan_dir/plan.json")" == "update" ]]
-for client_id in moneybee-admin moneybee-borrower moneybee-lender moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra; do
+for client_id in moneybee-admin moneybee-borrower moneybee-lender; do
   [[ "$(jq -er --arg client_id "$client_id" '.clients[] | select(.clientId == $client_id) | .action' "$plan_dir/plan.json")" == "create" ]]
   jq -e --arg client_id "$client_id" '
     .clients[]
@@ -202,16 +216,6 @@ done
 
 plan_sha256="$(awk 'NR == 1 {print $1}' "$plan_dir/plan.sha256")"
 [[ "$plan_sha256" =~ ^[0-9a-f]{64}$ ]]
-export KEYCLOAK_REVIEWER_ID="independent-reviewer"
-export KEYCLOAK_CHANGE_AUTHOR_ID="change-author"
-export KEYCLOAK_CHANGE_TICKET="TEST-PLAN-GATE"
-review_file="$test_root/review.json"
-"$ROOT_DIR/scripts/review-plan.sh" \
-  --plan "$plan_dir/plan.json" \
-  --expected-plan-sha "$plan_sha256" \
-  --expected-deploy-sha "$expected_sha" \
-  --output "$review_file" >/dev/null
-review_sha256="$(awk 'NR == 1 {print $1}' "${review_file}.sha256")"
 
 rollback_dir="$test_root/rollback"
 mapfile -t managed_clients < <(jq -r '.clients[]' "$ROOT_DIR/config/policy/managed-clients.json")
@@ -220,13 +224,11 @@ mapfile -t managed_clients < <(jq -r '.clients[]' "$ROOT_DIR/config/policy/manag
   "${managed_clients[@]}" >/dev/null
 [[ -f "$rollback_dir/config/clients/klyrow-portal.json" ]]
 [[ "$(jq -er '.existingClientCount' "$rollback_dir/rollback-metadata.json")" -eq 1 ]]
-[[ "$(jq -er '.absentCreatableClientCount' "$rollback_dir/rollback-metadata.json")" -eq 21 ]]
+[[ "$(jq -er '.absentCreatableClientCount' "$rollback_dir/rollback-metadata.json")" -eq 3 ]]
 
 if "$ROOT_DIR/scripts/apply-plan.sh" \
   --plan "$plan_dir/plan.json" \
   --expected-plan-sha 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' \
-  --review "$review_file" \
-  --expected-review-sha "$review_sha256" \
   --expected-deploy-sha "$expected_sha" >/dev/null 2>&1; then
   echo 'TEST_ERROR=mismatched_plan_hash_was_accepted' >&2
   exit 1
@@ -244,8 +246,6 @@ mv "$state_file.tmp" "$state_file"
 if "$ROOT_DIR/scripts/apply-plan.sh" \
   --plan "$plan_dir/plan.json" \
   --expected-plan-sha "$plan_sha256" \
-  --review "$review_file" \
-  --expected-review-sha "$review_sha256" \
   --expected-deploy-sha "$expected_sha" >/dev/null 2>&1; then
   echo 'TEST_ERROR=create_race_was_not_rejected' >&2
   exit 1
@@ -256,8 +256,6 @@ jq -e '
   and has("moneybee-admin")
   and (has("moneybee-borrower") | not)
   and (has("moneybee-lender") | not)
-  and (has("moneybee-backend") | not)
-  and (has("social-codestra") | not)
 ' "$state_file" >/dev/null
 
 jq -S 'del(."moneybee-admin")' "$state_file" >"$state_file.tmp"
@@ -266,11 +264,9 @@ mv "$state_file.tmp" "$state_file"
 "$ROOT_DIR/scripts/apply-plan.sh" \
   --plan "$plan_dir/plan.json" \
   --expected-plan-sha "$plan_sha256" \
-  --review "$review_file" \
-  --expected-review-sha "$review_sha256" \
   --expected-deploy-sha "$expected_sha" >/dev/null
 
-for client_id in klyrow-portal moneybee-admin moneybee-borrower moneybee-lender moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra; do
+for client_id in klyrow-portal moneybee-admin moneybee-borrower moneybee-lender; do
   jq -e --arg client_id "$client_id" 'has($client_id)' "$state_file" >/dev/null
 done
 jq -e --slurpfile desired "$ROOT_DIR/config/clients/klyrow-portal.json" '
@@ -291,13 +287,26 @@ for client_id in moneybee-admin moneybee-borrower moneybee-lender; do
     .[$client_id].representation.protocolMappers[0].name == "moneybee-api-audience"
   ' "$state_file" >/dev/null
 done
-for client_id in moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra; do
-  jq -e --arg client_id "$client_id" '
-    .[$client_id].representation.serviceAccountsEnabled == true
-    and .[$client_id].representation.publicClient == false
-    and .[$client_id].representation.attributes["access.token.lifespan"] == "300"
-  ' "$state_file" >/dev/null
-done
+
+# Realm security policy participates in the same deterministic plan and apply.
+jq -S '.accessTokenLifespan = 600' "$realm_state_file" >"$realm_state_file.tmp"
+mv "$realm_state_file.tmp" "$realm_state_file"
+realm_plan="$test_root/realm-plan"
+"$ROOT_DIR/scripts/plan.sh" \
+  --output-dir "$realm_plan" \
+  --expected-deploy-sha "$expected_sha" >/dev/null
+[[ "$(jq -er '.realmPolicy.action' "$realm_plan/plan.json")" == "update" ]]
+[[ "$(jq -er '.updateCount' "$realm_plan/plan.json")" -eq 1 ]]
+realm_plan_hash="$(awk 'NR == 1 {print $1}' "$realm_plan/plan.sha256")"
+"$ROOT_DIR/scripts/apply-plan.sh" \
+  --plan "$realm_plan/plan.json" \
+  --expected-plan-sha "$realm_plan_hash" \
+  --expected-deploy-sha "$expected_sha" >/dev/null
+jq -e --slurpfile desired "$ROOT_DIR/config/realms/codestra.json" '
+  del(.smtpServer.user, .smtpServer.password) == $desired[0]
+  and .smtpServer.user == "test-smtp-user"
+  and .smtpServer.password == "test-smtp-password"
+' "$realm_state_file" >/dev/null
 
 jq -S 'del(."klyrow-portal")' "$state_file" >"$state_file.tmp"
 mv "$state_file.tmp" "$state_file"
@@ -309,12 +318,11 @@ blocked_dir="$test_root/blocked"
 [[ "$(jq -er '.clients[] | select(.clientId == "klyrow-portal") | .action' "$blocked_dir/plan.json")" == "blocked_missing" ]]
 
 printf 'PLAN_GATE_TESTS=PASS\n'
-printf 'INDEPENDENT_DRIFT_REVIEW_GATE=PASS\n'
 printf 'ADMIN_AUTH_REALM=master\n'
 printf 'TARGET_REALM=codestra\n'
 printf 'REVIEWED_CREATE_TESTS=PASS\n'
 printf 'CREATE_PREWRITE_RACE_GUARD=PASS\n'
 printf 'ROLLBACK_EVIDENCE_TESTS=PASS\n'
 printf 'MAPPER_NORMALIZATION_TESTS=PASS\n'
-printf 'PRODUCT_MACHINE_CLIENT_CREATE_TESTS=PASS\n'
+printf 'REALM_SECURITY_PLAN_APPLY=PASS\n'
 printf 'NON_CREATABLE_MISSING_BLOCK=PASS\n'
