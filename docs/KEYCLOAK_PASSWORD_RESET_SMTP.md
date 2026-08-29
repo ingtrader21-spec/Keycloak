@@ -138,6 +138,13 @@ KC_SMTP_ENVELOPE_FROM
 
 Never commit their live values.
 
+The non-secret realm SMTP transport and sender fields are managed in
+`config/realms/codestra.json`. The deterministic plan contains those fields but
+never the SMTP username or password. Protected apply requires
+`KC_SMTP_USERNAME` and `KC_SMTP_PASSWORD`, injects them only into its temporary
+realm request, and uploads no credential-bearing representation. A realm update
+cannot proceed when either protected secret is absent.
+
 ## Realm settings
 
 The protected apply must configure and verify:
