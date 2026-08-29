@@ -314,9 +314,18 @@ realm_plan="$test_root/realm-plan"
 [[ "$(jq -er '.realmPolicy.action' "$realm_plan/plan.json")" == "update" ]]
 [[ "$(jq -er '.updateCount' "$realm_plan/plan.json")" -eq 1 ]]
 realm_plan_hash="$(awk 'NR == 1 {print $1}' "$realm_plan/plan.sha256")"
+realm_review_file="$test_root/realm-review.json"
+"$ROOT_DIR/scripts/review-plan.sh" \
+  --plan "$realm_plan/plan.json" \
+  --expected-plan-sha "$realm_plan_hash" \
+  --expected-deploy-sha "$expected_sha" \
+  --output "$realm_review_file" >/dev/null
+realm_review_hash="$(awk 'NR == 1 {print $1}' "${realm_review_file}.sha256")"
 "$ROOT_DIR/scripts/apply-plan.sh" \
   --plan "$realm_plan/plan.json" \
   --expected-plan-sha "$realm_plan_hash" \
+  --review "$realm_review_file" \
+  --expected-review-sha "$realm_review_hash" \
   --expected-deploy-sha "$expected_sha" >/dev/null
 jq -e --slurpfile desired "$ROOT_DIR/config/realms/codestra.json" '
   del(.smtpServer.user, .smtpServer.password) == $desired[0]

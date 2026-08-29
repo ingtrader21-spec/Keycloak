@@ -113,6 +113,9 @@ jq -e \
     and .reviewedActions == [
       $plan[0].clients[] | {clientId, action, beforeSha256, desiredSha256}
     ]
+    and .reviewedRealmPolicy == ($plan[0].realmPolicy | {
+      resourceType, realm, action, beforeSha256, desiredSha256
+    })
   ' "$REVIEW_FILE" >/dev/null || die "Independent drift-review evidence is invalid"
 
 jq -e \
