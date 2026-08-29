@@ -24,6 +24,7 @@ ALLOWED_ACTIONS = {
     "actions/checkout": "3d3c42e5aac5ba805825da76410c181273ba90b1",  # v7.0.1
     "actions/upload-artifact": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",  # v7.0.1
     "actions/download-artifact": "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",  # v8.0.1
+    "aquasecurity/setup-trivy": "81e514348e19b6112ce2a7e3ecbafe19c1e1f567",  # v0.3.1
 }
 ACTION_REFERENCE = re.compile(r"^(?P<action>[^@\s]+)@(?P<sha>[0-9a-f]{40})$")
 WRITE_PERMISSION = re.compile(r"^(?:write|write-all)$", re.IGNORECASE)
@@ -103,13 +104,20 @@ def normalize_runs_on(value: Any) -> list[str]:
     fail("runs-on must be a string or a sequence of strings")
 
 
-def validate_permissions(value: Any, label: str, required: dict[str, str]) -> None:
+def validate_permissions(
+    value: Any,
+    label: str,
+    required: dict[str, str],
+    allowed_write_scopes: set[str] | None = None,
+) -> None:
     permissions = as_mapping(value, label)
     normalized = {str(key): str(permission).lower() for key, permission in permissions.items()}
     for scope, permission in normalized.items():
-        if WRITE_PERMISSION.fullmatch(permission):
+        if WRITE_PERMISSION.fullmatch(permission) and scope not in (allowed_write_scopes or set()):
             fail(f"{label}: write permission is prohibited for {scope}")
-        if permission not in {"read", "none"}:
+        if permission not in {"read", "none"} and not (
+            permission == "write" and scope in (allowed_write_scopes or set())
+        ):
             fail(f"{label}: unsupported permission {scope}: {permission}")
     if normalized != required:
         fail(f"{label}: expected permissions {required}, found {normalized}")
@@ -248,11 +256,44 @@ def validate_privileged_workflow(path: Path, workflow: dict[str, Any]) -> None:
                 fail(f"{path}: reviewed plan gate is incomplete; missing {required_fragment}")
 
 
+def validate_image_release_workflow(path: Path, workflow: dict[str, Any]) -> None:
+    triggers = as_mapping(workflow.get("on"), f"{path}.on")
+    if set(triggers) != {"workflow_dispatch"}:
+        fail(f"{path}: image release must be workflow_dispatch-only")
+    validate_permissions(
+        workflow.get("permissions"),
+        f"{path}.permissions",
+        {"contents": "read", "packages": "write"},
+        {"packages"},
+    )
+    jobs = as_mapping(workflow.get("jobs"), f"{path}.jobs")
+    if set(jobs) != {"release-image"}:
+        fail(f"{path}: image release must contain only release-image")
+    job = as_mapping(jobs["release-image"], f"{path}.jobs.release-image")
+    if "environment" not in job:
+        fail(f"{path}: image publication must use a protected Environment")
+    if "self-hosted" in normalize_runs_on(job.get("runs-on")):
+        fail(f"{path}: image builds must not execute on the production runner")
+    validate_steps(job, f"{path}.jobs.release-image")
+    workflow_text = "\n".join(recursive_strings(workflow))
+    for fragment in (
+        "refs/heads/main",
+        "confirm_sha",
+        "--provenance=mode=max",
+        "--sbom=true",
+        "containerimage.digest",
+        "trivy image",
+        "sha256sum",
+    ):
+        if fragment not in workflow_text:
+            fail(f"{path}: immutable release gate is incomplete; missing {fragment}")
+
+
 def validate() -> None:
     if not WORKFLOW_DIR.is_dir():
         fail(f"Workflow directory does not exist: {WORKFLOW_DIR}")
     workflow_files = sorted([*WORKFLOW_DIR.glob("*.yml"), *WORKFLOW_DIR.glob("*.yaml")])
-    expected_names = {"validate.yml", "runtime-preflight.yml", "deploy.yml"}
+    expected_names = {"validate.yml", "runtime-preflight.yml", "deploy.yml", "release-image.yml"}
     actual_names = {path.name for path in workflow_files}
     if actual_names != expected_names:
         fail(f"Expected workflow files {sorted(expected_names)}, found {sorted(actual_names)}")
@@ -261,6 +302,8 @@ def validate() -> None:
         workflow = load_workflow(path)
         if path.name == "validate.yml":
             validate_source_workflow(path, workflow)
+        elif path.name == "release-image.yml":
+            validate_image_release_workflow(path, workflow)
         else:
             validate_privileged_workflow(path, workflow)
 
