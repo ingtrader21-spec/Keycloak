@@ -79,6 +79,7 @@ jobs:
 
       - name: Validate source Docker Compose without starting services
         env:
+          KEYCLOAK_IMAGE: ghcr.io/appolon1908-hue/codestra-keycloak:26.7.2-ci@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
           POSTGRES_PASSWORD: ${{ format('ci-only-{0}-source', github.run_id) }}
           KC_BOOTSTRAP_ADMIN_USERNAME: ci-bootstrap-admin
           KC_BOOTSTRAP_ADMIN_PASSWORD: ${{ format('ci-only-{0}-source', github.run_id) }}
@@ -88,7 +89,6 @@ jobs:
         run: |
           set -Eeuo pipefail
           docker build \
-            --build-arg KEYCLOAK_VERSION=26.7.2 \
             --tag "codestra-keycloak:source-${EXPECTED_SHA}" \
             .
 
@@ -154,6 +154,7 @@ jobs:
 
       - name: Validate merge-result Docker Compose without starting services
         env:
+          KEYCLOAK_IMAGE: ghcr.io/appolon1908-hue/codestra-keycloak:26.7.2-ci@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
           POSTGRES_PASSWORD: ${{ format('ci-only-{0}-merge', github.run_id) }}
           KC_BOOTSTRAP_ADMIN_USERNAME: ci-bootstrap-admin
           KC_BOOTSTRAP_ADMIN_PASSWORD: ${{ format('ci-only-{0}-merge', github.run_id) }}
@@ -163,6 +164,5 @@ jobs:
         run: |
           set -Eeuo pipefail
           docker build \
-            --build-arg KEYCLOAK_VERSION=26.7.2 \
             --tag "codestra-keycloak:merge-${EXPECTED_SHA}" \
             .
