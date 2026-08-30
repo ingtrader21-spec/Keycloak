@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Narrow Stage 6 reconciliation for the monitoring-readonly Keycloak client.
+"""Narrow Stage 6 reconciliation for the monitoring-readonly Keycloak identity.
 
-Only the exact monitoring client is inspected or changed. Token and client-secret
-values are written to 0600 files outside the Git checkout and are never printed
-or written to uploaded artifacts.
+Only one confidential client and two dedicated optional client scopes are
+managed. Client secrets and bearer tokens are written to 0600 files outside the
+Git checkout, never printed, and never written to uploaded evidence.
 """
 from __future__ import annotations
 
@@ -12,7 +12,6 @@ import base64
 import hashlib
 import json
 import os
-import re
 import stat
 import sys
 import urllib.error
@@ -25,15 +24,19 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT_ID = "monitoring-readonly"
 TARGET_REALM = "codestra"
-PUBLIC_URL = "https://auth.codestra.co"
-REQUIRED_SCOPES = {"health.read", "metrics.read"}
-MANAGED_KEYS = {
+PUBLIC_URL = "https://auth-staging.codestra.co"
+SCOPE_NAMES = ("health.read", "metrics.read")
+CLIENT_SCOPE_DIR = ROOT / "config/client-scopes"
+CLIENT_MANAGED_KEYS = {
     "clientId", "name", "description", "enabled", "protocol", "publicClient",
     "bearerOnly", "consentRequired", "standardFlowEnabled", "implicitFlowEnabled",
     "directAccessGrantsEnabled", "serviceAccountsEnabled",
     "authorizationServicesEnabled", "frontchannelLogout", "fullScopeAllowed",
     "redirectUris", "webOrigins", "defaultClientScopes", "optionalClientScopes",
     "attributes", "protocolMappers",
+}
+CLIENT_SCOPE_MANAGED_KEYS = {
+    "name", "description", "protocol", "attributes", "protocolMappers"
 }
 
 
@@ -51,12 +54,16 @@ def sha256_bytes(value: bytes) -> str:
 
 
 def canonical_hash(value: object) -> str:
-    return sha256_bytes(json.dumps(value, sort_keys=True, separators=(",", ":")).encode())
+    return sha256_bytes(
+        json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    )
 
 
 def validate_output_dir(path: Path) -> Path:
     if not path.is_absolute():
-        raise ReconciliationError("output directory must be an absolute path outside the repository")
+        raise ReconciliationError(
+            "output directory must be an absolute path outside the repository"
+        )
     if path.is_symlink():
         raise ReconciliationError("output directory must not be a symlink")
     resolved = path.resolve(strict=False)
@@ -96,7 +103,10 @@ def http_request(
     form: dict[str, str] | None = None,
     expected: set[int] = {200},
 ) -> tuple[int, dict[str, str], bytes]:
-    headers = {"Accept": "application/json", "User-Agent": "codestra-keycloak-stage6/1.0"}
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "codestra-keycloak-stage6/2.0",
+    }
     body: bytes | None = None
     if bearer:
         headers["Authorization"] = f"Bearer {bearer}"
@@ -111,16 +121,25 @@ def http_request(
     try:
         with opener.open(request, timeout=15) as response:
             status = response.status
-            response_headers = {key.lower(): value for key, value in response.headers.items()}
+            response_headers = {
+                key.lower(): value for key, value in response.headers.items()
+            }
             response_body = response.read()
     except urllib.error.HTTPError as exc:
         status = exc.code
-        response_headers = {key.lower(): value for key, value in exc.headers.items()}
+        response_headers = {
+            key.lower(): value for key, value in exc.headers.items()
+        }
         response_body = exc.read()
     except Exception as exc:
-        raise ReconciliationError(f"Keycloak request failed: {method} {urllib.parse.urlsplit(url).path}") from exc
+        raise ReconciliationError(
+            f"Keycloak request failed: {method} {urllib.parse.urlsplit(url).path}"
+        ) from exc
     if status not in expected:
-        raise ReconciliationError(f"Keycloak request returned HTTP {status}: {method} {urllib.parse.urlsplit(url).path}")
+        raise ReconciliationError(
+            f"Keycloak request returned HTTP {status}: "
+            f"{method} {urllib.parse.urlsplit(url).path}"
+        )
     return status, response_headers, response_body
 
 
@@ -129,6 +148,53 @@ def json_response(body: bytes, context: str) -> Any:
         return json.loads(body)
     except json.JSONDecodeError as exc:
         raise ReconciliationError(f"{context} returned invalid JSON") from exc
+
+
+def project_like(current: Any, template: Any) -> Any:
+    if isinstance(template, dict):
+        if not isinstance(current, dict):
+            return None
+        return {
+            key: project_like(current.get(key), child)
+            for key, child in sorted(template.items())
+        }
+    if isinstance(template, list):
+        if not isinstance(current, list):
+            return None
+        if all(
+            isinstance(item, dict) and isinstance(item.get("name"), str)
+            for item in template
+        ):
+            current_by_name = {
+                item.get("name"): item
+                for item in current
+                if isinstance(item, dict) and isinstance(item.get("name"), str)
+            }
+            return [
+                project_like(current_by_name.get(item["name"]), item)
+                for item in template
+            ]
+        if all(not isinstance(item, (dict, list)) for item in template):
+            try:
+                return sorted(current)
+            except TypeError:
+                return current
+        if len(current) != len(template):
+            return None
+        return [
+            project_like(value, shape)
+            for value, shape in zip(current, template)
+        ]
+    return current
+
+
+def managed_projection(
+    value: dict[str, Any], desired_shape: dict[str, Any], keys: set[str]
+) -> dict[str, Any]:
+    return {
+        key: project_like(value.get(key), desired_shape.get(key))
+        for key in sorted(keys)
+    }
 
 
 def desired_client(path: Path) -> dict[str, Any]:
@@ -151,6 +217,10 @@ def desired_client(path: Path) -> dict[str, Any]:
             raise ReconciliationError(f"unsafe desired client setting: {key}")
     if value.get("redirectUris") != [] or value.get("webOrigins") != []:
         raise ReconciliationError("monitoring client must not declare browser origins")
+    if value.get("defaultClientScopes") != []:
+        raise ReconciliationError("monitoring client must not have default client scopes")
+    if tuple(value.get("optionalClientScopes", [])) != SCOPE_NAMES:
+        raise ReconciliationError("monitoring optional scopes are not exact")
     lifespan = int((value.get("attributes") or {}).get("access.token.lifespan", "0"))
     if lifespan < 60 or lifespan > 300:
         raise ReconciliationError("monitoring token lifespan must be 60-300 seconds")
@@ -158,54 +228,39 @@ def desired_client(path: Path) -> dict[str, Any]:
     audience = mappers.get("audience-middleware-api") or {}
     if (audience.get("config") or {}).get("included.custom.audience") != "middleware-api":
         raise ReconciliationError("middleware-api audience mapper is missing")
-    scope_mapper = mappers.get("reviewed-service-scopes") or {}
-    scopes = set(((scope_mapper.get("config") or {}).get("claim.value") or "").split())
-    if scopes != REQUIRED_SCOPES:
-        raise ReconciliationError("reviewed monitoring scopes are not exact")
+    if "reviewed-service-scopes" in mappers:
+        raise ReconciliationError("hardcoded combined monitoring scope mapper is prohibited")
     if "secret" in value:
         raise ReconciliationError("client secret must not be committed")
     return value
 
 
-def project_like(current: Any, template: Any) -> Any:
-    if isinstance(template, dict):
-        if not isinstance(current, dict):
-            return None
-        return {key: project_like(current.get(key), child) for key, child in sorted(template.items())}
-    if isinstance(template, list):
-        if not isinstance(current, list):
-            return None
-        if all(isinstance(item, dict) and isinstance(item.get("name"), str) for item in template):
-            current_by_name = {
-                item.get("name"): item
-                for item in current
-                if isinstance(item, dict) and isinstance(item.get("name"), str)
-            }
-            return [project_like(current_by_name.get(item["name"]), item) for item in template]
-        if all(not isinstance(item, (dict, list)) for item in template):
-            try:
-                return sorted(current)
-            except TypeError:
-                return current
-        if len(current) != len(template):
-            return None
-        return [project_like(value, shape) for value, shape in zip(current, template)]
-    return current
-
-
-def managed_projection(value: dict[str, Any], desired_shape: dict[str, Any] | None = None) -> dict[str, Any]:
-    shape = desired_shape or value
-    return {
-        key: project_like(value.get(key), shape.get(key))
-        for key in sorted(MANAGED_KEYS)
-    }
+def desired_client_scope(path: Path, expected_name: str) -> dict[str, Any]:
+    value = json.loads(path.read_text())
+    if value.get("name") != expected_name or expected_name not in SCOPE_NAMES:
+        raise ReconciliationError("monitoring client-scope name is not approved")
+    if value.get("protocol") != "openid-connect":
+        raise ReconciliationError("monitoring client scope must use OpenID Connect")
+    if value.get("protocolMappers") != []:
+        raise ReconciliationError("monitoring client scope must not add claims or audiences")
+    attributes = value.get("attributes")
+    if attributes != {
+        "display.on.consent.screen": "false",
+        "include.in.token.scope": "true",
+    }:
+        raise ReconciliationError("monitoring client-scope attributes are not exact")
+    return value
 
 
 def admin_token(base_url: str, admin_realm: str, client_id: str, client_secret: str) -> str:
     _, _, body = http_request(
         "POST",
         f"{base_url}/realms/{urllib.parse.quote(admin_realm)}/protocol/openid-connect/token",
-        form={"grant_type": "client_credentials", "client_id": client_id, "client_secret": client_secret},
+        form={
+            "grant_type": "client_credentials",
+            "client_id": client_id,
+            "client_secret": client_secret,
+        },
     )
     token = json_response(body, "admin token").get("access_token")
     if not isinstance(token, str) or not token:
@@ -216,7 +271,8 @@ def admin_token(base_url: str, admin_realm: str, client_id: str, client_secret: 
 def list_client(base_url: str, realm: str, bearer: str) -> list[dict[str, Any]]:
     _, _, body = http_request(
         "GET",
-        f"{base_url}/admin/realms/{urllib.parse.quote(realm)}/clients?clientId={urllib.parse.quote(CLIENT_ID)}",
+        f"{base_url}/admin/realms/{urllib.parse.quote(realm)}/clients"
+        f"?clientId={urllib.parse.quote(CLIENT_ID)}",
         bearer=bearer,
     )
     value = json_response(body, "client query")
@@ -225,8 +281,113 @@ def list_client(base_url: str, realm: str, bearer: str) -> list[dict[str, Any]]:
     return value
 
 
-def apply_client(base_url: str, realm: str, bearer: str, desired: dict[str, Any]) -> tuple[str, str]:
-    desired_projection = managed_projection(desired, desired)
+def list_client_scopes(base_url: str, realm: str, bearer: str) -> list[dict[str, Any]]:
+    _, _, body = http_request(
+        "GET",
+        f"{base_url}/admin/realms/{urllib.parse.quote(realm)}/client-scopes",
+        bearer=bearer,
+    )
+    value = json_response(body, "client-scope query")
+    if not isinstance(value, list):
+        raise ReconciliationError("client-scope query did not return a list")
+    return value
+
+
+def get_client_scope(
+    base_url: str, realm: str, scope_id: str, bearer: str
+) -> dict[str, Any]:
+    _, _, body = http_request(
+        "GET",
+        f"{base_url}/admin/realms/{urllib.parse.quote(realm)}/client-scopes/"
+        f"{urllib.parse.quote(scope_id)}",
+        bearer=bearer,
+    )
+    value = json_response(body, "client-scope readback")
+    if not isinstance(value, dict):
+        raise ReconciliationError("client-scope readback is not an object")
+    return value
+
+
+def find_scope(
+    base_url: str, realm: str, bearer: str, scope_name: str
+) -> dict[str, Any] | None:
+    matches = [
+        item
+        for item in list_client_scopes(base_url, realm, bearer)
+        if isinstance(item, dict) and item.get("name") == scope_name
+    ]
+    if len(matches) > 1:
+        raise ReconciliationError(f"duplicate Keycloak client scope: {scope_name}")
+    return matches[0] if matches else None
+
+
+def scope_plan_action(
+    base_url: str,
+    realm: str,
+    bearer: str,
+    desired: dict[str, Any],
+) -> tuple[str, dict[str, Any] | None]:
+    summary = find_scope(base_url, realm, bearer, str(desired["name"]))
+    if summary is None:
+        return "create", None
+    scope_id = str(summary.get("id") or "")
+    if not scope_id:
+        raise ReconciliationError("existing client scope has no internal ID")
+    current = get_client_scope(base_url, realm, scope_id, bearer)
+    current_projection = managed_projection(
+        current, desired, CLIENT_SCOPE_MANAGED_KEYS
+    )
+    desired_projection = managed_projection(
+        desired, desired, CLIENT_SCOPE_MANAGED_KEYS
+    )
+    return ("none" if current_projection == desired_projection else "update"), current
+
+
+def apply_client_scope(
+    base_url: str,
+    realm: str,
+    bearer: str,
+    desired: dict[str, Any],
+) -> tuple[str, str]:
+    scope_name = str(desired["name"])
+    action, current = scope_plan_action(base_url, realm, bearer, desired)
+    if action == "create":
+        _, headers, _ = http_request(
+            "POST",
+            f"{base_url}/admin/realms/{urllib.parse.quote(realm)}/client-scopes",
+            bearer=bearer,
+            json_body=desired,
+            expected={201},
+        )
+        scope_id = headers.get("location", "").rstrip("/").rsplit("/", 1)[-1]
+        if not scope_id:
+            created = find_scope(base_url, realm, bearer, scope_name)
+            scope_id = str((created or {}).get("id") or "")
+        if not scope_id:
+            raise ReconciliationError(f"created client scope cannot be resolved: {scope_name}")
+        return scope_id, "created"
+    assert current is not None
+    scope_id = str(current.get("id") or "")
+    if action == "none":
+        return scope_id, "unchanged"
+    merged = dict(current)
+    for key in CLIENT_SCOPE_MANAGED_KEYS:
+        merged[key] = desired.get(key)
+    http_request(
+        "PUT",
+        f"{base_url}/admin/realms/{urllib.parse.quote(realm)}/client-scopes/"
+        f"{urllib.parse.quote(scope_id)}",
+        bearer=bearer,
+        json_body=merged,
+        expected={204},
+    )
+    return scope_id, "updated"
+
+
+def apply_client(
+    base_url: str, realm: str, bearer: str, desired: dict[str, Any]
+) -> tuple[str, str]:
+    desired_projection = managed_projection(desired, desired, CLIENT_MANAGED_KEYS)
     current_list = list_client(base_url, realm, bearer)
     if not current_list:
         _, headers, _ = http_request(
@@ -236,27 +397,27 @@ def apply_client(base_url: str, realm: str, bearer: str, desired: dict[str, Any]
             json_body=desired,
             expected={201},
         )
-        location = headers.get("location", "")
-        internal_id = location.rstrip("/").rsplit("/", 1)[-1]
+        internal_id = headers.get("location", "").rstrip("/").rsplit("/", 1)[-1]
         if not internal_id:
             created = list_client(base_url, realm, bearer)
-            if len(created) != 1 or not created[0].get("id"):
-                raise ReconciliationError("created client ID cannot be resolved")
-            internal_id = str(created[0]["id"])
+            internal_id = str((created[0] if created else {}).get("id") or "")
+        if not internal_id:
+            raise ReconciliationError("created client ID cannot be resolved")
         return internal_id, "created"
 
     current = current_list[0]
     internal_id = str(current.get("id") or "")
     if not internal_id:
         raise ReconciliationError("current client has no internal ID")
-    if managed_projection(current, desired) == desired_projection:
+    if managed_projection(current, desired, CLIENT_MANAGED_KEYS) == desired_projection:
         return internal_id, "unchanged"
     merged = dict(current)
-    for key in MANAGED_KEYS:
+    for key in CLIENT_MANAGED_KEYS:
         merged[key] = desired.get(key)
     http_request(
         "PUT",
-        f"{base_url}/admin/realms/{urllib.parse.quote(realm)}/clients/{urllib.parse.quote(internal_id)}",
+        f"{base_url}/admin/realms/{urllib.parse.quote(realm)}/clients/"
+        f"{urllib.parse.quote(internal_id)}",
         bearer=bearer,
         json_body=merged,
         expected={204},
@@ -264,10 +425,75 @@ def apply_client(base_url: str, realm: str, bearer: str, desired: dict[str, Any]
     return internal_id, "updated"
 
 
+def optional_scope_links(
+    base_url: str, realm: str, client_id: str, bearer: str
+) -> list[dict[str, Any]]:
+    _, _, body = http_request(
+        "GET",
+        f"{base_url}/admin/realms/{urllib.parse.quote(realm)}/clients/"
+        f"{urllib.parse.quote(client_id)}/optional-client-scopes",
+        bearer=bearer,
+    )
+    value = json_response(body, "optional client-scope links")
+    if not isinstance(value, list):
+        raise ReconciliationError("optional client-scope links are not a list")
+    return value
+
+
+def reconcile_optional_scope_links(
+    base_url: str,
+    realm: str,
+    client_id: str,
+    bearer: str,
+    desired_scope_ids: dict[str, str],
+) -> list[str]:
+    actions: list[str] = []
+    current = optional_scope_links(base_url, realm, client_id, bearer)
+    current_by_name = {
+        str(item.get("name")): str(item.get("id") or "")
+        for item in current
+        if isinstance(item, dict) and item.get("name")
+    }
+    for name, scope_id in current_by_name.items():
+        if name not in desired_scope_ids:
+            if not scope_id:
+                raise ReconciliationError("unexpected optional client scope has no ID")
+            http_request(
+                "DELETE",
+                f"{base_url}/admin/realms/{urllib.parse.quote(realm)}/clients/"
+                f"{urllib.parse.quote(client_id)}/optional-client-scopes/"
+                f"{urllib.parse.quote(scope_id)}",
+                bearer=bearer,
+                expected={204},
+            )
+            actions.append(f"removed:{name}")
+    for name, scope_id in desired_scope_ids.items():
+        if current_by_name.get(name) != scope_id:
+            http_request(
+                "PUT",
+                f"{base_url}/admin/realms/{urllib.parse.quote(realm)}/clients/"
+                f"{urllib.parse.quote(client_id)}/optional-client-scopes/"
+                f"{urllib.parse.quote(scope_id)}",
+                bearer=bearer,
+                expected={204},
+            )
+            actions.append(f"linked:{name}")
+    readback = optional_scope_links(base_url, realm, client_id, bearer)
+    readback_names = sorted(
+        str(item.get("name"))
+        for item in readback
+        if isinstance(item, dict) and item.get("name")
+    )
+    if readback_names != list(SCOPE_NAMES):
+        raise ReconciliationError("monitoring optional client-scope links are not exact")
+    return actions or ["unchanged"]
+
+
 def client_secret(base_url: str, realm: str, internal_id: str, bearer: str) -> str:
     _, _, body = http_request(
         "GET",
-        f"{base_url}/admin/realms/{urllib.parse.quote(realm)}/clients/{urllib.parse.quote(internal_id)}/client-secret",
+        f"{base_url}/admin/realms/{urllib.parse.quote(realm)}/clients/"
+        f"{urllib.parse.quote(internal_id)}/client-secret",
         bearer=bearer,
     )
     value = json_response(body, "client secret").get("value")
@@ -276,7 +502,7 @@ def client_secret(base_url: str, realm: str, internal_id: str, bearer: str) -> s
     return value
 
 
-def decode_token_metadata(token: str) -> dict[str, Any]:
+def decode_token_metadata(token: str, expected_scope: str) -> dict[str, Any]:
     parts = token.split(".")
     if len(parts) != 3:
         raise ReconciliationError("issued token is not a compact JWT")
@@ -299,14 +525,16 @@ def decode_token_metadata(token: str) -> dict[str, Any]:
         raise ReconciliationError("issued token azp is incorrect")
     if not isinstance(audiences, list) or "middleware-api" not in audiences:
         raise ReconciliationError("issued token audience lacks middleware-api")
-    if scopes != REQUIRED_SCOPES:
-        raise ReconciliationError("issued token scopes are not exact")
+    if scopes != {expected_scope}:
+        raise ReconciliationError(
+            f"issued token scopes must equal only {expected_scope}"
+        )
     if ttl < 60 or ttl > 300:
         raise ReconciliationError("issued token lifetime is outside 60-300 seconds")
     return {
         "client_id": CLIENT_ID,
         "audience": "middleware-api",
-        "scopes": sorted(scopes),
+        "scopes": [expected_scope],
         "ttl_seconds": ttl,
         "issued_at": int(issued),
         "expires_at": int(expires),
@@ -314,108 +542,217 @@ def decode_token_metadata(token: str) -> dict[str, Any]:
     }
 
 
-def issue_token(public_url: str, realm: str, secret: str) -> tuple[str, dict[str, Any]]:
+def issue_token(
+    public_url: str, realm: str, secret: str, expected_scope: str
+) -> tuple[str, dict[str, Any]]:
     _, _, body = http_request(
         "POST",
         f"{public_url}/realms/{urllib.parse.quote(realm)}/protocol/openid-connect/token",
-        form={"grant_type": "client_credentials", "client_id": CLIENT_ID, "client_secret": secret},
+        form={
+            "grant_type": "client_credentials",
+            "client_id": CLIENT_ID,
+            "client_secret": secret,
+            "scope": expected_scope,
+        },
     )
     token = json_response(body, "monitoring token").get("access_token")
     if not isinstance(token, str) or not token:
         raise ReconciliationError("monitoring access token is missing")
-    return token, decode_token_metadata(token)
+    return token, decode_token_metadata(token, expected_scope)
 
 
-def validate_runtime_urls(base_url: str, public_url: str, target_realm: str, *, allow_loopback_admin: bool) -> None:
+def validate_runtime_urls(
+    base_url: str,
+    public_url: str,
+    target_realm: str,
+    *,
+    allow_loopback_admin: bool,
+) -> None:
     if public_url.rstrip("/") != PUBLIC_URL:
-        raise ReconciliationError("public Keycloak URL must be https://auth.codestra.co")
+        raise ReconciliationError(
+            "public Keycloak URL must be https://auth-staging.codestra.co"
+        )
     if target_realm != TARGET_REALM:
         raise ReconciliationError("target realm must be codestra")
     parsed = urllib.parse.urlsplit(base_url)
-    if parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path not in {"", "/"}:
+    if (
+        parsed.username
+        or parsed.password
+        or parsed.query
+        or parsed.fragment
+        or parsed.path not in {"", "/"}
+    ):
         raise ReconciliationError("KC_BASE_URL contains forbidden URL components")
     normalized = base_url.rstrip("/")
     if normalized == PUBLIC_URL:
-        if parsed.scheme != "https" or parsed.hostname != "auth.codestra.co":
-            raise ReconciliationError("canonical admin endpoint must use HTTPS")
+        if parsed.scheme != "https" or parsed.hostname != "auth-staging.codestra.co":
+            raise ReconciliationError("canonical staging admin endpoint must use HTTPS")
         return
     loopback_hosts = {"127.0.0.1", "::1", "localhost"}
-    if allow_loopback_admin and parsed.scheme in {"http", "https"} and parsed.hostname in loopback_hosts:
+    if (
+        allow_loopback_admin
+        and parsed.scheme in {"http", "https"}
+        and parsed.hostname in loopback_hosts
+    ):
         return
-    raise ReconciliationError("KC_BASE_URL must be the canonical HTTPS endpoint or an explicitly allowed loopback endpoint")
+    raise ReconciliationError(
+        "KC_BASE_URL must be the canonical staging HTTPS endpoint or an explicitly allowed loopback endpoint"
+    )
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=("plan", "apply-and-issue"), required=True)
-    parser.add_argument("--desired-client", type=Path, default=Path("config/clients/monitoring-readonly.json"))
+    parser.add_argument(
+        "--desired-client",
+        type=Path,
+        default=Path("config/clients/monitoring-readonly.json"),
+    )
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
 
     output_dir = validate_output_dir(args.output_dir)
     desired = desired_client(args.desired_client)
-    desired_projection = managed_projection(desired, desired)
+    desired_scopes = {
+        name: desired_client_scope(CLIENT_SCOPE_DIR / f"{name}.json", name)
+        for name in SCOPE_NAMES
+    }
+    desired_projection = managed_projection(desired, desired, CLIENT_MANAGED_KEYS)
     base_url = os.environ.get("KC_BASE_URL", "").rstrip("/")
     public_url = os.environ.get("KC_PUBLIC_URL", "").rstrip("/")
     target_realm = os.environ.get("KC_TARGET_REALM", "")
     admin_realm = os.environ.get("KC_ADMIN_REALM", "")
     admin_client_id = os.environ.get("KC_ADMIN_CLIENT_ID", "")
     admin_client_secret = os.environ.get("KC_ADMIN_CLIENT_SECRET", "")
-    allow_loopback_admin = os.environ.get("KC_ALLOW_LOOPBACK_ADMIN", "false").strip().lower() == "true"
-    validate_runtime_urls(base_url, public_url, target_realm, allow_loopback_admin=allow_loopback_admin)
+    allow_loopback_admin = (
+        os.environ.get("KC_ALLOW_LOOPBACK_ADMIN", "false").strip().lower()
+        == "true"
+    )
+    validate_runtime_urls(
+        base_url,
+        public_url,
+        target_realm,
+        allow_loopback_admin=allow_loopback_admin,
+    )
     if not admin_realm or not admin_client_id or not admin_client_secret:
         raise ReconciliationError("protected Keycloak administrator inputs are incomplete")
 
     bearer = admin_token(base_url, admin_realm, admin_client_id, admin_client_secret)
     current = list_client(base_url, target_realm, bearer)
-    before = managed_projection(current[0], desired) if current else None
-    action = "create" if not current else ("none" if before == desired_projection else "update")
+    before = (
+        managed_projection(current[0], desired, CLIENT_MANAGED_KEYS)
+        if current
+        else None
+    )
+    client_action = (
+        "create"
+        if not current
+        else ("none" if before == desired_projection else "update")
+    )
+    scope_actions: dict[str, str] = {}
+    for name, scope in desired_scopes.items():
+        scope_actions[name] = scope_plan_action(
+            base_url, target_realm, bearer, scope
+        )[0]
     plan = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "environment": "staging",
         "realm": target_realm,
         "client_id": CLIENT_ID,
-        "action": action,
-        "current_managed_sha256": canonical_hash(before) if before is not None else None,
+        "client_action": client_action,
+        "client_scope_actions": scope_actions,
+        "optional_client_scopes": list(SCOPE_NAMES),
+        "current_managed_sha256": (
+            canonical_hash(before) if before is not None else None
+        ),
         "desired_managed_sha256": canonical_hash(desired_projection),
         "other_clients_modified": False,
         "token_values_recorded": False,
         "generated_at": datetime.now(UTC).isoformat(),
     }
-    private_write(output_dir / "monitoring-readonly-plan.json", json.dumps(plan, sort_keys=True, separators=(",", ":")) + "\n")
+    private_write(
+        output_dir / "monitoring-readonly-plan.json",
+        json.dumps(plan, sort_keys=True, separators=(",", ":")) + "\n",
+    )
     if args.mode == "plan":
         print("MONITORING_READONLY_PLAN=PASS")
         return 0
 
-    internal_id, result = apply_client(base_url, target_realm, bearer, desired)
+    scope_ids: dict[str, str] = {}
+    scope_results: dict[str, str] = {}
+    for name, scope in desired_scopes.items():
+        scope_id, result = apply_client_scope(
+            base_url, target_realm, bearer, scope
+        )
+        scope_ids[name] = scope_id
+        scope_results[name] = result
+    internal_id, client_result = apply_client(
+        base_url, target_realm, bearer, desired
+    )
+    link_results = reconcile_optional_scope_links(
+        base_url, target_realm, internal_id, bearer, scope_ids
+    )
+
     applied = list_client(base_url, target_realm, bearer)
-    if len(applied) != 1 or managed_projection(applied[0], desired) != desired_projection:
+    if (
+        len(applied) != 1
+        or managed_projection(applied[0], desired, CLIENT_MANAGED_KEYS)
+        != desired_projection
+    ):
         raise ReconciliationError("monitoring client readback differs from desired source")
+    for name, scope_id in scope_ids.items():
+        readback = get_client_scope(
+            base_url, target_realm, scope_id, bearer
+        )
+        if managed_projection(
+            readback, desired_scopes[name], CLIENT_SCOPE_MANAGED_KEYS
+        ) != managed_projection(
+            desired_scopes[name], desired_scopes[name], CLIENT_SCOPE_MANAGED_KEYS
+        ):
+            raise ReconciliationError(
+                f"monitoring client-scope readback differs: {name}"
+            )
+
     secret = client_secret(base_url, target_realm, internal_id, bearer)
-    metrics_token, metrics_metadata = issue_token(public_url, target_realm, secret)
-    health_token, health_metadata = issue_token(public_url, target_realm, secret)
-    if metrics_token == health_token or metrics_metadata["token_sha256"] == health_metadata["token_sha256"]:
+    metrics_token, metrics_metadata = issue_token(
+        public_url, target_realm, secret, "metrics.read"
+    )
+    health_token, health_metadata = issue_token(
+        public_url, target_realm, secret, "health.read"
+    )
+    if (
+        metrics_token == health_token
+        or metrics_metadata["token_sha256"] == health_metadata["token_sha256"]
+    ):
         raise ReconciliationError("monitoring tokens were not independently issued")
 
     private_write(output_dir / "monitoring-client-secret", secret + "\n")
     private_write(output_dir / "metrics.token", metrics_token + "\n")
     private_write(output_dir / "health.token", health_token + "\n")
     evidence = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "environment": "staging",
+        "keycloak_public_url": PUBLIC_URL,
         "realm": target_realm,
         "client_id": CLIENT_ID,
-        "apply_result": result,
+        "client_apply_result": client_result,
+        "client_scope_apply_results": scope_results,
+        "optional_scope_link_results": link_results,
+        "optional_client_scopes": list(SCOPE_NAMES),
         "desired_managed_sha256": canonical_hash(desired_projection),
         "metrics_token": metrics_metadata,
         "health_token": health_metadata,
         "independently_issued": True,
+        "exact_scope_isolation": True,
         "token_values_recorded": False,
         "client_secret_recorded": False,
         "other_clients_modified": False,
         "generated_at": datetime.now(UTC).isoformat(),
     }
-    private_write(output_dir / "monitoring-token-evidence.json", json.dumps(evidence, sort_keys=True, separators=(",", ":")) + "\n")
+    private_write(
+        output_dir / "monitoring-token-evidence.json",
+        json.dumps(evidence, sort_keys=True, separators=(",", ":")) + "\n",
+    )
     print("MONITORING_READONLY_APPLY_AND_ISSUE=PASS")
     return 0
 
