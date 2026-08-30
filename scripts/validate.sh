@@ -81,6 +81,7 @@ expected_managed='[
   "moneybee-borrower",
   "moneybee-lender",
   "n8n-automation",
+  "n8n-editor-gateway",
   "odoo-integration",
   "postly-adapter",
   "provisioning-service",
@@ -104,6 +105,7 @@ expected_creatable='[
   "moneybee-borrower",
   "moneybee-lender",
   "n8n-automation",
+  "n8n-editor-gateway",
   "odoo-integration",
   "postly-adapter",
   "provisioning-service",
@@ -303,6 +305,29 @@ for file in "${client_files[@]}"; do
       ;;
     klyrow-portal)
       jq -e 'has("protocolMappers") | not' "$file" >/dev/null || fail "Klyrow desired state changed unexpectedly"
+      ;;
+    n8n-editor-gateway)
+      jq -e '
+        .publicClient == false
+        and .standardFlowEnabled == true
+        and .implicitFlowEnabled == false
+        and .directAccessGrantsEnabled == false
+        and .serviceAccountsEnabled == false
+        and .fullScopeAllowed == false
+        and .rootUrl == "https://n8n.codestra.co"
+        and .baseUrl == "https://n8n.codestra.co/"
+        and .redirectUris == [
+          "https://n8n.codestra.co/oauth2/callback",
+          "https://n8n-staging.codestra.co/oauth2/callback"
+        ]
+        and .webOrigins == [
+          "https://n8n.codestra.co",
+          "https://n8n-staging.codestra.co"
+        ]
+        and .attributes["pkce.code.challenge.method"] == "S256"
+        and .attributes["access.token.lifespan"] == "300"
+        and .attributes["post.logout.redirect.uris"] == "https://n8n.codestra.co/##https://n8n-staging.codestra.co/"
+      ' "$file" >/dev/null || fail "n8n editor gateway must be confidential Authorization Code + PKCE only"
       ;;
   esac
 
