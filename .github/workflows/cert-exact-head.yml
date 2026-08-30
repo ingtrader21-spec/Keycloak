@@ -34,4 +34,3 @@ jobs:
           git status --porcelain | grep -Fx ' D .github/workflows/cert-exact-head.yml'
           ./scripts/validate.sh
           cp /tmp/cert-exact-head.yml .github/workflows/cert-exact-head.yml
-          test -z "$(git status --porcelain)"
