@@ -314,8 +314,19 @@ for file in "${client_files[@]}"; do
         and .directAccessGrantsEnabled == false
         and .serviceAccountsEnabled == false
         and .fullScopeAllowed == false
+        and .rootUrl == "https://n8n.codestra.co"
+        and .baseUrl == "https://n8n.codestra.co/"
+        and .redirectUris == [
+          "https://n8n.codestra.co/oauth2/callback",
+          "https://n8n-staging.codestra.co/oauth2/callback"
+        ]
+        and .webOrigins == [
+          "https://n8n.codestra.co",
+          "https://n8n-staging.codestra.co"
+        ]
         and .attributes["pkce.code.challenge.method"] == "S256"
         and .attributes["access.token.lifespan"] == "300"
+        and .attributes["post.logout.redirect.uris"] == "https://n8n.codestra.co/##https://n8n-staging.codestra.co/"
       ' "$file" >/dev/null || fail "n8n editor gateway must be confidential Authorization Code + PKCE only"
       ;;
   esac
