@@ -111,7 +111,12 @@ def validate_permissions(value: Any, label: str, required: dict[str, str]) -> No
         fail(f"{label}: expected permissions {required}, found {normalized}")
 
 
-def validate_action_step(step: dict[str, Any], label: str) -> None:
+def validate_action_step(
+    step: dict[str, Any],
+    label: str,
+    *,
+    checkout_fetch_depth: str = "1",
+) -> None:
     uses = step.get("uses")
     if uses is None:
         return
@@ -133,17 +138,30 @@ def validate_action_step(step: dict[str, Any], label: str) -> None:
         options = as_mapping(step.get("with", {}), f"{label}.with")
         if options.get("persist-credentials") != "false":
             fail(f"{label}: checkout must set persist-credentials: false")
-        if options.get("fetch-depth") != "1":
-            fail(f"{label}: checkout must set fetch-depth: 1")
+        if options.get("fetch-depth") != checkout_fetch_depth:
+            fail(
+                f"{label}: checkout must set fetch-depth: "
+                f"{checkout_fetch_depth}"
+            )
         if not isinstance(options.get("ref"), str) or not options["ref"].strip():
             fail(f"{label}: checkout must bind ref to an explicit SHA expression or literal SHA")
 
 
-def validate_steps(job: dict[str, Any], label: str) -> None:
+def validate_steps(
+    job: dict[str, Any],
+    label: str,
+    *,
+    checkout_fetch_depth_overrides: dict[int, str] | None = None,
+) -> None:
     steps = as_sequence(job.get("steps"), f"{label}.steps")
+    depth_overrides = checkout_fetch_depth_overrides or {}
     for index, raw_step in enumerate(steps):
         step = as_mapping(raw_step, f"{label}.steps[{index}]")
-        validate_action_step(step, f"{label}.steps[{index}]")
+        validate_action_step(
+            step,
+            f"{label}.steps[{index}]",
+            checkout_fetch_depth=depth_overrides.get(index, "1"),
+        )
 
 
 def validate_source_workflow(path: Path, workflow: dict[str, Any]) -> None:
@@ -219,7 +237,17 @@ def validate_privileged_workflow(path: Path, workflow: dict[str, Any]) -> None:
             found_self_hosted = True
             if "environment" not in job:
                 fail(f"{path}.jobs.{job_name}: self-hosted job must use a protected Environment")
-        validate_steps(job, f"{path}.jobs.{job_name}")
+        checkout_depth_overrides = (
+            {0: "2"}
+            if path.name == "runtime-preflight.yml"
+            and job_name == "stage6-intake-observability"
+            else None
+        )
+        validate_steps(
+            job,
+            f"{path}.jobs.{job_name}",
+            checkout_fetch_depth_overrides=checkout_depth_overrides,
+        )
     if not found_self_hosted and path.name != "drift-review.yml":
         fail(f"{path}: privileged workflow must contain a protected self-hosted job")
     if path.name == "drift-review.yml" and "environment" not in as_mapping(jobs.get("review"), f"{path}.jobs.review"):
@@ -249,6 +277,29 @@ def validate_privileged_workflow(path: Path, workflow: dict[str, Any]) -> None:
         if "workflow_dispatch" not in str(manual_guard.get("if", "")) or "workflow_dispatch" not in str(manual_inspect.get("if", "")):
             fail(f"{path}: existing manual jobs must be isolated from the Stage 6 push event")
         stage6 = as_mapping(jobs["stage6-intake-observability"], f"{path}.jobs.stage6-intake-observability")
+        stage6_steps = as_sequence(
+            stage6.get("steps"),
+            f"{path}.jobs.stage6-intake-observability.steps",
+        )
+        first_step = as_mapping(
+            stage6_steps[0],
+            f"{path}.jobs.stage6-intake-observability.steps[0]",
+        )
+        expected_checkout = (
+            "actions/checkout@"
+            + ALLOWED_ACTIONS["actions/checkout"]
+        )
+        if first_step.get("uses") != expected_checkout:
+            fail(
+                f"{path}: Stage 6 first step must be the pinned "
+                "actions/checkout action"
+            )
+        first_options = as_mapping(
+            first_step.get("with", {}),
+            f"{path}.jobs.stage6-intake-observability.steps[0].with",
+        )
+        if first_options.get("fetch-depth") != "2":
+            fail(f"{path}: Stage 6 checkout must fetch its exact parent")
         stage6_text = "\n".join(recursive_strings(stage6))
         for fragment in (
             STAGE6_BRANCH,
@@ -264,6 +315,14 @@ def validate_privileged_workflow(path: Path, workflow: dict[str, Any]) -> None:
             "PROMETHEUS_TARGET_STATE=pending",
             "BLACKBOX_TARGET_STATE=pending",
             "actions/upload-artifact",
+            "missing_protected_staging_input",
+            "https://auth-staging.codestra.co",
+            "KC_BASE_URL",
+            "KC_PUBLIC_URL",
+            "KC_ADMIN_REALM",
+            "kc_base_url_must_be_canonical_staging_https",
+            "kc_public_url_must_be_canonical_staging_https",
+            "kc_admin_realm_must_be_master",
         ):
             if fragment not in stage6_text:
                 fail(f"{path}: Stage 6 execution authority is incomplete; missing {fragment}")

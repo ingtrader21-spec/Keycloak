@@ -4,21 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: Protected GitHub Environment containing the server path variables
+        description: Protected GitHub Environment containing reviewed runtime variables
         required: true
         type: choice
-        options:
-          - staging
-          - production
+        options: [staging, production]
       confirm_sha:
-        description: Paste the exact 40-character main-branch SHA to inspect
+        description: Paste the exact 40-character main SHA to inspect
         required: true
         type: string
   push:
-    branches:
-      - ops/stage6-intake-observability-execution-20260830
-    paths:
-      - config/executions/stage6-intake-observability.v1.json
+    branches: [ops/stage6-intake-observability-execution-20260830]
+    paths: [config/executions/stage6-intake-observability.v1.json]
 
 permissions:
   contents: read
@@ -37,39 +33,23 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-
     steps:
-      - name: Check out selected main commit without persisted credentials
+      - name: Check out selected main commit without credentials
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 1
           persist-credentials: false
           ref: ${{ github.sha }}
-
-      - name: Require reviewed main and exact SHA confirmation
+      - name: Require reviewed main and exact confirmation
         env:
           CONFIRM_SHA: ${{ inputs.confirm_sha }}
         run: |
           set -Eeuo pipefail
-          [[ "$GITHUB_REF" == 'refs/heads/main' ]] || {
-            echo 'ERROR=runtime_preflight_must_run_from_main' >&2
-            exit 1
-          }
-          [[ "$CONFIRM_SHA" =~ ^[0-9a-f]{40}$ ]] || {
-            echo 'ERROR=confirm_sha_must_be_40_lowercase_hex_characters' >&2
-            exit 1
-          }
-          [[ "$CONFIRM_SHA" == "$GITHUB_SHA" ]] || {
-            echo 'ERROR=confirmed_sha_does_not_match_selected_commit' >&2
-            exit 1
-          }
-          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]] || {
-            echo 'ERROR=checkout_sha_mismatch' >&2
-            exit 1
-          }
-
-      - name: Validate reviewed repository state
-        run: ./scripts/validate.sh
+          [[ "$GITHUB_REF" == 'refs/heads/main' ]]
+          [[ "$CONFIRM_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CONFIRM_SHA" == "$GITHUB_SHA" ]]
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
+          ./scripts/validate.sh
 
   inspect:
     if: github.event_name == 'workflow_dispatch'
@@ -77,9 +57,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, codestra-keycloak]
     environment: ${{ inputs.environment }}
     timeout-minutes: 10
-
     env:
-      EXPECTED_DEPLOY_SHA: ${{ github.sha }}
       RUNTIME_REPO_DIR: ${{ vars.RUNTIME_REPO_DIR }}
       RUNTIME_COMPOSE_FILE: ${{ vars.RUNTIME_COMPOSE_FILE }}
       RUNTIME_ENV_FILE: ${{ vars.RUNTIME_ENV_FILE }}
@@ -88,28 +66,19 @@ jobs:
       RUNTIME_GIT_KNOWN_HOSTS: ${{ vars.RUNTIME_GIT_KNOWN_HOSTS }}
       RUNTIME_GIT_REMOTE: ${{ vars.RUNTIME_GIT_REMOTE }}
       RUNTIME_GIT_BRANCH: ${{ vars.RUNTIME_GIT_BRANCH }}
-
     steps:
-      - name: Check out reviewed commit without persisted credentials
+      - name: Check out reviewed commit without credentials
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 1
           persist-credentials: false
           ref: ${{ github.sha }}
-
-      - name: Run read-only runtime, SHA, and GitHub SSH read-access verification
+      - name: Run read-only runtime preflight
         run: |
           set -Eeuo pipefail
-          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]] || {
-            echo 'ERROR=workspace_sha_mismatch' >&2
-            exit 1
-          }
           ./scripts/runtime-preflight.sh \
             --expected-deploy-sha "$GITHUB_SHA" \
-            --report "$RUNNER_TEMP/keycloak-runtime-preflight.txt" \
-            | tee "$RUNNER_TEMP/keycloak-runtime-preflight.log"
-          cat "$RUNNER_TEMP/keycloak-runtime-preflight.txt" >>"$GITHUB_STEP_SUMMARY"
-
+            --report "$RUNNER_TEMP/keycloak-runtime-preflight.txt"
       - name: Upload redacted preflight evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -123,7 +92,6 @@ jobs:
     runs-on: [self-hosted, linux, x64, codestra-keycloak]
     environment: staging
     timeout-minutes: 60
-
     env:
       KC_BASE_URL: ${{ vars.KC_BASE_URL }}
       KC_PUBLIC_URL: ${{ vars.KC_PUBLIC_URL }}
@@ -135,27 +103,24 @@ jobs:
       GHCR_USERNAME: ${{ secrets.CODESTRA_GHCR_USERNAME || github.actor }}
       GHCR_TOKEN: ${{ secrets.CODESTRA_GHCR_DEPLOYMENT_READ_TOKEN || github.token }}
       EXECUTION_LOCK: config/executions/stage6-intake-observability.v1.json
-      INFRASTRUCTURE_SHA: cf0bdb702660db84642433b89ac8c61f68b6df44
-      PROMETHEUS_SHA: e2aa1793764421fb87da1d2e3525100c098c09c9
+      INFRASTRUCTURE_SHA: 61787bd39515b775ba6b22c3e7af5862b44b3dad
+      PROMETHEUS_SHA: 4230ec1c398db69e8ca95848135b13dd84e03c94
       OPENBAO_SHA: 2c199ee38ce372af4e0355c83e018f417e3afc8f
       MIDDLEWARE_SOURCE_SHA: f6748a58f8d2590520a4f28776770957061cdea1
       MIDDLEWARE_IMAGE_DIGEST: sha256:695fa3ce3f50ba4d0ae0784976b946a0a683ca731155e4bd3bd9e90a4670b820
       MIDDLEWARE_IMAGE_REFERENCE: ghcr.io/appolon1908-hue/codestra-middleware@sha256:695fa3ce3f50ba4d0ae0784976b946a0a683ca731155e4bd3bd9e90a4670b820
       COLLECTOR_IMAGE: python:3.13.15-slim-bookworm@sha256:00faa2debb87529f9f0764e9491d8ba400a3678976616c3bd7cb193745ac20d1
-
     steps:
-      - name: Check out exact Stage 6 execution commit
+      - name: Check out exact Stage 6 execution commit and parent
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          fetch-depth: 1
+          fetch-depth: 2
           persist-credentials: false
           ref: ${{ github.sha }}
-
       - name: Enforce exact execution authority and staging-only boundary
         run: |
           set -Eeuo pipefail
           umask 077
-          [[ "$GITHUB_REF" == 'refs/heads/ops/stage6-intake-observability-execution-20260830' ]]
           [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
           [[ "$(git rev-list --parents -n 1 HEAD | wc -w)" -eq 2 ]]
           main_sha="$(git rev-parse HEAD^)"
@@ -187,26 +152,32 @@ jobs:
           echo 'environment staging'
           echo 'PROMETHEUS_TARGET_STATE=pending'
           echo 'BLACKBOX_TARGET_STATE=pending'
-          echo 'PRODUCTION_AUTHORIZED=NO'
-
+      - name: Require protected staging identity inputs before any deployment
+        run: |
+          set -Eeuo pipefail
+          for name in KC_BASE_URL KC_PUBLIC_URL KC_TARGET_REALM KC_ADMIN_REALM KC_ADMIN_CLIENT_ID KC_ADMIN_CLIENT_SECRET CODESTRA_STAGING_ROOT; do
+            [[ -n "${!name:-}" ]] || { echo "ERROR=missing_protected_staging_input:${name}" >&2; exit 1; }
+          done
+          [[ "$KC_BASE_URL" == 'https://auth-staging.codestra.co' ]] || { echo 'ERROR=kc_base_url_must_be_canonical_staging_https' >&2; exit 1; }
+          [[ "$KC_PUBLIC_URL" == 'https://auth-staging.codestra.co' ]] || { echo 'ERROR=kc_public_url_must_be_canonical_staging_https' >&2; exit 1; }
+          [[ "$KC_TARGET_REALM" == 'codestra' ]] || { echo 'ERROR=kc_target_realm_must_be_codestra' >&2; exit 1; }
+          [[ "$KC_ADMIN_REALM" == 'master' ]] || { echo 'ERROR=kc_admin_realm_must_be_master' >&2; exit 1; }
       - name: Check out exact merged Infrastructure authority
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: appolon1908-hue/Infustruction-repo
           fetch-depth: 1
           persist-credentials: false
-          ref: cf0bdb702660db84642433b89ac8c61f68b6df44
+          ref: 61787bd39515b775ba6b22c3e7af5862b44b3dad
           path: stage6-infrastructure
-
       - name: Check out exact merged Prometheus authority
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: appolon1908-hue/Codestra-Prometheus
           fetch-depth: 1
           persist-credentials: false
-          ref: e2aa1793764421fb87da1d2e3525100c098c09c9
+          ref: 4230ec1c398db69e8ca95848135b13dd84e03c94
           path: stage6-prometheus
-
       - name: Check out exact merged OpenBao authority
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -215,7 +186,6 @@ jobs:
           persist-credentials: false
           ref: 2c199ee38ce372af4e0355c83e018f417e3afc8f
           path: stage6-openbao
-
       - name: Verify exact cross-repository source locks
         run: |
           set -Eeuo pipefail
@@ -224,56 +194,50 @@ jobs:
           [[ "$(git -C stage6-openbao rev-parse HEAD)" == "$OPENBAO_SHA" ]]
           python3 scripts/validate_stage6_intake_observability_source.py
           python3 stage6-openbao/codestra/runtime-v1/validate_monitoring_staging_token_control.py
-          jq -e --arg digest "$MIDDLEWARE_IMAGE_DIGEST" '.middleware.image_digest == $digest and .activation.prometheus_target == "pending" and .activation.blackbox_target == "pending" and .external_effects_enabled == false' stage6-infrastructure/deploy/staging/intake-observability/runtime-lock.v1.json >/dev/null
+          jq -e --arg digest "$MIDDLEWARE_IMAGE_DIGEST" '
+            .middleware.image_digest == $digest
+            and .identity.public_url == "https://auth-staging.codestra.co"
+            and .identity.production_identity_endpoint_allowed == false
+            and .activation.prometheus_target == "pending"
+            and .activation.blackbox_target == "pending"
+            and .external_effects_enabled == false
+          ' stage6-infrastructure/deploy/staging/intake-observability/runtime-lock.v1.json >/dev/null
           jq -e '.[] | select(.labels.service == "middleware-intake") | .labels.activation == "pending" and .labels.environment == "staging"' stage6-prometheus/codestra/prometheus/targets/staging.json >/dev/null
-
-      - name: Authenticate to the immutable image registry
+      - name: Authenticate to immutable image registry
         run: |
           set -Eeuo pipefail
           [[ -n "$GHCR_USERNAME" && -n "$GHCR_TOKEN" ]]
           printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin >/dev/null
-
       - name: Deploy the exact immutable Middleware digest privately
         run: |
           set -Eeuo pipefail
-          KEYCLOAK_PUBLIC_URL="$KC_PUBLIC_URL" \
-          KEYCLOAK_REALM="$KC_TARGET_REALM" \
-          CODESTRA_STAGING_ROOT="$STAGE6_ROOT" \
-          bash stage6-infrastructure/scripts/deploy_intake_observability_staging.sh deploy
-
-      - name: Reconcile only monitoring-readonly and issue two short-lived tokens
+          KEYCLOAK_PUBLIC_URL="$KC_PUBLIC_URL" KEYCLOAK_REALM="$KC_TARGET_REALM" CODESTRA_STAGING_ROOT="$STAGE6_ROOT" \
+            bash stage6-infrastructure/scripts/deploy_intake_observability_staging.sh deploy
+      - name: Reconcile monitoring-readonly and issue isolated short-lived tokens
         run: |
           set -Eeuo pipefail
           umask 077
           secret_dir="$RUNNER_TEMP/stage6-monitoring-secrets"
-          rm -rf "$secret_dir"
-          mkdir -m 700 "$secret_dir"
-          python3 scripts/reconcile_monitoring_readonly_staging.py \
-            --mode apply-and-issue \
-            --desired-client config/clients/monitoring-readonly.json \
-            --output-dir "$secret_dir"
+          rm -rf "$secret_dir" && mkdir -m 700 "$secret_dir"
+          python3 scripts/reconcile_monitoring_readonly_staging.py --mode apply-and-issue \
+            --desired-client config/clients/monitoring-readonly.json --output-dir "$secret_dir"
           echo "STAGE6_SECRET_DIR=$secret_dir" >>"$GITHUB_ENV"
-
-      - name: Run the actual GET-only private staging evidence collector
+      - name: Run actual GET-only scope-isolated staging evidence collector
         run: |
           set -Eeuo pipefail
           umask 077
           evidence_dir="$RUNNER_TEMP/stage6-intake-evidence"
-          rm -rf "$evidence_dir"
-          mkdir -m 700 "$evidence_dir"
+          rm -rf "$evidence_dir" && mkdir -m 700 "$evidence_dir"
           docker pull "$COLLECTOR_IMAGE" >/dev/null
-          docker run --rm \
-            --network codestra-intake-observability-staging_private \
-            --user "$(id -u):$(id -g)" \
-            --read-only \
-            --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m \
-            --cap-drop ALL \
+          echo 'BASE_COLLECTOR=collect_staging_intake_evidence.py'
+          docker run --rm --network codestra-intake-observability-staging_private \
+            --user "$(id -u):$(id -g)" --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m --cap-drop ALL \
             --security-opt no-new-privileges \
             -v "$GITHUB_WORKSPACE/stage6-prometheus:/source:ro" \
             -v "$STAGE6_SECRET_DIR:/run/evidence-secrets:ro" \
-            -v "$evidence_dir:/evidence" \
-            "$COLLECTOR_IMAGE" \
-            python /source/codestra/scripts/collect_staging_intake_evidence.py \
+            -v "$evidence_dir:/evidence" "$COLLECTOR_IMAGE" \
+            python /source/codestra/scripts/collect_staging_intake_evidence_v2.py \
               --base-url http://middleware-intake-staging:8080 \
               --metrics-token-file /run/evidence-secrets/metrics.token \
               --health-token-file /run/evidence-secrets/health.token \
@@ -284,26 +248,10 @@ jobs:
           cp "$STAGE6_ROOT/runtime-context.json" "$evidence_dir/runtime-context.json"
           cp "$STAGE6_SECRET_DIR/monitoring-token-evidence.json" "$evidence_dir/monitoring-token-evidence.json"
           cp "$EXECUTION_LOCK" "$evidence_dir/execution-lock.json"
-          jq -n \
-            --arg keycloakExecutionSha "$GITHUB_SHA" \
-            --arg infrastructureSha "$INFRASTRUCTURE_SHA" \
-            --arg prometheusSha "$PROMETHEUS_SHA" \
-            --arg openbaoSha "$OPENBAO_SHA" \
-            --arg middlewareSourceSha "$MIDDLEWARE_SOURCE_SHA" \
-            --arg middlewareImageDigest "$MIDDLEWARE_IMAGE_DIGEST" \
-            '{schema_version:"1.0",keycloakExecutionSha:$keycloakExecutionSha,infrastructureSha:$infrastructureSha,prometheusSha:$prometheusSha,openbaoSha:$openbaoSha,middlewareSourceSha:$middlewareSourceSha,middlewareImageDigest:$middlewareImageDigest,prometheusTargetState:"pending",blackboxTargetState:"pending",productionAuthorized:false}' \
-            >"$evidence_dir/source-lock.json"
-          chmod 600 "$evidence_dir"/*
-          (
-            cd "$evidence_dir"
-            sha256sum execution-lock.json monitoring-token-evidence.json runtime-context.json source-lock.json staging-intake-evidence.json >evidence-manifest.sha256
-          )
-          chmod 600 "$evidence_dir/evidence-manifest.sha256"
           checksum="$(cat "$evidence_dir/staging-intake-evidence.sha256")"
           [[ "$checksum" =~ ^sha256:[0-9a-f]{64}$ ]]
           echo "STAGING_EVIDENCE_CHECKSUM=$checksum" >>"$GITHUB_ENV"
           echo "STAGE6_EVIDENCE_DIR=$evidence_dir" >>"$GITHUB_ENV"
-
       - name: Upload sanitized staging evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -311,42 +259,26 @@ jobs:
           path: ${{ env.STAGE6_EVIDENCE_DIR }}
           if-no-files-found: error
           retention-days: 30
-
-      - name: Record passing staging checksum without activation
+      - name: Record passing checksum without activation
         run: |
           set -Eeuo pipefail
-          {
-            echo '## Stage 6 private intake observability evidence'
-            echo
-            echo "- Execution SHA: $GITHUB_SHA"
-            echo "- Middleware image: \`$MIDDLEWARE_IMAGE_REFERENCE\`"
-            echo "- Evidence checksum: \`$STAGING_EVIDENCE_CHECKSUM\`"
-            echo '- Prometheus target: **pending**'
-            echo '- Blackbox target: **pending**'
-            echo '- Production authorized: **No**'
-            echo '- External effects enabled: **No**'
-          } >>"$GITHUB_STEP_SUMMARY"
+          echo "EVIDENCE_CHECKSUM=$STAGING_EVIDENCE_CHECKSUM" >>"$GITHUB_STEP_SUMMARY"
           echo 'PROMETHEUS_TARGET_STATE=pending'
           echo 'BLACKBOX_TARGET_STATE=pending'
-
+          echo 'PRODUCTION_AUTHORIZED=NO'
       - name: Roll back containers on failure while preserving data volumes
         if: failure()
         run: |
           set +e
-          if [[ -f "$STAGE6_ROOT/deployment.env" ]]; then
+          if [[ -n "${STAGE6_ROOT:-}" && -f "$STAGE6_ROOT/deployment.env" ]]; then
             CODESTRA_STAGING_ROOT="$STAGE6_ROOT" bash stage6-infrastructure/scripts/deploy_intake_observability_staging.sh rollback
           fi
-
       - name: Delete raw token and client-secret files
         if: always()
         run: |
           set +e
           if [[ -n "${STAGE6_SECRET_DIR:-}" && -d "$STAGE6_SECRET_DIR" ]]; then
-            if command -v shred >/dev/null 2>&1; then
-              find "$STAGE6_SECRET_DIR" -type f ! -name 'monitoring-token-evidence.json' -exec shred -u {} +
-            else
-              find "$STAGE6_SECRET_DIR" -type f ! -name 'monitoring-token-evidence.json' -delete
-            fi
+            find "$STAGE6_SECRET_DIR" -type f ! -name monitoring-token-evidence.json -delete
             rm -rf "$STAGE6_SECRET_DIR"
           fi
           docker logout ghcr.io >/dev/null 2>&1 || true

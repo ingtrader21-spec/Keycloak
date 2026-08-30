@@ -12,7 +12,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / "config/contracts/service-access-matrix.json"
 CLIENT_DIR = ROOT / "config/clients"
+CLIENT_SCOPE_DIR = ROOT / "config/client-scopes"
 ALLOWLIST_DIR = ROOT / "config/export-allowlists"
+MONITORING_CLIENT_ID = "monitoring-readonly"
+MONITORING_OPTIONAL_SCOPES = ("health.read", "metrics.read")
 
 
 def canonical(value: object) -> str:
@@ -26,6 +29,24 @@ def mapper(name: str, mapper_type: str, config: dict[str, str]) -> dict[str, obj
         "protocolMapper": mapper_type,
         "consentRequired": False,
         "config": config,
+    }
+
+
+def monitoring_client_scope(scope_name: str) -> dict[str, object]:
+    if scope_name not in MONITORING_OPTIONAL_SCOPES:
+        raise ValueError(f"unsupported monitoring scope: {scope_name}")
+    return {
+        "name": scope_name,
+        "description": (
+            "Codestra optional monitoring scope managed by protected Keycloak GitOps. "
+            "It is requested explicitly per short-lived service-account token."
+        ),
+        "protocol": "openid-connect",
+        "attributes": {
+            "display.on.consent.screen": "false",
+            "include.in.token.scope": "true",
+        },
+        "protocolMappers": [],
     }
 
 
@@ -56,21 +77,33 @@ def render() -> dict[Path, str]:
             )
             for audience in audiences
         ]
-        mappers.append(
-            mapper(
-                "reviewed-service-scopes",
-                "oidc-hardcoded-claim-mapper",
-                {
-                    "claim.name": "scope",
-                    "claim.value": " ".join(scopes),
-                    "jsonType.label": "String",
-                    "id.token.claim": "false",
-                    "access.token.claim": "true",
-                    "userinfo.token.claim": "false",
-                    "access.tokenResponse.claim": "false",
-                },
+        optional_client_scopes: list[str] = []
+        if client_id == MONITORING_CLIENT_ID:
+            if tuple(scopes) != MONITORING_OPTIONAL_SCOPES:
+                raise ValueError(
+                    "monitoring-readonly grants must contain only health.read and metrics.read"
+                )
+            optional_client_scopes = list(MONITORING_OPTIONAL_SCOPES)
+            for scope_name in MONITORING_OPTIONAL_SCOPES:
+                rendered[CLIENT_SCOPE_DIR / f"{scope_name}.json"] = canonical(
+                    monitoring_client_scope(scope_name)
+                )
+        else:
+            mappers.append(
+                mapper(
+                    "reviewed-service-scopes",
+                    "oidc-hardcoded-claim-mapper",
+                    {
+                        "claim.name": "scope",
+                        "claim.value": " ".join(scopes),
+                        "jsonType.label": "String",
+                        "id.token.claim": "false",
+                        "access.token.claim": "true",
+                        "userinfo.token.claim": "false",
+                        "access.tokenResponse.claim": "false",
+                    },
+                )
             )
-        )
 
         overlay = {
             "clientId": client_id,
@@ -91,7 +124,7 @@ def render() -> dict[Path, str]:
             "redirectUris": [],
             "webOrigins": [],
             "defaultClientScopes": [],
-            "optionalClientScopes": [],
+            "optionalClientScopes": optional_client_scopes,
             "attributes": {
                 "access.token.lifespan": str(
                     contract["tokenPolicy"]["maximumAccessTokenLifetimeSeconds"]
@@ -122,6 +155,7 @@ def main() -> int:
     mismatches: list[str] = []
     for path, expected in render().items():
         if args.write:
+            path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(expected, encoding="utf-8")
         elif not path.exists() or path.read_text(encoding="utf-8") != expected:
             mismatches.append(str(path.relative_to(ROOT)))
