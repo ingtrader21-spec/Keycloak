@@ -1,0 +1,32 @@
+name: Cert exact-head Keycloak validation
+
+on:
+  push:
+    branches:
+      - cert2/sdk-intake-exact-ci
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify exact pushed SHA
+        run: test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+      - name: Install validation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes jq shellcheck openssh-client python3-yaml
+      - name: Run authoritative GitOps validation
+        run: ./scripts/validate.sh
+      - name: Recheck sdk-intake and MoneyBee policy contract
+        run: |
+          python3 scripts/validate-moneybee-oidc-contract.py
+          python3 scripts/validate-source.py
