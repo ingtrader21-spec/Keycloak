@@ -3,6 +3,8 @@ set -Eeuo pipefail
 umask 077
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib/keycloak-admin.sh
+source "$ROOT_DIR/scripts/lib/keycloak-admin.sh"
 test_root="$(mktemp -d)"
 server_pid=""
 cleanup() {
@@ -167,7 +169,7 @@ done
 
 port="$(cat "$port_file")"
 export KC_BASE_URL="http://127.0.0.1:${port}"
-export KC_PUBLIC_URL="https://auth.codestra.co"
+export KC_PUBLIC_URL="https://auth-staging.codestra.co"
 export KC_TARGET_REALM="codestra"
 export KC_ADMIN_REALM="master"
 export KC_ADMIN_CLIENT_ID="test-gitops-client"
@@ -178,10 +180,18 @@ export ALLOW_NONCANONICAL_KC_BASE_URL_FOR_TESTS="true"
 export DEPLOY_ENVIRONMENT="staging"
 expected_sha="1111111111111111111111111111111111111111"
 
+[[ "$(keycloak_endpoint_file)" == "$ROOT_DIR/config/endpoints/codestra-staging.json" ]]
+DEPLOY_ENVIRONMENT=production
+[[ "$(keycloak_endpoint_file)" == "$ROOT_DIR/config/endpoints/codestra.json" ]]
+DEPLOY_ENVIRONMENT=staging
+
 plan_dir="$test_root/plan"
 "$ROOT_DIR/scripts/plan.sh" \
   --output-dir "$plan_dir" \
   --expected-deploy-sha "$expected_sha" >/dev/null
+
+[[ "$(jq -er '.api.adminApiBaseUrl' "$plan_dir/plan.json")" == "https://auth-staging.codestra.co" ]]
+[[ "$(jq -er '.api.issuer' "$plan_dir/plan.json")" == "https://auth-staging.codestra.co/realms/codestra" ]]
 
 [[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 23 ]]
 [[ "$(jq -er '.blockedCount' "$plan_dir/plan.json")" -eq 0 ]]
