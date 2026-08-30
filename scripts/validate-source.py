@@ -28,7 +28,7 @@ MANAGED_CLIENTS = [
     "n8n-automation", "odoo-integration", "postly-adapter",
     "provisioning-service", "social-codestra", "telnexa-gateway",
     "transportation-backend", "vicidial-adapter", "grafana-observability",
-    "superset-analytics", "openbao-secrets",
+    "superset-analytics", "openbao-secrets", "sdk-intake",
 ]
 CREATABLE_CLIENTS = [item for item in MANAGED_CLIENTS if item != "klyrow-portal"]
 MANAGED_ROLES = [

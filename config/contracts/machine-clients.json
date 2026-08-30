@@ -136,6 +136,17 @@
       "audience": "monitoring-readonly",
       "scopes": ["monitoring-readonly.access"],
       "provisioningState": "managed-protected-apply"
+    },
+    {
+      "clientId": "sdk-intake",
+      "clientType": "confidential",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "audience": "middleware-api",
+      "scopes": ["leads.write", "surveys.write"],
+      "provisioningState": "managed-protected-apply"
     }
   ]
 }
