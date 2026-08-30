@@ -1,0 +1,50 @@
+schema_version: '1.0'
+environment: staging
+status: PLAN_DEFINED_NOT_APPLIED
+realm_plan:
+  source_revision: d455afc9ae1265fac4044ec66a9934b683babae7
+  apply_mode: check_then_apply_then_readback
+service_clients:
+  - codestra-marketing
+  - codestra-ai
+  - codestra-communication
+  - codestra-social
+  - codestra-middleware
+  - codestra-n8n
+  - codestra-odoo
+required_scopes:
+  - marketing.read
+  - marketing.write
+  - marketing.approve
+  - ai.generate
+  - communications.read
+  - communications.send
+  - social.read
+  - social.write
+  - social.publish
+  - crm.read
+  - crm.write
+  - workflow.execute
+human_roles:
+  - marketing_operator
+  - marketing_approver
+  - n8n_viewer
+  - n8n_operator
+  - n8n_admin
+negative_tests:
+  - subject: codestra-n8n
+    denied: [marketing.approve, marketing.activate, marketing.budget.write, provider.write]
+  - subject: codestra-ai
+    denied: [marketing.approve, marketing.activate, marketing.budget.write, provider.write, communications.send, social.publish]
+  - subject: codestra-social
+    denied: [marketing.budget.write, advertising.provider.write]
+  - subject: codestra-communication
+    denied: [marketing.approve, advertising.provider.write]
+readback_requirements:
+  - client IDs match plan
+  - service accounts enabled only where required
+  - scopes/audiences match plan
+  - no embedded secrets in repository
+  - denied scopes cannot be obtained by n8n or AI
+  - staging identities cannot obtain production-only roles
+production_apply: false
