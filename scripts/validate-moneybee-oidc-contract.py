@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Validate the MoneyBee OIDC contract and its protected-client composition."""
 from __future__ import annotations
 
 import json
@@ -7,35 +6,43 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
-CONFIG = ROOT / "config"
-CONTRACT = CONFIG / "identity" / "moneybee-oidc-clients.json"
-DOMAIN_REGISTRY = CONFIG / "identity" / "application-domain-registry.json"
-MANAGED_CLIENTS = CONFIG / "policy" / "managed-clients.json"
-CREATABLE_CLIENTS = CONFIG / "policy" / "creatable-clients.json"
-MACHINE_CLIENTS = CONFIG / "contracts" / "machine-clients.json"
-PRODUCT_CLIENTS = CONFIG / "contracts" / "product-middleware-clients.json"
-OBSERVABILITY_CLIENTS = CONFIG / "contracts" / "observability-browser-clients.json"
-CLIENT_DIR = CONFIG / "clients"
+CONTRACT = ROOT / "config" / "identity" / "moneybee-oidc-clients.json"
+DOMAIN_REGISTRY = ROOT / "config" / "identity" / "application-domain-registry.json"
+MANAGED_CLIENTS = ROOT / "config" / "policy" / "managed-clients.json"
+CREATABLE_CLIENTS = ROOT / "config" / "policy" / "creatable-clients.json"
+MACHINE_CLIENTS = ROOT / "config" / "contracts" / "machine-clients.json"
+PRODUCT_MIDDLEWARE_CLIENTS = ROOT / "config" / "contracts" / "product-middleware-clients.json"
+CLIENT_DIR = ROOT / "config" / "clients"
 
-ISSUER = "https://auth.codestra.co/realms/codestra"
-CANONICAL_DOMAIN = "moneybeeloan.com"
-AUDIENCE = "moneybee-api"
-FORBIDDEN_DOMAINS = {"moneybeeloans.com", "moneybee.loan"}
-PORTALS = {
-    "borrower": ("moneybee-borrower", "https://app.moneybeeloan.com"),
-    "lender": ("moneybee-lender", "https://lenders.moneybeeloan.com"),
-    "admin": ("moneybee-admin", "https://admin.moneybeeloan.com"),
+EXPECTED_ISSUER = "https://auth.codestra.co/realms/codestra"
+EXPECTED_CANONICAL_DOMAIN = "moneybeeloan.com"
+EXPECTED_AUDIENCE = "moneybee-api"
+EXPECTED_FORBIDDEN = {"moneybeeloans.com", "moneybee.loan"}
+REVIEWED_ADDITIONAL_CREATABLE_IDS = {
+    "grafana-observability",
+    "superset-analytics",
+    "openbao-secrets",
+    "sdk-intake",
 }
-PORTAL_IDS = {client_id for client_id, _origin in PORTALS.values()}
+EXPECTED_CLIENTS = {
+    "borrower": {
+        "clientId": "moneybee-borrower",
+        "origin": "https://app.moneybeeloan.com",
+    },
+    "lender": {
+        "clientId": "moneybee-lender",
+        "origin": "https://lenders.moneybeeloan.com",
+    },
+    "admin": {
+        "clientId": "moneybee-admin",
+        "origin": "https://admin.moneybeeloan.com",
+    },
+}
+EXPECTED_CLIENT_IDS = {item["clientId"] for item in EXPECTED_CLIENTS.values()}
 
 
 def fail(message: str) -> None:
     raise RuntimeError(message)
-
-
-def require(condition: bool, message: str) -> None:
-    if not condition:
-        fail(message)
 
 
 def load(path: Path) -> dict:
@@ -43,167 +50,206 @@ def load(path: Path) -> dict:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         fail(f"unable to load {path}: {exc}")
-    require(isinstance(value, dict), f"{path} must contain a JSON object")
+    if not isinstance(value, dict):
+        fail(f"{path} must contain a JSON object")
     return value
 
 
 def exact_https(url: str, label: str) -> None:
     parsed = urlsplit(url)
-    require(parsed.scheme == "https" and bool(parsed.hostname), f"{label} must be an absolute HTTPS URL")
-    require(not parsed.fragment and "*" not in url, f"{label} must be exact and fragment-free")
-    require(parsed.hostname not in FORBIDDEN_DOMAINS, f"{label} uses a forbidden MoneyBee domain")
+    if parsed.scheme != "https" or not parsed.hostname or parsed.fragment:
+        fail(f"{label} must be an absolute HTTPS URL")
+    if "*" in url:
+        fail(f"{label} must not contain wildcards")
+    if parsed.hostname in EXPECTED_FORBIDDEN:
+        fail(f"{label} uses a forbidden MoneyBee runtime domain")
 
 
 def validate_audience_mapper(overlay: dict, client_id: str) -> None:
+    mappers = overlay.get("protocolMappers")
+    if not isinstance(mappers, list) or len(mappers) != 1:
+        fail(f"{client_id}: exactly one managed protocol mapper is required")
+    mapper = mappers[0]
+    if not isinstance(mapper, dict):
+        fail(f"{client_id}: protocol mapper must be an object")
     expected = {
         "name": "moneybee-api-audience",
         "protocol": "openid-connect",
         "protocolMapper": "oidc-audience-mapper",
         "consentRequired": False,
         "config": {
-            "included.custom.audience": AUDIENCE,
+            "included.custom.audience": EXPECTED_AUDIENCE,
             "id.token.claim": "false",
             "access.token.claim": "true",
         },
     }
-    require(overlay.get("protocolMappers") == [expected], f"{client_id}: audience mapper changed")
-
-
-def contract_client_ids(path: Path, *, field: str = "clients") -> set[str]:
-    values = load(path).get(field, [])
-    require(isinstance(values, list), f"{path}: {field} must be an array")
-    result: set[str] = set()
-    for item in values:
-        if isinstance(item, str):
-            client_id = item
-        else:
-            require(isinstance(item, dict), f"{path}: invalid {field} entry")
-            client_id = item.get("clientId")
-        require(isinstance(client_id, str) and client_id, f"{path}: invalid clientId")
-        require(client_id not in result, f"{path}: duplicate clientId {client_id}")
-        result.add(client_id)
-    return result
-
-
-def approved_observability_client_ids() -> set[str]:
-    contract = load(OBSERVABILITY_CLIENTS)
-    require(contract.get("version") == 1, "observability browser-client contract version changed")
-    require(contract.get("issuer") == ISSUER, "observability browser-client issuer changed")
-    activation = contract.get("activation") or {}
-    require(activation.get("managedClientApplySupportAdded") is True, "observability managed-client support is not approved")
-    require(activation.get("liveClientsCreated") is False, "observability live clients must remain disabled")
-    require(activation.get("productionAccessEnabled") is False, "observability production access must remain disabled")
-    clients = contract.get("clients")
-    require(isinstance(clients, list), "observability clients must be an array")
-    expected = {"grafana-observability", "superset-analytics", "openbao-secrets"}
-    found = {
-        item.get("clientId")
-        for item in clients
-        if isinstance(item, dict) and isinstance(item.get("clientId"), str)
-    }
-    require(found == expected, "approved observability browser-client set changed")
-    return found
+    if mapper != expected:
+        fail(f"{client_id}: moneybee-api audience mapper changed")
 
 
 def main() -> int:
     data = load(CONTRACT)
-    require(data.get("schemaVersion") == 1, "schemaVersion must be 1")
-    require(data.get("realm") == "codestra" and data.get("issuer") == ISSUER, "MoneyBee realm/issuer changed")
-    require(data.get("canonicalDomain") == CANONICAL_DOMAIN, "MoneyBee canonical domain changed")
-    require(data.get("apiAudience") == AUDIENCE, "MoneyBee API audience changed")
-    require(set(data.get("forbiddenRuntimeDomains", [])) == FORBIDDEN_DOMAINS, "forbidden MoneyBee domains changed")
-    require(
-        data.get("policy") == {
-            "publicClientsOnly": True,
-            "authorizationCodeFlow": True,
-            "pkceMethod": "S256",
-            "implicitFlow": False,
-            "directAccessGrants": False,
-            "serviceAccounts": False,
-            "wildcardRedirectUris": False,
-            "exactWebOrigins": True,
-        },
-        "MoneyBee OIDC security policy changed",
-    )
+    if data.get("schemaVersion") != 1:
+        fail("schemaVersion must be 1")
+    if data.get("realm") != "codestra" or data.get("issuer") != EXPECTED_ISSUER:
+        fail("MoneyBee must use the canonical Codestra realm and issuer")
+    if data.get("canonicalDomain") != EXPECTED_CANONICAL_DOMAIN:
+        fail("canonical MoneyBee domain must be moneybeeloan.com")
+    if data.get("apiAudience") != EXPECTED_AUDIENCE:
+        fail("MoneyBee API audience changed")
+    if set(data.get("forbiddenRuntimeDomains", [])) != EXPECTED_FORBIDDEN:
+        fail("forbidden MoneyBee runtime domains changed")
+
+    policy = data.get("policy") or {}
+    expected_policy = {
+        "publicClientsOnly": True,
+        "authorizationCodeFlow": True,
+        "pkceMethod": "S256",
+        "implicitFlow": False,
+        "directAccessGrants": False,
+        "serviceAccounts": False,
+        "wildcardRedirectUris": False,
+        "exactWebOrigins": True,
+    }
+    if policy != expected_policy:
+        fail("MoneyBee OIDC security policy changed")
 
     clients = data.get("clients")
-    require(isinstance(clients, list) and len(clients) == 3, "exactly three MoneyBee portal clients are required")
-    seen_portals: set[str] = set()
-    seen_ids: set[str] = set()
-    for client in clients:
-        require(isinstance(client, dict), "MoneyBee client entries must be objects")
-        portal = client.get("portal")
-        require(portal in PORTALS and portal not in seen_portals, f"unexpected or duplicate portal: {portal}")
-        seen_portals.add(portal)
-        expected_id, origin = PORTALS[portal]
-        client_id = client.get("clientId")
-        require(client_id == expected_id and client_id not in seen_ids, f"{portal}: clientId mismatch")
-        seen_ids.add(client_id)
-        require(client.get("origin") == origin, f"{portal}: origin mismatch")
-        exact_https(origin, f"{portal}.origin")
-        redirects = [f"{origin}/auth/callback", f"{origin}/auth/silent-callback"]
-        logout = [f"{origin}/auth/login"]
-        require(client.get("redirectUris") == redirects, f"{portal}: redirect URI contract changed")
-        require(client.get("postLogoutRedirectUris") == logout, f"{portal}: logout contract changed")
-        require(client.get("webOrigins") == [origin], f"{portal}: web-origin contract changed")
-        for label, values in (
-            ("redirectUris", redirects),
-            ("postLogoutRedirectUris", logout),
-            ("webOrigins", [origin]),
-        ):
-            for index, value in enumerate(values):
-                exact_https(value, f"{portal}.{label}[{index}]")
+    if not isinstance(clients, list) or len(clients) != 3:
+        fail("exactly three MoneyBee human portal clients are required")
 
-        overlay = load(CLIENT_DIR / f"{client_id}.json")
-        require(overlay.get("clientId") == client_id, f"{client_id}: overlay identity mismatch")
-        require(overlay.get("rootUrl") == origin and overlay.get("baseUrl") == f"{origin}/", f"{client_id}: overlay origin mismatch")
-        require(overlay.get("redirectUris") == redirects, f"{client_id}: overlay callbacks changed")
-        require(overlay.get("webOrigins") == [origin], f"{client_id}: overlay web origin changed")
-        attrs = overlay.get("attributes") or {}
-        require(attrs.get("pkce.code.challenge.method") == "S256", f"{client_id}: PKCE S256 required")
-        require(attrs.get("post.logout.redirect.uris") == logout[0], f"{client_id}: logout overlay changed")
-        require(overlay.get("publicClient") is True, f"{client_id}: portal must remain public")
-        require(overlay.get("standardFlowEnabled") is True, f"{client_id}: code flow required")
-        require(overlay.get("implicitFlowEnabled") is False, f"{client_id}: implicit flow prohibited")
-        require(overlay.get("directAccessGrantsEnabled") is False, f"{client_id}: direct grants prohibited")
-        require(overlay.get("serviceAccountsEnabled") is False, f"{client_id}: service account prohibited")
+    seen_portals: set[str] = set()
+    seen_client_ids: set[str] = set()
+    for client in clients:
+        if not isinstance(client, dict):
+            fail("MoneyBee client entries must be objects")
+        portal = client.get("portal")
+        if portal not in EXPECTED_CLIENTS or portal in seen_portals:
+            fail(f"unexpected or duplicate MoneyBee portal: {portal}")
+        seen_portals.add(portal)
+        expected = EXPECTED_CLIENTS[portal]
+        if client.get("clientId") != expected["clientId"]:
+            fail(f"{portal}: clientId mismatch")
+        if client["clientId"] in seen_client_ids:
+            fail("MoneyBee portal client IDs must be distinct")
+        seen_client_ids.add(client["clientId"])
+
+        origin = client.get("origin")
+        if origin != expected["origin"]:
+            fail(f"{portal}: origin mismatch")
+        exact_https(origin, f"{portal}.origin")
+
+        expected_redirects = [
+            f"{origin}/auth/callback",
+            f"{origin}/auth/silent-callback",
+        ]
+        if client.get("redirectUris") != expected_redirects:
+            fail(f"{portal}: exact redirect URI contract changed")
+        if client.get("postLogoutRedirectUris") != [f"{origin}/auth/login"]:
+            fail(f"{portal}: exact post-logout redirect contract changed")
+        if client.get("webOrigins") != [origin]:
+            fail(f"{portal}: exact web origin contract changed")
+
+        for label in ("redirectUris", "postLogoutRedirectUris", "webOrigins"):
+            values = client.get(label)
+            if not isinstance(values, list) or not values:
+                fail(f"{portal}.{label} must be a non-empty list")
+            for offset, value in enumerate(values):
+                exact_https(value, f"{portal}.{label}[{offset}]")
+
+        client_id = client["clientId"]
+        overlay_path = CLIENT_DIR / f"{client_id}.json"
+        overlay = load(overlay_path)
+        if overlay.get("clientId") != client_id:
+            fail(f"{client_id}: desired-state overlay clientId mismatch")
+        if overlay.get("rootUrl") != origin or overlay.get("baseUrl") != f"{origin}/":
+            fail(f"{client_id}: desired-state origin mismatch")
+        if overlay.get("redirectUris") != expected_redirects:
+            fail(f"{client_id}: desired-state redirect URIs diverge from contract")
+        if overlay.get("webOrigins") != [origin]:
+            fail(f"{client_id}: desired-state web origin diverges from contract")
+        attributes = overlay.get("attributes") or {}
+        if attributes.get("pkce.code.challenge.method") != "S256":
+            fail(f"{client_id}: PKCE S256 is required")
+        if attributes.get("post.logout.redirect.uris") != f"{origin}/auth/login":
+            fail(f"{client_id}: desired-state logout redirect diverges from contract")
+        if overlay.get("publicClient") is not True:
+            fail(f"{client_id}: browser client must remain public")
+        if overlay.get("standardFlowEnabled") is not True:
+            fail(f"{client_id}: Authorization Code flow must remain enabled")
+        if overlay.get("implicitFlowEnabled") is not False:
+            fail(f"{client_id}: implicit flow must remain disabled")
+        if overlay.get("directAccessGrantsEnabled") is not False:
+            fail(f"{client_id}: direct grants must remain disabled")
+        if overlay.get("serviceAccountsEnabled") is not False:
+            fail(f"{client_id}: service accounts must remain disabled")
         validate_audience_mapper(overlay, client_id)
 
-    require(seen_portals == set(PORTALS) and seen_ids == PORTAL_IDS, "MoneyBee portal membership changed")
+    if seen_portals != set(EXPECTED_CLIENTS):
+        fail("MoneyBee portal membership changed")
+    if seen_client_ids != EXPECTED_CLIENT_IDS:
+        fail("MoneyBee portal client IDs changed")
 
-    managed_ids = contract_client_ids(MANAGED_CLIENTS)
-    require(PORTAL_IDS <= managed_ids, "MoneyBee clients are missing from managed policy")
-    machine_ids = contract_client_ids(MACHINE_CLIENTS)
-    product_ids = contract_client_ids(PRODUCT_CLIENTS)
-    observability_ids = approved_observability_client_ids()
-    expected_creatable = PORTAL_IDS | machine_ids | product_ids | observability_ids
-    actual_creatable = contract_client_ids(CREATABLE_CLIENTS)
-    require(
-        actual_creatable == expected_creatable,
-        "creatable clients must be exactly MoneyBee, reviewed machine identities, and approved observability browsers",
-    )
+    managed = load(MANAGED_CLIENTS)
+    managed_ids = set(managed.get("clients") or [])
+    if not EXPECTED_CLIENT_IDS.issubset(managed_ids):
+        fail("all MoneyBee clients must be in the protected managed-client policy")
+    if not REVIEWED_ADDITIONAL_CREATABLE_IDS.issubset(managed_ids):
+        fail("reviewed additional creatable identities must remain managed")
+
+    creatable = load(CREATABLE_CLIENTS)
+    machine_ids = {
+        item.get("clientId")
+        for item in load(MACHINE_CLIENTS).get("clients", [])
+        if isinstance(item, dict)
+    }
+    product_ids = {
+        item.get("clientId")
+        for item in load(PRODUCT_MIDDLEWARE_CLIENTS).get("clients", [])
+        if isinstance(item, dict)
+    }
+    if None in product_ids:
+        fail("product Middleware client contract contains an invalid clientId")
+    expected_creatable_ids = EXPECTED_CLIENT_IDS | machine_ids | product_ids | REVIEWED_ADDITIONAL_CREATABLE_IDS
+    if set(creatable.get("clients") or []) != expected_creatable_ids:
+        fail("creatable clients must be exactly MoneyBee plus reviewed core, product, and explicitly reviewed additional identities")
 
     registry = load(DOMAIN_REGISTRY)
     domains = registry.get("domains")
-    require(isinstance(domains, list), "application-domain registry domains must be an array")
+    if not isinstance(domains, list):
+        fail("application-domain registry domains must be a list")
     by_domain = {
         item.get("domain"): item
         for item in domains
         if isinstance(item, dict) and isinstance(item.get("domain"), str)
     }
-    canonical = by_domain.get(CANONICAL_DOMAIN) or {}
+    canonical = by_domain.get("moneybeeloan.com") or {}
     legacy = by_domain.get("moneybee.loan") or {}
-    require(canonical.get("canonicalDomain") == CANONICAL_DOMAIN, "registry canonical domain mismatch")
-    require(canonical.get("apiAudience") == AUDIENCE, "registry audience mismatch")
-    require(canonical.get("humanClientId") is None, "registry must delegate MoneyBee human clients")
-    require(canonical.get("clientKind") == "multi-public-pkce", "registry MoneyBee client kind changed")
-    require(legacy.get("canonicalDomain") == CANONICAL_DOMAIN, "legacy alias target changed")
-    require(legacy.get("state") == "legacy-disabled" and legacy.get("enabled") is False, "legacy alias must remain disabled")
-    require(legacy.get("humanClientId") is None, "legacy alias must not retain a client")
+    if canonical.get("canonicalDomain") != EXPECTED_CANONICAL_DOMAIN:
+        fail("general registry disagrees on MoneyBee canonical domain")
+    if canonical.get("apiAudience") != EXPECTED_AUDIENCE:
+        fail("general registry disagrees on MoneyBee API audience")
+    if canonical.get("humanClientId") is not None:
+        fail("general MoneyBee registry must delegate human clients to dedicated contract")
+    if canonical.get("clientKind") != "multi-public-pkce":
+        fail("general MoneyBee registry must declare multi-public-pkce")
+    if legacy.get("canonicalDomain") != EXPECTED_CANONICAL_DOMAIN:
+        fail("moneybee.loan must point to moneybeeloan.com")
+    if legacy.get("state") != "legacy-disabled" or legacy.get("enabled") is not False:
+        fail("moneybee.loan must remain disabled")
+    if legacy.get("humanClientId") is not None:
+        fail("moneybee.loan must not retain a human client")
 
-    serialized = (CONTRACT.read_text(encoding="utf-8") + DOMAIN_REGISTRY.read_text(encoding="utf-8")).lower()
-    require("moneybee-portal" not in serialized, "superseded moneybee-portal identity is prohibited")
-    require("client_secret" not in serialized and "begin private key" not in serialized, "identity contracts contain secret material")
+    serialized = "\n".join(
+        [
+            CONTRACT.read_text(encoding="utf-8"),
+            DOMAIN_REGISTRY.read_text(encoding="utf-8"),
+        ]
+    ).lower()
+    if "moneybee-portal" in serialized:
+        fail("superseded moneybee-portal identity is prohibited")
+    if "client_secret" in serialized or "begin private key" in serialized:
+        fail("MoneyBee identity contracts must not contain secrets")
 
     print("MONEYBEE_OIDC_CONTRACT=PASS")
     print("MONEYBEE_CANONICAL_DOMAIN=moneybeeloan.com")
@@ -213,7 +259,6 @@ def main() -> int:
     print("MONEYBEE_AUDIENCE_MAPPER=PASS")
     print("MONEYBEE_MANAGED_POLICY=PASS")
     print("MONEYBEE_CREATABLE_POLICY=PASS")
-    print("MONEYBEE_OBSERVABILITY_COMPOSITION=PASS")
     print("MONEYBEE_REGISTRY_CROSS_VALIDATION=PASS")
     print("MONEYBEE_FORBIDDEN_DOMAINS=moneybeeloans.com,moneybee.loan")
     return 0

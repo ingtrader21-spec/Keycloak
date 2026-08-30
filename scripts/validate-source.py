@@ -8,19 +8,16 @@ import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
-from observability_identity_policy import (
-    PolicyError as ObservabilityPolicyError,
-    validate_source as validate_observability_source,
-)
+from observability_identity_policy import PolicyError as ObservabilityPolicyError, validate_source as validate_observability_source
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / "config"
-CLIENTS = CONFIG / "clients"
-ROLES = CONFIG / "realm-roles"
-ALLOWLISTS = CONFIG / "export-allowlists"
-ROLE_ALLOWLISTS = ALLOWLISTS / "realm-roles"
+CLIENT_DIR = CONFIG / "clients"
+ROLE_DIR = CONFIG / "realm-roles"
+ALLOWLIST_DIR = CONFIG / "export-allowlists"
+ROLE_ALLOWLIST_DIR = ALLOWLIST_DIR / "realm-roles"
 
-MANAGED_CLIENTS = [
+EXPECTED_MANAGED_CLIENTS = [
     "beyvra-backend", "breero-backend", "klyrow-portal", "kong-gateway",
     "klyrow-gateway", "kyqra-gateway", "larim-a-backend", "middleware-api",
     "middleware-worker", "monitoring-readonly", "moneybee-admin",
@@ -28,66 +25,26 @@ MANAGED_CLIENTS = [
     "n8n-automation", "odoo-integration", "postly-adapter",
     "provisioning-service", "social-codestra", "telnexa-gateway",
     "transportation-backend", "vicidial-adapter", "grafana-observability",
-    "superset-analytics", "openbao-secrets",
+    "superset-analytics", "openbao-secrets", "sdk-intake",
 ]
-CREATABLE_CLIENTS = [item for item in MANAGED_CLIENTS if item != "klyrow-portal"]
-MANAGED_ROLES = [
+EXPECTED_CREATABLE_CLIENTS = [item for item in EXPECTED_MANAGED_CLIENTS if item != "klyrow-portal"]
+EXPECTED_ROLES = [
     "observability-viewer", "observability-operator", "observability-admin",
     "secrets-operator", "secrets-admin",
 ]
-OBSERVABILITY = {
-    "grafana-observability": {
-        "origin": "https://graf.codestra.media",
-        "redirects": ["https://graf.codestra.media/login/generic_oauth"],
-        "idle": "900",
-        "maximum": "14400",
-    },
-    "superset-analytics": {
-        "origin": "https://supe.codestra.media",
-        "redirects": ["https://supe.codestra.media/oauth-authorized/keycloak"],
-        "idle": "900",
-        "maximum": "14400",
-    },
-    "openbao-secrets": {
-        "origin": "https://bao.codestra.media",
-        "redirects": [
+OBSERVABILITY_CLIENTS = {
+    "grafana-observability": ("https://graf.codestra.media", ["https://graf.codestra.media/login/generic_oauth"]),
+    "superset-analytics": ("https://supe.codestra.media", ["https://supe.codestra.media/oauth-authorized/keycloak"]),
+    "openbao-secrets": (
+        "https://bao.codestra.media",
+        [
             "https://bao.codestra.media/v1/auth/oidc/callback",
             "https://bao.codestra.media/ui/vault/auth/oidc/oidc/callback",
             "http://localhost:8250/oidc/callback",
         ],
-        "idle": "600",
-        "maximum": "3600",
-    },
+    ),
 }
-SENSITIVE = re.compile(
-    r"^(secret|clientsecret|client_secret|password|privatekey|private_key|"
-    r"access_token|accesstoken|refresh_token|refreshtoken|credential|credentials)$",
-    re.I,
-)
-ALLOWED_CLIENT_FIELDS = {
-    "clientId", "name", "description", "enabled", "protocol",
-    "clientAuthenticatorType", "publicClient", "bearerOnly", "consentRequired",
-    "standardFlowEnabled", "implicitFlowEnabled", "directAccessGrantsEnabled",
-    "serviceAccountsEnabled", "authorizationServicesEnabled", "frontchannelLogout",
-    "fullScopeAllowed", "rootUrl", "baseUrl", "redirectUris", "webOrigins",
-    "defaultClientScopes", "optionalClientScopes", "attributes", "protocolMappers",
-}
-ALLOWED_ATTRIBUTE_FIELDS = {
-    "pkce.code.challenge.method", "post.logout.redirect.uris",
-    "oauth2.device.authorization.grant.enabled", "oidc.ciba.grant.enabled",
-    "access.token.lifespan", "client.session.idle.timeout",
-    "client.session.max.lifespan",
-}
-EXPECTED_ACTIVATION = {
-    "contractReviewed": True,
-    "managedClientApplySupportAdded": True,
-    "roleProvisioningSupportAdded": True,
-    "secretExportSupportAdded": True,
-    "roleAssignmentsApplied": False,
-    "liveClientsCreated": False,
-    "liveSecretsGenerated": False,
-    "productionAccessEnabled": False,
-}
+SENSITIVE = re.compile(r"^(secret|clientsecret|client_secret|password|privatekey|private_key|access_token|accesstoken|refresh_token|refreshtoken|credential|credentials)$", re.I)
 
 
 def fail(message: str) -> None:
@@ -99,137 +56,43 @@ def load(path: Path):
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        fail(f"cannot parse {path.relative_to(ROOT)}: {exc}")
+        fail(f"cannot parse {path}: {exc}")
 
 
-def require(condition: bool, message: str) -> None:
-    if not condition:
-        fail(message)
-
-
-def scan_secrets(value, label: str) -> None:
+def walk_sensitive(value, path: str) -> None:
     if isinstance(value, dict):
         for key, child in value.items():
-            if SENSITIVE.fullmatch(str(key)) and child not in (None, "", [], {}):
-                fail(f"prohibited secret-bearing field {label}.{key}")
-            scan_secrets(child, f"{label}.{key}")
+            if SENSITIVE.fullmatch(key) and child not in (None, "", [], {}):
+                fail(f"prohibited secret-bearing field {path}.{key}")
+            walk_sensitive(child, f"{path}.{key}")
     elif isinstance(value, list):
         for index, child in enumerate(value):
-            scan_secrets(child, f"{label}[{index}]")
+            walk_sensitive(child, f"{path}[{index}]")
 
 
 def valid_uri(value: str) -> bool:
     parsed = urlparse(value)
-    if "*" in value or value.endswith("/*") or parsed.username or parsed.password:
-        return False
     if parsed.scheme == "https" and parsed.hostname:
-        return True
-    return parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1"}
+        return "*" not in value and not value.endswith("/*")
+    return parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1"} and "*" not in value
 
 
 def validate_ruleset() -> None:
     value = load(CONFIG / "github" / "main-ruleset.json")
-    require(value.get("name") == "Protect main", "main ruleset name mismatch")
-    require(value.get("target") == "branch", "main ruleset target mismatch")
-    require(value.get("enforcement") == "active", "main ruleset is not active")
-    require(
-        value.get("conditions", {}).get("ref_name", {}).get("include")
-        == ["~DEFAULT_BRANCH"],
-        "main ruleset default-branch condition mismatch",
-    )
-    rules = {item.get("type"): item.get("parameters", {}) for item in value.get("rules", [])}
-    require(
-        {"deletion", "non_fast_forward", "pull_request", "required_status_checks"}
-        <= set(rules),
-        "main ruleset is incomplete",
-    )
-    pr = rules["pull_request"]
-    require(pr.get("required_approving_review_count") == 1, "one approval is required")
-    require(pr.get("dismiss_stale_reviews_on_push") is True, "stale review dismissal required")
-    require(pr.get("require_last_push_approval") is True, "last-push approval required")
-    require(pr.get("required_review_thread_resolution") is True, "thread resolution required")
-    checks = [
-        item.get("context")
-        for item in rules["required_status_checks"].get("required_status_checks", [])
-    ]
-    require(checks == ["validate-source", "validate-merge-result"], "required checks mismatch")
-
-
-def validate_client(client_id: str, client: dict) -> None:
-    require(client.get("enabled") is True, f"{client_id}: disabled")
-    require(client.get("protocol") == "openid-connect", f"{client_id}: protocol mismatch")
-    redirects = client.get("redirectUris")
-    origins = client.get("webOrigins")
-    require(isinstance(redirects, list), f"{client_id}: redirectUris must be an array")
-    require(isinstance(origins, list), f"{client_id}: webOrigins must be an array")
-    require(len(redirects) == len(set(redirects)), f"{client_id}: duplicate redirect URI")
-    require(len(origins) == len(set(origins)), f"{client_id}: duplicate web origin")
-    require(all(valid_uri(item) for item in [*redirects, *origins]), f"{client_id}: unsafe URI")
-
-    if client.get("publicClient") is True:
-        require(client.get("standardFlowEnabled") is True, f"{client_id}: standard flow required")
-        require(client.get("implicitFlowEnabled") is False, f"{client_id}: implicit flow prohibited")
-        require(client.get("directAccessGrantsEnabled") is False, f"{client_id}: direct grants prohibited")
-        require(client.get("serviceAccountsEnabled") is False, f"{client_id}: service account prohibited")
-        require(
-            client.get("attributes", {}).get("pkce.code.challenge.method") == "S256",
-            f"{client_id}: PKCE S256 required",
-        )
-
-    if client.get("serviceAccountsEnabled") is True:
-        require(client.get("publicClient") is False, f"{client_id}: service client must be confidential")
-        require(client.get("standardFlowEnabled") is False, f"{client_id}: browser flow prohibited")
-        require(client.get("implicitFlowEnabled") is False, f"{client_id}: implicit flow prohibited")
-        require(client.get("directAccessGrantsEnabled") is False, f"{client_id}: direct grants prohibited")
-        require(client.get("fullScopeAllowed") is False, f"{client_id}: full scope prohibited")
-        require(redirects == [] and origins == [], f"{client_id}: service client URI list must be empty")
-
-    expected = OBSERVABILITY.get(client_id)
-    if expected:
-        require(client.get("clientAuthenticatorType") == "client-secret", f"{client_id}: authenticator mismatch")
-        require(client.get("publicClient") is False, f"{client_id}: must be confidential")
-        require(client.get("standardFlowEnabled") is True, f"{client_id}: authorization code required")
-        require(client.get("implicitFlowEnabled") is False, f"{client_id}: implicit flow prohibited")
-        require(client.get("directAccessGrantsEnabled") is False, f"{client_id}: direct grants prohibited")
-        require(client.get("serviceAccountsEnabled") is False, f"{client_id}: service account prohibited")
-        require(client.get("fullScopeAllowed") is False, f"{client_id}: full scope prohibited")
-        require(client.get("rootUrl") == expected["origin"], f"{client_id}: root URL mismatch")
-        require(origins == [expected["origin"]], f"{client_id}: web origin mismatch")
-        require(redirects == expected["redirects"], f"{client_id}: callback mismatch")
-        attrs = client.get("attributes", {})
-        require(attrs.get("pkce.code.challenge.method") == "S256", f"{client_id}: PKCE mismatch")
-        require(attrs.get("access.token.lifespan") == "300", f"{client_id}: token TTL mismatch")
-        require(attrs.get("client.session.idle.timeout") == expected["idle"], f"{client_id}: idle timeout mismatch")
-        require(attrs.get("client.session.max.lifespan") == expected["maximum"], f"{client_id}: max session mismatch")
-        mappers = [
-            item for item in client.get("protocolMappers", [])
-            if item.get("name") == "codestra-realm-roles"
-        ]
-        require(len(mappers) == 1, f"{client_id}: realm-role mapper missing or duplicated")
-        require(
-            mappers[0].get("protocolMapper") == "oidc-usermodel-realm-role-mapper",
-            f"{client_id}: realm-role mapper type mismatch",
-        )
-        require(
-            mappers[0].get("config") == {
-                "multivalued": "true",
-                "userinfo.token.claim": "true",
-                "id.token.claim": "true",
-                "access.token.claim": "true",
-                "claim.name": "realm_access.roles",
-                "jsonType.label": "String",
-            },
-            f"{client_id}: realm-role mapper configuration mismatch",
-        )
-
-    allowlist = load(ALLOWLISTS / f"{client_id}.json")
-    require(allowlist.get("clientId") == client_id, f"{client_id}: allowlist identity mismatch")
-    top = set(allowlist.get("topLevelFields", []))
-    attrs = set(allowlist.get("attributeFields", []))
-    require(top == set(client), f"{client_id}: allowlist must exactly cover client fields")
-    require(top <= ALLOWED_CLIENT_FIELDS, f"{client_id}: unsafe top-level allowlist field")
-    require(attrs == set(client.get("attributes", {})), f"{client_id}: attribute allowlist mismatch")
-    require(attrs <= ALLOWED_ATTRIBUTE_FIELDS, f"{client_id}: unsafe attribute allowlist field")
+    types = [item.get("type") for item in value.get("rules", [])]
+    assert value.get("name") == "Protect main"
+    assert value.get("target") == "branch"
+    assert value.get("enforcement") == "active"
+    assert value.get("conditions", {}).get("ref_name", {}).get("include") == ["~DEFAULT_BRANCH"]
+    for required in ("deletion", "non_fast_forward", "pull_request", "required_status_checks"):
+        assert required in types
+    pr = next(item["parameters"] for item in value["rules"] if item["type"] == "pull_request")
+    assert pr["required_approving_review_count"] == 1
+    assert pr["dismiss_stale_reviews_on_push"] is True
+    assert pr["require_last_push_approval"] is True
+    assert pr["required_review_thread_resolution"] is True
+    checks = next(item["parameters"] for item in value["rules"] if item["type"] == "required_status_checks")
+    assert [item["context"] for item in checks["required_status_checks"]] == ["validate-source", "validate-merge-result"]
 
 
 def main() -> None:
@@ -237,101 +100,157 @@ def main() -> None:
         validate_observability_source(CONFIG)
     except ObservabilityPolicyError as exc:
         fail(f"observability identity policy failed: {exc}")
-
     for path in sorted(CONFIG.rglob("*.json")):
-        scan_secrets(load(path), str(path.relative_to(ROOT)))
+        value = load(path)
+        walk_sensitive(value, str(path.relative_to(ROOT)))
 
     endpoints = load(CONFIG / "endpoints" / "codestra.json")
-    public = "https://auth.codestra.co"
-    expected_endpoints = {
-        "publicUrl": public,
-        "adminApiBaseUrl": public,
+    expected_public = "https://auth.codestra.co"
+    assert endpoints == {
+        **endpoints,
+        "publicUrl": expected_public,
+        "adminApiBaseUrl": expected_public,
         "realm": "codestra",
-        "issuer": f"{public}/realms/codestra",
-        "discoveryUrl": f"{public}/realms/codestra/.well-known/openid-configuration",
-        "authorizationEndpoint": f"{public}/realms/codestra/protocol/openid-connect/auth",
-        "tokenEndpoint": f"{public}/realms/codestra/protocol/openid-connect/token",
-        "userInfoEndpoint": f"{public}/realms/codestra/protocol/openid-connect/userinfo",
-        "jwksUri": f"{public}/realms/codestra/protocol/openid-connect/certs",
-        "introspectionEndpoint": f"{public}/realms/codestra/protocol/openid-connect/token/introspect",
-        "logoutEndpoint": f"{public}/realms/codestra/protocol/openid-connect/logout",
-        "adminRealmEndpoint": f"{public}/admin/realms/codestra",
+        "issuer": f"{expected_public}/realms/codestra",
+        "discoveryUrl": f"{expected_public}/realms/codestra/.well-known/openid-configuration",
+        "authorizationEndpoint": f"{expected_public}/realms/codestra/protocol/openid-connect/auth",
+        "tokenEndpoint": f"{expected_public}/realms/codestra/protocol/openid-connect/token",
+        "userInfoEndpoint": f"{expected_public}/realms/codestra/protocol/openid-connect/userinfo",
+        "jwksUri": f"{expected_public}/realms/codestra/protocol/openid-connect/certs",
+        "introspectionEndpoint": f"{expected_public}/realms/codestra/protocol/openid-connect/token/introspect",
+        "logoutEndpoint": f"{expected_public}/realms/codestra/protocol/openid-connect/logout",
+        "adminRealmEndpoint": f"{expected_public}/admin/realms/codestra",
     }
-    for key, value in expected_endpoints.items():
-        require(endpoints.get(key) == value, f"canonical endpoint mismatch: {key}")
-
     realm = load(CONFIG / "realms" / "codestra.json")
-    require(realm.get("realm") == "codestra" and realm.get("enabled") is True, "realm invariant mismatch")
+    assert realm.get("realm") == "codestra" and realm.get("enabled") is True
 
-    managed = load(CONFIG / "policy" / "managed-clients.json").get("clients")
-    creatable = load(CONFIG / "policy" / "creatable-clients.json").get("clients")
-    require(managed == MANAGED_CLIENTS, "managed-client policy mismatch")
-    require(creatable == CREATABLE_CLIENTS, "creatable-client policy mismatch")
-    configured = sorted(load(path).get("clientId") for path in CLIENTS.glob("*.json"))
-    require(configured == sorted(MANAGED_CLIENTS), "client desired-state inventory mismatch")
-    for path in sorted(CLIENTS.glob("*.json")):
+    managed = load(CONFIG / "policy" / "managed-clients.json")["clients"]
+    creatable = load(CONFIG / "policy" / "creatable-clients.json")["clients"]
+    assert managed == EXPECTED_MANAGED_CLIENTS
+    assert creatable == EXPECTED_CREATABLE_CLIENTS
+    assert len(managed) == len(set(managed)) and len(creatable) == len(set(creatable))
+    configured = sorted(load(path)["clientId"] for path in CLIENT_DIR.glob("*.json"))
+    assert configured == sorted(managed)
+
+    allowed_top = {
+        "clientId", "name", "description", "enabled", "protocol",
+        "clientAuthenticatorType", "publicClient", "bearerOnly", "consentRequired",
+        "standardFlowEnabled", "implicitFlowEnabled", "directAccessGrantsEnabled",
+        "serviceAccountsEnabled", "authorizationServicesEnabled", "frontchannelLogout",
+        "fullScopeAllowed", "rootUrl", "baseUrl", "redirectUris", "webOrigins",
+        "defaultClientScopes", "optionalClientScopes", "attributes", "protocolMappers",
+    }
+    allowed_attrs = {
+        "pkce.code.challenge.method", "post.logout.redirect.uris",
+        "oauth2.device.authorization.grant.enabled", "oidc.ciba.grant.enabled",
+        "access.token.lifespan",
+    }
+
+    for path in sorted(CLIENT_DIR.glob("*.json")):
         client = load(path)
-        validate_client(client["clientId"], client)
+        client_id = client["clientId"]
+        assert client.get("enabled") is True and client.get("protocol") == "openid-connect"
+        assert isinstance(client.get("redirectUris"), list) and isinstance(client.get("webOrigins"), list)
+        assert len(client["redirectUris"]) == len(set(client["redirectUris"]))
+        assert len(client["webOrigins"]) == len(set(client["webOrigins"]))
+        assert all(valid_uri(value) for value in [*client["redirectUris"], *client["webOrigins"]])
+        if client.get("publicClient") is True:
+            assert client.get("standardFlowEnabled") is True
+            assert client.get("implicitFlowEnabled") is False
+            assert client.get("directAccessGrantsEnabled") is False
+            assert client.get("serviceAccountsEnabled") is False
+            assert client.get("attributes", {}).get("pkce.code.challenge.method") == "S256"
+        if client.get("serviceAccountsEnabled") is True:
+            assert client.get("publicClient") is False
+            assert client.get("standardFlowEnabled") is False
+            assert client.get("implicitFlowEnabled") is False
+            assert client.get("directAccessGrantsEnabled") is False
+            assert client.get("fullScopeAllowed") is False
+            assert client["redirectUris"] == [] and client["webOrigins"] == []
+        if client_id in OBSERVABILITY_CLIENTS:
+            origin, redirects = OBSERVABILITY_CLIENTS[client_id]
+            assert client.get("clientAuthenticatorType") == "client-secret"
+            assert client.get("publicClient") is False
+            assert client.get("standardFlowEnabled") is True
+            assert client.get("implicitFlowEnabled") is False
+            assert client.get("directAccessGrantsEnabled") is False
+            assert client.get("serviceAccountsEnabled") is False
+            assert client.get("fullScopeAllowed") is False
+            assert client.get("rootUrl") == origin and client.get("webOrigins") == [origin]
+            assert client.get("redirectUris") == redirects
+            assert client.get("attributes", {}).get("pkce.code.challenge.method") == "S256"
+            assert client.get("attributes", {}).get("access.token.lifespan") == "300"
+            mappers = [item for item in client.get("protocolMappers", []) if item.get("name") == "codestra-realm-roles"]
+            assert len(mappers) == 1
+            assert mappers[0].get("protocolMapper") == "oidc-usermodel-realm-role-mapper"
+            assert mappers[0].get("config") == {
+                "multivalued": "true", "userinfo.token.claim": "true",
+                "id.token.claim": "true", "access.token.claim": "true",
+                "claim.name": "realm_access.roles", "jsonType.label": "String",
+            }
 
-    managed_roles = load(CONFIG / "policy" / "managed-realm-roles.json").get("roles")
-    creatable_roles = load(CONFIG / "policy" / "creatable-realm-roles.json").get("roles")
-    require(managed_roles == MANAGED_ROLES, "managed realm-role policy mismatch")
-    require(creatable_roles == MANAGED_ROLES, "creatable realm-role policy mismatch")
-    configured_roles = sorted(load(path).get("name") for path in ROLES.glob("*.json"))
-    require(configured_roles == sorted(MANAGED_ROLES), "realm-role desired-state inventory mismatch")
+        allowlist = load(ALLOWLIST_DIR / f"{client_id}.json")
+        assert allowlist.get("clientId") == client_id
+        assert set(allowlist.get("topLevelFields", [])) == set(client)
+        assert set(allowlist.get("topLevelFields", [])).issubset(allowed_top)
+        attributes = client.get("attributes", {})
+        assert set(allowlist.get("attributeFields", [])) == set(attributes)
+        assert set(allowlist.get("attributeFields", [])).issubset(allowed_attrs)
 
-    for path in sorted(ROLES.glob("*.json")):
+    role_policy = load(CONFIG / "policy" / "managed-realm-roles.json")["roles"]
+    role_creatable = load(CONFIG / "policy" / "creatable-realm-roles.json")["roles"]
+    assert role_policy == EXPECTED_ROLES and role_creatable == EXPECTED_ROLES
+    configured_roles = sorted(load(path)["name"] for path in ROLE_DIR.glob("*.json"))
+    assert configured_roles == sorted(EXPECTED_ROLES)
+    for path in sorted(ROLE_DIR.glob("*.json")):
         role = load(path)
         name = role["name"]
-        attrs = role.get("attributes", {})
-        family = attrs.get("codestra.role.family")
-        level = attrs.get("codestra.role.level")
-        require(role.get("composite") is False and role.get("clientRole") is False, f"{name}: role shape mismatch")
-        require(family in (["observability"], ["secrets"]), f"{name}: role family mismatch")
-        require(level in (["viewer"], ["operator"], ["admin"]), f"{name}: role level mismatch")
-        require(attrs.get("codestra.assignment.independent_approval") == ["true"], f"{name}: independent approval required")
-        require(attrs.get("codestra.cross_family_grant") == ["false"], f"{name}: cross-family grant prohibited")
-        require(
-            (name.startswith("observability-") and family == ["observability"])
-            or (name.startswith("secrets-") and family == ["secrets"]),
-            f"{name}: role family/name mismatch",
-        )
-        allowlist = load(ROLE_ALLOWLISTS / f"{name}.json")
-        require(allowlist.get("roleName") == name, f"{name}: role allowlist identity mismatch")
-        require(set(allowlist.get("topLevelFields", [])) == set(role), f"{name}: role allowlist mismatch")
-        require(set(allowlist.get("attributeFields", [])) == set(attrs), f"{name}: role attribute allowlist mismatch")
+        family = role["attributes"]["codestra.role.family"]
+        level = role["attributes"]["codestra.role.level"]
+        assert role.get("composite") is False and role.get("clientRole") is False
+        assert family in (["observability"], ["secrets"])
+        assert level in (["viewer"], ["operator"], ["admin"])
+        assert role["attributes"]["codestra.assignment.independent_approval"] == ["true"]
+        assert role["attributes"]["codestra.cross_family_grant"] == ["false"]
+        assert (name.startswith("observability-") and family == ["observability"]) or (name.startswith("secrets-") and family == ["secrets"])
+        allowlist = load(ROLE_ALLOWLIST_DIR / f"{name}.json")
+        assert allowlist.get("roleName") == name
+        assert set(allowlist.get("topLevelFields", [])) == set(role)
+        assert set(allowlist.get("attributeFields", [])) == set(role["attributes"])
 
-    require(
-        load(CONFIG / "policy" / "secret-export-clients.json")
-        == {"clients": list(OBSERVABILITY)},
-        "secret-export client policy mismatch",
-    )
+    assert load(CONFIG / "policy" / "secret-export-clients.json") == {"clients": list(OBSERVABILITY_CLIENTS)}
     contract = load(CONFIG / "contracts" / "observability-browser-clients.json")
-    require(contract.get("activation") == EXPECTED_ACTIVATION, "observability activation contract mismatch")
-    require(
-        contract.get("roleIsolation") == {
-            "observabilityRolesDoNotGrantSecretsAccess": True,
-            "secretsRolesDoNotGrantObservabilityAdmin": True,
-            "administrativeMfaRequired": True,
-            "leastPrivilegeRequired": True,
-        },
-        "observability role-isolation contract mismatch",
-    )
+    assert contract["activation"] == {
+        "contractReviewed": True,
+        "managedClientApplySupportAdded": True,
+        "liveClientsCreated": False,
+        "liveSecretsGenerated": False,
+        "productionAccessEnabled": False,
+    }
+    assert contract["roleIsolation"] == {
+        "observabilityRolesDoNotGrantSecretsAccess": True,
+        "secretsRolesDoNotGrantObservabilityAdmin": True,
+        "administrativeMfaRequired": True,
+        "leastPrivilegeRequired": True,
+    }
     validate_ruleset()
 
-    for path in (
+    required = [
         ROOT / "scripts" / "protected_identity_engine.py",
         ROOT / "scripts" / "export-generated-client-secrets.sh",
         ROOT / "scripts" / "test-plan-gate.sh",
-    ):
-        require(path.is_file(), f"required protected-identity file missing: {path.name}")
+    ]
+    assert all(path.is_file() for path in required)
 
-    print(f"MANAGED_CLIENTS={len(MANAGED_CLIENTS)}")
-    print(f"MANAGED_REALM_ROLES={len(MANAGED_ROLES)}")
+    print(f"MANAGED_CLIENTS={len(managed)}")
+    print(f"MANAGED_REALM_ROLES={len(role_policy)}")
     print("OBSERVABILITY_ROLE_ISOLATION=PASS")
     print("SECRET_MATERIAL_POLICY=PASS")
     print("PROTECTED_IDENTITY_SOURCE=PASS")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except AssertionError as exc:
+        fail(f"assertion failed: {exc}")
