@@ -113,6 +113,7 @@ expected_creatable='[
   "breero-backend",
   "kong-gateway",
   "klyrow-gateway",
+  "klyrow-portal",
   "kyqra-gateway",
   "larim-a-backend",
   "middleware-api",
@@ -145,7 +146,7 @@ jq -e --argjson expected "$expected_creatable" --slurpfile managed "$managed_pol
   and ((.clients | unique | length) == (.clients | length))
   and .clients == $expected
   and all(.clients[]; ($managed[0].clients | index(.)) != null)
-  and ((.clients | index("klyrow-portal")) == null)
+  and ((.clients | index("klyrow-portal")) != null)
 ' "$creatable_policy" >/dev/null ||
   fail "Only explicitly reviewed browser and machine clients may be created"
 

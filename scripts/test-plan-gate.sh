@@ -311,12 +311,20 @@ done
 
 jq -S 'del(."klyrow-portal")' "$state_file" >"$state_file.tmp"
 mv "$state_file.tmp" "$state_file"
-blocked_dir="$test_root/blocked"
+missing_dir="$test_root/missing-creatable"
 "$ROOT_DIR/scripts/plan.sh" \
-  --output-dir "$blocked_dir" \
+  --output-dir "$missing_dir" \
   --expected-deploy-sha "$expected_sha" >/dev/null
-[[ "$(jq -er '.blockedCount' "$blocked_dir/plan.json")" -eq 1 ]]
-[[ "$(jq -er '.clients[] | select(.clientId == "klyrow-portal") | .action' "$blocked_dir/plan.json")" == "blocked_missing" ]]
+[[ "$(jq -er '.blockedCount' "$missing_dir/plan.json")" -eq 0 ]]
+[[ "$(jq -er '.clients[] | select(.clientId == "klyrow-portal") | .action' "$missing_dir/plan.json")" == "create" ]]
+jq -e '
+  .clients[]
+  | select(.clientId == "klyrow-portal")
+  | .before == {}
+    and .rollback.kind == "disable_then_reviewed_delete"
+    and .rollback.disableFirst == true
+    and .rollback.deleteRequiresSeparateReviewedRollback == true
+' "$missing_dir/plan.json" >/dev/null
 
 printf 'PLAN_GATE_TESTS=PASS\n'
 printf 'INDEPENDENT_DRIFT_REVIEW_GATE=PASS\n'
@@ -327,4 +335,4 @@ printf 'CREATE_PREWRITE_RACE_GUARD=PASS\n'
 printf 'ROLLBACK_EVIDENCE_TESTS=PASS\n'
 printf 'MAPPER_NORMALIZATION_TESTS=PASS\n'
 printf 'PRODUCT_MACHINE_CLIENT_CREATE_TESTS=PASS\n'
-printf 'NON_CREATABLE_MISSING_BLOCK=PASS\n'
+printf 'KLYROW_PORTAL_REVIEWED_CREATE=PASS\n'
