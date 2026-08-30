@@ -51,6 +51,12 @@ jobs:
       - name: Validate exact source desired state and policy
         run: ./scripts/validate.sh
 
+      - name: Validate source Stage 6 monitoring identity
+        run: python3 scripts/validate_stage6_intake_observability_source.py
+
+      - name: Test source Stage 6 monitoring reconciliation boundary
+        run: python3 -m unittest discover -s tests -p 'test_stage6_monitoring_reconcile.py' -v
+
       - name: Validate source governance bootstrap and final policy
         run: ./scripts/validate-governance.sh
 
@@ -128,6 +134,12 @@ jobs:
 
       - name: Validate exact merge result desired state and policy
         run: ./scripts/validate.sh
+
+      - name: Validate merge-result Stage 6 monitoring identity
+        run: python3 scripts/validate_stage6_intake_observability_source.py
+
+      - name: Test merge-result Stage 6 monitoring reconciliation boundary
+        run: python3 -m unittest discover -s tests -p 'test_stage6_monitoring_reconcile.py' -v
 
       - name: Validate merge-result governance bootstrap and final policy
         run: ./scripts/validate-governance.sh
