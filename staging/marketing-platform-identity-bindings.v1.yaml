@@ -1,4 +1,4 @@
-schema_version: '1.0'
+schema_version: '1.1'
 environment: staging
 status: PLAN_DEFINED_NOT_APPLIED
 realm_plan:
@@ -9,22 +9,40 @@ service_clients:
   - codestra-ai
   - codestra-communication
   - codestra-social
-  - codestra-middleware
-  - codestra-n8n
-  - codestra-odoo
+  - middleware-api
+  - n8n-automation
+  - odoo-integration
 required_scopes:
   - marketing.read
   - marketing.write
   - marketing.approve
+  - marketing.provider.read
   - ai.generate
-  - communications.read
-  - communications.send
+  - communication.read
+  - communication.send
   - social.read
   - social.write
   - social.publish
-  - crm.read
-  - crm.write
-  - workflow.execute
+positive_bindings:
+  - subject: codestra-marketing
+    audience: codestra-ai
+    allowed_scopes: [ai.generate]
+  - subject: codestra-marketing
+    audience: codestra-communication
+    allowed_scopes: [communication.read, communication.send]
+  - subject: codestra-marketing
+    audience: codestra-social
+    allowed_scopes: [social.read, social.write]
+  - subject: middleware-api
+    audience: codestra-marketing
+    allowed_scopes: [marketing.read, marketing.write]
+  - subject: n8n-automation
+    audience: middleware-api
+    allowed_scopes_source: canonical_service_access_matrix
+    direct_downstream_credentials_allowed: false
+  - subject: odoo-integration
+    audience: middleware-api
+    allowed_scopes_source: canonical_service_access_matrix
 human_roles:
   - marketing_operator
   - marketing_approver
@@ -32,19 +50,20 @@ human_roles:
   - n8n_operator
   - n8n_admin
 negative_tests:
-  - subject: codestra-n8n
-    denied: [marketing.approve, marketing.activate, marketing.budget.write, provider.write]
+  - subject: n8n-automation
+    denied: [marketing.approve, marketing.provider.write, marketing.budget.raise]
   - subject: codestra-ai
-    denied: [marketing.approve, marketing.activate, marketing.budget.write, provider.write, communications.send, social.publish]
+    denied: [marketing.approve, marketing.provider.write, marketing.budget.raise, communication.send, social.publish]
   - subject: codestra-social
-    denied: [marketing.budget.write, advertising.provider.write]
+    denied: [marketing.provider.write, marketing.budget.raise]
   - subject: codestra-communication
-    denied: [marketing.approve, advertising.provider.write]
+    denied: [marketing.approve, marketing.provider.write]
 readback_requirements:
-  - client IDs match plan
+  - client IDs match canonical managed-client identifiers
+  - positive subject/audience/scope bindings match plan
   - service accounts enabled only where required
   - scopes/audiences match plan
   - no embedded secrets in repository
-  - denied scopes cannot be obtained by n8n or AI
+  - actual forbidden scopes cannot be obtained by n8n or AI
   - staging identities cannot obtain production-only roles
 production_apply: false
