@@ -107,7 +107,9 @@ def main() -> None:
     assert workflow.count(PROMETHEUS_SHA) >= 2
     assert OLD_INFRASTRUCTURE_SHA not in workflow
     assert OLD_PROMETHEUS_SHA not in workflow
-    assert workflow.count(STAGING_PUBLIC_URL) >= 4
+    assert workflow.count(STAGING_PUBLIC_URL) >= 2
+    assert "KC_BASE_URL: ${{ vars.KC_BASE_URL }}" in workflow
+    assert "KC_PUBLIC_URL: ${{ vars.KC_PUBLIC_URL }}" in workflow
     assert "collect_staging_intake_evidence_v2.py" in workflow
     assert "production_identity_endpoint_allowed == false" in workflow
     assert "PROMETHEUS_TARGET_STATE=pending" in workflow
