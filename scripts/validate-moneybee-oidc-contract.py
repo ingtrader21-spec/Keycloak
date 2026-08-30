@@ -27,6 +27,7 @@ PORTALS = {
     "admin": ("moneybee-admin", "https://admin.moneybeeloan.com"),
 }
 PORTAL_IDS = {client_id for client_id, _origin in PORTALS.values()}
+ADDITIONAL_REVIEWED_SERVICE_IDS = {"sdk-intake"}
 
 
 def fail(message: str) -> None:
@@ -105,6 +106,40 @@ def approved_observability_client_ids() -> set[str]:
     return found
 
 
+def validate_additional_reviewed_service(client_id: str) -> None:
+    overlay = load(CLIENT_DIR / f"{client_id}.json")
+    require(overlay.get("clientId") == client_id, f"{client_id}: overlay identity mismatch")
+    require(overlay.get("enabled") is True, f"{client_id}: must be enabled in desired state")
+    require(overlay.get("protocol") == "openid-connect", f"{client_id}: protocol mismatch")
+    require(overlay.get("publicClient") is False, f"{client_id}: must be confidential")
+    require(overlay.get("bearerOnly") is False, f"{client_id}: bearerOnly mismatch")
+    require(overlay.get("standardFlowEnabled") is False, f"{client_id}: browser code flow prohibited")
+    require(overlay.get("implicitFlowEnabled") is False, f"{client_id}: implicit flow prohibited")
+    require(overlay.get("directAccessGrantsEnabled") is False, f"{client_id}: direct grants prohibited")
+    require(overlay.get("serviceAccountsEnabled") is True, f"{client_id}: service account required")
+    require(overlay.get("authorizationServicesEnabled") is False, f"{client_id}: authorization services prohibited")
+    require(overlay.get("fullScopeAllowed") is False, f"{client_id}: full scope prohibited")
+    require(overlay.get("redirectUris") == [] and overlay.get("webOrigins") == [], f"{client_id}: browser URIs prohibited")
+    attrs = overlay.get("attributes") or {}
+    require(attrs.get("access.token.lifespan") == "300", f"{client_id}: token lifetime must be 300 seconds")
+    mappers = {item.get("name"): item for item in overlay.get("protocolMappers", []) if isinstance(item, dict)}
+    audience = mappers.get("audience-middleware-api") or {}
+    require(audience.get("protocolMapper") == "oidc-audience-mapper", f"{client_id}: audience mapper type mismatch")
+    require(
+        audience.get("config", {}).get("included.custom.audience") == "middleware-api"
+        and audience.get("config", {}).get("access.token.claim") == "true",
+        f"{client_id}: middleware-api audience mapper mismatch",
+    )
+    scope = mappers.get("intake-service-scope") or {}
+    require(scope.get("protocolMapper") == "oidc-hardcoded-claim-mapper", f"{client_id}: scope mapper type mismatch")
+    require(
+        scope.get("config", {}).get("claim.name") == "scope"
+        and scope.get("config", {}).get("claim.value") == "leads.write surveys.write"
+        and scope.get("config", {}).get("access.token.claim") == "true",
+        f"{client_id}: intake scope mapper mismatch",
+    )
+
+
 def main() -> int:
     data = load(CONTRACT)
     require(data.get("schemaVersion") == 1, "schemaVersion must be 1")
@@ -176,11 +211,14 @@ def main() -> int:
     machine_ids = contract_client_ids(MACHINE_CLIENTS)
     product_ids = contract_client_ids(PRODUCT_CLIENTS)
     observability_ids = approved_observability_client_ids()
-    expected_creatable = PORTAL_IDS | machine_ids | product_ids | observability_ids
+    for client_id in ADDITIONAL_REVIEWED_SERVICE_IDS:
+        require(client_id in managed_ids, f"{client_id}: reviewed service is missing from managed policy")
+        validate_additional_reviewed_service(client_id)
+    expected_creatable = PORTAL_IDS | machine_ids | product_ids | observability_ids | ADDITIONAL_REVIEWED_SERVICE_IDS
     actual_creatable = contract_client_ids(CREATABLE_CLIENTS)
     require(
         actual_creatable == expected_creatable,
-        "creatable clients must be exactly MoneyBee, reviewed machine identities, and approved observability browsers",
+        "creatable clients must be exactly MoneyBee, reviewed machine identities, approved observability browsers, and explicitly reviewed service identities",
     )
 
     registry = load(DOMAIN_REGISTRY)
@@ -214,6 +252,7 @@ def main() -> int:
     print("MONEYBEE_MANAGED_POLICY=PASS")
     print("MONEYBEE_CREATABLE_POLICY=PASS")
     print("MONEYBEE_OBSERVABILITY_COMPOSITION=PASS")
+    print("MONEYBEE_ADDITIONAL_REVIEWED_SERVICES=PASS")
     print("MONEYBEE_REGISTRY_CROSS_VALIDATION=PASS")
     print("MONEYBEE_FORBIDDEN_DOMAINS=moneybeeloans.com,moneybee.loan")
     return 0

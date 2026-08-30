@@ -63,11 +63,11 @@ def main() -> None:
             plan_dir = temp / "plan"
             invoke("plan.sh", ["--output-dir", str(plan_dir), "--expected-deploy-sha", expected_sha], env)
             plan = load(plan_dir / "plan.json")
-            assert (plan["schemaVersion"], plan["resourceCount"], plan["clientCount"], plan["realmRoleCount"]) == (2, 30, 25, 5)
-            assert (plan["driftCount"], plan["blockedCount"], plan["createCount"], plan["updateCount"]) == (30, 0, 28, 2)
+            assert (plan["schemaVersion"], plan["resourceCount"], plan["clientCount"], plan["realmRoleCount"]) == (2, 31, 26, 5)
+            assert (plan["driftCount"], plan["blockedCount"], plan["createCount"], plan["updateCount"]) == (31, 0, 29, 2)
             assert next(item for item in plan["clients"] if item["clientId"] == "klyrow-portal")["action"] == "update"
             assert next(item for item in plan["realmRoles"] if item["roleName"] == "observability-viewer")["action"] == "update"
-            for client_id in ("grafana-observability", "superset-analytics", "openbao-secrets"):
+            for client_id in ("grafana-observability", "superset-analytics", "openbao-secrets", "sdk-intake"):
                 item = next(value for value in plan["clients"] if value["clientId"] == client_id)
                 assert item["action"] == "create" and item["rollback"]["kind"] == "disable_then_reviewed_delete"
             for role_name in ("observability-operator", "observability-admin", "secrets-operator", "secrets-admin"):
@@ -85,13 +85,13 @@ def main() -> None:
             review = temp / "review.json"
             invoke("review-plan.sh", ["--plan", str(plan_dir / "plan.json"), "--expected-plan-sha", plan_hash, "--expected-deploy-sha", expected_sha, "--output", str(review)], env)
             review_hash = Path(str(review) + ".sha256").read_text().split()[0]
-            assert len(load(review)["reviewedActions"]) == 30
+            assert len(load(review)["reviewedActions"]) == 31
 
             rollback = temp / "rollback"
             managed = load(ROOT / "config/policy/managed-clients.json")["clients"]
             invoke("export-client.sh", ["--output", str(rollback), *managed], env)
             metadata = load(rollback / "rollback-metadata.json")
-            assert (metadata["existingClientCount"], metadata["absentCreatableClientCount"]) == (1, 24)
+            assert (metadata["existingClientCount"], metadata["absentCreatableClientCount"]) == (1, 25)
             assert (metadata["existingRealmRoleCount"], metadata["absentCreatableRealmRoleCount"]) == (1, 4)
             assert "mock-secret" not in (rollback / "rollback-metadata.json").read_text()
 
@@ -116,7 +116,7 @@ def main() -> None:
             converged = load(converged_dir / "plan.json")
             assert converged["driftCount"] == 0 and converged["blockedCount"] == 0
             final = load(state_file)
-            assert len(final["clients"]) == 25 and len(final["roles"]) == 5
+            assert len(final["clients"]) == 26 and len(final["roles"]) == 5
             assert final["roles"]["observability-admin"]["representation"]["attributes"]["codestra.role.family"] == ["observability"]
             assert final["roles"]["secrets-admin"]["representation"]["attributes"]["codestra.role.family"] == ["secrets"]
 
