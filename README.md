@@ -27,6 +27,12 @@ clients with five-minute tokens, disabled browser/password flows, no redirect
 origins, `fullScopeAllowed=false`, and only reviewed audiences and scopes.
 Keycloak generates a distinct credential for every client; none enters Git.
 
+The community-edition n8n editor uses the confidential `n8n-editor-gateway`
+client through oauth2-proxy. It permits Authorization Code with PKCE S256 only,
+has exact production/staging callback origins, and receives no service account
+or password grant. Runtime calls continue to use the separately governed
+`n8n-automation` Client Credentials identity.
+
 The protected managed-client boundary is explicit in
 `config/policy/managed-clients.json`. It contains the twelve machine clients,
 `klyrow-portal`, and the three MoneyBee browser clients. Creation is separately

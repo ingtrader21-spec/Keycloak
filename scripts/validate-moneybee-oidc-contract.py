@@ -202,8 +202,9 @@ def main() -> int:
     }
     if None in product_ids:
         fail("product Middleware client contract contains an invalid clientId")
-    if set(creatable.get("clients") or []) != EXPECTED_CLIENT_IDS | machine_ids | product_ids:
-        fail("creatable clients must be exactly MoneyBee plus reviewed core and product machine identities")
+    expected_creatable = EXPECTED_CLIENT_IDS | machine_ids | product_ids | {"n8n-editor-gateway"}
+    if set(creatable.get("clients") or []) != expected_creatable:
+        fail("creatable clients must be exactly MoneyBee, n8n editor gateway, and reviewed machine identities")
 
     registry = load(DOMAIN_REGISTRY)
     domains = registry.get("domains")
