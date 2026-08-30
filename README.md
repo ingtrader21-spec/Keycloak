@@ -36,7 +36,9 @@ or password grant. Runtime calls continue to use the separately governed
 The protected managed-client boundary is explicit in
 `config/policy/managed-clients.json`. It contains the twelve machine clients,
 `klyrow-portal`, and the three MoneyBee browser clients. Creation is separately
-allowlisted in `config/policy/creatable-clients.json`; Klyrow remains update-only.
+allowlisted in `config/policy/creatable-clients.json`; `klyrow-portal` is
+creatable only through the reviewed plan/apply gate with disable-first and
+separate-reviewed-delete rollback metadata.
 
 MoneyBee uses three public PKCE clients:
 
