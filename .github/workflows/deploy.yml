@@ -166,6 +166,7 @@ jobs:
             echo 'ERROR=workspace_sha_mismatch' >&2
             exit 1
           }
+          ./scripts/sync-runtime-repository.sh
           ./scripts/runtime-preflight.sh \
             --expected-deploy-sha "$GITHUB_SHA" \
             --require-approved "$RUNTIME_PATHS_APPROVED_SHA256"
