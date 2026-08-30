@@ -18,7 +18,12 @@ EXPECTED_ISSUER = "https://auth.codestra.co/realms/codestra"
 EXPECTED_CANONICAL_DOMAIN = "moneybeeloan.com"
 EXPECTED_AUDIENCE = "moneybee-api"
 EXPECTED_FORBIDDEN = {"moneybeeloans.com", "moneybee.loan"}
-REVIEWED_ADDITIONAL_CREATABLE_IDS = {"sdk-intake"}
+REVIEWED_ADDITIONAL_CREATABLE_IDS = {
+    "grafana-observability",
+    "superset-analytics",
+    "openbao-secrets",
+    "sdk-intake",
+}
 EXPECTED_CLIENTS = {
     "borrower": {
         "clientId": "moneybee-borrower",
@@ -207,7 +212,7 @@ def main() -> int:
         fail("product Middleware client contract contains an invalid clientId")
     expected_creatable_ids = EXPECTED_CLIENT_IDS | machine_ids | product_ids | REVIEWED_ADDITIONAL_CREATABLE_IDS
     if set(creatable.get("clients") or []) != expected_creatable_ids:
-        fail("creatable clients must be exactly MoneyBee plus reviewed core, product, and explicitly reviewed service identities")
+        fail("creatable clients must be exactly MoneyBee plus reviewed core, product, and explicitly reviewed additional identities")
 
     registry = load(DOMAIN_REGISTRY)
     domains = registry.get("domains")
