@@ -1,7 +1,7 @@
 {
   "clientId": "sdk-intake",
   "name": "Codestra service identity: sdk-intake",
-  "description": "Confidential machine identity used only by same-origin website BFFs to submit lead intake through Caddy and Kong to Middleware.",
+  "description": "Confidential machine identity used only by same-origin website BFFs to submit lead and survey intake through Caddy and Kong to Middleware.",
   "enabled": true,
   "protocol": "openid-connect",
   "publicClient": false,
@@ -42,7 +42,7 @@
       "consentRequired": false,
       "config": {
         "claim.name": "scope",
-        "claim.value": "leads.write",
+        "claim.value": "leads.write surveys.write",
         "jsonType.label": "String",
         "id.token.claim": "false",
         "access.token.claim": "true",
