@@ -200,6 +200,8 @@ def validate_privileged_workflow(path: Path, workflow: dict[str, Any]) -> None:
     required_permissions = {"contents": "read"}
     if path.name in {"deploy.yml", "drift-review.yml"}:
         required_permissions["actions"] = "read"
+    if path.name == "drift-review.yml":
+        required_permissions["pull-requests"] = "read"
     if path.name == "runtime-preflight.yml":
         required_permissions["packages"] = "read"
     validate_permissions(workflow.get("permissions"), f"{path}.permissions", required_permissions)
