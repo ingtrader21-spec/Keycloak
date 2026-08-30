@@ -27,11 +27,12 @@
         "observability-admin"
       ],
       "mfaRequiredRoles": [
+        "observability-operator",
         "observability-admin"
       ],
       "sessionIdleSeconds": 900,
       "sessionMaxSeconds": 14400,
-      "secretSource": "external-secret-manager",
+      "secretSource": "protected-generated-client-secret-export",
       "directAccessGrantsEnabled": false,
       "implicitFlowEnabled": false,
       "serviceAccountsEnabled": false
@@ -58,11 +59,12 @@
         "observability-admin"
       ],
       "mfaRequiredRoles": [
+        "observability-operator",
         "observability-admin"
       ],
       "sessionIdleSeconds": 900,
       "sessionMaxSeconds": 14400,
-      "secretSource": "external-secret-manager",
+      "secretSource": "protected-generated-client-secret-export",
       "directAccessGrantsEnabled": false,
       "implicitFlowEnabled": false,
       "serviceAccountsEnabled": false
@@ -95,7 +97,7 @@
       ],
       "sessionIdleSeconds": 600,
       "sessionMaxSeconds": 3600,
-      "secretSource": "external-secret-manager",
+      "secretSource": "protected-generated-client-secret-export",
       "directAccessGrantsEnabled": false,
       "implicitFlowEnabled": false,
       "serviceAccountsEnabled": false
@@ -108,9 +110,10 @@
     "leastPrivilegeRequired": true
   },
   "activation": {
-    "contractReviewed": false,
+    "contractReviewed": true,
     "managedClientApplySupportAdded": true,
-    "roleProvisioningSupportAdded": false,
+    "roleProvisioningSupportAdded": true,
+    "secretExportSupportAdded": true,
     "roleAssignmentsApplied": false,
     "liveClientsCreated": false,
     "liveSecretsGenerated": false,

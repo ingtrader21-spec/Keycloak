@@ -16,7 +16,7 @@ https://auth.codestra.co/realms/codestra
 |---|---|---|
 | `grafana-observability` | `https://graf.codestra.media` | `https://graf.codestra.media/login/generic_oauth` |
 | `superset-analytics` | `https://supe.codestra.media` | `https://supe.codestra.media/oauth-authorized/keycloak` |
-| `openbao-secrets` | `https://bao.codestra.media` | the exact API, UI, and local CLI callbacks in the contract |
+| `openbao-secrets` | `https://bao.codestra.media` | `https://bao.codestra.media/ui/vault/auth/oidc/oidc/callback` plus the approved local CLI callback |
 
 All three use:
 
@@ -27,9 +27,6 @@ All three use:
 - no password/direct grant;
 - no service account;
 - exact HTTPS redirect and origin allowlists.
-
-Grafana and Superset sessions idle after 15 minutes and have a four-hour
-maximum. OpenBao sessions idle after 10 minutes and have a one-hour maximum.
 
 ## Roles
 
@@ -64,19 +61,17 @@ Configure the Keycloak OAuth provider with the exact callback path in the contra
 
 Configure the OpenBao OIDC auth method with the exact UI and local CLI callbacks. Keycloak authentication does not replace OpenBao policies: users must still receive explicit OpenBao policy mappings. Caddy also enforces the approved source-network boundary.
 
-## Protected apply scope and limitation
+## Protected apply limitation
 
-The protected GitOps plan, apply, rollback export, and convergence tests now
-include all three browser clients under their final IDs. Client credentials are
-created by Keycloak and remain outside Git. This source does not apply itself,
-and `activation.liveClientsCreated` remains false.
+The current Keycloak GitOps plan validates and applies the existing managed client set exactly. These three new browser clients are therefore held in `config/contracts/observability-browser-clients.json` until a separately reviewed change extends:
 
-Realm-role provisioning and user/group role assignment are intentionally not
-performed by the client apply engine. The five reviewed roles are defined in
-`config/roles/observability-realm-roles.json`, but role-aware provisioning,
-administrative MFA enforcement, and application-side role mappings require a
-separate reviewed change and runtime evidence. Do not create clients or assign
-roles manually to bypass these controls.
+- managed/creatable-client policy;
+- export allowlists;
+- deterministic plan/apply support;
+- rollback export coverage;
+- exact-source validation.
+
+Do not create the clients manually merely to bypass that control. The next identity change must promote this accepted contract into the protected managed-client engine.
 
 ## Validation
 
@@ -92,8 +87,8 @@ The validation confirms exact hostnames, redirect URIs, PKCE, disabled unsafe gr
 
 Before enabling access:
 
-1. pass exact-head and merge-result CI;
-2. review and implement the realm-role/MFA provisioning path;
+1. extend the protected apply engine for these clients;
+2. pass exact-head and merge-result CI;
 3. independently review the drift/create plan;
 4. create secrets through the approved secret path;
 5. configure each application without committing secrets;

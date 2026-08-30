@@ -1,7 +1,7 @@
 {
   "clientId": "superset-analytics",
   "name": "Codestra Superset",
-  "description": "Superset browser login using Authorization Code Flow with PKCE S256.",
+  "description": "Superset browser client for the Codestra analytics portal.",
   "enabled": true,
   "protocol": "openid-connect",
   "clientAuthenticatorType": "client-secret",
@@ -24,19 +24,35 @@
     "https://supe.codestra.media"
   ],
   "defaultClientScopes": [
+    "web-origins",
+    "acr",
     "profile",
-    "email",
-    "roles",
-    "web-origins"
+    "email"
   ],
   "optionalClientScopes": [],
   "attributes": {
     "pkce.code.challenge.method": "S256",
     "post.logout.redirect.uris": "https://supe.codestra.media/",
+    "oauth2.device.authorization.grant.enabled": "false",
+    "oidc.ciba.grant.enabled": "false",
     "access.token.lifespan": "300",
     "client.session.idle.timeout": "900",
-    "client.session.max.lifespan": "14400",
-    "oauth2.device.authorization.grant.enabled": "false",
-    "oidc.ciba.grant.enabled": "false"
-  }
+    "client.session.max.lifespan": "14400"
+  },
+  "protocolMappers": [
+    {
+      "name": "codestra-realm-roles",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-usermodel-realm-role-mapper",
+      "consentRequired": false,
+      "config": {
+        "multivalued": "true",
+        "userinfo.token.claim": "true",
+        "id.token.claim": "true",
+        "access.token.claim": "true",
+        "claim.name": "realm_access.roles",
+        "jsonType.label": "String"
+      }
+    }
+  ]
 }

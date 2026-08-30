@@ -1,0 +1,17 @@
+{
+  "roleName": "observability-operator",
+  "topLevelFields": [
+    "name",
+    "description",
+    "composite",
+    "clientRole",
+    "attributes"
+  ],
+  "attributeFields": [
+    "codestra.assignment.independent_approval",
+    "codestra.cross_family_grant",
+    "codestra.mfa.required",
+    "codestra.role.family",
+    "codestra.role.level"
+  ]
+}

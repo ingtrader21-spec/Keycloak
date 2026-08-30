@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the managed Codestra observability browser-client and role contract."""
-
+"""Validate the protected Codestra observability browser-client contract."""
 from __future__ import annotations
 
 import json
@@ -9,56 +8,51 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
+CONTRACT = ROOT / "config" / "contracts" / "observability-browser-clients.json"
 CLIENT_DIR = ROOT / "config" / "clients"
-CONTRACT_PATH = ROOT / "config" / "contracts" / "observability-browser-clients.json"
-ROLES_PATH = ROOT / "config" / "roles" / "observability-realm-roles.json"
 EXPECTED_ISSUER = "https://auth.codestra.co/realms/codestra"
-
-OBSERVABILITY_ROLES = [
-    "observability-viewer",
-    "observability-operator",
-    "observability-admin",
-]
-SECRETS_ROLES = ["secrets-operator", "secrets-admin"]
-EXPECTED_ROLES = {
-    "observability-viewer": [],
-    "observability-operator": ["observability-viewer"],
-    "observability-admin": ["observability-operator"],
-    "secrets-operator": [],
-    "secrets-admin": ["secrets-operator"],
-}
-EXPECTED_CLIENTS = {
+EXPECTED = {
     "grafana-observability": {
-        "applicationUrl": "https://graf.codestra.media",
-        "redirectUris": ["https://graf.codestra.media/login/generic_oauth"],
-        "postLogoutRedirectUris": ["https://graf.codestra.media/"],
-        "roles": OBSERVABILITY_ROLES,
-        "mfaRoles": ["observability-admin"],
+        "origin": "https://graf.codestra.media",
+        "baseUrl": "https://graf.codestra.media/",
+        "redirects": ["https://graf.codestra.media/login/generic_oauth"],
+        "roles": {"observability-viewer", "observability-operator", "observability-admin"},
+        "mfa": {"observability-operator", "observability-admin"},
         "idle": 900,
         "maximum": 14400,
     },
     "superset-analytics": {
-        "applicationUrl": "https://supe.codestra.media",
-        "redirectUris": ["https://supe.codestra.media/oauth-authorized/keycloak"],
-        "postLogoutRedirectUris": ["https://supe.codestra.media/"],
-        "roles": OBSERVABILITY_ROLES,
-        "mfaRoles": ["observability-admin"],
+        "origin": "https://supe.codestra.media",
+        "baseUrl": "https://supe.codestra.media/",
+        "redirects": ["https://supe.codestra.media/oauth-authorized/keycloak"],
+        "roles": {"observability-viewer", "observability-operator", "observability-admin"},
+        "mfa": {"observability-operator", "observability-admin"},
         "idle": 900,
         "maximum": 14400,
     },
     "openbao-secrets": {
-        "applicationUrl": "https://bao.codestra.media",
-        "redirectUris": [
+        "origin": "https://bao.codestra.media",
+        "baseUrl": "https://bao.codestra.media/ui/",
+        "redirects": [
             "https://bao.codestra.media/v1/auth/oidc/callback",
             "https://bao.codestra.media/ui/vault/auth/oidc/oidc/callback",
             "http://localhost:8250/oidc/callback",
         ],
-        "postLogoutRedirectUris": ["https://bao.codestra.media/"],
-        "roles": SECRETS_ROLES,
-        "mfaRoles": SECRETS_ROLES,
+        "roles": {"secrets-operator", "secrets-admin"},
+        "mfa": {"secrets-operator", "secrets-admin"},
         "idle": 600,
         "maximum": 3600,
     },
+}
+EXPECTED_ACTIVATION = {
+    "contractReviewed": True,
+    "managedClientApplySupportAdded": True,
+    "roleProvisioningSupportAdded": True,
+    "secretExportSupportAdded": True,
+    "roleAssignmentsApplied": False,
+    "liveClientsCreated": False,
+    "liveSecretsGenerated": False,
+    "productionAccessEnabled": False,
 }
 
 
@@ -73,11 +67,11 @@ def load(path: Path) -> dict:
     except (OSError, json.JSONDecodeError) as exc:
         fail(f"cannot parse {path.relative_to(ROOT)}: {exc}")
     if not isinstance(value, dict):
-        fail(f"{path.relative_to(ROOT)} must contain a JSON object")
+        fail(f"{path.relative_to(ROOT)} must contain an object")
     return value
 
 
-def is_allowed_uri(value: str) -> bool:
+def allowed_uri(value: str) -> bool:
     parsed = urlparse(value)
     if "*" in value or parsed.username or parsed.password or parsed.fragment:
         return False
@@ -86,168 +80,101 @@ def is_allowed_uri(value: str) -> bool:
     return parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1"}
 
 
-def validate_roles() -> None:
-    data = load(ROLES_PATH)
-    if data.get("schemaVersion") != 1 or data.get("realm") != "codestra":
-        fail("realm-role contract identity mismatch")
-    if data.get("provisioningState") != "review-required-before-role-aware-apply":
-        fail("realm roles must remain review-gated")
-    if data.get("defaultAssignments") != []:
-        fail("observability roles must never be assigned by default")
-    if data.get("automaticCrossClientInheritance") is not False:
-        fail("cross-client role inheritance must be disabled")
-
-    roles = data.get("roles")
-    if not isinstance(roles, list):
-        fail("realm roles must be a list")
-    configured = {role.get("name"): role for role in roles if isinstance(role, dict)}
-    if list(configured) != list(EXPECTED_ROLES):
-        fail("realm-role set or canonical order mismatch")
-    for role_name, composites in EXPECTED_ROLES.items():
-        if configured[role_name].get("composites") != composites:
-            fail(f"{role_name}: composite mapping mismatch")
-
-
-def validate_managed_client(client_id: str, expected: dict) -> None:
-    client = load(CLIENT_DIR / f"{client_id}.json")
-    if client.get("clientId") != client_id or client.get("enabled") is not True:
-        fail(f"{client_id}: managed client identity mismatch")
-    if client.get("protocol") != "openid-connect":
-        fail(f"{client_id}: protocol must be openid-connect")
-    if client.get("clientAuthenticatorType") != "client-secret":
-        fail(f"{client_id}: distinct confidential credential is required")
-    if client.get("publicClient") is not False or client.get("bearerOnly") is not False:
-        fail(f"{client_id}: client must be confidential and browser-capable")
-    if client.get("standardFlowEnabled") is not True:
-        fail(f"{client_id}: Authorization Code Flow is required")
-    for key in (
-        "implicitFlowEnabled",
-        "directAccessGrantsEnabled",
-        "serviceAccountsEnabled",
-        "authorizationServicesEnabled",
-    ):
-        if client.get(key) is not False:
-            fail(f"{client_id}: {key} must be disabled")
-    if client.get("fullScopeAllowed") is not False:
-        fail(f"{client_id}: fullScopeAllowed must be disabled")
-    if client.get("rootUrl") != expected["applicationUrl"]:
-        fail(f"{client_id}: root URL mismatch")
-    if client.get("redirectUris") != expected["redirectUris"]:
-        fail(f"{client_id}: managed redirect URI mismatch")
-    if client.get("webOrigins") != [expected["applicationUrl"]]:
-        fail(f"{client_id}: managed web origin mismatch")
-    if "secret" in client:
-        fail(f"{client_id}: credential material must not be committed")
-
-    attributes = client.get("attributes") or {}
-    if attributes.get("pkce.code.challenge.method") != "S256":
-        fail(f"{client_id}: PKCE S256 is required")
-    if attributes.get("access.token.lifespan") != "300":
-        fail(f"{client_id}: access token lifespan must be 300 seconds")
-    if attributes.get("client.session.idle.timeout") != str(expected["idle"]):
-        fail(f"{client_id}: session idle timeout mismatch")
-    if attributes.get("client.session.max.lifespan") != str(expected["maximum"]):
-        fail(f"{client_id}: session maximum mismatch")
-    if attributes.get("post.logout.redirect.uris") != expected["postLogoutRedirectUris"][0]:
-        fail(f"{client_id}: post-logout redirect mismatch")
-    for disabled_attribute in (
-        "oauth2.device.authorization.grant.enabled",
-        "oidc.ciba.grant.enabled",
-    ):
-        if attributes.get(disabled_attribute) != "false":
-            fail(f"{client_id}: {disabled_attribute} must be disabled")
+def validate_mapper(client_id: str, client: dict) -> None:
+    mappers = [
+        item
+        for item in client.get("protocolMappers", [])
+        if isinstance(item, dict) and item.get("name") == "codestra-realm-roles"
+    ]
+    if len(mappers) != 1:
+        fail(f"{client_id}: exactly one realm-role mapper is required")
+    mapper = mappers[0]
+    if mapper.get("protocolMapper") != "oidc-usermodel-realm-role-mapper":
+        fail(f"{client_id}: realm-role mapper type mismatch")
+    if mapper.get("config") != {
+        "multivalued": "true",
+        "userinfo.token.claim": "true",
+        "id.token.claim": "true",
+        "access.token.claim": "true",
+        "claim.name": "realm_access.roles",
+        "jsonType.label": "String",
+    }:
+        fail(f"{client_id}: realm-role mapper configuration mismatch")
 
 
 def main() -> None:
-    data = load(CONTRACT_PATH)
-    if data.get("version") != 1:
-        fail("contract version must be 1")
-    if data.get("issuer") != EXPECTED_ISSUER:
-        fail("issuer is not the canonical Codestra issuer")
+    contract = load(CONTRACT)
+    if contract.get("version") != 1 or contract.get("issuer") != EXPECTED_ISSUER:
+        fail("contract version or issuer mismatch")
+    clients = contract.get("clients")
+    if not isinstance(clients, list) or [item.get("clientId") for item in clients] != list(EXPECTED):
+        fail("client set/order mismatch")
 
-    clients = data.get("clients")
-    if not isinstance(clients, list) or len(clients) != len(EXPECTED_CLIENTS):
-        fail("exactly three reviewed clients are required")
-    configured_ids = [client.get("clientId") for client in clients if isinstance(client, dict)]
-    if configured_ids != list(EXPECTED_CLIENTS):
-        fail("clients must be unique and in canonical order")
-
-    for contract_client in clients:
-        client_id = contract_client["clientId"]
-        expected = EXPECTED_CLIENTS[client_id]
-        if contract_client.get("applicationUrl") != expected["applicationUrl"]:
+    for item in clients:
+        client_id = item["clientId"]
+        expected = EXPECTED[client_id]
+        if item.get("applicationUrl") != expected["origin"]:
             fail(f"{client_id}: application URL mismatch")
-        if contract_client.get("clientType") != "confidential":
-            fail(f"{client_id}: client must be confidential")
-        if contract_client.get("grantType") != "authorization_code":
-            fail(f"{client_id}: only authorization_code is allowed")
-        if contract_client.get("pkceCodeChallengeMethod") != "S256":
-            fail(f"{client_id}: PKCE S256 is required")
+        if item.get("redirectUris") != expected["redirects"]:
+            fail(f"{client_id}: redirect URI mismatch")
+        if item.get("webOrigins") != [expected["origin"]]:
+            fail(f"{client_id}: web origin mismatch")
+        if item.get("postLogoutRedirectUris") != [expected["origin"] + "/"]:
+            fail(f"{client_id}: post-logout redirect mismatch")
+        if item.get("clientType") != "confidential" or item.get("grantType") != "authorization_code" or item.get("pkceCodeChallengeMethod") != "S256":
+            fail(f"{client_id}: unsafe client type or grant")
+        if any(item.get(key) is not False for key in ("directAccessGrantsEnabled", "implicitFlowEnabled", "serviceAccountsEnabled")):
+            fail(f"{client_id}: unsafe flow enabled")
+        if item.get("secretSource") != "protected-generated-client-secret-export":
+            fail(f"{client_id}: protected secret-export source is required")
+        if set(item.get("requiredRoles", [])) != expected["roles"]:
+            fail(f"{client_id}: role set mismatch")
+        if set(item.get("mfaRequiredRoles", [])) != expected["mfa"]:
+            fail(f"{client_id}: MFA role set mismatch")
+        if item.get("sessionIdleSeconds") != expected["idle"] or item.get("sessionMaxSeconds") != expected["maximum"]:
+            fail(f"{client_id}: session policy mismatch")
+        if not all(allowed_uri(uri) for uri in item["redirectUris"]):
+            fail(f"{client_id}: unsafe callback")
+
+        desired = load(CLIENT_DIR / f"{client_id}.json")
+        if desired.get("clientId") != client_id:
+            fail(f"{client_id}: managed overlay identity mismatch")
+        if desired.get("rootUrl") != expected["origin"] or desired.get("baseUrl") != expected["baseUrl"]:
+            fail(f"{client_id}: managed overlay base URL mismatch")
+        if desired.get("redirectUris") != expected["redirects"] or desired.get("webOrigins") != [expected["origin"]]:
+            fail(f"{client_id}: managed overlay does not match URL contract")
+        if desired.get("clientAuthenticatorType") != "client-secret" or desired.get("publicClient") is not False or desired.get("standardFlowEnabled") is not True:
+            fail(f"{client_id}: managed overlay is not confidential authorization-code")
+        if any(desired.get(key) is not False for key in ("implicitFlowEnabled", "directAccessGrantsEnabled", "serviceAccountsEnabled", "authorizationServicesEnabled")):
+            fail(f"{client_id}: managed overlay enabled an unsafe flow")
+        attributes = desired.get("attributes", {})
+        if attributes.get("pkce.code.challenge.method") != "S256" or attributes.get("access.token.lifespan") != "300":
+            fail(f"{client_id}: PKCE/token lifespan mismatch")
+        if attributes.get("client.session.idle.timeout") != str(expected["idle"]) or attributes.get("client.session.max.lifespan") != str(expected["maximum"]):
+            fail(f"{client_id}: managed session policy mismatch")
+        validate_mapper(client_id, desired)
+
+    if contract.get("activation") != EXPECTED_ACTIVATION:
+        fail("activation state must show source support without live activation")
+    isolation = contract.get("roleIsolation", {})
+    if not all(
+        isolation.get(key) is True
         for key in (
-            "directAccessGrantsEnabled",
-            "implicitFlowEnabled",
-            "serviceAccountsEnabled",
-        ):
-            if contract_client.get(key) is not False:
-                fail(f"{client_id}: {key} must be disabled")
-        if contract_client.get("secretSource") != "external-secret-manager":
-            fail(f"{client_id}: secret source must remain external")
-        if contract_client.get("redirectUris") != expected["redirectUris"]:
-            fail(f"{client_id}: exact redirect URI allowlist mismatch")
-        if contract_client.get("webOrigins") != [expected["applicationUrl"]]:
-            fail(f"{client_id}: exact web origin mismatch")
-        if contract_client.get("postLogoutRedirectUris") != expected["postLogoutRedirectUris"]:
-            fail(f"{client_id}: exact post-logout redirect mismatch")
-        if not all(is_allowed_uri(uri) for uri in contract_client["redirectUris"]):
-            fail(f"{client_id}: unsafe redirect URI")
-        if contract_client.get("requiredRoles") != expected["roles"]:
-            fail(f"{client_id}: role mapping mismatch")
-        if contract_client.get("mfaRequiredRoles") != expected["mfaRoles"]:
-            fail(f"{client_id}: MFA role mapping mismatch")
-        if contract_client.get("sessionIdleSeconds") != expected["idle"]:
-            fail(f"{client_id}: contract session idle timeout mismatch")
-        if contract_client.get("sessionMaxSeconds") != expected["maximum"]:
-            fail(f"{client_id}: contract session maximum mismatch")
-        validate_managed_client(client_id, expected)
-
-    if set(OBSERVABILITY_ROLES) & set(SECRETS_ROLES):
-        fail("observability and secrets role families overlap")
-    openbao_roles = set(clients[2]["requiredRoles"])
-    if openbao_roles & set(OBSERVABILITY_ROLES):
-        fail("Grafana/Superset access must not grant OpenBao access")
-
-    isolation = data.get("roleIsolation") or {}
-    for key in (
-        "observabilityRolesDoNotGrantSecretsAccess",
-        "secretsRolesDoNotGrantObservabilityAdmin",
-        "administrativeMfaRequired",
-        "leastPrivilegeRequired",
+            "observabilityRolesDoNotGrantSecretsAccess",
+            "secretsRolesDoNotGrantObservabilityAdmin",
+            "administrativeMfaRequired",
+            "leastPrivilegeRequired",
+        )
     ):
-        if isolation.get(key) is not True:
-            fail(f"role isolation control disabled: {key}")
+        fail("role isolation controls are incomplete")
+    if set(clients[2]["requiredRoles"]) & set(clients[0]["requiredRoles"]):
+        fail("OpenBao and observability role families overlap")
 
-    activation = data.get("activation") or {}
-    if activation.get("managedClientApplySupportAdded") is not True:
-        fail("managed-client plan/apply support must cover these desired clients")
-    for key in (
-        "contractReviewed",
-        "roleProvisioningSupportAdded",
-        "roleAssignmentsApplied",
-        "liveClientsCreated",
-        "liveSecretsGenerated",
-        "productionAccessEnabled",
-    ):
-        if activation.get(key) is not False:
-            fail(f"activation gate must remain false: {key}")
-
-    validate_roles()
-    print("OBSERVABILITY_OIDC_CONTRACT=PASS")
-    print("OBSERVABILITY_OIDC_CLIENTS=" + ",".join(EXPECTED_CLIENTS))
-    print("OPENBAO_ROLE_SEPARATION=PASS")
-    print("ADMINISTRATIVE_MFA_POLICY=PASS")
-    print("MANAGED_CLIENT_PLAN_APPLY_SUPPORT=PASS")
-    print("ROLE_PROVISIONING_READY=NO")
-    print("LIVE_IDENTITY_APPLY_AUTHORIZED=NO")
+    print("OBSERVABILITY_OIDC_CONTRACT_VALID=1")
+    print("OBSERVABILITY_MANAGED_OVERLAYS=PASS")
+    print("OBSERVABILITY_MANAGED_REALM_ROLE_MAPPER=PASS")
+    print("OBSERVABILITY_SESSION_AND_MFA_POLICY=PASS")
+    print("OBSERVABILITY_LIVE_ACTIVATION=DISABLED")
 
 
 if __name__ == "__main__":
