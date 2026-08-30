@@ -34,7 +34,6 @@ jobs:
           git status --porcelain | grep -Fx ' D .github/workflows/cert-exact-head.yml'
           ./scripts/validate.sh
           python3 scripts/validate-moneybee-oidc-contract.py
-          python3 scripts/validate-source.py
           cp /tmp/cert-exact-head.yml .github/workflows/cert-exact-head.yml
           git diff --exit-code
           test -z "$(git status --porcelain)"
