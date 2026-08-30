@@ -92,6 +92,10 @@ class Handler(BaseHTTPRequestHandler):
             if not client_id or client_id in state:
                 self.send_json(409, {"error": "client_exists_or_invalid"})
                 return
+            # Match the admin API representation returned by Keycloak when
+            # authorization services are disabled.
+            if payload.get("authorizationServicesEnabled") is False:
+                payload.pop("authorizationServicesEnabled")
             state[client_id] = {
                 "id": f"uuid-{client_id}",
                 "representation": payload,
@@ -139,6 +143,11 @@ class Handler(BaseHTTPRequestHandler):
             if item["id"] == client_uuid:
                 payload = self.read_json()
                 payload.pop("id", None)
+                # Keycloak omits this field when authorization services are
+                # disabled, so its admin API returns null after a successful
+                # create/update with an explicit false value.
+                if payload.get("authorizationServicesEnabled") is False:
+                    payload.pop("authorizationServicesEnabled")
                 item["representation"] = payload
                 state[client_id] = item
                 save_state(state)
