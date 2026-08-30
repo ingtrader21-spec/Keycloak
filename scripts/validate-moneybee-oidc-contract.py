@@ -18,6 +18,7 @@ EXPECTED_ISSUER = "https://auth.codestra.co/realms/codestra"
 EXPECTED_CANONICAL_DOMAIN = "moneybeeloan.com"
 EXPECTED_AUDIENCE = "moneybee-api"
 EXPECTED_FORBIDDEN = {"moneybeeloans.com", "moneybee.loan"}
+REVIEWED_ADDITIONAL_CREATABLE_IDS = {"sdk-intake"}
 EXPECTED_CLIENTS = {
     "borrower": {
         "clientId": "moneybee-borrower",
@@ -188,6 +189,8 @@ def main() -> int:
     managed_ids = set(managed.get("clients") or [])
     if not EXPECTED_CLIENT_IDS.issubset(managed_ids):
         fail("all MoneyBee clients must be in the protected managed-client policy")
+    if not REVIEWED_ADDITIONAL_CREATABLE_IDS.issubset(managed_ids):
+        fail("reviewed additional creatable identities must remain managed")
 
     creatable = load(CREATABLE_CLIENTS)
     machine_ids = {
@@ -202,8 +205,9 @@ def main() -> int:
     }
     if None in product_ids:
         fail("product Middleware client contract contains an invalid clientId")
-    if set(creatable.get("clients") or []) != EXPECTED_CLIENT_IDS | machine_ids | product_ids:
-        fail("creatable clients must be exactly MoneyBee plus reviewed core and product machine identities")
+    expected_creatable_ids = EXPECTED_CLIENT_IDS | machine_ids | product_ids | REVIEWED_ADDITIONAL_CREATABLE_IDS
+    if set(creatable.get("clients") or []) != expected_creatable_ids:
+        fail("creatable clients must be exactly MoneyBee plus reviewed core, product, and explicitly reviewed service identities")
 
     registry = load(DOMAIN_REGISTRY)
     domains = registry.get("domains")
