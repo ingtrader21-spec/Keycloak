@@ -214,7 +214,7 @@ for client_id in "${managed_clients[@]}"; do
     ' >>"$resources_ndjson"
 done
 
-endpoint_file="$ROOT_DIR/config/endpoints/codestra.json"
+endpoint_file="$(keycloak_endpoint_file)"
 
 plan_file="$OUTPUT_DIR/plan.json"
 canonical_plan_file="$OUTPUT_DIR/plan.canonical.json"

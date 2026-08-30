@@ -131,7 +131,7 @@ jq -e \
   ' "$PLAN_FILE" >/dev/null ||
   die "Plan metadata, counters, target environment, or blocked-resource policy is invalid"
 
-endpoint_file="$ROOT_DIR/config/endpoints/codestra.json"
+endpoint_file="$(keycloak_endpoint_file)"
 jq -e \
   --slurpfile expected_api "$endpoint_file" \
   '.api == $expected_api[0]' \

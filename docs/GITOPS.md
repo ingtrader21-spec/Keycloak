@@ -10,8 +10,10 @@ Administrative auth realm:     master
 ```
 
 Applications discover authorization, token, logout, user-info, and signing-key
-endpoints through the `codestra` realm discovery document. The exact expected
-endpoint contract is versioned in `config/endpoints/codestra.json`.
+endpoints through the `codestra` realm discovery document. The exact production
+endpoint contract is versioned in `config/endpoints/codestra.json`. Staging uses
+the separate fail-closed contract in `config/endpoints/codestra-staging.json`;
+a staging plan cannot contain the production administration URL or issuer.
 
 The protected deployment identity authenticates through the `master` realm but
 all reviewed client administration continues to target the `codestra` realm.

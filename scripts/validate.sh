@@ -50,6 +50,24 @@ jq -e '
   and .adminRealmEndpoint == "https://auth.codestra.co/admin/realms/codestra"
 ' "$endpoint_file" >/dev/null || fail "Canonical Codestra API URLs are invalid"
 
+staging_endpoint_file="$CONFIG_ROOT/endpoints/codestra-staging.json"
+[[ -f "$staging_endpoint_file" ]] || fail "Canonical staging endpoint contract is missing"
+jq -e '
+  .publicUrl == "https://auth-staging.codestra.co"
+  and .adminApiBaseUrl == "https://auth-staging.codestra.co"
+  and .realm == "codestra"
+  and .adminAuthenticationRealm == "master"
+  and .issuer == "https://auth-staging.codestra.co/realms/codestra"
+  and .discoveryUrl == "https://auth-staging.codestra.co/realms/codestra/.well-known/openid-configuration"
+  and .authorizationEndpoint == "https://auth-staging.codestra.co/realms/codestra/protocol/openid-connect/auth"
+  and .tokenEndpoint == "https://auth-staging.codestra.co/realms/codestra/protocol/openid-connect/token"
+  and .userInfoEndpoint == "https://auth-staging.codestra.co/realms/codestra/protocol/openid-connect/userinfo"
+  and .jwksUri == "https://auth-staging.codestra.co/realms/codestra/protocol/openid-connect/certs"
+  and .introspectionEndpoint == "https://auth-staging.codestra.co/realms/codestra/protocol/openid-connect/token/introspect"
+  and .logoutEndpoint == "https://auth-staging.codestra.co/realms/codestra/protocol/openid-connect/logout"
+  and .adminRealmEndpoint == "https://auth-staging.codestra.co/admin/realms/codestra"
+' "$staging_endpoint_file" >/dev/null || fail "Canonical staging Codestra API URLs are invalid"
+
 legacy_host='auth.codestra'".agency"
 if grep -RInF --exclude-dir=.git "$legacy_host" .; then
   fail "Legacy Codestra authentication hostname is prohibited"
