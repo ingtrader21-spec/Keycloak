@@ -1,0 +1,23 @@
+{
+  "name": "observability-operator",
+  "description": "Operational access to approved observability workflows without identity or secrets administration.",
+  "composite": false,
+  "clientRole": false,
+  "attributes": {
+    "codestra.role.family": [
+      "observability"
+    ],
+    "codestra.role.level": [
+      "operator"
+    ],
+    "codestra.mfa.required": [
+      "true"
+    ],
+    "codestra.assignment.independent_approval": [
+      "true"
+    ],
+    "codestra.cross_family_grant": [
+      "false"
+    ]
+  }
+}

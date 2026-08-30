@@ -75,6 +75,9 @@ jobs:
       - name: Validate source password-reset and Klyrow SMTP contract
         run: python3 scripts/validate-password-reset-contract.py
 
+      - name: Validate source observability OIDC contract
+        run: python3 scripts/validate-observability-oidc-contract.py
+
       - name: Test exact source reviewed plan-hash gate
         env:
           TEST_KC_CLIENT_SECRET: ${{ format('ci-only-{0}-plan-source', github.run_id) }}
@@ -152,6 +155,9 @@ jobs:
 
       - name: Validate merge-result password-reset and Klyrow SMTP contract
         run: python3 scripts/validate-password-reset-contract.py
+
+      - name: Validate merge-result observability OIDC contract
+        run: python3 scripts/validate-observability-oidc-contract.py
 
       - name: Test merge-result reviewed plan-hash gate
         env:
