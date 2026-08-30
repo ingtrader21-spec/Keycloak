@@ -183,9 +183,9 @@ plan_dir="$test_root/plan"
   --output-dir "$plan_dir" \
   --expected-deploy-sha "$expected_sha" >/dev/null
 
-[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 22 ]]
+[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 23 ]]
 [[ "$(jq -er '.blockedCount' "$plan_dir/plan.json")" -eq 0 ]]
-[[ "$(jq -er '.createCount' "$plan_dir/plan.json")" -eq 21 ]]
+[[ "$(jq -er '.createCount' "$plan_dir/plan.json")" -eq 22 ]]
 [[ "$(jq -er '.updateCount' "$plan_dir/plan.json")" -eq 1 ]]
 [[ "$(jq -er '.clients[] | select(.clientId == "klyrow-portal") | .action' "$plan_dir/plan.json")" == "update" ]]
 for client_id in moneybee-admin moneybee-borrower moneybee-lender moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra; do
@@ -220,7 +220,7 @@ mapfile -t managed_clients < <(jq -r '.clients[]' "$ROOT_DIR/config/policy/manag
   "${managed_clients[@]}" >/dev/null
 [[ -f "$rollback_dir/config/clients/klyrow-portal.json" ]]
 [[ "$(jq -er '.existingClientCount' "$rollback_dir/rollback-metadata.json")" -eq 1 ]]
-[[ "$(jq -er '.absentCreatableClientCount' "$rollback_dir/rollback-metadata.json")" -eq 21 ]]
+[[ "$(jq -er '.absentCreatableClientCount' "$rollback_dir/rollback-metadata.json")" -eq 22 ]]
 
 if "$ROOT_DIR/scripts/apply-plan.sh" \
   --plan "$plan_dir/plan.json" \
