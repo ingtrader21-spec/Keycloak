@@ -34,12 +34,14 @@ The protected normal workflow manages exactly the client IDs listed in
 It treats the `codestra` realm file as a validation invariant and never creates
 or mutates a realm.
 
-Client creation is a separate, narrower policy. Only the three MoneyBee IDs in
+Client creation is a separate, narrower policy. Only IDs explicitly listed in
 `config/policy/creatable-clients.json` may receive a reviewed `create` action.
-`klyrow-portal` remains update-only: if it is absent, the plan reports
-`blocked_missing`.
+The staging check at `caaff6ad8753def75ed32279f53572ee3f9cfb5d` proved that
+`klyrow-portal` is absent, so its creation is now explicitly gated by that
+allowlist and the same reviewed disable-first rollback semantics as every other
+creatable client.
 
-A missing creatable MoneyBee client does not authorize an immediate write. The
+A missing creatable client does not authorize an immediate write. The
 check plan must record the exact absent state, desired-state hash, `create`
 action, and disable-first/separate-reviewed-delete rollback metadata. Apply then
 rechecks all reviewed create targets are still absent immediately before the
