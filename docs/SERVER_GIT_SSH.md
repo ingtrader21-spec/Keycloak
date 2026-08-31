@@ -78,7 +78,10 @@ the `docker` group and a `0660 root:docker` socket. Membership in the Docker
 group confers root-equivalent control of this host; it must therefore remain
 limited to this protected runner and must never be replaced with a world-writable
 socket or a root-runner workaround. Any identity, unit, group, or socket-mode
-drift fails the preflight.
+drift fails the preflight. The probe enumerates explicit Docker-group members
+and accounts whose primary group is Docker; any non-root identity other than
+`keycloak-deploy` fails authorization. Systemd environment values are inspected
+but never retained in the uploaded evidence.
 
 Every GHCR-authenticated workflow step creates `DOCKER_CONFIG` below
 `RUNNER_TEMP` with mode `0700`, registers an `EXIT` cleanup trap, logs out, and
