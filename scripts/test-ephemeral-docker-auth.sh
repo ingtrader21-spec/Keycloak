@@ -63,3 +63,4 @@ run_case success
 run_case failure
 [[ ! -e "$test_root/home/.docker" ]]
 printf 'EPHEMERAL_DOCKER_CONFIG_TEST=PASS\n'
+printf 'EPHEMERAL_DOCKER_CONFIG=PASS\n'
