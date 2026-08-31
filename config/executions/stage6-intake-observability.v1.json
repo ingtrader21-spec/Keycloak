@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "execution_id": "CHG-20260830-STAGE6-INTAKE-OBSERVABILITY-01",
+  "environment": "staging",
+  "execution_reason": "Deploy the one reviewed immutable Middleware digest to the private staging network, issue two independently scoped short-lived read-only monitoring tokens, and collect authenticated runtime evidence without enabling any external effect.",
+  "keycloak_main_sha": "303e2edef2219c5eb3ac167c309a9717a766d079",
+  "infrastructure_sha": "61787bd39515b775ba6b22c3e7af5862b44b3dad",
+  "prometheus_sha": "4230ec1c398db69e8ca95848135b13dd84e03c94",
+  "openbao_sha": "2c199ee38ce372af4e0355c83e018f417e3afc8f",
+  "middleware_source_sha": "f6748a58f8d2590520a4f28776770957061cdea1",
+  "middleware_image_digest": "sha256:695fa3ce3f50ba4d0ae0784976b946a0a683ca731155e4bd3bd9e90a4670b820",
+  "prometheus_target_state": "pending",
+  "blackbox_target_state": "pending",
+  "external_effects_enabled": false,
+  "production_authorized": false
+}
