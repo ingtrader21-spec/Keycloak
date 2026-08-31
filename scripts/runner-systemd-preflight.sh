@@ -338,8 +338,8 @@ sort -nu -o "$host_pid_snapshot" "$host_pid_snapshot"
   exit 1
 }
 # CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER, CAP_SETGID, CAP_SETUID,
-# CAP_SETPCAP, CAP_SYS_PTRACE, and CAP_SYS_ADMIN.
-dangerous_docker_capability_mask=$((0x2801cb))
+# CAP_SETPCAP, CAP_SYS_PTRACE, CAP_SYS_ADMIN, and CAP_SETFCAP.
+dangerous_docker_capability_mask=$((0x802801cb))
 while IFS= read -r host_pid; do
   [[ "$host_pid" =~ ^[0-9]+$ ]] || {
     printf 'ERROR=host_process_invalid_pid\n' >&2
