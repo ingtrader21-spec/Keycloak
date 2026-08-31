@@ -90,6 +90,19 @@ socket_group="$(stat -c '%G' "$socket")"
   printf 'ERROR=unexpected_docker_socket_authority:%s:%s:%s\n' "$socket_mode" "$socket_user" "$socket_group" >&2
   exit 1
 }
+command -v getfacl >/dev/null 2>&1 || {
+  printf 'ERROR=getfacl_required_for_docker_socket_authorization\n' >&2
+  exit 1
+}
+if ! docker_socket_acl="$(getfacl --absolute-names --omit-header --numeric "$socket")"; then
+  printf 'ERROR=docker_socket_acl_unreadable\n' >&2
+  exit 1
+fi
+expected_socket_acl=$'user::rw-\ngroup::rw-\nother::---'
+[[ "$docker_socket_acl" == "$expected_socket_acl" ]] || {
+  printf 'ERROR=unexpected_docker_socket_acl\n' >&2
+  exit 1
+}
 
 runner_groups="$(id -Gn)"
 grep -Eq '(^|[[:space:]])docker($|[[:space:]])' <<<"$runner_groups" || {
@@ -97,16 +110,46 @@ grep -Eq '(^|[[:space:]])docker($|[[:space:]])' <<<"$runner_groups" || {
   exit 1
 }
 
-docker_group_entry="$(getent group docker || true)"
+if ! docker_group_entry="$(getent group docker)"; then
+  printf 'ERROR=docker_group_nss_lookup_failed\n' >&2
+  exit 1
+fi
 IFS=: read -r docker_group_name _ docker_group_gid docker_group_members <<<"$docker_group_entry"
 [[ "$docker_group_name" == docker && "$docker_group_gid" =~ ^[0-9]+$ ]] || {
   printf 'ERROR=docker_group_unresolved\n' >&2
   exit 1
 }
+passwd_snapshot="$tmp_dir/passwd.txt"
+nsswitch=/etc/nsswitch.conf
+[[ -r "$nsswitch" ]] || { printf 'ERROR=nsswitch_configuration_unreadable\n' >&2; exit 1; }
+passwd_nss_sources="$(awk '$1 == "passwd:" { $1=""; sub(/^ /, ""); print; exit }' "$nsswitch")"
+group_nss_sources="$(awk '$1 == "group:" { $1=""; sub(/^ /, ""); print; exit }' "$nsswitch")"
+[[ -n "$passwd_nss_sources" && -n "$group_nss_sources" ]] || {
+  printf 'ERROR=nsswitch_account_sources_unresolved\n' >&2
+  exit 1
+}
+for source in $passwd_nss_sources $group_nss_sources; do
+  [[ "$source" == files || "$source" == systemd ]] || {
+    printf 'ERROR=non_enumerable_nss_source:%s\n' "$source" >&2
+    exit 1
+  }
+done
+if ! getent passwd >"$passwd_snapshot"; then
+  printf 'ERROR=passwd_nss_enumeration_failed\n' >&2
+  exit 1
+fi
+[[ -s "$passwd_snapshot" ]] || {
+  printf 'ERROR=passwd_nss_enumeration_empty\n' >&2
+  exit 1
+}
+grep -Eq "^${runner_user}:[^:]*:[0-9]+:[0-9]+:" "$passwd_snapshot" || {
+  printf 'ERROR=runner_missing_from_passwd_nss_snapshot\n' >&2
+  exit 1
+}
 mapfile -t docker_authorized_accounts < <(
   {
     tr ',' '\n' <<<"$docker_group_members"
-    getent passwd | awk -F: -v gid="$docker_group_gid" '$4 == gid { print $1 }'
+    awk -F: -v gid="$docker_group_gid" '$4 == gid { print $1 }' "$passwd_snapshot"
   } | sed '/^$/d' | sort -u
 )
 for account in "${docker_authorized_accounts[@]}"; do
@@ -115,6 +158,26 @@ for account in "${docker_authorized_accounts[@]}"; do
     exit 1
   }
 done
+
+active_units="$tmp_dir/active-services.txt"
+if ! systemctl list-units --type=service --state=running --no-legend --plain >"$active_units"; then
+  printf 'ERROR=active_systemd_service_enumeration_failed\n' >&2
+  exit 1
+fi
+while read -r active_unit _; do
+  [[ -n "$active_unit" ]] || continue
+  active_user="$(systemctl show "$active_unit" -p User --value)"
+  [[ -n "$active_user" && "$active_user" != root ]] || continue
+  active_group="$(systemctl show "$active_unit" -p Group --value)"
+  active_supplementary="$(systemctl show "$active_unit" -p SupplementaryGroups --value)"
+  if [[ "$active_group" == docker ]] \
+    || grep -Eq '(^|[[:space:]])docker($|[[:space:]])' <<<"$active_supplementary"; then
+    [[ "$active_unit" == "$expected_unit" && "$active_user" == "$runner_user" ]] || {
+      printf 'ERROR=unexpected_systemd_docker_authorization:%s:%s\n' "$active_unit" "$active_user" >&2
+      exit 1
+    }
+  fi
+done <"$active_units"
 if ! grep -Eq '(^|[[:space:]])docker($|[[:space:]])' <<<"$runner_supplementary_groups" \
   && [[ ! ",${docker_group_members}," == *",${runner_user},"* ]] \
   && [[ "$(id -g "$runner_user")" != "$docker_group_gid" ]]; then
@@ -141,6 +204,9 @@ umask 077
   printf 'RUNNER_SYSTEMD_ENVIRONMENT=INSPECTED_NOT_RECORDED\n'
   printf 'DOCKER_SOCKET_MODE=%s\n' "$socket_mode"
   printf 'DOCKER_SOCKET_OWNER=%s:%s\n' "$socket_user" "$socket_group"
+  printf 'DOCKER_SOCKET_ACL=BASE_ENTRIES_ONLY\n'
+  printf 'DOCKER_NSS_ENUMERATION=PASS\n'
+  printf 'DOCKER_SYSTEMD_SERVICE_ENUMERATION=PASS\n'
   printf 'DOCKER_AUTHORIZED_NON_ROOT_ACCOUNTS=%s\n' "${docker_authorized_accounts_csv:-UNIT_BOUND_RUNNER_ONLY}"
   printf 'RUNNER_DOCKER_SECURITY_IMPACT=DOCKER_GROUP_CONFERS_ROOT_EQUIVALENT_HOST_CONTROL\n'
   printf 'RUNNER_DOCKER_AUTHORIZATION=PASS\n'

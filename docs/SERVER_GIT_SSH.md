@@ -81,7 +81,12 @@ socket or a root-runner workaround. Any identity, unit, group, or socket-mode
 drift fails the preflight. The probe enumerates explicit Docker-group members
 and accounts whose primary group is Docker; any non-root identity other than
 `keycloak-deploy` fails authorization. Systemd environment values are inspected
-but never retained in the uploaded evidence.
+but never retained in the uploaded evidence. The Docker socket must have only
+the base owner/group/other ACL entries; any named user/group ACL or mask fails.
+The account database must also support a complete successful NSS enumeration
+from local enumerable `files`/`systemd` sources before primary-group access is
+evaluated. Active non-root systemd services are checked as well; no other unit
+may declare Docker as its primary or supplementary group.
 
 Every GHCR-authenticated workflow step creates `DOCKER_CONFIG` below
 `RUNNER_TEMP` with mode `0700`, registers an `EXIT` cleanup trap, logs out, and
