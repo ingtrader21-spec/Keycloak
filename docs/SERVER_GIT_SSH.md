@@ -92,7 +92,9 @@ supplementary GID outside the exact non-root runner unit. This catches stale
 credentials after a group or unit change that was not followed by a service
 restart. A host-wide process scan also rejects retained Docker credentials in
 login/session scopes and any root or otherwise unexpected UID inside the runner
-cgroup. No other unit or process may declare, inherit, or retain Docker
+cgroup. Non-root processes with permitted, effective, or ambient capabilities
+that can bypass or change the socket's DAC identity checks are rejected as
+well. No other unit or process may declare, inherit, or retain Docker
 authorization.
 
 Every GHCR-authenticated workflow step creates `DOCKER_CONFIG` below

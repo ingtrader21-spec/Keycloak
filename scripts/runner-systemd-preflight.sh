@@ -337,6 +337,16 @@ sort -nu -o "$host_pid_snapshot" "$host_pid_snapshot"
   printf 'ERROR=host_process_enumeration_empty\n' >&2
   exit 1
 }
+dangerous_docker_capability_mask=$((
+  (1 << 0)  | # CAP_CHOWN
+  (1 << 1)  | # CAP_DAC_OVERRIDE
+  (1 << 3)  | # CAP_FOWNER
+  (1 << 6)  | # CAP_SETGID
+  (1 << 7)  | # CAP_SETUID
+  (1 << 8)  | # CAP_SETPCAP
+  (1 << 19) | # CAP_SYS_PTRACE
+  (1 << 21)   # CAP_SYS_ADMIN
+))
 while IFS= read -r host_pid; do
   [[ "$host_pid" =~ ^[0-9]+$ ]] || {
     printf 'ERROR=host_process_invalid_pid\n' >&2
@@ -372,9 +382,15 @@ while IFS= read -r host_pid; do
   host_process_gids="$(awk '$1 == "Gid:" { print $2, $3, $4, $5; exit }' <<<"$host_process_status")"
   host_process_groups="$(awk '$1 == "Groups:" { $1=""; sub(/^ /, ""); print; exit }' <<<"$host_process_status")"
   host_process_groups_field="$(awk '$1 == "Groups:" { print "present"; exit }' <<<"$host_process_status")"
+  host_process_cap_permitted="$(awk '$1 == "CapPrm:" { print $2; exit }' <<<"$host_process_status")"
+  host_process_cap_effective="$(awk '$1 == "CapEff:" { print $2; exit }' <<<"$host_process_status")"
+  host_process_cap_ambient="$(awk '$1 == "CapAmb:" { print $2; exit }' <<<"$host_process_status")"
   [[ "$host_process_uids" =~ ^[0-9]+[[:space:]][0-9]+[[:space:]][0-9]+[[:space:]][0-9]+$ \
     && "$host_process_gids" =~ ^[0-9]+[[:space:]][0-9]+[[:space:]][0-9]+[[:space:]][0-9]+$ \
-    && "$host_process_groups_field" == present ]] || {
+    && "$host_process_groups_field" == present \
+    && "$host_process_cap_permitted" =~ ^[0-9a-fA-F]{16}$ \
+    && "$host_process_cap_effective" =~ ^[0-9a-fA-F]{16}$ \
+    && "$host_process_cap_ambient" =~ ^[0-9a-fA-F]{16}$ ]] || {
     printf 'ERROR=host_process_credentials_unresolved:%s\n' "$host_pid" >&2
     exit 1
   }
@@ -382,6 +398,20 @@ while IFS= read -r host_pid; do
   expected_runner_uids="$runner_uid_number $runner_uid_number $runner_uid_number $runner_uid_number"
   if [[ "$host_process_in_runner" == true && "$host_process_uids" != "$expected_runner_uids" ]]; then
     printf 'ERROR=runner_cgroup_contains_unexpected_uid:%s:%s\n' "$host_pid" "$host_process_uids" >&2
+    exit 1
+  fi
+  if [[ "$host_process_in_runner" == false \
+    && "$host_process_uids" != '0 0 0 0' ]] \
+    && grep -Eq '(^|[[:space:]])0($|[[:space:]])' <<<"$host_process_uids"; then
+    printf 'ERROR=unexpected_host_process_mixed_root_uids:%s:%s\n' "$host_pid" "$host_process_uids" >&2
+    exit 1
+  fi
+  host_process_dangerous_caps=$((
+    (16#$host_process_cap_permitted | 16#$host_process_cap_effective | 16#$host_process_cap_ambient)
+    & dangerous_docker_capability_mask
+  ))
+  if [[ "$host_process_uids" != '0 0 0 0' && "$host_process_dangerous_caps" -ne 0 ]]; then
+    printf 'ERROR=unexpected_non_root_docker_authority_capability:%s\n' "$host_pid" >&2
     exit 1
   fi
   if grep -Eq "(^|[[:space:]])${docker_group_gid}($|[[:space:]])" <<<"$host_process_gids $host_process_groups"; then
@@ -423,6 +453,7 @@ docker_authorized_accounts_csv="$(printf '%s\n' "${docker_authorized_accounts[@]
   printf 'DOCKER_SYSTEMD_SERVICE_ENUMERATION=PASS\n'
   printf 'DOCKER_EFFECTIVE_PROCESS_GROUP_ENUMERATION=PASS\n'
   printf 'DOCKER_HOST_PROCESS_ENUMERATION=PASS\n'
+  printf 'DOCKER_HOST_CAPABILITY_ENUMERATION=PASS\n'
   printf 'DOCKER_AUTHORIZED_NON_ROOT_ACCOUNTS=%s\n' "${docker_authorized_accounts_csv:-UNIT_BOUND_RUNNER_ONLY}"
   printf 'RUNNER_DOCKER_SECURITY_IMPACT=DOCKER_GROUP_CONFERS_ROOT_EQUIVALENT_HOST_CONTROL\n'
   printf 'RUNNER_DOCKER_AUTHORIZATION=PASS\n'
