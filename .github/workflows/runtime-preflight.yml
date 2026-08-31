@@ -79,11 +79,18 @@ jobs:
           ./scripts/runtime-preflight.sh \
             --expected-deploy-sha "$GITHUB_SHA" \
             --report "$RUNNER_TEMP/keycloak-runtime-preflight.txt"
+      - name: Verify runner service identity and Docker authorization
+        run: |
+          set -Eeuo pipefail
+          ./scripts/runner-systemd-preflight.sh \
+            --report "$RUNNER_TEMP/keycloak-runner-systemd-preflight.txt"
       - name: Upload redacted preflight evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: keycloak-runtime-preflight-${{ inputs.environment }}-${{ github.sha }}
-          path: ${{ runner.temp }}/keycloak-runtime-preflight.txt
+          path: |
+            ${{ runner.temp }}/keycloak-runtime-preflight.txt
+            ${{ runner.temp }}/keycloak-runner-systemd-preflight.txt
           if-no-files-found: error
           retention-days: 30
 
@@ -209,14 +216,10 @@ jobs:
             and .external_effects_enabled == false
           ' stage6-infrastructure/deploy/staging/intake-observability/runtime-lock.v1.json >/dev/null
           jq -e '.[] | select(.labels.service == "middleware-intake") | .labels.activation == "pending" and .labels.environment == "staging"' stage6-prometheus/codestra/prometheus/targets/staging.json >/dev/null
-      - name: Authenticate to immutable image registry
-        run: |
-          set -Eeuo pipefail
-          [[ -n "$GHCR_USERNAME" && -n "$GHCR_TOKEN" ]]
-          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin >/dev/null
       - name: Deploy the exact immutable Middleware digest privately
         run: |
           set -Eeuo pipefail
+          source scripts/ephemeral-docker-auth.sh
           KEYCLOAK_PUBLIC_URL="$KC_PUBLIC_URL" KEYCLOAK_REALM="$KC_TARGET_REALM" CODESTRA_STAGING_ROOT="$STAGE6_ROOT" \
             bash stage6-infrastructure/scripts/deploy_intake_observability_staging.sh deploy
       - name: Reconcile monitoring-readonly and issue isolated short-lived tokens
@@ -232,6 +235,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           umask 077
+          source scripts/ephemeral-docker-auth.sh
           evidence_dir="$RUNNER_TEMP/stage6-intake-evidence"
           rm -rf "$evidence_dir" && mkdir -m 700 "$evidence_dir"
           docker pull "$COLLECTOR_IMAGE" >/dev/null
@@ -287,4 +291,3 @@ jobs:
             find "$STAGE6_SECRET_DIR" -type f ! -name monitoring-token-evidence.json -delete
             rm -rf "$STAGE6_SECRET_DIR"
           fi
-          docker logout ghcr.io >/dev/null 2>&1 || true

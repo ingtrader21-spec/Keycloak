@@ -414,6 +414,7 @@ if grep -RInE \
 fi
 
 "$ROOT_DIR/scripts/test-runtime-preflight.sh"
+"$ROOT_DIR/scripts/test-ephemeral-docker-auth.sh"
 
 printf 'CONFIG_ROOT=%s\n' "$CONFIG_ROOT"
 printf 'JSON_FILES=%s\n' "${#json_files[@]}"

@@ -63,3 +63,25 @@ git -C "$RUNTIME_REPO_DIR" rev-parse HEAD
 The value must equal the exact SHA selected in the manual workflow. The preflight
 also checks that GitHub's remote `main` returns the same SHA using `git ls-remote`.
 It makes no live Keycloak, Docker, or Caddy change.
+
+## Self-hosted runner and Docker authorization
+
+The reviewed runner service identity is
+`actions.runner.appolon1908-hue-Keycloak.kazan555.service`, running as the
+dedicated non-root `keycloak-deploy` account. The manual runtime preflight runs
+`systemctl list-units`, `systemctl cat`, and `systemctl show` against that exact
+unit, confirms the workflow process has the same Unix identity, and then proves
+Docker access without changing unit, account, group, or socket state.
+
+Docker access is intentionally limited to the dedicated runner identity through
+the `docker` group and a `0660 root:docker` socket. Membership in the Docker
+group confers root-equivalent control of this host; it must therefore remain
+limited to this protected runner and must never be replaced with a world-writable
+socket or a root-runner workaround. Any identity, unit, group, or socket-mode
+drift fails the preflight.
+
+Every GHCR-authenticated workflow step creates `DOCKER_CONFIG` below
+`RUNNER_TEMP` with mode `0700`, registers an `EXIT` cleanup trap, logs out, and
+removes the directory on success or failure. Credentials must never be written
+to `/var/lib/keycloak-deploy/.docker`, `/root/.docker`, or another persistent
+runner home.
