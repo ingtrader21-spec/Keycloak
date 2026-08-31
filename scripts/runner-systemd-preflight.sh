@@ -337,16 +337,9 @@ sort -nu -o "$host_pid_snapshot" "$host_pid_snapshot"
   printf 'ERROR=host_process_enumeration_empty\n' >&2
   exit 1
 }
-dangerous_docker_capability_mask=$((
-  (1 << 0)  | # CAP_CHOWN
-  (1 << 1)  | # CAP_DAC_OVERRIDE
-  (1 << 3)  | # CAP_FOWNER
-  (1 << 6)  | # CAP_SETGID
-  (1 << 7)  | # CAP_SETUID
-  (1 << 8)  | # CAP_SETPCAP
-  (1 << 19) | # CAP_SYS_PTRACE
-  (1 << 21)   # CAP_SYS_ADMIN
-))
+# CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER, CAP_SETGID, CAP_SETUID,
+# CAP_SETPCAP, CAP_SYS_PTRACE, and CAP_SYS_ADMIN.
+dangerous_docker_capability_mask=$((0x2801cb))
 while IFS= read -r host_pid; do
   [[ "$host_pid" =~ ^[0-9]+$ ]] || {
     printf 'ERROR=host_process_invalid_pid\n' >&2
