@@ -168,6 +168,11 @@ jobs:
           }
           ./scripts/runtime-preflight.sh \
             --expected-deploy-sha "$GITHUB_SHA" \
+            --require-approved "$RUNTIME_PATHS_APPROVED_SHA256" \
+            --allow-stale-local-head
+          ./scripts/sync-runtime-repository.sh
+          ./scripts/runtime-preflight.sh \
+            --expected-deploy-sha "$GITHUB_SHA" \
             --require-approved "$RUNTIME_PATHS_APPROVED_SHA256"
 
       - name: Validate desired state and canonical API URLs
