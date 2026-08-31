@@ -73,18 +73,20 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
           ref: ${{ github.sha }}
-      - name: Run read-only runtime preflight
-        run: |
-          set -Eeuo pipefail
-          ./scripts/runtime-preflight.sh \
-            --expected-deploy-sha "$GITHUB_SHA" \
-            --report "$RUNNER_TEMP/keycloak-runtime-preflight.txt"
       - name: Verify runner service identity and Docker authorization
         run: |
           set -Eeuo pipefail
           ./scripts/runner-systemd-preflight.sh \
             --report "$RUNNER_TEMP/keycloak-runner-systemd-preflight.txt"
+      - name: Run read-only runtime preflight
+        if: always()
+        run: |
+          set -Eeuo pipefail
+          ./scripts/runtime-preflight.sh \
+            --expected-deploy-sha "$GITHUB_SHA" \
+            --report "$RUNNER_TEMP/keycloak-runtime-preflight.txt"
       - name: Upload redacted preflight evidence
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: keycloak-runtime-preflight-${{ inputs.environment }}-${{ github.sha }}

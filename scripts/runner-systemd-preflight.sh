@@ -52,6 +52,14 @@ cleanup() {
   rm -rf "$tmp_dir"
 }
 trap cleanup EXIT
+umask 077
+{
+  printf 'RUNNER_SYSTEMD_UNIT=%s\n' "$expected_unit"
+  printf 'RUNNER_USER=UNRESOLVED\n'
+  printf 'RUNNER_DOCKER_AUTHORIZATION=FAIL\n'
+  printf 'RUNNER_IDENTITY=FAIL\n'
+} >"$report"
+chmod 600 "$report"
 
 systemctl list-units --all '*actions*' '*runner*' --no-pager --plain >"$tmp_dir/list-units.txt"
 grep -Fq "$expected_unit" "$tmp_dir/list-units.txt" || {
@@ -86,6 +94,12 @@ runner_working_directory="$(systemctl show "$expected_unit" -p WorkingDirectory 
   printf 'ERROR=workflow_process_user_does_not_match_service_user\n' >&2
   exit 1
 }
+{
+  printf 'RUNNER_SYSTEMD_UNIT=%s\n' "$expected_unit"
+  printf 'RUNNER_USER=%s\n' "$runner_user"
+  printf 'RUNNER_DOCKER_AUTHORIZATION=FAIL\n'
+  printf 'RUNNER_IDENTITY=PASS\n'
+} >"$report"
 
 socket=/var/run/docker.sock
 [[ -S "$socket" ]] || { printf 'ERROR=docker_socket_missing\n' >&2; exit 1; }
@@ -393,7 +407,6 @@ docker info >/dev/null
 unit_fragment_paths="$(grep -E '^# /' "$tmp_dir/unit.txt" | sed 's/^# //' | paste -sd, -)"
 docker_authorized_accounts_csv="$(printf '%s\n' "${docker_authorized_accounts[@]}" | sed '/^$/d' | paste -sd, -)"
 
-umask 077
 {
   printf 'RUNNER_SYSTEMD_UNIT=%s\n' "$expected_unit"
   printf 'RUNNER_USER=%s\n' "$runner_user"
