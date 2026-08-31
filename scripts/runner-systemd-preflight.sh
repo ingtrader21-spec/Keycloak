@@ -38,7 +38,7 @@ done
 
 expected_unit='actions.runner.appolon1908-hue-Keycloak.kazan555.service'
 expected_user='keycloak-deploy'
-for command_name in systemctl getent getfacl docker realpath find sort cat awk grep sed id stat; do
+for command_name in systemctl getent getfacl docker realpath find findmnt sort cat awk grep sed id stat; do
   command -v "$command_name" >/dev/null 2>&1 || {
     printf 'ERROR=required_command_missing:%s\n' "$command_name" >&2
     exit 1
@@ -328,6 +328,15 @@ while read -r active_unit _; do
 done <"$active_units"
 
 host_pid_snapshot="$tmp_dir/host-pids.txt"
+proc_mount_options="$(findmnt --noheadings --output OPTIONS --target /proc)"
+[[ -n "$proc_mount_options" && "$proc_mount_options" != *$'\n'* ]] || {
+  printf 'ERROR=procfs_mount_options_unresolved\n' >&2
+  exit 1
+}
+if grep -Eq '(^|,)(hidepid=(1|2|noaccess|invisible|ptraceable))($|,)' <<<"$proc_mount_options"; then
+  printf 'ERROR=procfs_visibility_restricted\n' >&2
+  exit 1
+fi
 if ! find /proc -mindepth 1 -maxdepth 1 -type d -name '[0-9]*' -printf '%f\n' >"$host_pid_snapshot"; then
   printf 'ERROR=host_process_enumeration_failed\n' >&2
   exit 1
@@ -338,8 +347,8 @@ sort -nu -o "$host_pid_snapshot" "$host_pid_snapshot"
   exit 1
 }
 # CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER, CAP_SETGID, CAP_SETUID,
-# CAP_SETPCAP, CAP_SYS_PTRACE, CAP_SYS_ADMIN, and CAP_SETFCAP.
-dangerous_docker_capability_mask=$((0x802801cb))
+# CAP_SETPCAP, CAP_SYS_MODULE, CAP_SYS_PTRACE, CAP_SYS_ADMIN, and CAP_SETFCAP.
+dangerous_docker_capability_mask=$((0x802901cb))
 while IFS= read -r host_pid; do
   [[ "$host_pid" =~ ^[0-9]+$ ]] || {
     printf 'ERROR=host_process_invalid_pid\n' >&2
@@ -447,6 +456,7 @@ docker_authorized_accounts_csv="$(printf '%s\n' "${docker_authorized_accounts[@]
   printf 'DOCKER_EFFECTIVE_PROCESS_GROUP_ENUMERATION=PASS\n'
   printf 'DOCKER_HOST_PROCESS_ENUMERATION=PASS\n'
   printf 'DOCKER_HOST_CAPABILITY_ENUMERATION=PASS\n'
+  printf 'PROCFS_VISIBILITY=UNRESTRICTED\n'
   printf 'DOCKER_AUTHORIZED_NON_ROOT_ACCOUNTS=%s\n' "${docker_authorized_accounts_csv:-UNIT_BOUND_RUNNER_ONLY}"
   printf 'RUNNER_DOCKER_SECURITY_IMPACT=DOCKER_GROUP_CONFERS_ROOT_EQUIVALENT_HOST_CONTROL\n'
   printf 'RUNNER_DOCKER_AUTHORIZATION=PASS\n'

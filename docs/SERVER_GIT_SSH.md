@@ -94,8 +94,9 @@ restart. A host-wide process scan also rejects retained Docker credentials in
 login/session scopes and any root or otherwise unexpected UID inside the runner
 cgroup. Non-root processes with permitted, effective, or ambient capabilities
 that can bypass or change the socket's DAC identity checks are rejected as
-well. No other unit or process may declare, inherit, or retain Docker
-authorization.
+well. The process scan first rejects a restricted `hidepid` procfs view so an
+invisible account cannot be omitted from the evidence. No other unit or process
+may declare, inherit, or retain Docker authorization.
 
 Every GHCR-authenticated workflow step creates `DOCKER_CONFIG` below
 `RUNNER_TEMP` with mode `0700`, registers an `EXIT` cleanup trap, logs out, and
