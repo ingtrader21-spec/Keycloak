@@ -170,7 +170,15 @@ while read -r active_unit _; do
   [[ -n "$active_user" && "$active_user" != root ]] || continue
   active_group="$(systemctl show "$active_unit" -p Group --value)"
   active_supplementary="$(systemctl show "$active_unit" -p SupplementaryGroups --value)"
-  if [[ "$active_group" == docker ]] \
+  active_user_has_docker_access=false
+  for account in "${docker_authorized_accounts[@]}"; do
+    if [[ "$active_user" == "$account" ]]; then
+      active_user_has_docker_access=true
+      break
+    fi
+  done
+  if [[ "$active_user_has_docker_access" == true ]] \
+    || [[ "$active_group" == docker ]] \
     || grep -Eq '(^|[[:space:]])docker($|[[:space:]])' <<<"$active_supplementary"; then
     [[ "$active_unit" == "$expected_unit" && "$active_user" == "$runner_user" ]] || {
       printf 'ERROR=unexpected_systemd_docker_authorization:%s:%s\n' "$active_unit" "$active_user" >&2
