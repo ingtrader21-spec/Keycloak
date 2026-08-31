@@ -20,7 +20,7 @@ defaults:
 jobs:
   validate-source:
     name: validate-source
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 25
     env:
       EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
@@ -41,6 +41,9 @@ jobs:
             exit 1
           }
           echo "SOURCE_SHA=$EXPECTED_SHA"
+
+      - name: Verify Python 3.10 server baseline
+        run: python3 -c 'import sys; assert sys.version_info[:2] == (3, 10), sys.version'
 
       - name: Install validation tools
         run: |
@@ -104,7 +107,7 @@ jobs:
   validate-merge-result:
     name: validate-merge-result
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 25
     env:
       EXPECTED_SHA: ${{ github.sha }}
@@ -125,6 +128,9 @@ jobs:
             exit 1
           }
           echo "MERGE_RESULT_SHA=$EXPECTED_SHA"
+
+      - name: Verify Python 3.10 server baseline
+        run: python3 -c 'import sys; assert sys.version_info[:2] == (3, 10), sys.version'
 
       - name: Install validation tools
         run: |
