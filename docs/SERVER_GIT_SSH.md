@@ -85,8 +85,12 @@ but never retained in the uploaded evidence. The Docker socket must have only
 the base owner/group/other ACL entries; any named user/group ACL or mask fails.
 The account database must also support a complete successful NSS enumeration
 from local enumerable `files`/`systemd` sources before primary-group access is
-evaluated. Active non-root systemd services are checked as well; no other unit
-may declare Docker as its primary or supplementary group.
+evaluated. Every active systemd service substate is checked. For populated
+service cgroups, the probe recursively reads effective process credentials and
+rejects a retained Docker primary, effective, saved, filesystem, or
+supplementary GID outside the exact non-root runner unit. This catches stale
+credentials after a group or unit change that was not followed by a service
+restart. No other unit may declare or inherit Docker authorization.
 
 Every GHCR-authenticated workflow step creates `DOCKER_CONFIG` below
 `RUNNER_TEMP` with mode `0700`, registers an `EXIT` cleanup trap, logs out, and
