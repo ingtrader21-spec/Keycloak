@@ -38,6 +38,12 @@ done
 
 expected_unit='actions.runner.appolon1908-hue-Keycloak.kazan555.service'
 expected_user='keycloak-deploy'
+for command_name in systemctl getent getfacl docker realpath find sort cat awk grep sed id stat; do
+  command -v "$command_name" >/dev/null 2>&1 || {
+    printf 'ERROR=required_command_missing:%s\n' "$command_name" >&2
+    exit 1
+  }
+done
 work_dir="$(dirname -- "$report")"
 mkdir -p -- "$work_dir"
 chmod 700 "$work_dir"
@@ -178,19 +184,83 @@ if ! systemctl list-units --type=service --state=running --no-legend --plain >"$
   printf 'ERROR=active_systemd_service_enumeration_failed\n' >&2
   exit 1
 fi
+cgroup_root=/sys/fs/cgroup
+[[ -f "$cgroup_root/cgroup.controllers" ]] || {
+  printf 'ERROR=unified_cgroup_v2_required_for_process_authorization\n' >&2
+  exit 1
+}
+runner_uid_number="$(id -u "$runner_user")"
+active_service_index=0
 while read -r active_unit _; do
   [[ -n "$active_unit" ]] || continue
+  active_service_index=$((active_service_index + 1))
   active_user_property="$(systemctl show "$active_unit" -p User --value)"
-  [[ -n "$active_user_property" ]] || continue
-  if ! active_passwd_entry="$(getent passwd "$active_user_property")"; then
-    printf 'ERROR=active_systemd_user_unresolved:%s:%s\n' "$active_unit" "$active_user_property" >&2
-    exit 1
+  if [[ -n "$active_user_property" ]]; then
+    if ! active_passwd_entry="$(getent passwd "$active_user_property")"; then
+      printf 'ERROR=active_systemd_user_unresolved:%s:%s\n' "$active_unit" "$active_user_property" >&2
+      exit 1
+    fi
+    IFS=: read -r active_user _ active_uid _ <<<"$active_passwd_entry"
+    [[ "$active_uid" =~ ^[0-9]+$ ]] || {
+      printf 'ERROR=active_systemd_user_uid_unresolved:%s:%s\n' "$active_unit" "$active_user_property" >&2
+      exit 1
+    }
+  else
+    active_user=root
+    active_uid=0
   fi
-  IFS=: read -r active_user _ active_uid _ <<<"$active_passwd_entry"
-  [[ "$active_uid" =~ ^[0-9]+$ ]] || {
-    printf 'ERROR=active_systemd_user_uid_unresolved:%s:%s\n' "$active_unit" "$active_user_property" >&2
+
+  control_group="$(systemctl show "$active_unit" -p ControlGroup --value)"
+  [[ "$control_group" == /* && "$control_group" != *$'\n'* && "$control_group" != *'..'* ]] || {
+    printf 'ERROR=active_systemd_control_group_unresolved:%s\n' "$active_unit" >&2
     exit 1
   }
+  if ! control_group_path="$(realpath -e -- "$cgroup_root$control_group")"; then
+    printf 'ERROR=active_systemd_control_group_missing:%s\n' "$active_unit" >&2
+    exit 1
+  fi
+  [[ "$control_group_path" == "$cgroup_root"/* ]] || {
+    printf 'ERROR=active_systemd_control_group_outside_root:%s\n' "$active_unit" >&2
+    exit 1
+  }
+  pid_snapshot="$tmp_dir/active-service-${active_service_index}-pids.txt"
+  if ! find "$control_group_path" -type f -name cgroup.procs -exec cat -- {} + >"$pid_snapshot"; then
+    printf 'ERROR=active_systemd_process_enumeration_failed:%s\n' "$active_unit" >&2
+    exit 1
+  fi
+  sort -nu -o "$pid_snapshot" "$pid_snapshot"
+  [[ -s "$pid_snapshot" ]] || {
+    printf 'ERROR=active_systemd_process_enumeration_empty:%s\n' "$active_unit" >&2
+    exit 1
+  }
+  while IFS= read -r active_pid; do
+    [[ "$active_pid" =~ ^[0-9]+$ ]] || {
+      printf 'ERROR=active_systemd_invalid_pid:%s\n' "$active_unit" >&2
+      exit 1
+    }
+    process_status_file="/proc/${active_pid}/status"
+    if ! process_status="$(cat -- "$process_status_file" 2>/dev/null)"; then
+      [[ ! -e "$process_status_file" ]] || {
+        printf 'ERROR=active_systemd_process_status_unreadable:%s:%s\n' "$active_unit" "$active_pid" >&2
+        exit 1
+      }
+      continue
+    fi
+    process_uid="$(awk '$1 == "Uid:" { print $2; exit }' <<<"$process_status")"
+    process_groups="$(awk '$1 == "Groups:" { $1=""; sub(/^ /, ""); print; exit }' <<<"$process_status")"
+    [[ "$process_uid" =~ ^[0-9]+$ && -n "$process_groups" ]] || {
+      printf 'ERROR=active_systemd_process_credentials_unresolved:%s:%s\n' "$active_unit" "$active_pid" >&2
+      exit 1
+    }
+    if grep -Eq "(^|[[:space:]])${docker_group_gid}($|[[:space:]])" <<<"$process_groups"; then
+      [[ ( "$active_unit" == "$expected_unit" && "$process_uid" == "$runner_uid_number" ) \
+        || ( "$active_unit" != "$expected_unit" && "$process_uid" == 0 ) ]] || {
+        printf 'ERROR=unexpected_running_process_docker_authorization:%s:%s:%s\n' "$active_unit" "$active_pid" "$process_uid" >&2
+        exit 1
+      }
+    fi
+  done <"$pid_snapshot"
+
   [[ "$active_uid" != 0 ]] || continue
   active_group="$(systemctl show "$active_unit" -p Group --value)"
   active_supplementary="$(systemctl show "$active_unit" -p SupplementaryGroups --value)"
@@ -253,6 +323,7 @@ umask 077
   printf 'DOCKER_SOCKET_ACL=BASE_ENTRIES_ONLY\n'
   printf 'DOCKER_NSS_ENUMERATION=PASS\n'
   printf 'DOCKER_SYSTEMD_SERVICE_ENUMERATION=PASS\n'
+  printf 'DOCKER_EFFECTIVE_PROCESS_GROUP_ENUMERATION=PASS\n'
   printf 'DOCKER_AUTHORIZED_NON_ROOT_ACCOUNTS=%s\n' "${docker_authorized_accounts_csv:-UNIT_BOUND_RUNNER_ONLY}"
   printf 'RUNNER_DOCKER_SECURITY_IMPACT=DOCKER_GROUP_CONFERS_ROOT_EQUIVALENT_HOST_CONTROL\n'
   printf 'RUNNER_DOCKER_AUTHORIZATION=PASS\n'
