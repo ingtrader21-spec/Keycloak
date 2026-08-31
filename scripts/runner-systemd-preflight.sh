@@ -120,6 +120,7 @@ IFS=: read -r docker_group_name _ docker_group_gid docker_group_members <<<"$doc
   exit 1
 }
 passwd_snapshot="$tmp_dir/passwd.txt"
+group_snapshot="$tmp_dir/group.txt"
 nsswitch=/etc/nsswitch.conf
 [[ -r "$nsswitch" ]] || { printf 'ERROR=nsswitch_configuration_unreadable\n' >&2; exit 1; }
 passwd_nss_sources="$(awk '$1 == "passwd:" { $1=""; sub(/^ /, ""); print; exit }' "$nsswitch")"
@@ -140,6 +141,19 @@ if ! getent passwd >"$passwd_snapshot"; then
 fi
 [[ -s "$passwd_snapshot" ]] || {
   printf 'ERROR=passwd_nss_enumeration_empty\n' >&2
+  exit 1
+}
+if ! getent group >"$group_snapshot"; then
+  printf 'ERROR=group_nss_enumeration_failed\n' >&2
+  exit 1
+fi
+[[ -s "$group_snapshot" ]] || {
+  printf 'ERROR=group_nss_enumeration_empty\n' >&2
+  exit 1
+}
+docker_gid_entries="$(awk -F: -v gid="$docker_group_gid" '$3 == gid { print $1 }' "$group_snapshot")"
+[[ "$docker_gid_entries" == docker ]] || {
+  printf 'ERROR=docker_group_gid_must_be_unique:%s\n' "$docker_group_gid" >&2
   exit 1
 }
 grep -Eq "^${runner_user}:[^:]*:[0-9]+:[0-9]+:" "$passwd_snapshot" || {
@@ -166,8 +180,18 @@ if ! systemctl list-units --type=service --state=running --no-legend --plain >"$
 fi
 while read -r active_unit _; do
   [[ -n "$active_unit" ]] || continue
-  active_user="$(systemctl show "$active_unit" -p User --value)"
-  [[ -n "$active_user" && "$active_user" != root ]] || continue
+  active_user_property="$(systemctl show "$active_unit" -p User --value)"
+  [[ -n "$active_user_property" ]] || continue
+  if ! active_passwd_entry="$(getent passwd "$active_user_property")"; then
+    printf 'ERROR=active_systemd_user_unresolved:%s:%s\n' "$active_unit" "$active_user_property" >&2
+    exit 1
+  fi
+  IFS=: read -r active_user _ active_uid _ <<<"$active_passwd_entry"
+  [[ "$active_uid" =~ ^[0-9]+$ ]] || {
+    printf 'ERROR=active_systemd_user_uid_unresolved:%s:%s\n' "$active_unit" "$active_user_property" >&2
+    exit 1
+  }
+  [[ "$active_uid" != 0 ]] || continue
   active_group="$(systemctl show "$active_unit" -p Group --value)"
   active_supplementary="$(systemctl show "$active_unit" -p SupplementaryGroups --value)"
   active_user_has_docker_access=false
@@ -177,9 +201,23 @@ while read -r active_unit _; do
       break
     fi
   done
+  active_unit_declares_docker_group=false
+  for group_property in $active_group $active_supplementary; do
+    if ! active_group_entry="$(getent group "$group_property")"; then
+      printf 'ERROR=active_systemd_group_unresolved:%s:%s\n' "$active_unit" "$group_property" >&2
+      exit 1
+    fi
+    IFS=: read -r _ _ active_group_gid _ <<<"$active_group_entry"
+    [[ "$active_group_gid" =~ ^[0-9]+$ ]] || {
+      printf 'ERROR=active_systemd_group_gid_unresolved:%s:%s\n' "$active_unit" "$group_property" >&2
+      exit 1
+    }
+    if [[ "$active_group_gid" == "$docker_group_gid" ]]; then
+      active_unit_declares_docker_group=true
+    fi
+  done
   if [[ "$active_user_has_docker_access" == true ]] \
-    || [[ "$active_group" == docker ]] \
-    || grep -Eq '(^|[[:space:]])docker($|[[:space:]])' <<<"$active_supplementary"; then
+    || [[ "$active_unit_declares_docker_group" == true ]]; then
     [[ "$active_unit" == "$expected_unit" && "$active_user" == "$runner_user" ]] || {
       printf 'ERROR=unexpected_systemd_docker_authorization:%s:%s\n' "$active_unit" "$active_user" >&2
       exit 1
