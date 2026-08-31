@@ -59,8 +59,13 @@ safe_git() {
 [[ "$(safe_git symbolic-ref --quiet --short HEAD)" == "$RUNTIME_GIT_BRANCH" ]] || fail "Runtime branch mismatch"
 [[ -z "$(safe_git status --porcelain=v1 --untracked-files=normal)" ]] || fail "Runtime checkout is not clean"
 
-ssh_command="ssh -i ${ssh_key} -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${known_hosts}"
-GIT_SSH_COMMAND="$ssh_command" safe_git fetch --no-tags origin "refs/heads/${RUNTIME_GIT_BRANCH}"
+temporary_directory="$(mktemp -d)"
+trap 'rm -rf "$temporary_directory"' EXIT
+ssh_wrapper="$temporary_directory/git-ssh"
+export RUNTIME_GIT_SSH_KEY="$ssh_key" RUNTIME_GIT_KNOWN_HOSTS="$known_hosts"
+"$(dirname -- "$0")/create-runtime-git-ssh-wrapper.sh" "$ssh_wrapper"
+GIT_SSH_COMMAND="$ssh_wrapper" GIT_SSH_VARIANT=ssh \
+  safe_git fetch --no-tags origin "refs/heads/${RUNTIME_GIT_BRANCH}"
 fetched_sha="$(safe_git rev-parse FETCH_HEAD)"
 [[ "$fetched_sha" == "$EXPECTED_DEPLOY_SHA" ]] || fail "Remote main does not equal the selected deployment SHA"
 safe_git merge-base --is-ancestor HEAD "$fetched_sha" || fail "Runtime checkout cannot fast-forward to selected main"

@@ -103,6 +103,16 @@ if "$ROOT_DIR/scripts/runtime-preflight.sh" \
   exit 1
 fi
 
+stale_output="$(
+  "$ROOT_DIR/scripts/runtime-preflight.sh" \
+    --no-network \
+    --allow-stale-local-head \
+    --expected-deploy-sha '0000000000000000000000000000000000000000' \
+    --require-approved "$fingerprint"
+)"
+grep -qx 'RUNTIME_PREFLIGHT=PASS' <<<"$stale_output"
+grep -qx 'RUNTIME_PATHS_APPROVAL=PASS' <<<"$stale_output"
+
 if "$ROOT_DIR/scripts/runtime-preflight.sh" \
   --no-network \
   --expected-deploy-sha "$expected_sha" \

@@ -265,7 +265,7 @@ def validate_privileged_workflow(path: Path, workflow: dict[str, Any]) -> None:
         required_inputs = {"environment", "mode", "confirm_sha", "plan_run_id", "approved_plan_sha256", "review_run_id", "approved_review_sha256"}
         if not required_inputs.issubset(inputs):
             fail(f"{path}: missing plan-gate inputs: {sorted(required_inputs - set(inputs))}")
-        for fragment in ("actions/download-artifact", "approved_plan_sha256", "plan_run_id", "apply-plan.sh", "sync-runtime-repository.sh", "keycloak-plan-", "keycloak-drift-review-", "approved_review_sha256"):
+        for fragment in ("actions/download-artifact", "approved_plan_sha256", "plan_run_id", "apply-plan.sh", "sync-runtime-repository.sh", "--allow-stale-local-head", "keycloak-plan-", "keycloak-drift-review-", "approved_review_sha256"):
             if fragment not in workflow_text:
                 fail(f"{path}: reviewed plan gate is incomplete; missing {fragment}")
     elif path.name == "drift-review.yml":
