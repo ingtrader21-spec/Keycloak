@@ -17,7 +17,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -668,7 +668,7 @@ def main() -> int:
         "desired_managed_sha256": canonical_hash(desired_projection),
         "other_clients_modified": False,
         "token_values_recorded": False,
-        "generated_at": datetime.now(UTC).isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
     }
     private_write(
         output_dir / "monitoring-readonly-plan.json",
@@ -747,7 +747,7 @@ def main() -> int:
         "token_values_recorded": False,
         "client_secret_recorded": False,
         "other_clients_modified": False,
-        "generated_at": datetime.now(UTC).isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
     }
     private_write(
         output_dir / "monitoring-token-evidence.json",
