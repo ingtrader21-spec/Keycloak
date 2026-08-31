@@ -90,7 +90,10 @@ service cgroups, the probe recursively reads effective process credentials and
 rejects a retained Docker primary, effective, saved, filesystem, or
 supplementary GID outside the exact non-root runner unit. This catches stale
 credentials after a group or unit change that was not followed by a service
-restart. No other unit may declare or inherit Docker authorization.
+restart. A host-wide process scan also rejects retained Docker credentials in
+login/session scopes and any root or otherwise unexpected UID inside the runner
+cgroup. No other unit or process may declare, inherit, or retain Docker
+authorization.
 
 Every GHCR-authenticated workflow step creates `DOCKER_CONFIG` below
 `RUNNER_TEMP` with mode `0700`, registers an `EXIT` cleanup trap, logs out, and

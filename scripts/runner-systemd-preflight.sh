@@ -190,6 +190,21 @@ cgroup_root=/sys/fs/cgroup
   exit 1
 }
 runner_uid_number="$(id -u "$runner_user")"
+expected_runner_control_group="$(systemctl show "$expected_unit" -p ControlGroup --value)"
+[[ "$expected_runner_control_group" == /* \
+  && "$expected_runner_control_group" != *$'\n'* \
+  && "$expected_runner_control_group" != *'..'* ]] || {
+  printf 'ERROR=runner_control_group_unresolved\n' >&2
+  exit 1
+}
+if ! expected_runner_control_group_path="$(realpath -e -- "$cgroup_root$expected_runner_control_group")"; then
+  printf 'ERROR=runner_control_group_missing\n' >&2
+  exit 1
+fi
+[[ "$expected_runner_control_group_path" == "$cgroup_root"/* ]] || {
+  printf 'ERROR=runner_control_group_outside_root\n' >&2
+  exit 1
+}
 active_service_index=0
 while read -r active_unit _; do
   [[ -n "$active_unit" ]] || continue
@@ -297,6 +312,73 @@ while read -r active_unit _; do
     }
   fi
 done <"$active_units"
+
+host_pid_snapshot="$tmp_dir/host-pids.txt"
+if ! find /proc -mindepth 1 -maxdepth 1 -type d -name '[0-9]*' -printf '%f\n' >"$host_pid_snapshot"; then
+  printf 'ERROR=host_process_enumeration_failed\n' >&2
+  exit 1
+fi
+sort -nu -o "$host_pid_snapshot" "$host_pid_snapshot"
+[[ -s "$host_pid_snapshot" ]] || {
+  printf 'ERROR=host_process_enumeration_empty\n' >&2
+  exit 1
+}
+while IFS= read -r host_pid; do
+  [[ "$host_pid" =~ ^[0-9]+$ ]] || {
+    printf 'ERROR=host_process_invalid_pid\n' >&2
+    exit 1
+  }
+  host_process_dir="/proc/${host_pid}"
+  if ! host_process_status="$(cat -- "$host_process_dir/status" 2>/dev/null)"; then
+    [[ ! -e "$host_process_dir" ]] || {
+      printf 'ERROR=host_process_status_unreadable:%s\n' "$host_pid" >&2
+      exit 1
+    }
+    continue
+  fi
+  if ! host_process_cgroup="$(cat -- "$host_process_dir/cgroup" 2>/dev/null)"; then
+    [[ ! -e "$host_process_dir" ]] || {
+      printf 'ERROR=host_process_cgroup_unreadable:%s\n' "$host_pid" >&2
+      exit 1
+    }
+    continue
+  fi
+  host_process_control_group="$(awk -F: '$1 == "0" && $2 == "" { print $3; exit }' <<<"$host_process_cgroup")"
+  [[ "$host_process_control_group" == /* ]] || {
+    printf 'ERROR=host_process_unified_cgroup_unresolved:%s\n' "$host_pid" >&2
+    exit 1
+  }
+  host_process_in_runner=false
+  if [[ "$host_process_control_group" == "$expected_runner_control_group" \
+    || "$host_process_control_group" == "$expected_runner_control_group"/* ]]; then
+    host_process_in_runner=true
+  fi
+
+  host_process_uids="$(awk '$1 == "Uid:" { print $2, $3, $4, $5; exit }' <<<"$host_process_status")"
+  host_process_gids="$(awk '$1 == "Gid:" { print $2, $3, $4, $5; exit }' <<<"$host_process_status")"
+  host_process_groups="$(awk '$1 == "Groups:" { $1=""; sub(/^ /, ""); print; exit }' <<<"$host_process_status")"
+  host_process_groups_field="$(awk '$1 == "Groups:" { print "present"; exit }' <<<"$host_process_status")"
+  [[ "$host_process_uids" =~ ^[0-9]+[[:space:]][0-9]+[[:space:]][0-9]+[[:space:]][0-9]+$ \
+    && "$host_process_gids" =~ ^[0-9]+[[:space:]][0-9]+[[:space:]][0-9]+[[:space:]][0-9]+$ \
+    && "$host_process_groups_field" == present ]] || {
+    printf 'ERROR=host_process_credentials_unresolved:%s\n' "$host_pid" >&2
+    exit 1
+  }
+
+  expected_runner_uids="$runner_uid_number $runner_uid_number $runner_uid_number $runner_uid_number"
+  if [[ "$host_process_in_runner" == true && "$host_process_uids" != "$expected_runner_uids" ]]; then
+    printf 'ERROR=runner_cgroup_contains_unexpected_uid:%s:%s\n' "$host_pid" "$host_process_uids" >&2
+    exit 1
+  fi
+  if grep -Eq "(^|[[:space:]])${docker_group_gid}($|[[:space:]])" <<<"$host_process_gids $host_process_groups"; then
+    [[ ( "$host_process_in_runner" == true && "$host_process_uids" == "$expected_runner_uids" ) \
+      || ( "$host_process_in_runner" == false && "$host_process_uids" == '0 0 0 0' ) ]] || {
+      printf 'ERROR=unexpected_host_process_docker_authorization:%s:%s\n' "$host_pid" "$host_process_uids" >&2
+      exit 1
+    }
+  fi
+done <"$host_pid_snapshot"
+
 if ! grep -Eq '(^|[[:space:]])docker($|[[:space:]])' <<<"$runner_supplementary_groups" \
   && [[ ! ",${docker_group_members}," == *",${runner_user},"* ]] \
   && [[ "$(id -g "$runner_user")" != "$docker_group_gid" ]]; then
@@ -327,6 +409,7 @@ umask 077
   printf 'DOCKER_NSS_ENUMERATION=PASS\n'
   printf 'DOCKER_SYSTEMD_SERVICE_ENUMERATION=PASS\n'
   printf 'DOCKER_EFFECTIVE_PROCESS_GROUP_ENUMERATION=PASS\n'
+  printf 'DOCKER_HOST_PROCESS_ENUMERATION=PASS\n'
   printf 'DOCKER_AUTHORIZED_NON_ROOT_ACCOUNTS=%s\n' "${docker_authorized_accounts_csv:-UNIT_BOUND_RUNNER_ONLY}"
   printf 'RUNNER_DOCKER_SECURITY_IMPACT=DOCKER_GROUP_CONFERS_ROOT_EQUIVALENT_HOST_CONTROL\n'
   printf 'RUNNER_DOCKER_AUTHORIZATION=PASS\n'
