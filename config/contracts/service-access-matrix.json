@@ -41,7 +41,7 @@
     {"callerClientId": "odoo-integration", "targetClientId": "middleware-api", "audience": "middleware-api", "scopes": ["odoo.delivery.result.publish", "odoo.events.publish"]},
     {"callerClientId": "middleware-api", "targetClientId": "odoo-integration", "audience": "odoo-integration", "scopes": ["odoo.activities.write", "odoo.leads.read", "odoo.leads.write"]},
     {"callerClientId": "middleware-api", "targetClientId": "n8n-automation", "audience": "n8n-automation", "scopes": ["workflow.status.read", "workflow.trigger"]},
-    {"callerClientId": "n8n-automation", "targetClientId": "middleware-api", "audience": "middleware-api", "scopes": ["automation.command.request", "workflow.result.publish"]},
+    {"callerClientId": "n8n-automation", "targetClientId": "middleware-api", "audience": "middleware-api", "scopes": ["middleware.request.forward", "middleware.status.read", "workflow.result.publish"]},
     {"callerClientId": "vicidial-adapter", "targetClientId": "middleware-api", "audience": "middleware-api", "scopes": ["callbacks.update", "recordings.metadata.publish", "telephony.events.publish"]},
     {"callerClientId": "middleware-api", "targetClientId": "vicidial-adapter", "audience": "vicidial-adapter", "scopes": ["callbacks.dispatch", "telephony.commands.write"]},
     {"callerClientId": "middleware-worker", "targetClientId": "telnexa-gateway", "audience": "telnexa-gateway", "scopes": ["sms.send", "sms.status.read"]},

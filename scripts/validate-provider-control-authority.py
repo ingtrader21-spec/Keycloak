@@ -16,7 +16,8 @@ EXPECTED_APPLICATION_GRANTS = {
     ("codestra-marketing", "middleware-api"): {"marketing.campaign.request"},
     ("codestra-social", "middleware-api"): {"social.publish.request"},
     ("n8n-automation", "middleware-api"): {
-        "automation.command.request", "workflow.result.publish",
+        "middleware.request.forward", "middleware.status.read",
+        "workflow.result.publish",
     },
     ("odoo-integration", "middleware-api"): {
         "odoo.delivery.result.publish", "odoo.events.publish",
