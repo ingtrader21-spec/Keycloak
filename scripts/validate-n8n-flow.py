@@ -38,8 +38,7 @@ def main() -> None:
             "workflow.trigger",
         },
         ("n8n-automation", "middleware-api"): {
-            "middleware.request.forward",
-            "middleware.status.read",
+            "automation.command.request",
             "workflow.result.publish",
         },
     }
@@ -55,6 +54,8 @@ def main() -> None:
         "klyrow-gateway",
         "kyqra-gateway",
         "postly-adapter",
+        "ai-provider-adapter",
+        "marketing-provider-adapter",
     }
     if prohibited_targets != expected_targets:
         fail("direct_provider_prohibition_changed")
