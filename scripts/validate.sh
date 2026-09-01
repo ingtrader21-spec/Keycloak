@@ -4,6 +4,7 @@ set -Eeuo pipefail
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 
 python3 "$ROOT_DIR/scripts/validate-authority-controls.py"
+"$ROOT_DIR/scripts/test-backup-contract.sh"
 CONFIG_ROOT="${CONFIG_ROOT:-$ROOT_DIR/config}"
 cd "$ROOT_DIR"
 

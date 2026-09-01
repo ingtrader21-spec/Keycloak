@@ -7,9 +7,11 @@ Type=oneshot
 User=keycloak-backup
 Group=keycloak-backup
 EnvironmentFile=/etc/codestra-keycloak/backup.env
+Environment=KEYCLOAK_PGPASSFILE=/etc/codestra-keycloak/backup.pgpass
 ExecStart=/srv/keycloak/scripts/backup-postgres.sh
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/srv/keycloak-backups
+ReadOnlyPaths=/etc/codestra-keycloak/backup.pgpass

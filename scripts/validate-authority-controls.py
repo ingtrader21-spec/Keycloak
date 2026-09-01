@@ -20,6 +20,25 @@ for script in ("scripts/backup-postgres.sh", "scripts/verify-backup.sh"):
     text = (root / script).read_text()
     if "STATUS=SUCCESS" not in text or "set -Eeuo pipefail" not in text:
         raise SystemExit(f"{script} is not fail-closed")
+backup_script = (root / "scripts/backup-postgres.sh").read_text()
+for required_control in (
+    'KEYCLOAK_PGPASSFILE',
+    'PGPASSFILE="$KEYCLOAK_PGPASSFILE" pg_dump',
+    'parsed.password is None',
+    '"$(basename -- "$final")"',
+):
+    if required_control not in backup_script:
+        raise SystemExit(f"Backup credential/checksum control is missing: {required_control}")
+verify_script = (root / "scripts/verify-backup.sh").read_text()
+for required_control in (
+    'recorded_name',
+    '"$(basename -- "$backup")"',
+    'sha256sum -- "$backup"',
+    'RESTORE_TEST_PGPASSFILE',
+    'PGPASSFILE="$RESTORE_TEST_PGPASSFILE" pg_restore',
+):
+    if required_control not in verify_script:
+        raise SystemExit(f"Restore checksum binding is missing: {required_control}")
 kong_script = (root / "scripts/certify-kong.sh").read_text()
 for case_name in ("missing", "malformed", "wrong_issuer", "wrong_audience", "insufficient_scope", "expired", "invalid_signature"):
     if case_name not in kong_script:
