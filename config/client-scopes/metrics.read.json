@@ -1,0 +1,10 @@
+{
+  "name": "metrics.read",
+  "description": "Codestra optional monitoring scope managed by protected Keycloak GitOps. It is requested explicitly per short-lived service-account token.",
+  "protocol": "openid-connect",
+  "attributes": {
+    "display.on.consent.screen": "false",
+    "include.in.token.scope": "true"
+  },
+  "protocolMappers": []
+}
