@@ -202,9 +202,9 @@ plan_dir="$test_root/plan"
 [[ "$(jq -er '.api.adminApiBaseUrl' "$plan_dir/plan.json")" == "https://auth-staging.codestra.co" ]]
 [[ "$(jq -er '.api.issuer' "$plan_dir/plan.json")" == "https://auth-staging.codestra.co/realms/codestra" ]]
 
-[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 23 ]]
+[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 29 ]]
 [[ "$(jq -er '.blockedCount' "$plan_dir/plan.json")" -eq 0 ]]
-[[ "$(jq -er '.createCount' "$plan_dir/plan.json")" -eq 22 ]]
+[[ "$(jq -er '.createCount' "$plan_dir/plan.json")" -eq 28 ]]
 [[ "$(jq -er '.updateCount' "$plan_dir/plan.json")" -eq 1 ]]
 [[ "$(jq -er '.clients[] | select(.clientId == "klyrow-portal") | .action' "$plan_dir/plan.json")" == "update" ]]
 for client_id in moneybee-admin moneybee-borrower moneybee-lender moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra; do
