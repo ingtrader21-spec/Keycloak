@@ -4,6 +4,8 @@ set -Eeuo pipefail
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 
 python3 "$ROOT_DIR/scripts/validate-authority-controls.py"
+python3 "$ROOT_DIR/scripts/validate-provider-control-authority.py"
+python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_provider_control_authority.py'
 "$ROOT_DIR/scripts/test-backup-contract.sh"
 CONFIG_ROOT="${CONFIG_ROOT:-$ROOT_DIR/config}"
 cd "$ROOT_DIR"
@@ -87,13 +89,19 @@ creatable_policy="$CONFIG_ROOT/policy/creatable-clients.json"
 [[ -f "$creatable_policy" ]] || fail "Creatable-client policy is missing"
 
 expected_managed='[
+  "ai-provider-adapter",
   "beyvra-backend",
   "breero-backend",
+  "codestra-ai",
+  "codestra-communication",
+  "codestra-marketing",
+  "codestra-social",
   "klyrow-portal",
   "kong-gateway",
   "klyrow-gateway",
   "kyqra-gateway",
   "larim-a-backend",
+  "marketing-provider-adapter",
   "middleware-api",
   "middleware-worker",
   "monitoring-readonly",
@@ -112,13 +120,19 @@ expected_managed='[
   "vicidial-adapter"
 ]'
 expected_creatable='[
+  "ai-provider-adapter",
   "beyvra-backend",
   "breero-backend",
+  "codestra-ai",
+  "codestra-communication",
+  "codestra-marketing",
+  "codestra-social",
   "kong-gateway",
   "klyrow-gateway",
   "klyrow-portal",
   "kyqra-gateway",
   "larim-a-backend",
+  "marketing-provider-adapter",
   "middleware-api",
   "middleware-worker",
   "monitoring-readonly",
@@ -183,12 +197,18 @@ jq -e '
   .issuer == "https://auth.codestra.co/realms/codestra"
   and .grantType == "client_credentials"
   and (.maximumAccessTokenLifetimeSeconds | type == "number" and . > 0 and . <= 300)
-  and (.clients | type == "array" and length == 12)
-  and ((.clients | map(.clientId) | unique | length) == 12)
+  and (.clients | type == "array" and length == 18)
+  and ((.clients | map(.clientId) | unique | length) == 18)
   and ([.clients[].clientId] == [
     "kong-gateway",
     "middleware-api",
     "middleware-worker",
+    "codestra-ai",
+    "codestra-communication",
+    "codestra-marketing",
+    "codestra-social",
+    "ai-provider-adapter",
+    "marketing-provider-adapter",
     "odoo-integration",
     "n8n-automation",
     "vicidial-adapter",
