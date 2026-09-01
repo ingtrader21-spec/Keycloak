@@ -27,7 +27,7 @@ EXPECTED_PROVIDER_GRANTS = {
     ("middleware-worker", "marketing-provider-adapter"): {"marketing.provider.dispatch"},
     ("middleware-worker", "klyrow-gateway"): {"email.send", "email.status.read"},
     ("middleware-worker", "telnexa-gateway"): {"sms.send", "sms.status.read"},
-    ("middleware-worker", "postly-adapter"): {"social.publish"},
+    ("middleware-worker", "postly-adapter"): {"social.publish", "social.status.read"},
 }
 PROVIDER_TARGETS = {target for _caller, target in EXPECTED_PROVIDER_GRANTS}
 

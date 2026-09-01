@@ -50,7 +50,7 @@
     {"callerClientId": "klyrow-gateway", "targetClientId": "middleware-api", "audience": "middleware-api", "scopes": ["email.events.publish", "email.inbound.publish"]},
     {"callerClientId": "middleware-api", "targetClientId": "kyqra-gateway", "audience": "kyqra-gateway", "scopes": ["crawler.jobs.read", "crawler.jobs.submit", "crawler.results.read"]},
     {"callerClientId": "kyqra-gateway", "targetClientId": "middleware-api", "audience": "middleware-api", "scopes": ["crawler.progress.publish", "crawler.results.publish"]},
-    {"callerClientId": "middleware-worker", "targetClientId": "postly-adapter", "audience": "postly-adapter", "scopes": ["social.publish"]},
+    {"callerClientId": "middleware-worker", "targetClientId": "postly-adapter", "audience": "postly-adapter", "scopes": ["social.publish", "social.status.read"]},
     {"callerClientId": "middleware-worker", "targetClientId": "ai-provider-adapter", "audience": "ai-provider-adapter", "scopes": ["ai.provider.dispatch"]},
     {"callerClientId": "middleware-worker", "targetClientId": "marketing-provider-adapter", "audience": "marketing-provider-adapter", "scopes": ["marketing.provider.dispatch"]},
     {"callerClientId": "postly-adapter", "targetClientId": "middleware-api", "audience": "middleware-api", "scopes": ["social.events.publish"]},

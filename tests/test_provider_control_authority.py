@@ -57,6 +57,16 @@ class ProviderControlAuthorityTests(unittest.TestCase):
         grant["scopes"].remove("sms.status.read")
         self.reject(contract)
 
+    def test_missing_social_readback_scope_is_rejected(self) -> None:
+        contract = copy.deepcopy(self.contract)
+        grant = next(
+            item for item in contract["grants"]
+            if item["callerClientId"] == "middleware-worker"
+            and item["targetClientId"] == "postly-adapter"
+        )
+        grant["scopes"].remove("social.status.read")
+        self.reject(contract)
+
     def test_application_scope_swap_is_rejected(self) -> None:
         contract = copy.deepcopy(self.contract)
         grant = next(
