@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Codestra Keycloak backup schedule
+
+[Timer]
+OnCalendar=*-*-* 02:15:00 UTC
+RandomizedDelaySec=15m
+Persistent=true
+Unit=codestra-keycloak-backup.service
+
+[Install]
+WantedBy=timers.target
