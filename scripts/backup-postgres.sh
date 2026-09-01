@@ -3,7 +3,7 @@ set -Eeuo pipefail
 umask 077
 
 fail() { printf 'BACKUP_STATUS=FAILED\nBACKUP_ERROR=%s\n' "$*" >&2; exit 1; }
-for command_name in pg_dump age sha256sum install date python3 stat id basename awk mv; do
+for command_name in pg_dump age sha256sum install date python3 stat id basename awk mv flock sync; do
   command -v "$command_name" >/dev/null || fail "missing command: $command_name"
 done
 : "${KEYCLOAK_DATABASE_URL:?KEYCLOAK_DATABASE_URL is required}"
@@ -38,11 +38,15 @@ valid = (
 raise SystemExit(0 if valid else 1)
 PY
 install -d -m 0700 -- "$BACKUP_DESTINATION"
+exec 9>"$BACKUP_DESTINATION/.backup.lock"
+flock -n 9 || fail "another backup is active"
 
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 final="$BACKUP_DESTINATION/keycloak-${stamp}.sql.age"
 partial="${final}.partial"
 checksum_partial="${final}.sha256.partial"
+[[ ! -e "$final" && ! -e "${final}.sha256" && ! -e "$partial" && ! -e "$checksum_partial" ]] ||
+  fail "backup stamp collision"
 trap 'rm -f -- "${partial:-}" "${checksum_partial:-}"' EXIT
 
 # pipefail makes pg_dump, encryption, or storage failure fatal. A partial file
@@ -50,9 +54,14 @@ trap 'rm -f -- "${partial:-}" "${checksum_partial:-}"' EXIT
 PGPASSFILE="$KEYCLOAK_PGPASSFILE" pg_dump --dbname="$KEYCLOAK_DATABASE_URL" --format=custom --no-owner --no-acl |
   age --recipient "$BACKUP_AGE_RECIPIENT" --output "$partial"
 [[ -s "$partial" ]] || fail "encrypted dump is empty"
+sync -f "$partial"
 mv -- "$partial" "$final"
+sync -f "$final"
 digest="$(sha256sum -- "$final" | awk '{print $1}')"
 [[ "$digest" =~ ^[0-9a-f]{64}$ ]] || fail "invalid backup digest"
 printf '%s  %s\n' "$digest" "$(basename -- "$final")" >"$checksum_partial"
+sync -f "$checksum_partial"
 mv -- "$checksum_partial" "${final}.sha256"
+sync -f "${final}.sha256"
+sync -d "$BACKUP_DESTINATION"
 printf 'BACKUP_STATUS=SUCCESS\nBACKUP_FILE=%s\nCHECKSUM_FILE=%s\n' "$final" "${final}.sha256"

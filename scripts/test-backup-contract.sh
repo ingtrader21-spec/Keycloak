@@ -5,7 +5,7 @@ umask 077
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 fixture="$(mktemp -d)"
 trap 'rm -rf -- "$fixture"' EXIT
-mkdir -p "$fixture/bin" "$fixture/backups" "$fixture/relocated"
+mkdir -p "$fixture/bin" "$fixture/backups" "$fixture/relocated" "$fixture/restore-evidence"
 
 cat >"$fixture/bin/pg_dump" <<'SH'
 #!/usr/bin/env bash
@@ -42,10 +42,17 @@ cat >/dev/null
 printf 'pg_restore-called\n' >>"$TEST_PG_RESTORE_LOG"
 SH
 
-chmod 0700 "$fixture/bin/pg_dump" "$fixture/bin/age" "$fixture/bin/pg_restore"
+cat >"$fixture/bin/psql" <<'SH'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+printf '1\n'
+SH
+
+chmod 0700 "$fixture/bin/pg_dump" "$fixture/bin/age" "$fixture/bin/pg_restore" "$fixture/bin/psql"
 printf 'db.internal:5432:keycloak:keycloak:fixture-password\n' >"$fixture/backup.pgpass"
 chmod 0600 "$fixture/backup.pgpass"
 printf 'fixture-age-identity\n' >"$fixture/age-identity"
+chmod 0600 "$fixture/age-identity"
 
 export PATH="$fixture/bin:/usr/local/bin:/usr/bin:/bin"
 export TEST_PG_DUMP_ARGS="$fixture/pg-dump.args"
@@ -79,6 +86,8 @@ cp -- "$checksum" "${relocated}.sha256"
 export BACKUP_AGE_IDENTITY_FILE="$fixture/age-identity"
 export RESTORE_TEST_DATABASE_URL='postgresql://restore@isolated.internal:5432/keycloak_restore'
 export RESTORE_TEST_PGPASSFILE="$fixture/backup.pgpass"
+export RESTORE_EVIDENCE_DIR="$fixture/restore-evidence"
+export SOURCE_DATABASE_NAME='keycloak'
 export ALLOW_DESTRUCTIVE_RESTORE_TEST='isolated-database-confirmed'
 "$ROOT_DIR/scripts/verify-backup.sh" "$relocated" >/dev/null
 if grep -Fq 'fixture-password' "$TEST_PG_RESTORE_ARGS"; then
@@ -86,6 +95,14 @@ if grep -Fq 'fixture-password' "$TEST_PG_RESTORE_ARGS"; then
   exit 1
 fi
 grep -Fxq "$RESTORE_TEST_PGPASSFILE" "$TEST_RESTORE_PGPASS_OBSERVED"
+"$ROOT_DIR/scripts/check-recovery-freshness.sh" "$RESTORE_EVIDENCE_DIR" 300 >/dev/null
+
+restore_result="$(find "$RESTORE_EVIDENCE_DIR" -maxdepth 1 -type f -name 'RESTORE-RESULT-*' ! -name '*.sha256' -print -quit)"
+printf 'tampered\n' >>"$restore_result"
+if "$ROOT_DIR/scripts/check-recovery-freshness.sh" "$RESTORE_EVIDENCE_DIR" 300 >/dev/null 2>&1; then
+  printf 'ERROR=tampered_restore_evidence_was_accepted\n' >&2
+  exit 1
+fi
 
 printf 'tampered' >>"$relocated"
 if "$ROOT_DIR/scripts/verify-backup.sh" "$relocated" >/dev/null 2>&1; then
