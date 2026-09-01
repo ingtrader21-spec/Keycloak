@@ -47,6 +47,16 @@ class ProviderControlAuthorityTests(unittest.TestCase):
         })
         self.reject(contract)
 
+    def test_direct_application_provider_grant_is_rejected(self) -> None:
+        contract = copy.deepcopy(self.contract)
+        contract["grants"].append({
+            "callerClientId": "codestra-ai",
+            "targetClientId": "ai-provider-adapter",
+            "audience": "ai-provider-adapter",
+            "scopes": ["ai.provider.dispatch"],
+        })
+        self.reject(contract)
+
     def test_missing_worker_readback_scope_is_rejected(self) -> None:
         contract = copy.deepcopy(self.contract)
         grant = next(
@@ -65,6 +75,26 @@ class ProviderControlAuthorityTests(unittest.TestCase):
             and item["targetClientId"] == "postly-adapter"
         )
         grant["scopes"].remove("social.status.read")
+        self.reject(contract)
+
+    def test_missing_ai_readback_scope_is_rejected(self) -> None:
+        contract = copy.deepcopy(self.contract)
+        grant = next(
+            item for item in contract["grants"]
+            if item["callerClientId"] == "middleware-worker"
+            and item["targetClientId"] == "ai-provider-adapter"
+        )
+        grant["scopes"].remove("ai.provider.status.read")
+        self.reject(contract)
+
+    def test_missing_marketing_readback_scope_is_rejected(self) -> None:
+        contract = copy.deepcopy(self.contract)
+        grant = next(
+            item for item in contract["grants"]
+            if item["callerClientId"] == "middleware-worker"
+            and item["targetClientId"] == "marketing-provider-adapter"
+        )
+        grant["scopes"].remove("marketing.provider.status.read")
         self.reject(contract)
 
     def test_application_scope_swap_is_rejected(self) -> None:

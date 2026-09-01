@@ -23,13 +23,18 @@ EXPECTED_APPLICATION_GRANTS = {
     },
 }
 EXPECTED_PROVIDER_GRANTS = {
-    ("middleware-worker", "ai-provider-adapter"): {"ai.provider.dispatch"},
-    ("middleware-worker", "marketing-provider-adapter"): {"marketing.provider.dispatch"},
+    ("middleware-worker", "ai-provider-adapter"): {
+        "ai.provider.dispatch", "ai.provider.status.read",
+    },
+    ("middleware-worker", "marketing-provider-adapter"): {
+        "marketing.provider.dispatch", "marketing.provider.status.read",
+    },
     ("middleware-worker", "klyrow-gateway"): {"email.send", "email.status.read"},
     ("middleware-worker", "telnexa-gateway"): {"sms.send", "sms.status.read"},
     ("middleware-worker", "postly-adapter"): {"social.publish", "social.status.read"},
 }
 PROVIDER_TARGETS = {target for _caller, target in EXPECTED_PROVIDER_GRANTS}
+ALLOWED_PROVIDER_CALLERS = {"middleware-worker", "monitoring-readonly"}
 
 
 def validate(contract: dict) -> None:
@@ -50,11 +55,9 @@ def validate(contract: dict) -> None:
                 raise ValueError(f"missing service identity: {key}")
             if grants.get(key) != scopes:
                 raise ValueError(f"exact grant drift: {key}")
-    for target in PROVIDER_TARGETS:
-        if ("middleware-api", target) in grants:
-            raise ValueError(f"direct middleware provider grant: {target}")
-        if ("n8n-automation", target) in grants:
-            raise ValueError(f"direct n8n provider grant: {target}")
+    for caller, target in grants:
+        if target in PROVIDER_TARGETS and caller not in ALLOWED_PROVIDER_CALLERS:
+            raise ValueError(f"unauthorized direct provider grant: {caller} -> {target}")
 
 
 def main() -> int:

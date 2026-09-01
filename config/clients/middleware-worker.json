@@ -97,7 +97,7 @@
       "consentRequired": false,
       "config": {
         "claim.name": "scope",
-        "claim.value": "ai.provider.dispatch delivery.retry dlq.replay email.send email.status.read inbox.process marketing.provider.dispatch outbox.dispatch sms.send sms.status.read social.publish social.status.read",
+        "claim.value": "ai.provider.dispatch ai.provider.status.read delivery.retry dlq.replay email.send email.status.read inbox.process marketing.provider.dispatch marketing.provider.status.read outbox.dispatch sms.send sms.status.read social.publish social.status.read",
         "jsonType.label": "String",
         "id.token.claim": "false",
         "access.token.claim": "true",
