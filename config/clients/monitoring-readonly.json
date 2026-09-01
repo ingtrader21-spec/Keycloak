@@ -28,6 +28,17 @@
   },
   "protocolMappers": [
     {
+      "name": "audience-ai-provider-adapter",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "consentRequired": false,
+      "config": {
+        "included.custom.audience": "ai-provider-adapter",
+        "id.token.claim": "false",
+        "access.token.claim": "true"
+      }
+    },
+    {
       "name": "audience-klyrow-gateway",
       "protocol": "openid-connect",
       "protocolMapper": "oidc-audience-mapper",
@@ -56,6 +67,17 @@
       "consentRequired": false,
       "config": {
         "included.custom.audience": "kyqra-gateway",
+        "id.token.claim": "false",
+        "access.token.claim": "true"
+      }
+    },
+    {
+      "name": "audience-marketing-provider-adapter",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "consentRequired": false,
+      "config": {
+        "included.custom.audience": "marketing-provider-adapter",
         "id.token.claim": "false",
         "access.token.claim": "true"
       }

@@ -63,7 +63,9 @@
     {"callerClientId": "monitoring-readonly", "targetClientId": "telnexa-gateway", "audience": "telnexa-gateway", "scopes": ["health.read", "metrics.read"]},
     {"callerClientId": "monitoring-readonly", "targetClientId": "klyrow-gateway", "audience": "klyrow-gateway", "scopes": ["health.read", "metrics.read"]},
     {"callerClientId": "monitoring-readonly", "targetClientId": "kyqra-gateway", "audience": "kyqra-gateway", "scopes": ["health.read", "metrics.read"]},
-    {"callerClientId": "monitoring-readonly", "targetClientId": "postly-adapter", "audience": "postly-adapter", "scopes": ["health.read", "metrics.read"]}
+    {"callerClientId": "monitoring-readonly", "targetClientId": "postly-adapter", "audience": "postly-adapter", "scopes": ["health.read", "metrics.read"]},
+    {"callerClientId": "monitoring-readonly", "targetClientId": "ai-provider-adapter", "audience": "ai-provider-adapter", "scopes": ["health.read", "metrics.read"]},
+    {"callerClientId": "monitoring-readonly", "targetClientId": "marketing-provider-adapter", "audience": "marketing-provider-adapter", "scopes": ["health.read", "metrics.read"]}
   ],
   "prohibitedDirectTargets": {
     "n8n-automation": ["odoo-integration", "vicidial-adapter", "telnexa-gateway", "klyrow-gateway", "kyqra-gateway", "postly-adapter", "ai-provider-adapter", "marketing-provider-adapter"]
