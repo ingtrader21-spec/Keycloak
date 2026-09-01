@@ -58,13 +58,19 @@ export KEYCLOAK_PGPASSFILE="$fixture/backup.pgpass"
 export BACKUP_AGE_RECIPIENT='age1fixture'
 export BACKUP_DESTINATION="$fixture/backups"
 
-output="$($ROOT_DIR/scripts/backup-postgres.sh)"
+output="$("$ROOT_DIR/scripts/backup-postgres.sh")"
 backup="$(sed -n 's/^BACKUP_FILE=//p' <<<"$output")"
 checksum="${backup}.sha256"
 [[ -s "$backup" && -s "$checksum" ]]
 [[ "$(awk 'NR == 1 {print $2}' "$checksum")" == "$(basename -- "$backup")" ]]
-! grep -Fq "$fixture" "$checksum"
-! grep -Fq 'fixture-password' "$TEST_PG_DUMP_ARGS"
+if grep -Fq "$fixture" "$checksum"; then
+  printf 'ERROR=checksum_contains_absolute_source_path\n' >&2
+  exit 1
+fi
+if grep -Fq 'fixture-password' "$TEST_PG_DUMP_ARGS"; then
+  printf 'ERROR=pg_dump_arguments_contain_password\n' >&2
+  exit 1
+fi
 grep -Fxq "$KEYCLOAK_PGPASSFILE" "$TEST_PG_PASSFILE_OBSERVED"
 
 relocated="$fixture/relocated/$(basename -- "$backup")"
@@ -75,7 +81,10 @@ export RESTORE_TEST_DATABASE_URL='postgresql://restore@isolated.internal:5432/ke
 export RESTORE_TEST_PGPASSFILE="$fixture/backup.pgpass"
 export ALLOW_DESTRUCTIVE_RESTORE_TEST='isolated-database-confirmed'
 "$ROOT_DIR/scripts/verify-backup.sh" "$relocated" >/dev/null
-! grep -Fq 'fixture-password' "$TEST_PG_RESTORE_ARGS"
+if grep -Fq 'fixture-password' "$TEST_PG_RESTORE_ARGS"; then
+  printf 'ERROR=pg_restore_arguments_contain_password\n' >&2
+  exit 1
+fi
 grep -Fxq "$RESTORE_TEST_PGPASSFILE" "$TEST_RESTORE_PGPASS_OBSERVED"
 
 printf 'tampered' >>"$relocated"
