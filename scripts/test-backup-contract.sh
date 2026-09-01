@@ -45,7 +45,11 @@ SH
 cat >"$fixture/bin/psql" <<'SH'
 #!/usr/bin/env bash
 set -Eeuo pipefail
-printf '1\n'
+count=0
+if [[ -f "$TEST_PSQL_COUNT" ]]; then read -r count <"$TEST_PSQL_COUNT"; fi
+count=$((count + 1))
+printf '%s\n' "$count" >"$TEST_PSQL_COUNT"
+if ((count % 3 == 1)); then printf '%s\n' "${TEST_PRE_RESTORE_TABLES:-0}"; else printf '1\n'; fi
 SH
 
 chmod 0700 "$fixture/bin/pg_dump" "$fixture/bin/age" "$fixture/bin/pg_restore" "$fixture/bin/psql"
@@ -60,6 +64,7 @@ export TEST_PG_PASSFILE_OBSERVED="$fixture/pgpass.observed"
 export TEST_PG_RESTORE_LOG="$fixture/pg-restore.log"
 export TEST_PG_RESTORE_ARGS="$fixture/pg-restore.args"
 export TEST_RESTORE_PGPASS_OBSERVED="$fixture/restore-pgpass.observed"
+export TEST_PSQL_COUNT="$fixture/psql.count"
 export KEYCLOAK_DATABASE_URL='postgresql://keycloak@db.internal:5432/keycloak?sslmode=require'
 export KEYCLOAK_PGPASSFILE="$fixture/backup.pgpass"
 export BACKUP_AGE_RECIPIENT='age1fixture'
@@ -89,6 +94,13 @@ export RESTORE_TEST_PGPASSFILE="$fixture/backup.pgpass"
 export RESTORE_EVIDENCE_DIR="$fixture/restore-evidence"
 export SOURCE_DATABASE_NAME='keycloak'
 export ALLOW_DESTRUCTIVE_RESTORE_TEST='isolated-database-confirmed'
+export RESTORE_TEST_DATABASE_URL='postgresql://restore@isolated.internal:5432/keycloak_restore?dbname=keycloak'
+if "$ROOT_DIR/scripts/verify-backup.sh" "$relocated" >/dev/null 2>&1; then
+  printf 'ERROR=database_override_query_was_accepted\n' >&2
+  exit 1
+fi
+[[ ! -e "$TEST_PSQL_COUNT" ]]
+export RESTORE_TEST_DATABASE_URL='postgresql://restore@isolated.internal:5432/keycloak_restore'
 "$ROOT_DIR/scripts/verify-backup.sh" "$relocated" >/dev/null
 if grep -Fq 'fixture-password' "$TEST_PG_RESTORE_ARGS"; then
   printf 'ERROR=pg_restore_arguments_contain_password\n' >&2
@@ -96,6 +108,14 @@ if grep -Fq 'fixture-password' "$TEST_PG_RESTORE_ARGS"; then
 fi
 grep -Fxq "$RESTORE_TEST_PGPASSFILE" "$TEST_RESTORE_PGPASS_OBSERVED"
 "$ROOT_DIR/scripts/check-recovery-freshness.sh" "$RESTORE_EVIDENCE_DIR" 300 >/dev/null
+
+rm -f "$TEST_PSQL_COUNT"
+export TEST_PRE_RESTORE_TABLES=1
+if "$ROOT_DIR/scripts/verify-backup.sh" "$relocated" >/dev/null 2>&1; then
+  printf 'ERROR=nonempty_restore_database_was_accepted\n' >&2
+  exit 1
+fi
+unset TEST_PRE_RESTORE_TABLES
 
 restore_result="$(find "$RESTORE_EVIDENCE_DIR" -maxdepth 1 -type f -name 'RESTORE-RESULT-*' ! -name '*.sha256' -print -quit)"
 printf 'tampered\n' >>"$restore_result"

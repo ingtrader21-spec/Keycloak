@@ -39,6 +39,7 @@ from urllib.parse import parse_qsl, urlsplit
 url = os.environ["RESTORE_TEST_DATABASE_URL"]
 parsed = urlsplit(url)
 query_keys = {key.casefold() for key, _ in parse_qsl(parsed.query, keep_blank_values=True)}
+endpoint_overrides = {"dbname", "database", "host", "hostaddr", "port", "user", "service"}
 valid = (
     parsed.scheme in {"postgres", "postgresql"}
     and parsed.username is not None
@@ -47,6 +48,7 @@ valid = (
     and parsed.path not in {"", "/"}
     and parsed.fragment == ""
     and not any("password" in key or "passfile" in key for key in query_keys)
+    and query_keys.isdisjoint(endpoint_overrides)
 )
 raise SystemExit(0 if valid else 1)
 PY
@@ -64,6 +66,9 @@ read -r expected_digest recorded_name extra <"$checksum_file" || fail "checksum 
   fail "checksum record is not bound to the supplied backup"
 actual_digest="$(sha256sum -- "$backup" | awk '{print $1}')"
 [[ "$actual_digest" == "$expected_digest" ]] || fail "checksum mismatch"
+pre_restore_table_count="$(PGPASSFILE="$RESTORE_TEST_PGPASSFILE" psql "$RESTORE_TEST_DATABASE_URL" -XAtq -v ON_ERROR_STOP=1 -c \
+  "select count(*) from information_schema.tables where table_schema='public';")"
+[[ "$pre_restore_table_count" == "0" ]] || fail "isolated restore database must be empty before restore"
 age --decrypt --identity "$BACKUP_AGE_IDENTITY_FILE" "$backup" |
   PGPASSFILE="$RESTORE_TEST_PGPASSFILE" pg_restore --dbname="$RESTORE_TEST_DATABASE_URL" --clean --if-exists --no-owner --no-acl --exit-on-error
 pg_restore --list <(age --decrypt --identity "$BACKUP_AGE_IDENTITY_FILE" "$backup") >/dev/null || fail "archive inventory failed"
@@ -90,6 +95,7 @@ STAMP=$stamp
 BACKUP_FILE=$(basename -- "$backup")
 BACKUP_SHA256=$actual_digest
 TARGET_CLASS=ISOLATED
+PRE_RESTORE_PUBLIC_TABLES=0
 REALM_TABLE=PASS
 CLIENT_TABLE=PASS
 RESTORE=PASS
