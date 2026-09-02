@@ -1,0 +1,121 @@
+{
+  "activationPreconditions": [
+    "protected merge SHA recorded",
+    "independently reviewed live-state plan",
+    "before-state rollback bundle and checksum",
+    "approved secret handoff to runtime files",
+    "authorized later server mission"
+  ],
+  "configurationChecksum": "2234bcddd0dcc4e78d84e9e7102d91ad98aa821b8c023166669bb1f7f2e2b42b",
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "kind": "CodestraKeycloakObservabilityDesiredStatePlan",
+  "operations": [
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "48fc9d8a240372308a5be097739527e44650b9f427e108ca878fa2d35ed35439",
+      "resourceId": "grafana-observability",
+      "resourceType": "client"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "81500604967a211b91dc4945d98d658613b761ab07f483633d9a3a39fbb660b2",
+      "resourceId": "superset-analytics",
+      "resourceType": "client"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "b3a901e2ce71dc91f592664d7fe7b37103b2e4ed87f564e83b47b1bf4641fee7",
+      "resourceId": "openbao-secrets",
+      "resourceType": "client"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "285476a5b9774c4db93c2f6cf0e3a821d25cbc40fc0b46dfc4faf4753f19f383",
+      "resourceId": "observability-viewer",
+      "resourceType": "realm-role"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "df98bc18c9f78a85ac86e8ae28f7c1af3c2b03bf8a84405db030d393b561146c",
+      "resourceId": "observability-operator",
+      "resourceType": "realm-role"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "d6b01b0c1fd708aa6e00cbeaf2ecc26fed40076882849f7628f18f47af9858ea",
+      "resourceId": "observability-admin",
+      "resourceType": "realm-role"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "fcb775456a426f5a13794af7a7be3ceb0c3d6fe6c0e397c2473329e9e70bf981",
+      "resourceId": "secrets-operator",
+      "resourceType": "realm-role"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "66a68d097475f514639cd825e1ab0a16a444a53e9d687893811b3c0b417befb0",
+      "resourceId": "secrets-admin",
+      "resourceType": "realm-role"
+    }
+  ],
+  "realm": "codestra",
+  "repositoryBoundary": {
+    "liveApplyAuthorized": false,
+    "liveApplyPerformed": false,
+    "runtimeStateRead": false,
+    "secretsGenerated": false
+  },
+  "rollback": {
+    "existingResourceBeforeStateRequired": true,
+    "newClientSequence": [
+      "disable",
+      "verify no active use",
+      "separately approve deletion"
+    ],
+    "newRoleSequence": [
+      "remove assignments",
+      "verify zero mappings",
+      "separately approve deletion"
+    ]
+  },
+  "schemaVersion": 1,
+  "sourceFiles": [
+    {
+      "path": "config/contracts/observability-browser-clients.json",
+      "sha256": "c74655ed898bc95d27326463303ede738c372b379c48cb19ba03886ac15f4f82"
+    },
+    {
+      "path": "config/desired-state/observability/clients/grafana-observability.json",
+      "sha256": "48fc9d8a240372308a5be097739527e44650b9f427e108ca878fa2d35ed35439"
+    },
+    {
+      "path": "config/desired-state/observability/clients/openbao-secrets.json",
+      "sha256": "b3a901e2ce71dc91f592664d7fe7b37103b2e4ed87f564e83b47b1bf4641fee7"
+    },
+    {
+      "path": "config/desired-state/observability/clients/superset-analytics.json",
+      "sha256": "81500604967a211b91dc4945d98d658613b761ab07f483633d9a3a39fbb660b2"
+    },
+    {
+      "path": "config/desired-state/observability/realm-roles/observability-admin.json",
+      "sha256": "d6b01b0c1fd708aa6e00cbeaf2ecc26fed40076882849f7628f18f47af9858ea"
+    },
+    {
+      "path": "config/desired-state/observability/realm-roles/observability-operator.json",
+      "sha256": "df98bc18c9f78a85ac86e8ae28f7c1af3c2b03bf8a84405db030d393b561146c"
+    },
+    {
+      "path": "config/desired-state/observability/realm-roles/observability-viewer.json",
+      "sha256": "285476a5b9774c4db93c2f6cf0e3a821d25cbc40fc0b46dfc4faf4753f19f383"
+    },
+    {
+      "path": "config/desired-state/observability/realm-roles/secrets-admin.json",
+      "sha256": "66a68d097475f514639cd825e1ab0a16a444a53e9d687893811b3c0b417befb0"
+    },
+    {
+      "path": "config/desired-state/observability/realm-roles/secrets-operator.json",
+      "sha256": "fcb775456a426f5a13794af7a7be3ceb0c3d6fe6c0e397c2473329e9e70bf981"
+    }
+  ]
+}

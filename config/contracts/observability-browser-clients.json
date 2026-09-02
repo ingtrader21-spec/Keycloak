@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "clients": [
+    {
+      "clientId": "grafana-observability",
+      "applicationUrl": "https://graf.codestra.media",
+      "redirectUris": ["https://graf.codestra.media/login/generic_oauth"],
+      "postLogoutRedirectUris": ["https://graf.codestra.media/"],
+      "roles": ["observability-viewer", "observability-operator", "observability-admin"],
+      "mfaRequiredRoles": ["observability-operator", "observability-admin"],
+      "clientSecretAuthority": "openbao",
+      "runtimeSecretFile": "/run/secrets/grafana_oidc_client_secret"
+    },
+    {
+      "clientId": "superset-analytics",
+      "applicationUrl": "https://supe.codestra.media",
+      "redirectUris": ["https://supe.codestra.media/oauth-authorized/keycloak"],
+      "postLogoutRedirectUris": ["https://supe.codestra.media/"],
+      "roles": ["observability-viewer", "observability-operator", "observability-admin"],
+      "mfaRequiredRoles": ["observability-operator", "observability-admin"],
+      "clientSecretAuthority": "openbao",
+      "runtimeSecretFile": "/run/secrets/superset_oidc_client_secret"
+    },
+    {
+      "clientId": "openbao-secrets",
+      "applicationUrl": "https://bao.codestra.media",
+      "redirectUris": [
+        "https://bao.codestra.media/v1/auth/oidc/callback",
+        "https://bao.codestra.media/ui/vault/auth/oidc/oidc/callback",
+        "http://localhost:8250/oidc/callback"
+      ],
+      "postLogoutRedirectUris": ["https://bao.codestra.media/"],
+      "roles": ["secrets-operator", "secrets-admin"],
+      "mfaRequiredRoles": ["secrets-operator", "secrets-admin"],
+      "clientSecretAuthority": "openbao",
+      "runtimeSecretFile": "/run/secrets/openbao_oidc_client_secret"
+    }
+  ],
+  "roleIsolation": {
+    "observabilityRolesGrantSecretsAccess": false,
+    "secretsRolesGrantObservabilityAccess": false,
+    "emailAddressGrantsAdministrativeAccess": false,
+    "administrativeMfaRequired": true,
+    "roleAssignmentRequiresIndependentApproval": true
+  },
+  "activation": {
+    "desiredStatePrepared": true,
+    "renderedPlanPrepared": true,
+    "liveStateRead": false,
+    "liveApplyAuthorized": false,
+    "liveApplyPerformed": false,
+    "secretsGenerated": false,
+    "roleAssignmentsApplied": false,
+    "productionAccessEnabled": false
+  }
+}
