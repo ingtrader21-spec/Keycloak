@@ -17,13 +17,14 @@ CONTRACT_PATH = ROOT / "config" / "contracts" / "observability-browser-clients.j
 OUTPUT_DIR = ROOT / "release" / "observability"
 PLAN_PATH = OUTPUT_DIR / "keycloak-observability-desired-state-plan.json"
 CHECKSUM_PATH = OUTPUT_DIR / "keycloak-observability-desired-state-plan.sha256"
+MFA_FLOW_ALIAS = "codestra-observability-browser-mfa"
 
 CLIENTS = {
     "grafana-observability": {
         "origin": "https://graf.codestra.media",
         "redirects": ["https://graf.codestra.media/login/generic_oauth"],
         "roles": ["observability-viewer", "observability-operator", "observability-admin"],
-        "mfa": ["observability-operator", "observability-admin"],
+        "mfa": ["observability-viewer", "observability-operator", "observability-admin"],
         "idle": "900",
         "maximum": "14400",
         "secret_file": "/run/secrets/grafana_oidc_client_secret",
@@ -32,7 +33,7 @@ CLIENTS = {
         "origin": "https://supe.codestra.media",
         "redirects": ["https://supe.codestra.media/oauth-authorized/keycloak"],
         "roles": ["observability-viewer", "observability-operator", "observability-admin"],
-        "mfa": ["observability-operator", "observability-admin"],
+        "mfa": ["observability-viewer", "observability-operator", "observability-admin"],
         "idle": "900",
         "maximum": "14400",
         "secret_file": "/run/secrets/superset_oidc_client_secret",
@@ -52,7 +53,7 @@ CLIENTS = {
     },
 }
 ROLES = {
-    "observability-viewer": ("observability", "viewer", "false"),
+    "observability-viewer": ("observability", "viewer", "true"),
     "observability-operator": ("observability", "operator", "true"),
     "observability-admin": ("observability", "admin", "true"),
     "secrets-operator": ("secrets", "operator", "true"),
@@ -173,14 +174,48 @@ def validate_role(role_name: str, role: dict[str, Any]) -> None:
         raise DesiredStateError(f"{role_name}: role isolation, MFA, or approval policy mismatch")
 
 
+def validate_scope_mapping(client_id: str, mapping: dict[str, Any]) -> None:
+    if mapping != {
+        "clientId": client_id,
+        "fullScopeAllowed": False,
+        "realmRoles": CLIENTS[client_id]["roles"],
+        "crossFamilyRolesAllowed": False,
+    }:
+        raise DesiredStateError(f"{client_id}: explicit realm-role scope mapping mismatch")
+
+
+def validate_mfa_flow(flow: dict[str, Any]) -> None:
+    expected_executions = [
+        {"authenticator": "auth-username-password-form", "requirement": "REQUIRED", "priority": 10},
+        {"authenticator": "auth-otp-form", "requirement": "REQUIRED", "priority": 20},
+    ]
+    if (
+        flow.get("schemaVersion") != 1
+        or flow.get("alias") != MFA_FLOW_ALIAS
+        or flow.get("providerId") != "basic-flow"
+        or flow.get("topLevel") is not True
+        or flow.get("builtIn") is not False
+        or flow.get("executions") != expected_executions
+        or flow.get("clientBindings") != list(CLIENTS)
+        or flow.get("sessionReuseWithoutMfaAllowed") is not False
+        or flow.get("unconfiguredOtpFallbackAllowed") is not False
+        or flow.get("liveApplyAuthorized") is not False
+    ):
+        raise DesiredStateError("dedicated browser flow must require password and OTP for every bound client login")
+
+
 def source_documents() -> list[tuple[Path, dict[str, Any]]]:
     documents: list[tuple[Path, dict[str, Any]]] = [(CONTRACT_PATH, load_json(CONTRACT_PATH))]
     for client_id in CLIENTS:
         path = DESIRED_ROOT / "clients" / f"{client_id}.json"
         documents.append((path, load_json(path)))
+        path = DESIRED_ROOT / "scope-mappings" / f"{client_id}.json"
+        documents.append((path, load_json(path)))
     for role_name in ROLES:
         path = DESIRED_ROOT / "realm-roles" / f"{role_name}.json"
         documents.append((path, load_json(path)))
+    flow_path = DESIRED_ROOT / "authentication-flows" / "observability-browser-mfa.json"
+    documents.append((flow_path, load_json(flow_path)))
     return documents
 
 
@@ -189,8 +224,11 @@ def validate() -> list[tuple[Path, dict[str, Any]]]:
     values = {path: value for path, value in documents}
     for client_id in CLIENTS:
         validate_client(client_id, values[DESIRED_ROOT / "clients" / f"{client_id}.json"])
+        validate_scope_mapping(client_id, values[DESIRED_ROOT / "scope-mappings" / f"{client_id}.json"])
     for role_name in ROLES:
         validate_role(role_name, values[DESIRED_ROOT / "realm-roles" / f"{role_name}.json"])
+    flow = values[DESIRED_ROOT / "authentication-flows" / "observability-browser-mfa.json"]
+    validate_mfa_flow(flow)
 
     contract = values[CONTRACT_PATH]
     if contract.get("schemaVersion") != 1 or contract.get("issuer") != "https://auth.codestra.co/realms/codestra":
@@ -206,6 +244,8 @@ def validate() -> list[tuple[Path, dict[str, Any]]]:
             raise DesiredStateError(f"{item['clientId']}: contract logout URL mismatch")
         if item.get("roles") != expected["roles"] or item.get("mfaRequiredRoles") != expected["mfa"]:
             raise DesiredStateError(f"{item['clientId']}: contract role or MFA mismatch")
+        if item.get("browserAuthenticationFlow") != MFA_FLOW_ALIAS:
+            raise DesiredStateError(f"{item['clientId']}: dedicated MFA browser-flow binding missing")
         if item.get("clientSecretAuthority") != "openbao" or item.get("runtimeSecretFile") != expected["secret_file"]:
             raise DesiredStateError(f"{item['clientId']}: external secret authority mismatch")
     expected_isolation = {
@@ -263,6 +303,28 @@ def build_plan() -> dict[str, Any]:
             "resourceId": role_name,
             "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
             "desiredSha256": hashlib.sha256(canonical(desired)).hexdigest(),
+        })
+    flow = load_json(DESIRED_ROOT / "authentication-flows" / "observability-browser-mfa.json")
+    operations.append({
+        "resourceType": "authentication-flow",
+        "resourceId": MFA_FLOW_ALIAS,
+        "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+        "desiredSha256": hashlib.sha256(canonical(flow)).hexdigest(),
+    })
+    for client_id in CLIENTS:
+        mapping = load_json(DESIRED_ROOT / "scope-mappings" / f"{client_id}.json")
+        operations.append({
+            "resourceType": "realm-role-scope-mapping",
+            "resourceId": client_id,
+            "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+            "desiredSha256": hashlib.sha256(canonical(mapping)).hexdigest(),
+        })
+        binding = {"clientId": client_id, "browserFlowAlias": MFA_FLOW_ALIAS}
+        operations.append({
+            "resourceType": "client-browser-flow-binding",
+            "resourceId": client_id,
+            "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+            "desiredSha256": hashlib.sha256(canonical(binding)).hexdigest(),
         })
     return {
         "schemaVersion": 1,

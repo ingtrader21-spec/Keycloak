@@ -6,7 +6,7 @@
   "attributes": {
     "codestra.role.family": ["observability"],
     "codestra.role.level": ["viewer"],
-    "codestra.mfa.required": ["false"],
+    "codestra.mfa.required": ["true"],
     "codestra.assignment.independent_approval": ["true"],
     "codestra.cross_family_grant": ["false"]
   }

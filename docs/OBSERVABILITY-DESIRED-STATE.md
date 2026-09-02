@@ -18,7 +18,9 @@ All browser clients are confidential Authorization Code clients with PKCE S256. 
 
 Client secret values are never represented in Git. The source contract identifies OpenBao as the authority and an application-specific runtime secret-file destination. Generating and transferring those values belongs to a later authorized server mission.
 
-Realm roles are non-composite and split into observability and secrets families. Cross-family grants are prohibited. Operator and administrator roles require MFA; role assignment requires independent approval and must not be derived from an email address.
+Realm roles are non-composite and split into observability and secrets families. Cross-family grants are prohibited. Because role metadata cannot enforce authentication strength, all three clients bind to the dedicated `codestra-observability-browser-mfa` flow. That flow omits reusable cookie/SSO and identity-provider alternatives and requires both the username/password form and configured OTP on every login. There is no non-OTP fallback. This is intentionally stronger than requiring MFA only for operator and administrator roles.
+
+Each client also has an explicit, family-limited realm-role scope mapping under `config/desired-state/observability/scope-mappings/`. This makes the approved roles available to the realm-role token mapper while `fullScopeAllowed` remains disabled. Role assignment requires independent approval and must not be derived from an email address.
 
 ## Deterministic plan
 
@@ -35,11 +37,11 @@ The committed plan and checksum are:
 - `release/observability/keycloak-observability-desired-state-plan.json`
 - `release/observability/keycloak-observability-desired-state-plan.sha256`
 
-The plan records desired-resource hashes and repository activation preconditions. It does not contain live state, credentials, or an authorization to apply.
+The plan records desired-resource hashes, explicit scope-mapping operations, authentication-flow creation, per-client browser-flow bindings, and repository activation preconditions. It does not contain live state, credentials, or an authorization to apply.
 
 ## Later apply gate
 
-The later live mission must create a fresh plan from exact protected source and live before-state, obtain independent approval, capture a rollback bundle, authorize the secret handoff, and only then apply. This repository mission does not call the Keycloak Admin API.
+The later live mission must create a fresh plan from exact protected source and live before-state, resolve the flow alias to its live resource ID, obtain independent approval, capture a rollback bundle, authorize the secret handoff, and only then apply. Its post-apply checks must prove the three clients use the dedicated browser flow, password-only login fails, unconfigured OTP fails closed, and issued tokens contain only the explicitly scoped role family. This repository mission does not call the Keycloak Admin API.
 
 ## Rollback
 

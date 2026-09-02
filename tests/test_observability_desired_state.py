@@ -14,7 +14,9 @@ from observability_desired_state import (  # noqa: E402
     build_plan,
     load_json,
     validate_client,
+    validate_mfa_flow,
     validate_role,
+    validate_scope_mapping,
 )
 
 
@@ -25,7 +27,7 @@ class ObservabilityDesiredStateTests(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertFalse(first["repositoryBoundary"]["runtimeStateRead"])
         self.assertFalse(first["repositoryBoundary"]["liveApplyAuthorized"])
-        self.assertEqual(len(first["operations"]), 8)
+        self.assertEqual(len(first["operations"]), 15)
 
     def test_wildcard_callback_is_rejected(self) -> None:
         client = copy.deepcopy(load_json(DESIRED_ROOT / "clients" / "grafana-observability.json"))
@@ -50,6 +52,24 @@ class ObservabilityDesiredStateTests(unittest.TestCase):
         client["secret"] = "must-not-be-committed"
         with self.assertRaises(DesiredStateError):
             validate_client("openbao-secrets", client)
+
+    def test_cross_family_scope_mapping_is_rejected(self) -> None:
+        mapping = {
+            "clientId": "grafana-observability",
+            "fullScopeAllowed": False,
+            "realmRoles": ["observability-viewer", "secrets-admin"],
+            "crossFamilyRolesAllowed": False,
+        }
+        with self.assertRaises(DesiredStateError):
+            validate_scope_mapping("grafana-observability", mapping)
+
+    def test_optional_otp_execution_is_rejected(self) -> None:
+        flow = load_json(
+            DESIRED_ROOT / "authentication-flows" / "observability-browser-mfa.json"
+        )
+        flow["executions"][1]["requirement"] = "CONDITIONAL"
+        with self.assertRaises(DesiredStateError):
+            validate_mfa_flow(flow)
 
 
 if __name__ == "__main__":
