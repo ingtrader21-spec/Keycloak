@@ -38,7 +38,7 @@ done
 
 expected_unit='actions.runner.appolon1908-hue-Keycloak.kazan555.service'
 expected_user='keycloak-deploy'
-for command_name in systemctl getent getfacl docker realpath find findmnt sort cat awk grep sed id stat; do
+for command_name in systemctl getent getfacl docker realpath readlink find findmnt sort cat awk grep sed id stat; do
   command -v "$command_name" >/dev/null 2>&1 || {
     printf 'ERROR=required_command_missing:%s\n' "$command_name" >&2
     exit 1
@@ -328,6 +328,25 @@ while read -r active_unit _; do
 done <"$active_units"
 
 host_pid_snapshot="$tmp_dir/host-pids.txt"
+# A complete credential scan is meaningful only in the host PID namespace.
+# NSpid contains one value in the initial PID namespace and one additional
+# value for each nested namespace.  Validate both this process and PID 1, and
+# require their namespace inode identities to match before inspecting /proc.
+if ! self_pid_namespace="$(readlink -- /proc/self/ns/pid)" \
+  || ! init_pid_namespace="$(readlink -- /proc/1/ns/pid)"; then
+  printf 'ERROR=pid_namespace_identity_unreadable\n' >&2
+  exit 1
+fi
+[[ "$self_pid_namespace" == "$init_pid_namespace" ]] || {
+  printf 'ERROR=host_pid_namespace_required\n' >&2
+  exit 1
+}
+self_nspid="$(awk '$1 == "NSpid:" { $1=""; sub(/^ /, ""); print; exit }' /proc/self/status)"
+init_nspid="$(awk '$1 == "NSpid:" { $1=""; sub(/^ /, ""); print; exit }' /proc/1/status)"
+[[ "$self_nspid" =~ ^[0-9]+$ && "$init_nspid" == 1 ]] || {
+  printf 'ERROR=initial_pid_namespace_not_proven\n' >&2
+  exit 1
+}
 proc_mount_options="$(findmnt --noheadings --output OPTIONS --target /proc)"
 [[ -n "$proc_mount_options" && "$proc_mount_options" != *$'\n'* ]] || {
   printf 'ERROR=procfs_mount_options_unresolved\n' >&2
@@ -456,6 +475,7 @@ docker_authorized_accounts_csv="$(printf '%s\n' "${docker_authorized_accounts[@]
   printf 'DOCKER_EFFECTIVE_PROCESS_GROUP_ENUMERATION=PASS\n'
   printf 'DOCKER_HOST_PROCESS_ENUMERATION=PASS\n'
   printf 'DOCKER_HOST_CAPABILITY_ENUMERATION=PASS\n'
+  printf 'HOST_PID_NAMESPACE=PASS\n'
   printf 'PROCFS_VISIBILITY=UNRESTRICTED\n'
   printf 'DOCKER_AUTHORIZED_NON_ROOT_ACCOUNTS=%s\n' "${docker_authorized_accounts_csv:-UNIT_BOUND_RUNNER_ONLY}"
   printf 'RUNNER_DOCKER_SECURITY_IMPACT=DOCKER_GROUP_CONFERS_ROOT_EQUIVALENT_HOST_CONTROL\n'
