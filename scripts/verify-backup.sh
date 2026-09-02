@@ -13,6 +13,27 @@ checksum_file="${backup}.sha256"
 : "${RESTORE_TEST_PGPASSFILE:?RESTORE_TEST_PGPASSFILE is required}"
 : "${RESTORE_EVIDENCE_DIR:?RESTORE_EVIDENCE_DIR is required}"
 : "${SOURCE_DATABASE_NAME:?SOURCE_DATABASE_NAME is required}"
+[[ "$RESTORE_EVIDENCE_DIR" == /* ]] || fail "RESTORE_EVIDENCE_DIR must be absolute"
+python3 - "$RESTORE_EVIDENCE_DIR" <<'PY' || fail "RESTORE_EVIDENCE_DIR must be normalized and free of symlink components"
+import os
+import sys
+from pathlib import Path
+
+raw = sys.argv[1]
+path = Path(raw)
+if os.path.normpath(raw) != raw:
+    raise SystemExit(1)
+current = Path(path.anchor)
+for part in path.parts[1:]:
+    current /= part
+    if current.exists() or current.is_symlink():
+        if current.is_symlink():
+            raise SystemExit(1)
+        if current != path and not current.is_dir():
+            raise SystemExit(1)
+        if current == path and not current.is_dir():
+            raise SystemExit(1)
+PY
 [[ "${ALLOW_DESTRUCTIVE_RESTORE_TEST:-}" == "isolated-database-confirmed" ]] ||
   fail "set ALLOW_DESTRUCTIVE_RESTORE_TEST=isolated-database-confirmed"
 for command_name in age pg_restore psql sha256sum basename awk python3 stat id install flock sync date mv; do command -v "$command_name" >/dev/null || fail "missing command: $command_name"; done
@@ -85,6 +106,7 @@ client_rows="$(PGPASSFILE="$RESTORE_TEST_PGPASSFILE" psql "$RESTORE_TEST_DATABAS
   fail "restored Keycloak tables do not contain recoverable data"
 
 install -d -m 0700 -- "$RESTORE_EVIDENCE_DIR"
+[[ -d "$RESTORE_EVIDENCE_DIR" && ! -L "$RESTORE_EVIDENCE_DIR" ]] || fail "restore evidence directory is unsafe"
 exec 8>"$RESTORE_EVIDENCE_DIR/.restore.lock"
 flock -n 8 || fail "another restore verification is publishing evidence"
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"

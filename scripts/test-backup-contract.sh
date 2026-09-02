@@ -99,6 +99,13 @@ export RESTORE_TEST_PGPASSFILE="$fixture/backup.pgpass"
 export RESTORE_EVIDENCE_DIR="$fixture/restore-evidence"
 export SOURCE_DATABASE_NAME='keycloak'
 export ALLOW_DESTRUCTIVE_RESTORE_TEST='isolated-database-confirmed'
+export RESTORE_EVIDENCE_DIR='relative-restore-evidence'
+if "$ROOT_DIR/scripts/verify-backup.sh" "$relocated" >/dev/null 2>&1; then
+  printf 'ERROR=relative_restore_evidence_directory_was_accepted\n' >&2
+  exit 1
+fi
+[[ ! -e "$TEST_PSQL_COUNT" ]]
+export RESTORE_EVIDENCE_DIR="$fixture/restore-evidence"
 export RESTORE_TEST_DATABASE_URL='postgresql://restore@isolated.internal:5432/keycloak_restore?dbname=keycloak'
 if "$ROOT_DIR/scripts/verify-backup.sh" "$relocated" >/dev/null 2>&1; then
   printf 'ERROR=database_override_query_was_accepted\n' >&2
