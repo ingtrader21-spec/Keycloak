@@ -18,7 +18,57 @@ read -r expected_digest recorded_name extra <"$root/$result_name.sha256" || fail
   fail "restore evidence checksum is not bound to the result"
 [[ "$(sha256sum -- "$root/$result_name" | awk '{print $1}')" == "$expected_digest" ]] ||
   fail "restore evidence checksum failed"
-grep -qx 'RESTORE=PASS' "$root/$result_name" || fail "restore evidence does not record success"
+python3 - "$root/$result_name" "$stamp" <<'PY' || fail "restore evidence schema is incomplete or invalid"
+import re
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+expected_stamp = sys.argv[2]
+expected_keys = {
+    "SCHEMA",
+    "STAMP",
+    "BACKUP_FILE",
+    "BACKUP_SHA256",
+    "TARGET_CLASS",
+    "PRE_RESTORE_PUBLIC_TABLES",
+    "REALM_TABLE",
+    "CLIENT_TABLE",
+    "REALM_ROWS",
+    "CLIENT_ROWS",
+    "RESTORE",
+}
+values: dict[str, str] = {}
+for line in path.read_text(encoding="utf-8").splitlines():
+    if "=" not in line:
+        raise SystemExit(1)
+    key, value = line.split("=", 1)
+    if key in values or key not in expected_keys:
+        raise SystemExit(1)
+    values[key] = value
+if set(values) != expected_keys:
+    raise SystemExit(1)
+if values["SCHEMA"] != "codestra-keycloak-restore-result.v1":
+    raise SystemExit(1)
+if values["STAMP"] != expected_stamp:
+    raise SystemExit(1)
+if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,254}", values["BACKUP_FILE"]):
+    raise SystemExit(1)
+if not re.fullmatch(r"[0-9a-f]{64}", values["BACKUP_SHA256"]):
+    raise SystemExit(1)
+for key, expected in {
+    "TARGET_CLASS": "ISOLATED",
+    "PRE_RESTORE_PUBLIC_TABLES": "0",
+    "REALM_TABLE": "PASS",
+    "CLIENT_TABLE": "PASS",
+    "RESTORE": "PASS",
+}.items():
+    if values[key] != expected:
+        raise SystemExit(1)
+for key in ("REALM_ROWS", "CLIENT_ROWS"):
+    if not values[key].isdigit() or int(values[key]) < 1:
+        raise SystemExit(1)
+PY
 stamp_iso="${stamp:0:4}-${stamp:4:2}-${stamp:6:2}T${stamp:9:2}:${stamp:11:2}:${stamp:13:2}Z"
 stamp_epoch="$(date -u -d "$stamp_iso" +%s)" || fail "restore timestamp is invalid"
 now_epoch="$(date -u +%s)"

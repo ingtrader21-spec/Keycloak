@@ -45,11 +45,16 @@ SH
 cat >"$fixture/bin/psql" <<'SH'
 #!/usr/bin/env bash
 set -Eeuo pipefail
-count=0
-if [[ -f "$TEST_PSQL_COUNT" ]]; then read -r count <"$TEST_PSQL_COUNT"; fi
-count=$((count + 1))
-printf '%s\n' "$count" >"$TEST_PSQL_COUNT"
-if ((count % 3 == 1)); then printf '%s\n' "${TEST_PRE_RESTORE_TABLES:-0}"; else printf '1\n'; fi
+printf 'called\n' >>"$TEST_PSQL_COUNT"
+query="${*: -1}"
+case "$query" in
+  *"table_schema='public';"*) printf '%s\n' "${TEST_PRE_RESTORE_TABLES:-0}" ;;
+  *"table_name='realm'"*) printf '%s\n' "${TEST_REALM_TABLE_COUNT:-1}" ;;
+  *"table_name='client'"*) printf '%s\n' "${TEST_CLIENT_TABLE_COUNT:-1}" ;;
+  *"from public.realm"*) printf '%s\n' "${TEST_REALM_ROWS:-1}" ;;
+  *"from public.client"*) printf '%s\n' "${TEST_CLIENT_ROWS:-1}" ;;
+  *) exit 2 ;;
+esac
 SH
 
 chmod 0700 "$fixture/bin/pg_dump" "$fixture/bin/age" "$fixture/bin/pg_restore" "$fixture/bin/psql"
@@ -109,6 +114,43 @@ fi
 grep -Fxq "$RESTORE_TEST_PGPASSFILE" "$TEST_RESTORE_PGPASS_OBSERVED"
 "$ROOT_DIR/scripts/check-recovery-freshness.sh" "$RESTORE_EVIDENCE_DIR" 300 >/dev/null
 
+restore_result="$(find "$RESTORE_EVIDENCE_DIR" -maxdepth 1 -type f -name 'RESTORE-RESULT-*' ! -name '*.sha256' -print -quit)"
+restore_result_name="$(basename -- "$restore_result")"
+cp -- "$restore_result" "$fixture/pristine-restore-result"
+
+grep -v '^CLIENT_ROWS=' "$fixture/pristine-restore-result" >"$restore_result"
+printf '%s  %s\n' "$(sha256sum -- "$restore_result" | awk '{print $1}')" "$restore_result_name" >"${restore_result}.sha256"
+if "$ROOT_DIR/scripts/check-recovery-freshness.sh" "$RESTORE_EVIDENCE_DIR" 300 >/dev/null 2>&1; then
+  printf 'ERROR=incomplete_restore_evidence_was_accepted\n' >&2
+  exit 1
+fi
+
+cp -- "$fixture/pristine-restore-result" "$restore_result"
+sed -i 's/^STAMP=.*/STAMP=20000101T000000Z/' "$restore_result"
+printf '%s  %s\n' "$(sha256sum -- "$restore_result" | awk '{print $1}')" "$restore_result_name" >"${restore_result}.sha256"
+if "$ROOT_DIR/scripts/check-recovery-freshness.sh" "$RESTORE_EVIDENCE_DIR" 300 >/dev/null 2>&1; then
+  printf 'ERROR=stamp_mismatched_restore_evidence_was_accepted\n' >&2
+  exit 1
+fi
+cp -- "$fixture/pristine-restore-result" "$restore_result"
+printf '%s  %s\n' "$(sha256sum -- "$restore_result" | awk '{print $1}')" "$restore_result_name" >"${restore_result}.sha256"
+
+rm -f "$TEST_PSQL_COUNT"
+export TEST_REALM_ROWS=0
+if "$ROOT_DIR/scripts/verify-backup.sh" "$relocated" >/dev/null 2>&1; then
+  printf 'ERROR=empty_realm_data_was_accepted\n' >&2
+  exit 1
+fi
+unset TEST_REALM_ROWS
+
+rm -f "$TEST_PSQL_COUNT"
+export TEST_REALM_TABLE_COUNT=0
+if "$ROOT_DIR/scripts/verify-backup.sh" "$relocated" >/dev/null 2>&1; then
+  printf 'ERROR=non_base_realm_relation_was_accepted\n' >&2
+  exit 1
+fi
+unset TEST_REALM_TABLE_COUNT
+
 rm -f "$TEST_PSQL_COUNT"
 export TEST_PRE_RESTORE_TABLES=1
 if "$ROOT_DIR/scripts/verify-backup.sh" "$relocated" >/dev/null 2>&1; then
@@ -117,7 +159,6 @@ if "$ROOT_DIR/scripts/verify-backup.sh" "$relocated" >/dev/null 2>&1; then
 fi
 unset TEST_PRE_RESTORE_TABLES
 
-restore_result="$(find "$RESTORE_EVIDENCE_DIR" -maxdepth 1 -type f -name 'RESTORE-RESULT-*' ! -name '*.sha256' -print -quit)"
 printf 'tampered\n' >>"$restore_result"
 if "$ROOT_DIR/scripts/check-recovery-freshness.sh" "$RESTORE_EVIDENCE_DIR" 300 >/dev/null 2>&1; then
   printf 'ERROR=tampered_restore_evidence_was_accepted\n' >&2

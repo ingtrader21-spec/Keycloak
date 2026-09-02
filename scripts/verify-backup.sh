@@ -73,10 +73,16 @@ age --decrypt --identity "$BACKUP_AGE_IDENTITY_FILE" "$backup" |
   PGPASSFILE="$RESTORE_TEST_PGPASSFILE" pg_restore --dbname="$RESTORE_TEST_DATABASE_URL" --clean --if-exists --no-owner --no-acl --exit-on-error
 pg_restore --list <(age --decrypt --identity "$BACKUP_AGE_IDENTITY_FILE" "$backup") >/dev/null || fail "archive inventory failed"
 realm_table_count="$(PGPASSFILE="$RESTORE_TEST_PGPASSFILE" psql "$RESTORE_TEST_DATABASE_URL" -XAtq -v ON_ERROR_STOP=1 -c \
-  "select count(*) from information_schema.tables where table_schema='public' and table_name='realm';")"
+  "select count(*) from information_schema.tables where table_schema='public' and table_name='realm' and table_type='BASE TABLE';")"
 client_table_count="$(PGPASSFILE="$RESTORE_TEST_PGPASSFILE" psql "$RESTORE_TEST_DATABASE_URL" -XAtq -v ON_ERROR_STOP=1 -c \
-  "select count(*) from information_schema.tables where table_schema='public' and table_name='client';")"
+  "select count(*) from information_schema.tables where table_schema='public' and table_name='client' and table_type='BASE TABLE';")"
 [[ "$realm_table_count" == "1" && "$client_table_count" == "1" ]] || fail "required Keycloak schema verification failed"
+realm_rows="$(PGPASSFILE="$RESTORE_TEST_PGPASSFILE" psql "$RESTORE_TEST_DATABASE_URL" -XAtq -v ON_ERROR_STOP=1 -c \
+  "select count(*) from public.realm;")"
+client_rows="$(PGPASSFILE="$RESTORE_TEST_PGPASSFILE" psql "$RESTORE_TEST_DATABASE_URL" -XAtq -v ON_ERROR_STOP=1 -c \
+  "select count(*) from public.client;")"
+[[ "$realm_rows" =~ ^[1-9][0-9]*$ && "$client_rows" =~ ^[1-9][0-9]*$ ]] ||
+  fail "restored Keycloak tables do not contain recoverable data"
 
 install -d -m 0700 -- "$RESTORE_EVIDENCE_DIR"
 exec 8>"$RESTORE_EVIDENCE_DIR/.restore.lock"
@@ -98,6 +104,8 @@ TARGET_CLASS=ISOLATED
 PRE_RESTORE_PUBLIC_TABLES=0
 REALM_TABLE=PASS
 CLIENT_TABLE=PASS
+REALM_ROWS=$realm_rows
+CLIENT_ROWS=$client_rows
 RESTORE=PASS
 EOF
 sync -f "$result_partial"
