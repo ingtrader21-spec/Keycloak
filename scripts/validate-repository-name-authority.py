@@ -4,9 +4,13 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "config" / "policy" / "repository-name-aliases.v1.json"
@@ -54,6 +58,122 @@ def load() -> dict[str, Any]:
     return value
 
 
+def github_headers() -> dict[str, str]:
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "codestra-keycloak-repository-authority",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
+
+
+def fetch_live_repository_id(
+    repository: str,
+    opener: Callable[..., Any] | None = None,
+) -> int:
+    request = Request(
+        f"https://api.github.com/repos/{repository}",
+        headers=github_headers(),
+    )
+    open_request = opener or urlopen
+    try:
+        with open_request(request, timeout=20) as response:
+            payload = json.load(response)
+    except HTTPError as exc:
+        fail(f"GitHub repository lookup failed for {repository}: HTTP {exc.code}")
+    except URLError as exc:
+        fail(f"GitHub repository lookup failed for {repository}: {exc.reason}")
+    except (OSError, ValueError, TypeError) as exc:
+        fail(f"GitHub repository lookup failed for {repository}: {exc}")
+
+    if not isinstance(payload, dict) or not isinstance(payload.get("id"), int):
+        fail(f"GitHub repository lookup returned no stable ID for {repository}")
+    if payload.get("full_name") != repository:
+        fail(
+            "GitHub repository lookup resolved an unexpected full name: "
+            f"requested {repository}, received {payload.get('full_name')}"
+        )
+    return int(payload["id"])
+
+
+def validate_live_repository_ids(
+    actual: dict[int, tuple[str, str]],
+    fetcher: Callable[[str], int] = fetch_live_repository_id,
+) -> None:
+    for expected_id, (current, _target) in sorted(actual.items()):
+        observed_id = fetcher(current)
+        if observed_id != expected_id:
+            fail(
+                "live GitHub repository ID mismatch: "
+                f"{current} expected {expected_id}, observed {observed_id}"
+            )
+
+
+def workflow_step_blocks(text: str) -> list[str]:
+    """Return individual named workflow step blocks at their original indentation."""
+
+    lines = text.splitlines()
+    starts: list[tuple[int, int]] = []
+    for index, line in enumerate(lines):
+        match = re.match(r"^(?P<indent>\s*)-\s+name:\s*", line)
+        if match:
+            starts.append((index, len(match.group("indent"))))
+
+    blocks: list[str] = []
+    for position, (start, indent) in enumerate(starts):
+        end = len(lines)
+        for candidate_start, candidate_indent in starts[position + 1 :]:
+            if candidate_indent == indent:
+                end = candidate_start
+                break
+            if candidate_indent < indent:
+                end = candidate_start
+                break
+        blocks.append("\n".join(lines[start:end]))
+    return blocks
+
+
+def validate_infrastructure_checkout(
+    workflow: str,
+    current_repository: str,
+    target_repository: str,
+) -> None:
+    if target_repository in workflow:
+        fail("runtime preflight uses the target infrastructure name before cutover")
+
+    pattern = re.compile(
+        rf"(?m)^\s*repository:\s*[\"']?{re.escape(current_repository)}[\"']?\s*$"
+    )
+    matches = [block for block in workflow_step_blocks(workflow) if pattern.search(block)]
+    if len(matches) != 1:
+        fail(
+            "runtime preflight must contain exactly one current Infrastructure "
+            f"checkout; found {len(matches)}"
+        )
+
+    checkout = matches[0]
+    if not re.search(r"(?m)^\s*persist-credentials:\s*false\s*$", checkout):
+        fail("Infrastructure checkout must keep credentials disabled")
+    if "uses: actions/checkout@" not in checkout:
+        fail("Infrastructure authority must be retrieved by an actions/checkout step")
+
+    sha_match = re.search(
+        r"(?m)^\s*INFRASTRUCTURE_SHA:\s*([0-9a-f]{40})\s*$",
+        workflow,
+    )
+    if sha_match is None:
+        fail("runtime preflight must retain an exact infrastructure SHA")
+    expected_sha = sha_match.group(1)
+    if not re.search(
+        rf"(?m)^\s*ref:\s*[\"']?{expected_sha}[\"']?\s*$",
+        checkout,
+    ):
+        fail("Infrastructure checkout ref does not match INFRASTRUCTURE_SHA")
+
+
 def validate() -> None:
     document = load()
     if document.get("schema_version") != "1.0":
@@ -79,6 +199,8 @@ def validate() -> None:
         target = item.get("target_repository_after_cutover")
         if not isinstance(repository_id, int) or repository_id <= 0:
             fail("repository alias contains an invalid stable ID")
+        if repository_id in actual:
+            fail(f"repository alias contains duplicate stable ID: {repository_id}")
         if not isinstance(current, str) or not current.startswith("appolon1908-hue/"):
             fail(f"invalid current repository for ID {repository_id}")
         if not isinstance(target, str) or not target.startswith("appolon1908-hue/"):
@@ -93,18 +215,14 @@ def validate() -> None:
     if actual != EXPECTED:
         fail("repository aliases do not exactly match the approved stable-ID set")
 
-    workflow = RUNTIME_PREFLIGHT.read_text(encoding="utf-8")
-    infrastructure_current = EXPECTED[1350724865][0]
-    infrastructure_target = EXPECTED[1350724865][1]
-    if infrastructure_current not in workflow:
-        fail("runtime preflight lost the current infrastructure checkout before cutover")
-    if infrastructure_target in workflow:
-        fail("runtime preflight uses the target infrastructure name before cutover")
+    validate_live_repository_ids(actual)
 
-    if "INFRASTRUCTURE_SHA:" not in workflow:
-        fail("runtime preflight must retain an exact infrastructure SHA")
-    if "persist-credentials: false" not in workflow:
-        fail("runtime preflight checkout must keep credentials disabled")
+    workflow = RUNTIME_PREFLIGHT.read_text(encoding="utf-8")
+    validate_infrastructure_checkout(
+        workflow,
+        EXPECTED[1350724865][0],
+        EXPECTED[1350724865][1],
+    )
 
 
 def main() -> None:
