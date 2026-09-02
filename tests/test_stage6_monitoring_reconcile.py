@@ -46,9 +46,16 @@ class MonitoringReconcileTests(unittest.TestCase):
         self.assertEqual(
             value["optionalClientScopes"], ["health.read", "metrics.read"]
         )
-        self.assertNotIn(
-            "reviewed-service-scopes",
-            {mapper["name"] for mapper in value["protocolMappers"]},
+        self.assertEqual(
+            [mapper["name"] for mapper in value["protocolMappers"]],
+            ["audience-middleware-api"],
+        )
+        self.assertEqual(
+            [
+                mapper["config"]["included.custom.audience"]
+                for mapper in value["protocolMappers"]
+            ],
+            ["middleware-api"],
         )
 
     def test_dedicated_client_scope_contracts_are_exact(self):
@@ -79,6 +86,22 @@ class MonitoringReconcileTests(unittest.TestCase):
         with self.assertRaises(module.ReconciliationError):
             module.decode_token_metadata(
                 token("health.read", "wrong"), "metrics.read"
+            )
+
+    def test_token_metadata_rejects_extra_audience(self):
+        encoded = token("metrics.read", "extra-audience")
+        header, payload, signature = encoded.split(".")
+        decoded = json.loads(
+            base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4))
+        )
+        decoded["aud"] = ["middleware-api", "marketing-provider-adapter"]
+        expanded = base64.urlsafe_b64encode(
+            json.dumps(decoded).encode()
+        ).decode().rstrip("=")
+        with self.assertRaises(module.ReconciliationError):
+            module.decode_token_metadata(
+                f"{header}.{expanded}.{signature}",
+                "metrics.read",
             )
 
     def test_issue_token_requests_the_exact_optional_scope(self):
@@ -137,6 +160,64 @@ class MonitoringReconcileTests(unittest.TestCase):
                 desired, desired, module.CLIENT_MANAGED_KEYS
             ),
         )
+
+    def test_managed_projection_rejects_unexpected_live_mapper(self):
+        desired = module.desired_client(
+            ROOT / "config/clients/monitoring-readonly.json"
+        )
+        live = json.loads(json.dumps(desired))
+        live["protocolMappers"].append(
+            {
+                "id": "legacy-provider-mapper",
+                "name": "audience-marketing-provider-adapter",
+                "protocol": "openid-connect",
+                "protocolMapper": "oidc-audience-mapper",
+                "config": {
+                    "included.custom.audience": "marketing-provider-adapter"
+                },
+            }
+        )
+        self.assertNotEqual(
+            module.managed_projection(live, desired, module.CLIENT_MANAGED_KEYS),
+            module.managed_projection(desired, desired, module.CLIENT_MANAGED_KEYS),
+        )
+
+    def test_apply_client_deletes_unexpected_live_mapper(self):
+        desired = module.desired_client(
+            ROOT / "config/clients/monitoring-readonly.json"
+        )
+        live = json.loads(json.dumps(desired))
+        live["id"] = "monitoring-internal-id"
+        live["protocolMappers"][0]["id"] = "middleware-mapper-id"
+        legacy = {
+            "id": "legacy-provider-mapper-id",
+            "name": "audience-marketing-provider-adapter",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-audience-mapper",
+            "config": {
+                "included.custom.audience": "marketing-provider-adapter"
+            },
+        }
+        live["protocolMappers"].append(legacy)
+        cleaned = json.loads(json.dumps(live))
+        cleaned["protocolMappers"].remove(legacy)
+
+        with patch.object(
+            module, "list_client", side_effect=[[live], [cleaned]]
+        ), patch.object(module, "http_request") as request:
+            internal_id, result = module.apply_client(
+                "https://auth-staging.codestra.co",
+                "codestra",
+                "admin-token",
+                desired,
+            )
+
+        self.assertEqual(internal_id, "monitoring-internal-id")
+        self.assertEqual(result, "updated")
+        request.assert_called_once()
+        method, url = request.call_args.args[:2]
+        self.assertEqual(method, "DELETE")
+        self.assertTrue(url.endswith("/protocol-mappers/models/legacy-provider-mapper-id"))
 
     def test_admin_endpoint_is_staging_canonical_or_explicit_loopback(self):
         module.validate_runtime_urls(

@@ -46,6 +46,7 @@ def main() -> None:
     assert desired["optionalClientScopes"] == list(SCOPE_NAMES)
     assert desired["attributes"]["access.token.lifespan"] == "300"
     mappers = {item["name"]: item for item in desired["protocolMappers"]}
+    assert set(mappers) == {"audience-middleware-api"}
     assert mappers["audience-middleware-api"]["config"]["included.custom.audience"] == "middleware-api"
     assert "reviewed-service-scopes" not in mappers
     assert "secret" not in desired
@@ -66,8 +67,12 @@ def main() -> None:
         for grant in matrix["grants"]
         if grant["callerClientId"] == "monitoring-readonly"
     ]
-    assert monitoring_grants
-    assert all(grant["scopes"] == list(SCOPE_NAMES) for grant in monitoring_grants)
+    assert monitoring_grants == [{
+        "callerClientId": "monitoring-readonly",
+        "targetClientId": "middleware-api",
+        "audience": "middleware-api",
+        "scopes": list(SCOPE_NAMES),
+    }]
 
     endpoints = json.loads(STAGING_ENDPOINTS.read_text())
     assert endpoints["publicUrl"] == STAGING_PUBLIC_URL
@@ -98,6 +103,7 @@ def main() -> None:
     renderer = RENDERER.read_text()
     ast.parse(renderer)
     assert 'MONITORING_OPTIONAL_SCOPES = ("health.read", "metrics.read")' in renderer
+    assert 'MONITORING_TARGET = "middleware-api"' in renderer
     assert 'CLIENT_SCOPE_DIR' in renderer
     assert 'optional_client_scopes = list(MONITORING_OPTIONAL_SCOPES)' in renderer
     assert 'reviewed-service-scopes' in renderer
