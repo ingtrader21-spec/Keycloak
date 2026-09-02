@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "2.0.0",
+  "repository": "appolon1908-hue/Keycloak",
+  "classification": "vendor-operator-ui",
+  "targetBranch": "codex/codestra-orbit-v2-keycloak",
+  "adoptionMode": "operator-theme-sso",
+  "domain": "auth.codestra.co",
+  "domainStatus": "registered",
+  "requirements": {
+    "identitySSO": true,
+    "session": true,
+    "logout": true,
+    "logoutAll": true,
+    "browserTokenStorageProhibited": true,
+    "supportedTheme": true,
+    "sharedHeaderFooter": false,
+    "domainRegistry": true,
+    "operatorAccess": true,
+    "audit": true,
+    "rollback": true
+  },
+  "status": "branch-created",
+  "blockers": [
+    "Use the approved Codestra identity, token, color, and operator-theme contracts after SDK-repository pull request 75 is protected-merged.",
+    "Implement login, registration, recovery, account, consent, error, and administration branding through supported Keycloak themes and extensions only.",
+    "Verify auth.codestra.co, realm/client redirect allowlists, front-channel and back-channel logout, session revocation, administrator isolation, upgrades, monitoring, and rollback evidence before promotion."
+  ]
+}
