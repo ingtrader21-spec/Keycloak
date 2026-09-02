@@ -1,6 +1,6 @@
 SHELL := /usr/bin/env bash
 
-.PHONY: validate test-runtime-preflight build up down logs check plan review-plan apply-plan export-klyrow smoke runtime-preflight backup verify-backup certify-kong
+.PHONY: validate test-runtime-preflight build up down logs check plan review-plan apply-plan export-klyrow smoke runtime-preflight backup verify-backup check-recovery-freshness certify-kong
 
 validate:
 	./scripts/validate.sh
@@ -61,6 +61,10 @@ backup:
 verify-backup:
 	: "$${BACKUP_FILE:?Set BACKUP_FILE to an encrypted backup}"
 	./scripts/verify-backup.sh "$${BACKUP_FILE}"
+
+check-recovery-freshness:
+	: "$${RESTORE_EVIDENCE_DIR:?Set RESTORE_EVIDENCE_DIR}"
+	./scripts/check-recovery-freshness.sh "$${RESTORE_EVIDENCE_DIR}" "$${RESTORE_MAX_AGE_SECONDS:-2592000}"
 
 certify-kong:
 	./scripts/certify-kong.sh

@@ -112,6 +112,23 @@ make validate
 CI additionally validates Docker Compose, exercises the protected plan gate,
 and builds the pinned Keycloak image without publishing it.
 
+## PostgreSQL recovery evidence
+
+`scripts/backup-postgres.sh` publishes an encrypted custom-format dump and its
+checksum under a non-blocking publication lock. It refuses timestamp
+collisions and syncs the artifact, checksum, and destination directory before
+reporting success. Database credentials are supplied only through a protected
+PostgreSQL passfile.
+
+`scripts/verify-backup.sh` requires an explicitly isolated restore database,
+validates the encrypted artifact checksum and archive inventory, performs the
+restore, verifies the required Keycloak `realm` and `client` tables, and then
+atomically publishes checksum-bound restore evidence. It refuses the source
+database identity. `scripts/check-recovery-freshness.sh` accepts only complete,
+checksum-valid, successful restore evidence inside the configured age limit.
+These commands are operational authorities; source validation does not prove
+that a live backup or restore test has occurred.
+
 ## Governance that remains external to Git
 
 Repository rules, protected GitHub Environments, reviewer identities,
