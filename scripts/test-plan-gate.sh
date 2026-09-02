@@ -3,6 +3,8 @@ set -Eeuo pipefail
 umask 077
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib/keycloak-admin.sh
+source "$ROOT_DIR/scripts/lib/keycloak-admin.sh"
 test_root="$(mktemp -d)"
 server_pid=""
 cleanup() {
@@ -90,6 +92,10 @@ class Handler(BaseHTTPRequestHandler):
             if not client_id or client_id in state:
                 self.send_json(409, {"error": "client_exists_or_invalid"})
                 return
+            # Match the admin API representation returned by Keycloak when
+            # authorization services are disabled.
+            if payload.get("authorizationServicesEnabled") is False:
+                payload.pop("authorizationServicesEnabled")
             state[client_id] = {
                 "id": f"uuid-{client_id}",
                 "representation": payload,
@@ -137,6 +143,11 @@ class Handler(BaseHTTPRequestHandler):
             if item["id"] == client_uuid:
                 payload = self.read_json()
                 payload.pop("id", None)
+                # Keycloak omits this field when authorization services are
+                # disabled, so its admin API returns null after a successful
+                # create/update with an explicit false value.
+                if payload.get("authorizationServicesEnabled") is False:
+                    payload.pop("authorizationServicesEnabled")
                 item["representation"] = payload
                 state[client_id] = item
                 save_state(state)
@@ -167,7 +178,7 @@ done
 
 port="$(cat "$port_file")"
 export KC_BASE_URL="http://127.0.0.1:${port}"
-export KC_PUBLIC_URL="https://auth.codestra.co"
+export KC_PUBLIC_URL="https://auth-staging.codestra.co"
 export KC_TARGET_REALM="codestra"
 export KC_ADMIN_REALM="master"
 export KC_ADMIN_CLIENT_ID="test-gitops-client"
@@ -178,14 +189,22 @@ export ALLOW_NONCANONICAL_KC_BASE_URL_FOR_TESTS="true"
 export DEPLOY_ENVIRONMENT="staging"
 expected_sha="1111111111111111111111111111111111111111"
 
+[[ "$(keycloak_endpoint_file)" == "$ROOT_DIR/config/endpoints/codestra-staging.json" ]]
+DEPLOY_ENVIRONMENT=production
+[[ "$(keycloak_endpoint_file)" == "$ROOT_DIR/config/endpoints/codestra.json" ]]
+DEPLOY_ENVIRONMENT=staging
+
 plan_dir="$test_root/plan"
 "$ROOT_DIR/scripts/plan.sh" \
   --output-dir "$plan_dir" \
   --expected-deploy-sha "$expected_sha" >/dev/null
 
-[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 22 ]]
+[[ "$(jq -er '.api.adminApiBaseUrl' "$plan_dir/plan.json")" == "https://auth-staging.codestra.co" ]]
+[[ "$(jq -er '.api.issuer' "$plan_dir/plan.json")" == "https://auth-staging.codestra.co/realms/codestra" ]]
+
+[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 29 ]]
 [[ "$(jq -er '.blockedCount' "$plan_dir/plan.json")" -eq 0 ]]
-[[ "$(jq -er '.createCount' "$plan_dir/plan.json")" -eq 21 ]]
+[[ "$(jq -er '.createCount' "$plan_dir/plan.json")" -eq 28 ]]
 [[ "$(jq -er '.updateCount' "$plan_dir/plan.json")" -eq 1 ]]
 [[ "$(jq -er '.clients[] | select(.clientId == "klyrow-portal") | .action' "$plan_dir/plan.json")" == "update" ]]
 for client_id in moneybee-admin moneybee-borrower moneybee-lender moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra; do
@@ -220,7 +239,7 @@ mapfile -t managed_clients < <(jq -r '.clients[]' "$ROOT_DIR/config/policy/manag
   "${managed_clients[@]}" >/dev/null
 [[ -f "$rollback_dir/config/clients/klyrow-portal.json" ]]
 [[ "$(jq -er '.existingClientCount' "$rollback_dir/rollback-metadata.json")" -eq 1 ]]
-[[ "$(jq -er '.absentCreatableClientCount' "$rollback_dir/rollback-metadata.json")" -eq 21 ]]
+[[ "$(jq -er '.absentCreatableClientCount' "$rollback_dir/rollback-metadata.json")" -eq 28 ]]
 
 if "$ROOT_DIR/scripts/apply-plan.sh" \
   --plan "$plan_dir/plan.json" \
@@ -301,12 +320,20 @@ done
 
 jq -S 'del(."klyrow-portal")' "$state_file" >"$state_file.tmp"
 mv "$state_file.tmp" "$state_file"
-blocked_dir="$test_root/blocked"
+missing_dir="$test_root/missing-creatable"
 "$ROOT_DIR/scripts/plan.sh" \
-  --output-dir "$blocked_dir" \
+  --output-dir "$missing_dir" \
   --expected-deploy-sha "$expected_sha" >/dev/null
-[[ "$(jq -er '.blockedCount' "$blocked_dir/plan.json")" -eq 1 ]]
-[[ "$(jq -er '.clients[] | select(.clientId == "klyrow-portal") | .action' "$blocked_dir/plan.json")" == "blocked_missing" ]]
+[[ "$(jq -er '.blockedCount' "$missing_dir/plan.json")" -eq 0 ]]
+[[ "$(jq -er '.clients[] | select(.clientId == "klyrow-portal") | .action' "$missing_dir/plan.json")" == "create" ]]
+jq -e '
+  .clients[]
+  | select(.clientId == "klyrow-portal")
+  | .before == {}
+    and .rollback.kind == "disable_then_reviewed_delete"
+    and .rollback.disableFirst == true
+    and .rollback.deleteRequiresSeparateReviewedRollback == true
+' "$missing_dir/plan.json" >/dev/null
 
 printf 'PLAN_GATE_TESTS=PASS\n'
 printf 'INDEPENDENT_DRIFT_REVIEW_GATE=PASS\n'
@@ -317,4 +344,4 @@ printf 'CREATE_PREWRITE_RACE_GUARD=PASS\n'
 printf 'ROLLBACK_EVIDENCE_TESTS=PASS\n'
 printf 'MAPPER_NORMALIZATION_TESTS=PASS\n'
 printf 'PRODUCT_MACHINE_CLIENT_CREATE_TESTS=PASS\n'
-printf 'NON_CREATABLE_MISSING_BLOCK=PASS\n'
+printf 'KLYROW_PORTAL_REVIEWED_CREATE=PASS\n'

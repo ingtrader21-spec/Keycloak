@@ -2,6 +2,11 @@
 set -Eeuo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+
+python3 "$ROOT_DIR/scripts/validate-authority-controls.py"
+python3 "$ROOT_DIR/scripts/validate-provider-control-authority.py"
+python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_provider_control_authority.py'
+"$ROOT_DIR/scripts/test-backup-contract.sh"
 CONFIG_ROOT="${CONFIG_ROOT:-$ROOT_DIR/config}"
 cd "$ROOT_DIR"
 
@@ -50,6 +55,24 @@ jq -e '
   and .adminRealmEndpoint == "https://auth.codestra.co/admin/realms/codestra"
 ' "$endpoint_file" >/dev/null || fail "Canonical Codestra API URLs are invalid"
 
+staging_endpoint_file="$CONFIG_ROOT/endpoints/codestra-staging.json"
+[[ -f "$staging_endpoint_file" ]] || fail "Canonical staging endpoint contract is missing"
+jq -e '
+  .publicUrl == "https://auth-staging.codestra.co"
+  and .adminApiBaseUrl == "https://auth-staging.codestra.co"
+  and .realm == "codestra"
+  and .adminAuthenticationRealm == "master"
+  and .issuer == "https://auth-staging.codestra.co/realms/codestra"
+  and .discoveryUrl == "https://auth-staging.codestra.co/realms/codestra/.well-known/openid-configuration"
+  and .authorizationEndpoint == "https://auth-staging.codestra.co/realms/codestra/protocol/openid-connect/auth"
+  and .tokenEndpoint == "https://auth-staging.codestra.co/realms/codestra/protocol/openid-connect/token"
+  and .userInfoEndpoint == "https://auth-staging.codestra.co/realms/codestra/protocol/openid-connect/userinfo"
+  and .jwksUri == "https://auth-staging.codestra.co/realms/codestra/protocol/openid-connect/certs"
+  and .introspectionEndpoint == "https://auth-staging.codestra.co/realms/codestra/protocol/openid-connect/token/introspect"
+  and .logoutEndpoint == "https://auth-staging.codestra.co/realms/codestra/protocol/openid-connect/logout"
+  and .adminRealmEndpoint == "https://auth-staging.codestra.co/admin/realms/codestra"
+' "$staging_endpoint_file" >/dev/null || fail "Canonical staging Codestra API URLs are invalid"
+
 legacy_host='auth.codestra'".agency"
 if grep -RInF --exclude-dir=.git "$legacy_host" .; then
   fail "Legacy Codestra authentication hostname is prohibited"
@@ -66,13 +89,19 @@ creatable_policy="$CONFIG_ROOT/policy/creatable-clients.json"
 [[ -f "$creatable_policy" ]] || fail "Creatable-client policy is missing"
 
 expected_managed='[
+  "ai-provider-adapter",
   "beyvra-backend",
   "breero-backend",
+  "codestra-ai",
+  "codestra-communication",
+  "codestra-marketing",
+  "codestra-social",
   "klyrow-portal",
   "kong-gateway",
   "klyrow-gateway",
   "kyqra-gateway",
   "larim-a-backend",
+  "marketing-provider-adapter",
   "middleware-api",
   "middleware-worker",
   "monitoring-readonly",
@@ -81,6 +110,7 @@ expected_managed='[
   "moneybee-borrower",
   "moneybee-lender",
   "n8n-automation",
+  "n8n-editor-gateway",
   "odoo-integration",
   "postly-adapter",
   "provisioning-service",
@@ -90,12 +120,19 @@ expected_managed='[
   "vicidial-adapter"
 ]'
 expected_creatable='[
+  "ai-provider-adapter",
   "beyvra-backend",
   "breero-backend",
+  "codestra-ai",
+  "codestra-communication",
+  "codestra-marketing",
+  "codestra-social",
   "kong-gateway",
   "klyrow-gateway",
+  "klyrow-portal",
   "kyqra-gateway",
   "larim-a-backend",
+  "marketing-provider-adapter",
   "middleware-api",
   "middleware-worker",
   "monitoring-readonly",
@@ -104,6 +141,7 @@ expected_creatable='[
   "moneybee-borrower",
   "moneybee-lender",
   "n8n-automation",
+  "n8n-editor-gateway",
   "odoo-integration",
   "postly-adapter",
   "provisioning-service",
@@ -125,7 +163,7 @@ jq -e --argjson expected "$expected_creatable" --slurpfile managed "$managed_pol
   and ((.clients | unique | length) == (.clients | length))
   and .clients == $expected
   and all(.clients[]; ($managed[0].clients | index(.)) != null)
-  and ((.clients | index("klyrow-portal")) == null)
+  and ((.clients | index("klyrow-portal")) != null)
 ' "$creatable_policy" >/dev/null ||
   fail "Only explicitly reviewed browser and machine clients may be created"
 
@@ -159,12 +197,18 @@ jq -e '
   .issuer == "https://auth.codestra.co/realms/codestra"
   and .grantType == "client_credentials"
   and (.maximumAccessTokenLifetimeSeconds | type == "number" and . > 0 and . <= 300)
-  and (.clients | type == "array" and length == 12)
-  and ((.clients | map(.clientId) | unique | length) == 12)
+  and (.clients | type == "array" and length == 18)
+  and ((.clients | map(.clientId) | unique | length) == 18)
   and ([.clients[].clientId] == [
     "kong-gateway",
     "middleware-api",
     "middleware-worker",
+    "codestra-ai",
+    "codestra-communication",
+    "codestra-marketing",
+    "codestra-social",
+    "ai-provider-adapter",
+    "marketing-provider-adapter",
     "odoo-integration",
     "n8n-automation",
     "vicidial-adapter",
@@ -303,6 +347,29 @@ for file in "${client_files[@]}"; do
       ;;
     klyrow-portal)
       jq -e 'has("protocolMappers") | not' "$file" >/dev/null || fail "Klyrow desired state changed unexpectedly"
+      ;;
+    n8n-editor-gateway)
+      jq -e '
+        .publicClient == false
+        and .standardFlowEnabled == true
+        and .implicitFlowEnabled == false
+        and .directAccessGrantsEnabled == false
+        and .serviceAccountsEnabled == false
+        and .fullScopeAllowed == false
+        and .rootUrl == "https://n8n.codestra.co"
+        and .baseUrl == "https://n8n.codestra.co/"
+        and .redirectUris == [
+          "https://n8n.codestra.co/oauth2/callback",
+          "https://n8n-staging.codestra.co/oauth2/callback"
+        ]
+        and .webOrigins == [
+          "https://n8n.codestra.co",
+          "https://n8n-staging.codestra.co"
+        ]
+        and .attributes["pkce.code.challenge.method"] == "S256"
+        and .attributes["access.token.lifespan"] == "300"
+        and .attributes["post.logout.redirect.uris"] == "https://n8n.codestra.co/##https://n8n-staging.codestra.co/"
+      ' "$file" >/dev/null || fail "n8n editor gateway must be confidential Authorization Code + PKCE only"
       ;;
   esac
 

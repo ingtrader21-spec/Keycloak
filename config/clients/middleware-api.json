@@ -25,17 +25,6 @@
   },
   "protocolMappers": [
     {
-      "name": "audience-klyrow-gateway",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-audience-mapper",
-      "consentRequired": false,
-      "config": {
-        "included.custom.audience": "klyrow-gateway",
-        "id.token.claim": "false",
-        "access.token.claim": "true"
-      }
-    },
-    {
       "name": "audience-kyqra-gateway",
       "protocol": "openid-connect",
       "protocolMapper": "oidc-audience-mapper",
@@ -69,28 +58,6 @@
       }
     },
     {
-      "name": "audience-postly-adapter",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-audience-mapper",
-      "consentRequired": false,
-      "config": {
-        "included.custom.audience": "postly-adapter",
-        "id.token.claim": "false",
-        "access.token.claim": "true"
-      }
-    },
-    {
-      "name": "audience-telnexa-gateway",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-audience-mapper",
-      "consentRequired": false,
-      "config": {
-        "included.custom.audience": "telnexa-gateway",
-        "id.token.claim": "false",
-        "access.token.claim": "true"
-      }
-    },
-    {
       "name": "audience-vicidial-adapter",
       "protocol": "openid-connect",
       "protocolMapper": "oidc-audience-mapper",
@@ -108,7 +75,7 @@
       "consentRequired": false,
       "config": {
         "claim.name": "scope",
-        "claim.value": "callbacks.dispatch crawler.jobs.read crawler.jobs.submit crawler.results.read email.send email.status.read odoo.activities.write odoo.leads.read odoo.leads.write sms.send sms.status.read social.publish social.status.read telephony.commands.write workflow.status.read workflow.trigger",
+        "claim.value": "callbacks.dispatch crawler.jobs.read crawler.jobs.submit crawler.results.read odoo.activities.write odoo.leads.read odoo.leads.write telephony.commands.write workflow.status.read workflow.trigger",
         "jsonType.label": "String",
         "id.token.claim": "false",
         "access.token.claim": "true",

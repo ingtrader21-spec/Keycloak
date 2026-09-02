@@ -1,0 +1,38 @@
+groups:
+  - name: codestra-keycloak
+    rules:
+      - alert: KeycloakUnavailable
+        expr: probe_success{job="keycloak-ready"} == 0
+        for: 2m
+      - alert: KeycloakRestartLoop
+        expr: increase(kube_pod_container_status_restarts_total{container="keycloak"}[15m]) > 2
+      - alert: KeycloakDatabaseUnavailable
+        expr: keycloak_database_up == 0
+        for: 2m
+      - alert: KeycloakHighServerErrors
+        expr: sum(rate(http_server_requests_seconds_count{job="keycloak",status=~"5.."}[5m])) > 0.1
+        for: 10m
+      - alert: KeycloakHighRequestLatency
+        expr: histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{job="keycloak"}[5m]))) > 2
+        for: 10m
+      - alert: KeycloakLoginFailures
+        expr: sum(increase(keycloak_user_event_total{event="LOGIN_ERROR"}[10m])) > 20
+      - alert: KeycloakTokenIssuanceFailures
+        expr: sum(increase(keycloak_user_event_total{event=~"CODE_TO_TOKEN_ERROR|CLIENT_LOGIN_ERROR|REFRESH_TOKEN_ERROR"}[10m])) > 10
+      - alert: KeycloakSmtpFailures
+        expr: sum(increase(keycloak_email_send_errors_total[15m])) > 0
+      - alert: KeycloakAdminAuthenticationFailures
+        expr: sum(increase(keycloak_admin_event_total{operation="LOGIN_ERROR"}[10m])) > 5
+      - alert: KeycloakBruteForceLockouts
+        expr: sum(increase(keycloak_user_event_total{error="user_temporarily_disabled"}[15m])) > 0
+      - alert: KeycloakBackupStale
+        expr: time() - keycloak_backup_last_success_timestamp_seconds > 90000
+      - alert: KeycloakConfigurationDrift
+        expr: keycloak_gitops_drift_resources > 0
+      - alert: KeycloakReconciliationFailed
+        expr: keycloak_gitops_reconcile_last_success == 0
+      - alert: IdentityCertificateExpiring
+        expr: probe_ssl_earliest_cert_expiry{job="keycloak-ready"} - time() < 1209600
+      - alert: IdentityHostDiskCritical
+        expr: node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} < 0.10
+        for: 5m

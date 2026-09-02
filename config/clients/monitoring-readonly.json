@@ -17,13 +17,27 @@
   "redirectUris": [],
   "webOrigins": [],
   "defaultClientScopes": [],
-  "optionalClientScopes": [],
+  "optionalClientScopes": [
+    "health.read",
+    "metrics.read"
+  ],
   "attributes": {
     "access.token.lifespan": "300",
     "oauth2.device.authorization.grant.enabled": "false",
     "oidc.ciba.grant.enabled": "false"
   },
   "protocolMappers": [
+    {
+      "name": "audience-ai-provider-adapter",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "consentRequired": false,
+      "config": {
+        "included.custom.audience": "ai-provider-adapter",
+        "id.token.claim": "false",
+        "access.token.claim": "true"
+      }
+    },
     {
       "name": "audience-klyrow-gateway",
       "protocol": "openid-connect",
@@ -53,6 +67,17 @@
       "consentRequired": false,
       "config": {
         "included.custom.audience": "kyqra-gateway",
+        "id.token.claim": "false",
+        "access.token.claim": "true"
+      }
+    },
+    {
+      "name": "audience-marketing-provider-adapter",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "consentRequired": false,
+      "config": {
+        "included.custom.audience": "marketing-provider-adapter",
         "id.token.claim": "false",
         "access.token.claim": "true"
       }
@@ -121,21 +146,6 @@
         "included.custom.audience": "vicidial-adapter",
         "id.token.claim": "false",
         "access.token.claim": "true"
-      }
-    },
-    {
-      "name": "reviewed-service-scopes",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-hardcoded-claim-mapper",
-      "consentRequired": false,
-      "config": {
-        "claim.name": "scope",
-        "claim.value": "health.read metrics.read",
-        "jsonType.label": "String",
-        "id.token.claim": "false",
-        "access.token.claim": "true",
-        "userinfo.token.claim": "false",
-        "access.tokenResponse.claim": "false"
       }
     }
   ]

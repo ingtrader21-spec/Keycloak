@@ -2,7 +2,9 @@
 set -Eeuo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-endpoint_file="$ROOT_DIR/config/endpoints/codestra.json"
+# shellcheck source=scripts/lib/keycloak-admin.sh
+source "$ROOT_DIR/scripts/lib/keycloak-admin.sh"
+endpoint_file="$(keycloak_endpoint_file)"
 
 command -v curl >/dev/null 2>&1 || {
   printf 'ERROR=curl_is_required\n' >&2
