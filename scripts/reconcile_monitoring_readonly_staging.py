@@ -225,11 +225,13 @@ def desired_client(path: Path) -> dict[str, Any]:
     if lifespan < 60 or lifespan > 300:
         raise ReconciliationError("monitoring token lifespan must be 60-300 seconds")
     mappers = {item.get("name"): item for item in value.get("protocolMappers", [])}
-    audience = mappers.get("audience-middleware-api") or {}
+    if set(mappers) != {"audience-middleware-api"}:
+        raise ReconciliationError(
+            "monitoring client must have exactly one middleware audience mapper"
+        )
+    audience = mappers["audience-middleware-api"]
     if (audience.get("config") or {}).get("included.custom.audience") != "middleware-api":
         raise ReconciliationError("middleware-api audience mapper is missing")
-    if "reviewed-service-scopes" in mappers:
-        raise ReconciliationError("hardcoded combined monitoring scope mapper is prohibited")
     if "secret" in value:
         raise ReconciliationError("client secret must not be committed")
     return value
@@ -523,8 +525,10 @@ def decode_token_metadata(token: str, expected_scope: str) -> dict[str, Any]:
     scopes = set(payload.get("scope", "").split()) if isinstance(payload.get("scope"), str) else set()
     if payload.get("azp") != CLIENT_ID:
         raise ReconciliationError("issued token azp is incorrect")
-    if not isinstance(audiences, list) or "middleware-api" not in audiences:
-        raise ReconciliationError("issued token audience lacks middleware-api")
+    if audiences != ["middleware-api"]:
+        raise ReconciliationError(
+            "issued token audiences must equal only middleware-api"
+        )
     if scopes != {expected_scope}:
         raise ReconciliationError(
             f"issued token scopes must equal only {expected_scope}"

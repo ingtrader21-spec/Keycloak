@@ -46,9 +46,16 @@ class MonitoringReconcileTests(unittest.TestCase):
         self.assertEqual(
             value["optionalClientScopes"], ["health.read", "metrics.read"]
         )
-        self.assertNotIn(
-            "reviewed-service-scopes",
-            {mapper["name"] for mapper in value["protocolMappers"]},
+        self.assertEqual(
+            [mapper["name"] for mapper in value["protocolMappers"]],
+            ["audience-middleware-api"],
+        )
+        self.assertEqual(
+            [
+                mapper["config"]["included.custom.audience"]
+                for mapper in value["protocolMappers"]
+            ],
+            ["middleware-api"],
         )
 
     def test_dedicated_client_scope_contracts_are_exact(self):
@@ -79,6 +86,22 @@ class MonitoringReconcileTests(unittest.TestCase):
         with self.assertRaises(module.ReconciliationError):
             module.decode_token_metadata(
                 token("health.read", "wrong"), "metrics.read"
+            )
+
+    def test_token_metadata_rejects_extra_audience(self):
+        encoded = token("metrics.read", "extra-audience")
+        header, payload, signature = encoded.split(".")
+        decoded = json.loads(
+            base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4))
+        )
+        decoded["aud"] = ["middleware-api", "marketing-provider-adapter"]
+        expanded = base64.urlsafe_b64encode(
+            json.dumps(decoded).encode()
+        ).decode().rstrip("=")
+        with self.assertRaises(module.ReconciliationError):
+            module.decode_token_metadata(
+                f"{header}.{expanded}.{signature}",
+                "metrics.read",
             )
 
     def test_issue_token_requests_the_exact_optional_scope(self):

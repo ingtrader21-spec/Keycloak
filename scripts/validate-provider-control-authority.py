@@ -35,7 +35,10 @@ EXPECTED_PROVIDER_GRANTS = {
     ("middleware-worker", "postly-adapter"): {"social.publish", "social.status.read"},
 }
 PROVIDER_TARGETS = {target for _caller, target in EXPECTED_PROVIDER_GRANTS}
-ALLOWED_PROVIDER_CALLERS = {"middleware-worker", "monitoring-readonly"}
+ALLOWED_PROVIDER_CALLERS = {"middleware-worker"}
+EXPECTED_MONITORING_GRANT = {
+    ("monitoring-readonly", "middleware-api"): {"health.read", "metrics.read"},
+}
 
 
 def validate(contract: dict) -> None:
@@ -56,6 +59,12 @@ def validate(contract: dict) -> None:
                 raise ValueError(f"missing service identity: {key}")
             if grants.get(key) != scopes:
                 raise ValueError(f"exact grant drift: {key}")
+    monitoring_grants = {
+        key: scopes for key, scopes in grants.items()
+        if key[0] == "monitoring-readonly"
+    }
+    if monitoring_grants != EXPECTED_MONITORING_GRANT:
+        raise ValueError("monitoring-readonly grant drift")
     for caller, target in grants:
         if target in PROVIDER_TARGETS and caller not in ALLOWED_PROVIDER_CALLERS:
             raise ValueError(f"unauthorized direct provider grant: {caller} -> {target}")

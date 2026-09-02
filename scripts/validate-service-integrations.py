@@ -248,6 +248,15 @@ def validate() -> None:
     ]:
         fail("provisioning-service realm-management prohibition is invalid")
 
+    monitoring_grants = {
+        key: scopes for key, scopes in grant_index.items()
+        if key[0] == "monitoring-readonly"
+    }
+    if monitoring_grants != {
+        ("monitoring-readonly", "middleware-api"): {"health.read", "metrics.read"}
+    }:
+        fail("monitoring-readonly must have only the exact middleware-api read grant")
+
     for (caller, _target), scopes in grant_index.items():
         if caller == "monitoring-readonly":
             if scopes != {"health.read", "metrics.read"}:

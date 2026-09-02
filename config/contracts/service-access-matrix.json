@@ -55,17 +55,7 @@
     {"callerClientId": "middleware-worker", "targetClientId": "marketing-provider-adapter", "audience": "marketing-provider-adapter", "scopes": ["marketing.provider.dispatch", "marketing.provider.status.read"]},
     {"callerClientId": "postly-adapter", "targetClientId": "middleware-api", "audience": "middleware-api", "scopes": ["social.events.publish"]},
     {"callerClientId": "provisioning-service", "targetClientId": "middleware-api", "audience": "middleware-api", "scopes": ["identity.request", "integration.configure", "tenant.provision"]},
-    {"callerClientId": "monitoring-readonly", "targetClientId": "kong-gateway", "audience": "kong-gateway", "scopes": ["health.read", "metrics.read"]},
-    {"callerClientId": "monitoring-readonly", "targetClientId": "middleware-api", "audience": "middleware-api", "scopes": ["health.read", "metrics.read"]},
-    {"callerClientId": "monitoring-readonly", "targetClientId": "odoo-integration", "audience": "odoo-integration", "scopes": ["health.read", "metrics.read"]},
-    {"callerClientId": "monitoring-readonly", "targetClientId": "n8n-automation", "audience": "n8n-automation", "scopes": ["health.read", "metrics.read"]},
-    {"callerClientId": "monitoring-readonly", "targetClientId": "vicidial-adapter", "audience": "vicidial-adapter", "scopes": ["health.read", "metrics.read"]},
-    {"callerClientId": "monitoring-readonly", "targetClientId": "telnexa-gateway", "audience": "telnexa-gateway", "scopes": ["health.read", "metrics.read"]},
-    {"callerClientId": "monitoring-readonly", "targetClientId": "klyrow-gateway", "audience": "klyrow-gateway", "scopes": ["health.read", "metrics.read"]},
-    {"callerClientId": "monitoring-readonly", "targetClientId": "kyqra-gateway", "audience": "kyqra-gateway", "scopes": ["health.read", "metrics.read"]},
-    {"callerClientId": "monitoring-readonly", "targetClientId": "postly-adapter", "audience": "postly-adapter", "scopes": ["health.read", "metrics.read"]},
-    {"callerClientId": "monitoring-readonly", "targetClientId": "ai-provider-adapter", "audience": "ai-provider-adapter", "scopes": ["health.read", "metrics.read"]},
-    {"callerClientId": "monitoring-readonly", "targetClientId": "marketing-provider-adapter", "audience": "marketing-provider-adapter", "scopes": ["health.read", "metrics.read"]}
+    {"callerClientId": "monitoring-readonly", "targetClientId": "middleware-api", "audience": "middleware-api", "scopes": ["health.read", "metrics.read"]}
   ],
   "prohibitedDirectTargets": {
     "n8n-automation": ["odoo-integration", "vicidial-adapter", "telnexa-gateway", "klyrow-gateway", "kyqra-gateway", "postly-adapter", "ai-provider-adapter", "marketing-provider-adapter"]
