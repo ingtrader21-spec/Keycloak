@@ -106,6 +106,14 @@ if "$ROOT_DIR/scripts/verify-backup.sh" "$relocated" >/dev/null 2>&1; then
 fi
 [[ ! -e "$TEST_PSQL_COUNT" ]]
 export RESTORE_EVIDENCE_DIR="$fixture/restore-evidence"
+rm -f "$TEST_PSQL_COUNT"
+export RESTORE_EVIDENCE_DIR='/proc/keycloak-recovery-evidence'
+if "$ROOT_DIR/scripts/verify-backup.sh" "$relocated" >/dev/null 2>&1; then
+  printf 'ERROR=unwritable_restore_evidence_directory_was_accepted\n' >&2
+  exit 1
+fi
+[[ ! -e "$TEST_PSQL_COUNT" ]]
+export RESTORE_EVIDENCE_DIR="$fixture/restore-evidence"
 export RESTORE_TEST_DATABASE_URL='postgresql://restore@isolated.internal:5432/keycloak_restore?dbname=keycloak'
 if "$ROOT_DIR/scripts/verify-backup.sh" "$relocated" >/dev/null 2>&1; then
   printf 'ERROR=database_override_query_was_accepted\n' >&2

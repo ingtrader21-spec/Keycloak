@@ -87,6 +87,10 @@ read -r expected_digest recorded_name extra <"$checksum_file" || fail "checksum 
   fail "checksum record is not bound to the supplied backup"
 actual_digest="$(sha256sum -- "$backup" | awk '{print $1}')"
 [[ "$actual_digest" == "$expected_digest" ]] || fail "checksum mismatch"
+install -d -m 0700 -- "$RESTORE_EVIDENCE_DIR" || fail "restore evidence directory cannot be created"
+[[ -d "$RESTORE_EVIDENCE_DIR" && ! -L "$RESTORE_EVIDENCE_DIR" ]] || fail "restore evidence directory is unsafe"
+exec 8>"$RESTORE_EVIDENCE_DIR/.restore.lock" || fail "restore evidence publication lock cannot be opened"
+flock -n 8 || fail "another restore verification is publishing evidence"
 pre_restore_table_count="$(PGPASSFILE="$RESTORE_TEST_PGPASSFILE" psql "$RESTORE_TEST_DATABASE_URL" -XAtq -v ON_ERROR_STOP=1 -c \
   "select count(*) from information_schema.tables where table_schema='public';")"
 [[ "$pre_restore_table_count" == "0" ]] || fail "isolated restore database must be empty before restore"
@@ -105,10 +109,6 @@ client_rows="$(PGPASSFILE="$RESTORE_TEST_PGPASSFILE" psql "$RESTORE_TEST_DATABAS
 [[ "$realm_rows" =~ ^[1-9][0-9]*$ && "$client_rows" =~ ^[1-9][0-9]*$ ]] ||
   fail "restored Keycloak tables do not contain recoverable data"
 
-install -d -m 0700 -- "$RESTORE_EVIDENCE_DIR"
-[[ -d "$RESTORE_EVIDENCE_DIR" && ! -L "$RESTORE_EVIDENCE_DIR" ]] || fail "restore evidence directory is unsafe"
-exec 8>"$RESTORE_EVIDENCE_DIR/.restore.lock"
-flock -n 8 || fail "another restore verification is publishing evidence"
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 result_name="RESTORE-RESULT-${stamp}"
 result_partial="$RESTORE_EVIDENCE_DIR/.${result_name}.partial"
