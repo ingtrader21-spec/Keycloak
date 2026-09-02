@@ -1,6 +1,6 @@
 {
-  "clientId": "middleware-api",
-  "name": "Codestra service identity: middleware-api",
+  "clientId": "marketing-provider-adapter",
+  "name": "Codestra service identity: marketing-provider-adapter",
   "description": "Confidential machine identity managed by protected Keycloak GitOps.",
   "enabled": true,
   "protocol": "openid-connect",
@@ -25,45 +25,12 @@
   },
   "protocolMappers": [
     {
-      "name": "audience-kyqra-gateway",
+      "name": "audience-marketing-provider-adapter",
       "protocol": "openid-connect",
       "protocolMapper": "oidc-audience-mapper",
       "consentRequired": false,
       "config": {
-        "included.custom.audience": "kyqra-gateway",
-        "id.token.claim": "false",
-        "access.token.claim": "true"
-      }
-    },
-    {
-      "name": "audience-n8n-automation",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-audience-mapper",
-      "consentRequired": false,
-      "config": {
-        "included.custom.audience": "n8n-automation",
-        "id.token.claim": "false",
-        "access.token.claim": "true"
-      }
-    },
-    {
-      "name": "audience-odoo-integration",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-audience-mapper",
-      "consentRequired": false,
-      "config": {
-        "included.custom.audience": "odoo-integration",
-        "id.token.claim": "false",
-        "access.token.claim": "true"
-      }
-    },
-    {
-      "name": "audience-vicidial-adapter",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-audience-mapper",
-      "consentRequired": false,
-      "config": {
-        "included.custom.audience": "vicidial-adapter",
+        "included.custom.audience": "marketing-provider-adapter",
         "id.token.claim": "false",
         "access.token.claim": "true"
       }
@@ -75,7 +42,7 @@
       "consentRequired": false,
       "config": {
         "claim.name": "scope",
-        "claim.value": "callbacks.dispatch crawler.jobs.read crawler.jobs.submit crawler.results.read odoo.activities.write odoo.leads.read odoo.leads.write telephony.commands.write workflow.status.read workflow.trigger",
+        "claim.value": "",
         "jsonType.label": "String",
         "id.token.claim": "false",
         "access.token.claim": "true",
