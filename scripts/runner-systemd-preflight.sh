@@ -331,7 +331,8 @@ host_pid_snapshot="$tmp_dir/host-pids.txt"
 # A complete credential scan is meaningful only in the host PID namespace.
 # NSpid contains one value in the initial PID namespace and one additional
 # value for each nested namespace.  Validate both this process and PID 1, and
-# require their namespace inode identities to match before inspecting /proc.
+# require their namespace inode identities to match before inspecting /proc;
+# inode equality alone is insufficient inside a self-contained nested mount.
 if ! self_pid_namespace="$(readlink -- /proc/self/ns/pid)" \
   || ! init_pid_namespace="$(readlink -- /proc/1/ns/pid)"; then
   printf 'ERROR=pid_namespace_identity_unreadable\n' >&2
