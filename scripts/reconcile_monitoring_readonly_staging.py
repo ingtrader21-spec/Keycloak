@@ -165,10 +165,19 @@ def project_like(current: Any, template: Any) -> Any:
             isinstance(item, dict) and isinstance(item.get("name"), str)
             for item in template
         ):
+            current_items = [item for item in current if isinstance(item, dict)]
+            current_names = [item.get("name") for item in current_items]
+            template_names = [item["name"] for item in template]
+            if (
+                len(current_items) != len(current)
+                or not all(isinstance(name, str) for name in current_names)
+                or len(current_names) != len(set(current_names))
+                or set(current_names) != set(template_names)
+            ):
+                return None
             current_by_name = {
                 item.get("name"): item
-                for item in current
-                if isinstance(item, dict) and isinstance(item.get("name"), str)
+                for item in current_items
             }
             return [
                 project_like(current_by_name.get(item["name"]), item)
@@ -224,12 +233,17 @@ def desired_client(path: Path) -> dict[str, Any]:
     lifespan = int((value.get("attributes") or {}).get("access.token.lifespan", "0"))
     if lifespan < 60 or lifespan > 300:
         raise ReconciliationError("monitoring token lifespan must be 60-300 seconds")
-    mappers = {item.get("name"): item for item in value.get("protocolMappers", [])}
-    if set(mappers) != {"audience-middleware-api"}:
+    mapper_items = value.get("protocolMappers")
+    if (
+        not isinstance(mapper_items, list)
+        or len(mapper_items) != 1
+        or not isinstance(mapper_items[0], dict)
+        or mapper_items[0].get("name") != "audience-middleware-api"
+    ):
         raise ReconciliationError(
             "monitoring client must have exactly one middleware audience mapper"
         )
-    audience = mappers["audience-middleware-api"]
+    audience = mapper_items[0]
     if (audience.get("config") or {}).get("included.custom.audience") != "middleware-api":
         raise ReconciliationError("middleware-api audience mapper is missing")
     if "secret" in value:
@@ -411,8 +425,16 @@ def apply_client(
     internal_id = str(current.get("id") or "")
     if not internal_id:
         raise ReconciliationError("current client has no internal ID")
+    mapper_removals = remove_unexpected_client_mappers(
+        base_url, realm, internal_id, bearer, current, desired
+    )
+    if mapper_removals:
+        refreshed = list_client(base_url, realm, bearer)
+        if len(refreshed) != 1:
+            raise ReconciliationError("monitoring client changed during mapper cleanup")
+        current = refreshed[0]
     if managed_projection(current, desired, CLIENT_MANAGED_KEYS) == desired_projection:
-        return internal_id, "unchanged"
+        return internal_id, "updated" if mapper_removals else "unchanged"
     merged = dict(current)
     for key in CLIENT_MANAGED_KEYS:
         merged[key] = desired.get(key)
@@ -425,6 +447,50 @@ def apply_client(
         expected={204},
     )
     return internal_id, "updated"
+
+
+def remove_unexpected_client_mappers(
+    base_url: str,
+    realm: str,
+    internal_id: str,
+    bearer: str,
+    current: dict[str, Any],
+    desired: dict[str, Any],
+) -> list[str]:
+    current_mappers = current.get("protocolMappers")
+    desired_mappers = desired.get("protocolMappers")
+    if not isinstance(current_mappers, list) or not isinstance(desired_mappers, list):
+        raise ReconciliationError("monitoring protocol mappers are not lists")
+    desired_names = {
+        item.get("name")
+        for item in desired_mappers
+        if isinstance(item, dict) and isinstance(item.get("name"), str)
+    }
+    if len(desired_names) != len(desired_mappers):
+        raise ReconciliationError("desired monitoring mapper names are ambiguous")
+    current_name_counts: dict[str, int] = {}
+    for item in current_mappers:
+        if isinstance(item, dict) and isinstance(item.get("name"), str):
+            name = str(item["name"])
+            current_name_counts[name] = current_name_counts.get(name, 0) + 1
+    removed: list[str] = []
+    for item in current_mappers:
+        name = item.get("name") if isinstance(item, dict) else None
+        if name in desired_names and current_name_counts.get(str(name)) == 1:
+            continue
+        mapper_id = str(item.get("id") or "") if isinstance(item, dict) else ""
+        if not mapper_id:
+            raise ReconciliationError("unexpected monitoring mapper has no internal ID")
+        http_request(
+            "DELETE",
+            f"{base_url}/admin/realms/{urllib.parse.quote(realm)}/clients/"
+            f"{urllib.parse.quote(internal_id)}/protocol-mappers/models/"
+            f"{urllib.parse.quote(mapper_id)}",
+            bearer=bearer,
+            expected={204},
+        )
+        removed.append(str(name or mapper_id))
+    return removed
 
 
 def optional_scope_links(

@@ -161,6 +161,64 @@ class MonitoringReconcileTests(unittest.TestCase):
             ),
         )
 
+    def test_managed_projection_rejects_unexpected_live_mapper(self):
+        desired = module.desired_client(
+            ROOT / "config/clients/monitoring-readonly.json"
+        )
+        live = json.loads(json.dumps(desired))
+        live["protocolMappers"].append(
+            {
+                "id": "legacy-provider-mapper",
+                "name": "audience-marketing-provider-adapter",
+                "protocol": "openid-connect",
+                "protocolMapper": "oidc-audience-mapper",
+                "config": {
+                    "included.custom.audience": "marketing-provider-adapter"
+                },
+            }
+        )
+        self.assertNotEqual(
+            module.managed_projection(live, desired, module.CLIENT_MANAGED_KEYS),
+            module.managed_projection(desired, desired, module.CLIENT_MANAGED_KEYS),
+        )
+
+    def test_apply_client_deletes_unexpected_live_mapper(self):
+        desired = module.desired_client(
+            ROOT / "config/clients/monitoring-readonly.json"
+        )
+        live = json.loads(json.dumps(desired))
+        live["id"] = "monitoring-internal-id"
+        live["protocolMappers"][0]["id"] = "middleware-mapper-id"
+        legacy = {
+            "id": "legacy-provider-mapper-id",
+            "name": "audience-marketing-provider-adapter",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-audience-mapper",
+            "config": {
+                "included.custom.audience": "marketing-provider-adapter"
+            },
+        }
+        live["protocolMappers"].append(legacy)
+        cleaned = json.loads(json.dumps(live))
+        cleaned["protocolMappers"].remove(legacy)
+
+        with patch.object(
+            module, "list_client", side_effect=[[live], [cleaned]]
+        ), patch.object(module, "http_request") as request:
+            internal_id, result = module.apply_client(
+                "https://auth-staging.codestra.co",
+                "codestra",
+                "admin-token",
+                desired,
+            )
+
+        self.assertEqual(internal_id, "monitoring-internal-id")
+        self.assertEqual(result, "updated")
+        request.assert_called_once()
+        method, url = request.call_args.args[:2]
+        self.assertEqual(method, "DELETE")
+        self.assertTrue(url.endswith("/protocol-mappers/models/legacy-provider-mapper-id"))
+
     def test_admin_endpoint_is_staging_canonical_or_explicit_loopback(self):
         module.validate_runtime_urls(
             "https://auth-staging.codestra.co",
