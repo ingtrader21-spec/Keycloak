@@ -16,6 +16,7 @@ CLIENT_SCOPE_DIR = ROOT / "config/client-scopes"
 ALLOWLIST_DIR = ROOT / "config/export-allowlists"
 MONITORING_CLIENT_ID = "monitoring-readonly"
 MONITORING_OPTIONAL_SCOPES = ("health.read", "metrics.read")
+TENANT_BOUND_MIDDLEWARE_CALLERS = {"kong-gateway", "n8n-automation"}
 
 
 def canonical(value: object) -> str:
@@ -104,6 +105,22 @@ def render() -> dict[Path, str]:
                     },
                 )
             )
+            if client_id in TENANT_BOUND_MIDDLEWARE_CALLERS:
+                mappers.append(
+                    mapper(
+                        "tenant-id-from-service-account",
+                        "oidc-usermodel-attribute-mapper",
+                        {
+                            "user.attribute": "tenant_id",
+                            "claim.name": "tenant_id",
+                            "jsonType.label": "String",
+                            "id.token.claim": "false",
+                            "access.token.claim": "true",
+                            "userinfo.token.claim": "false",
+                            "multivalued": "false",
+                        },
+                    )
+                )
 
         overlay = {
             "clientId": client_id,
