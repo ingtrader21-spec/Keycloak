@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
@@ -58,16 +59,25 @@ def load() -> dict[str, Any]:
     return value
 
 
+def cross_repository_token() -> str:
+    token = os.environ.get("CODESTRA_REPOSITORY_READ_TOKEN") or os.environ.get(
+        "GH_TOKEN"
+    )
+    if not token:
+        fail(
+            "live repository identity validation requires the protected "
+            "CODESTRA_REPOSITORY_READ_TOKEN secret"
+        )
+    return token
+
+
 def github_headers() -> dict[str, str]:
-    headers = {
+    return {
         "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {cross_repository_token()}",
         "User-Agent": "codestra-keycloak-repository-authority",
         "X-GitHub-Api-Version": "2022-11-28",
     }
-    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    return headers
 
 
 def fetch_live_repository_id(
@@ -126,10 +136,7 @@ def workflow_step_blocks(text: str) -> list[str]:
     for position, (start, indent) in enumerate(starts):
         end = len(lines)
         for candidate_start, candidate_indent in starts[position + 1 :]:
-            if candidate_indent == indent:
-                end = candidate_start
-                break
-            if candidate_indent < indent:
+            if candidate_indent <= indent:
                 end = candidate_start
                 break
         blocks.append("\n".join(lines[start:end]))
@@ -174,7 +181,7 @@ def validate_infrastructure_checkout(
         fail("Infrastructure checkout ref does not match INFRASTRUCTURE_SHA")
 
 
-def validate() -> None:
+def validate(*, require_live: bool = False) -> None:
     document = load()
     if document.get("schema_version") != "1.0":
         fail("repository alias schema_version must be 1.0")
@@ -215,8 +222,6 @@ def validate() -> None:
     if actual != EXPECTED:
         fail("repository aliases do not exactly match the approved stable-ID set")
 
-    validate_live_repository_ids(actual)
-
     workflow = RUNTIME_PREFLIGHT.read_text(encoding="utf-8")
     validate_infrastructure_checkout(
         workflow,
@@ -224,9 +229,26 @@ def validate() -> None:
         EXPECTED[1350724865][1],
     )
 
+    if require_live:
+        validate_live_repository_ids(actual)
+        print("LIVE_REPOSITORY_IDENTITY=PASS")
+    else:
+        print("LIVE_REPOSITORY_IDENTITY=REQUIRED_BEFORE_CUTOVER")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help="require protected cross-repository GitHub API ID readback",
+    )
+    return parser.parse_args()
+
 
 def main() -> None:
-    validate()
+    args = parse_args()
+    validate(require_live=args.live)
     print("Keycloak repository-name authority validation: PASS")
 
 
