@@ -403,6 +403,8 @@ python3 "$ROOT_DIR/scripts/validate-moneybee-oidc-contract.py"
 python3 "$ROOT_DIR/scripts/validate-domain-application-registry.py"
 python3 "$ROOT_DIR/scripts/validate-beyvra-oidc-contract.py"
 python3 "$ROOT_DIR/scripts/validate-product-middleware-clients.py"
+python3 "$ROOT_DIR/scripts/observability_desired_state.py" --check
+python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_observability_desired_state.py' -v
 
 while IFS= read -r script; do
   bash -n "$script" || fail "Bash syntax failed: $script"

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "alias": "codestra-observability-browser-mfa",
+  "description": "Dedicated browser flow requiring a password and configured OTP on every observability or secrets login.",
+  "providerId": "basic-flow",
+  "topLevel": true,
+  "builtIn": false,
+  "executions": [
+    {
+      "authenticator": "auth-username-password-form",
+      "requirement": "REQUIRED",
+      "priority": 10
+    },
+    {
+      "authenticator": "auth-otp-form",
+      "requirement": "REQUIRED",
+      "priority": 20
+    }
+  ],
+  "clientBindings": [
+    "grafana-observability",
+    "superset-analytics",
+    "openbao-secrets"
+  ],
+  "sessionReuseWithoutMfaAllowed": false,
+  "unconfiguredOtpFallbackAllowed": false,
+  "liveApplyAuthorized": false
+}
