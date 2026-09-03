@@ -1,0 +1,394 @@
+name: One-shot build current immutable Keycloak runtime candidate
+
+on:
+  push:
+    branches:
+      - remediation/keycloak-runtime-hardening-builder-20260903
+    paths:
+      - .github/workflows/one-shot-build-current-runtime-hardening.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: keycloak-current-runtime-hardening-20260903
+  cancel-in-progress: false
+
+jobs:
+  build-runtime-candidate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      AUTHORITY_SHA: 0dbb8ea3421a39df88e3e25224845e2742b731e4
+      LEGACY_RUNTIME_HEAD: 60d81a61fb55706dd04757f044a11791162a2e3d
+      KEYCLOAK_TAG: 26.7.3
+      POSTGRES_TAG: 17.11-alpine
+      TARGET_BRANCH: hardening/keycloak-runtime-supply-chain-20260903
+      RELEASE_WORKFLOW_CANDIDATE: docs/evidence/KEYCLOAK_RELEASE_IMAGE_WORKFLOW_CANDIDATE.yml
+    steps:
+      - name: Check out exact builder trigger
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+          ref: ${{ github.sha }}
+
+      - name: Install pinned Trivy launcher
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567
+        with:
+          version: v0.74.0
+          cache: true
+
+      - name: Resolve, harden, build, scan, and publish source branch
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          git fetch --no-tags origin \
+            "+refs/heads/sync/main-development-reconciled-20260903:refs/remotes/origin/sync/main-development-reconciled-20260903"
+          [[ "$(git rev-parse refs/remotes/origin/sync/main-development-reconciled-20260903)" == "$AUTHORITY_SHA" ]] || {
+            echo 'ERROR=authority_moved' >&2
+            exit 1
+          }
+          git cat-file -e "${LEGACY_RUNTIME_HEAD}^{commit}"
+          if git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" >/dev/null 2>&1; then
+            echo "ERROR=target_branch_exists branch=$TARGET_BRANCH" >&2
+            exit 1
+          fi
+
+          resolve_digest() {
+            local image="$1"
+            local output digest
+            output="$(docker buildx imagetools inspect "$image")"
+            digest="$(awk '$1 == "Digest:" {print $2; exit}' <<<"$output")"
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || {
+              echo "ERROR=immutable_digest_unresolved image=$image digest=$digest" >&2
+              printf '%s\n' "$output" >&2
+              exit 1
+            }
+            printf '%s\n' "$digest"
+          }
+
+          keycloak_image="quay.io/keycloak/keycloak:${KEYCLOAK_TAG}"
+          postgres_image="postgres:${POSTGRES_TAG}"
+          keycloak_digest="$(resolve_digest "$keycloak_image")"
+          postgres_digest="$(resolve_digest "$postgres_image")"
+          keycloak_ref="${keycloak_image}@${keycloak_digest}"
+          postgres_ref="${postgres_image}@${postgres_digest}"
+
+          git checkout --detach "$AUTHORITY_SHA"
+
+          cat >Dockerfile <<EOF
+          ARG KEYCLOAK_BASE_IMAGE=$keycloak_ref
+
+          FROM \${KEYCLOAK_BASE_IMAGE} AS builder
+
+          ENV KC_DB=postgres \\
+              KC_HEALTH_ENABLED=true \\
+              KC_METRICS_ENABLED=true
+
+          RUN /opt/keycloak/bin/kc.sh build
+
+          FROM \${KEYCLOAK_BASE_IMAGE}
+
+          COPY --from=builder /opt/keycloak/ /opt/keycloak/
+
+          USER 1000
+
+          ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
+          CMD ["start", "--optimized"]
+          EOF
+          sed -i 's/^          //' Dockerfile
+
+          cat >compose.yaml <<EOF
+          name: codestra-keycloak
+
+          services:
+            postgres:
+              image: $postgres_ref
+              restart: unless-stopped
+              environment:
+                POSTGRES_DB: \${POSTGRES_DB:-keycloak}
+                POSTGRES_USER: \${POSTGRES_USER:-keycloak}
+                POSTGRES_PASSWORD: \${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+              volumes:
+                - keycloak-postgres-data:/var/lib/postgresql/data
+              networks:
+                - keycloak-internal
+              healthcheck:
+                test: ["CMD-SHELL", "pg_isready -U \"\$\${POSTGRES_USER}\" -d \"\$\${POSTGRES_DB}\""]
+                interval: 10s
+                timeout: 5s
+                retries: 12
+                start_period: 20s
+              security_opt:
+                - no-new-privileges:true
+              cap_drop:
+                - ALL
+              read_only: true
+              tmpfs:
+                - /tmp:size=32m,noexec,nosuid,nodev
+                - /run/postgresql:size=8m,nosuid,nodev
+              pids_limit: 200
+              mem_limit: 1g
+              cpus: 1.0
+              logging:
+                driver: json-file
+                options:
+                  max-size: 10m
+                  max-file: "5"
+
+            keycloak:
+              image: \${KEYCLOAK_IMAGE:?KEYCLOAK_IMAGE must be an approved GHCR version and sha256 digest}
+              restart: unless-stopped
+              depends_on:
+                postgres:
+                  condition: service_healthy
+              command: ["start", "--optimized"]
+              environment:
+                KC_DB: postgres
+                KC_DB_URL_HOST: postgres
+                KC_DB_URL_PORT: "5432"
+                KC_DB_URL_DATABASE: \${POSTGRES_DB:-keycloak}
+                KC_DB_USERNAME: \${POSTGRES_USER:-keycloak}
+                KC_DB_PASSWORD: \${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+                KC_HOSTNAME: \${KC_HOSTNAME:-https://auth.codestra.co}
+                KC_HOSTNAME_STRICT: "true"
+                KC_HTTP_ENABLED: "true"
+                KC_PROXY_HEADERS: xforwarded
+                KC_HEALTH_ENABLED: "true"
+                KC_METRICS_ENABLED: "true"
+                KC_CACHE: ispn
+                KC_CACHE_STACK: jdbc-ping
+                KC_BOOTSTRAP_ADMIN_USERNAME: \${KC_BOOTSTRAP_ADMIN_USERNAME:?KC_BOOTSTRAP_ADMIN_USERNAME must be set}
+                KC_BOOTSTRAP_ADMIN_PASSWORD: \${KC_BOOTSTRAP_ADMIN_PASSWORD:?KC_BOOTSTRAP_ADMIN_PASSWORD must be set}
+              ports:
+                - "127.0.0.1:\${KEYCLOAK_HTTP_PORT:-8080}:8080"
+                - "127.0.0.1:\${KEYCLOAK_MANAGEMENT_PORT:-9000}:9000"
+              volumes:
+                - keycloak-runtime-data:/opt/keycloak/data
+              tmpfs:
+                - /tmp:size=64m,noexec,nosuid,nodev
+              networks:
+                - keycloak-internal
+              stop_grace_period: 60s
+              healthcheck:
+                test:
+                  [
+                    "CMD-SHELL",
+                    "bash -ec 'exec 3<>/dev/tcp/127.0.0.1/9000; printf \"GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3; grep -q \"200 OK\" <&3'",
+                  ]
+                interval: 15s
+                timeout: 5s
+                retries: 20
+                start_period: 45s
+              security_opt:
+                - no-new-privileges:true
+              cap_drop:
+                - ALL
+              read_only: true
+              pids_limit: 500
+              mem_limit: 2g
+              cpus: 2.0
+              logging:
+                driver: json-file
+                options:
+                  max-size: 10m
+                  max-file: "5"
+
+          networks:
+            keycloak-internal:
+              driver: bridge
+
+          volumes:
+            keycloak-postgres-data:
+            keycloak-runtime-data:
+          EOF
+          sed -i 's/^          //' compose.yaml
+
+          cat >.env.example <<EOF
+          # Exact release output only: tags without a digest are rejected.
+          KEYCLOAK_IMAGE=ghcr.io/appolon1908-hue/codestra-keycloak:${KEYCLOAK_TAG}-REPLACE_WITH_SOURCE_SHA@sha256:REPLACE_WITH_64_HEX_RELEASE_DIGEST
+
+          KC_HOSTNAME=https://auth.codestra.co
+          KC_BASE_URL=https://auth.codestra.co
+          KC_PUBLIC_URL=https://auth.codestra.co
+          KC_TARGET_REALM=codestra
+          KC_ADMIN_REALM=master
+          KEYCLOAK_HTTP_PORT=8080
+          KEYCLOAK_MANAGEMENT_PORT=9000
+
+          POSTGRES_DB=keycloak
+          POSTGRES_USER=keycloak
+          KC_BOOTSTRAP_ADMIN_USERNAME=bootstrap-admin
+
+          # Load POSTGRES_PASSWORD and KC_BOOTSTRAP_ADMIN_PASSWORD independently from the
+          # approved runtime secret provider. See deploy/secrets/*.env.example.
+          EOF
+          sed -i 's/^          //' .env.example
+
+          mkdir -p deploy/secrets docs/security docs/operations docs/audits docs/evidence docs/governance
+          for path in \
+            deploy/secrets/admin-api.env.example \
+            deploy/secrets/bootstrap-admin.env.example \
+            deploy/secrets/monitoring.env.example \
+            deploy/secrets/postgres.env.example \
+            deploy/secrets/runtime-ssh.env.example \
+            deploy/secrets/smtp.env.example \
+            docs/operations/SECRET_ROTATION.md \
+            docs/security/CONTAINER_SUPPLY_CHAIN.md \
+            scripts/validate-runtime-security.py; do
+            mkdir -p "$(dirname "$path")"
+            git show "$LEGACY_RUNTIME_HEAD:$path" >"$path"
+          done
+          git show "$LEGACY_RUNTIME_HEAD:.github/workflows/release-image.yml" \
+            >"$RELEASE_WORKFLOW_CANDIDATE"
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/validate.sh')
+          text = path.read_text(encoding='utf-8')
+          command = 'python3 "$ROOT_DIR/scripts/validate-runtime-security.py"\n'
+          if command not in text:
+              marker = 'python3 "$ROOT_DIR/scripts/validate-workflows.py"\n'
+              if marker not in text:
+                  raise SystemExit('runtime validator insertion anchor not found')
+              text = text.replace(marker, marker + command, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          cat >docs/audits/KEYCLOAK_RUNTIME_GAP_ANALYSIS.md <<EOF
+          # Keycloak runtime supply-chain gap analysis
+
+          Date: 2026-09-03
+
+          ## Resolved source authority
+
+          \`\`\`text
+          reconciled_authority_sha=$AUTHORITY_SHA
+          keycloak_version=$KEYCLOAK_TAG
+          keycloak_base=$keycloak_ref
+          postgres_version=$POSTGRES_TAG
+          postgres_base=$postgres_ref
+          runtime_image_contract=GHCR source-SHA plus immutable digest
+          local_or_in_place_production_build=false
+          \`\`\`
+
+          ## Closed repository gaps
+
+          - Both Dockerfile stages use one immutable Keycloak base digest.
+          - PostgreSQL is pinned by release tag and immutable digest.
+          - Production Compose requires a pre-published GHCR Keycloak source-SHA digest.
+          - Database networking is private and no database host port is published.
+          - Keycloak application and management listeners bind only to localhost.
+          - Both services use read-only roots, all-capability drop, no-new-privileges,
+            bounded CPU, memory, PID and log-rotation policies, and explicit writable paths.
+          - Secret examples are separated by authority and contain names only.
+          - The release workflow remains manual, exact-main-SHA, publish-once,
+            SBOM/provenance, exact-digest scan, and protected-Environment gated.
+
+          ## Remaining runtime gates
+
+          Source hardening does not authorize publication or deployment. A protected merge,
+          exact-source image release, no-High/Critical exact-digest scan, backup and restore
+          proof, current realm plan/review, staging canary, rollback rehearsal, and live
+          issuer/session/logout/MFA verification are still required.
+          EOF
+          sed -i 's/^          //' docs/audits/KEYCLOAK_RUNTIME_GAP_ANALYSIS.md
+
+          cat >docs/governance/KEYCLOAK_RUNTIME_HARDENING_2026-09-03.md <<EOF
+          # Keycloak current runtime hardening evidence
+
+          \`\`\`text
+          authority_sha=$AUTHORITY_SHA
+          keycloak_ref=$keycloak_ref
+          postgres_ref=$postgres_ref
+          trivy_version=0.74.0
+          target_branch=$TARGET_BRANCH
+          image_published=false
+          runtime_deployed=false
+          \`\`\`
+
+          The exact base references were resolved from the registries during the guarded
+          build. The repository image and PostgreSQL base must pass the strict High/Critical
+          vulnerability gate before this branch is published.
+          EOF
+          sed -i 's/^          //' docs/governance/KEYCLOAK_RUNTIME_HARDENING_2026-09-03.md
+
+          sudo apt-get update
+          sudo apt-get install --yes jq shellcheck openssh-client python3-yaml
+
+          python3 -m compileall -q scripts tests
+          python3 scripts/validate-runtime-security.py
+          ./scripts/validate.sh
+
+          dummy_digest="sha256:$(printf '0%.0s' {1..64})"
+          KEYCLOAK_IMAGE="ghcr.io/appolon1908-hue/codestra-keycloak:test@${dummy_digest}" \
+            POSTGRES_PASSWORD=test \
+            KC_BOOTSTRAP_ADMIN_USERNAME=test \
+            KC_BOOTSTRAP_ADMIN_PASSWORD=test \
+            docker compose config --quiet
+
+          docker build --pull=false --tag codestra-keycloak:runtime-candidate .
+          docker pull "$postgres_ref"
+
+          mkdir -p artifacts/runtime-hardening
+          printf '%s\n' "$keycloak_ref" >artifacts/runtime-hardening/keycloak-base.txt
+          printf '%s\n' "$postgres_ref" >artifacts/runtime-hardening/postgres-base.txt
+          trivy image \
+            --exit-code 1 \
+            --severity HIGH,CRITICAL \
+            --scanners vuln \
+            --format json \
+            --output artifacts/runtime-hardening/keycloak-scan.json \
+            codestra-keycloak:runtime-candidate
+          trivy image \
+            --exit-code 1 \
+            --severity HIGH,CRITICAL \
+            --scanners vuln \
+            --format json \
+            --output artifacts/runtime-hardening/postgres-scan.json \
+            "$postgres_ref"
+          jq -e '[.Results[]?.Vulnerabilities[]?] | length == 0' \
+            artifacts/runtime-hardening/keycloak-scan.json >/dev/null
+          jq -e '[.Results[]?.Vulnerabilities[]?] | length == 0' \
+            artifacts/runtime-hardening/postgres-scan.json >/dev/null
+
+          shellcheck scripts/*.sh scripts/lib/*.sh
+          git diff --check
+          git add -- \
+            .env.example Dockerfile compose.yaml \
+            deploy/secrets \
+            docs/audits/KEYCLOAK_RUNTIME_GAP_ANALYSIS.md \
+            docs/evidence/KEYCLOAK_RELEASE_IMAGE_WORKFLOW_CANDIDATE.yml \
+            docs/governance/KEYCLOAK_RUNTIME_HARDENING_2026-09-03.md \
+            docs/operations/SECRET_ROTATION.md \
+            docs/security/CONTAINER_SUPPLY_CHAIN.md \
+            scripts/validate-runtime-security.py scripts/validate.sh
+          git diff --cached --check
+          git config user.name 'codestra-keycloak-runtime-hardening'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git commit -m 'security(keycloak): harden current immutable runtime supply chain'
+          target_sha="$(git rev-parse HEAD)"
+          [[ "$(git rev-parse HEAD^)" == "$AUTHORITY_SHA" ]]
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          [[ "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" == "$target_sha" ]]
+
+          echo 'KEYCLOAK_RUNTIME_HARDENING=PASS'
+          echo "TARGET_SHA=$target_sha"
+          echo "KEYCLOAK_BASE=$keycloak_ref"
+          echo "POSTGRES_BASE=$postgres_ref"
+          echo 'IMAGE_PUBLISHED=false'
+          echo 'RUNTIME_DEPLOYED=false'
+          echo 'SECRETS_READ=0'
+
+      - name: Upload vulnerability evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: keycloak-runtime-hardening-${{ github.sha }}
+          path: artifacts/runtime-hardening
+          if-no-files-found: ignore
+          retention-days: 30
