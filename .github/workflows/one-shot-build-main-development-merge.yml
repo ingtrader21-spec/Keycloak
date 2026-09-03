@@ -22,16 +22,18 @@ jobs:
     env:
       EXPECTED_MAIN_SHA: 3d8cd0483a178100b679b2c3f0f4d4ca36fe161c
       EXPECTED_DEVELOPMENT_SHA: 18c130af174dc791222355fa6178422bd6cb30d2
+      EXPECTED_MERGE_BASE: 92ca388323db23c1f308ce4e33d9f36b0c77c74e
       TARGET_BRANCH: sync/main-development-reconciled-20260903
+      EVIDENCE_PATH: docs/governance/KEYCLOAK_MAIN_DEVELOPMENT_RECONCILIATION_2026-09-03.md
     steps:
-      - name: Check out analysis trigger
+      - name: Check out exact analysis trigger
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
           persist-credentials: true
           ref: ${{ github.sha }}
 
-      - name: Build, validate, and publish the exact merge result
+      - name: Build and validate protected-main reconciliation
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -42,6 +44,7 @@ jobs:
 
           actual_main="$(git rev-parse refs/remotes/origin/main)"
           actual_development="$(git rev-parse refs/remotes/origin/development)"
+          actual_merge_base="$(git merge-base "$actual_main" "$actual_development")"
           [[ "$actual_main" == "$EXPECTED_MAIN_SHA" ]] || {
             echo "ERROR=main_moved expected=$EXPECTED_MAIN_SHA actual=$actual_main" >&2
             exit 1
@@ -50,115 +53,110 @@ jobs:
             echo "ERROR=development_moved expected=$EXPECTED_DEVELOPMENT_SHA actual=$actual_development" >&2
             exit 1
           }
+          [[ "$actual_merge_base" == "$EXPECTED_MERGE_BASE" ]] || {
+            echo "ERROR=merge_base_changed expected=$EXPECTED_MERGE_BASE actual=$actual_merge_base" >&2
+            exit 1
+          }
           if git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" >/dev/null 2>&1; then
             echo "ERROR=target_branch_already_exists branch=$TARGET_BRANCH" >&2
             exit 1
           fi
 
+          development_unique_count="$(git rev-list --count "$EXPECTED_MAIN_SHA..$EXPECTED_DEVELOPMENT_SHA")"
+          main_unique_count="$(git rev-list --count "$EXPECTED_DEVELOPMENT_SHA..$EXPECTED_MAIN_SHA")"
+          [[ "$development_unique_count" == 30 ]] || {
+            echo "ERROR=development_unique_commit_count_changed actual=$development_unique_count" >&2
+            exit 1
+          }
+          [[ "$main_unique_count" == 19 ]] || {
+            echo "ERROR=main_unique_commit_count_changed actual=$main_unique_count" >&2
+            exit 1
+          }
+
+          mapfile -t development_paths < <(
+            git diff --name-only "$EXPECTED_MAIN_SHA" "$EXPECTED_DEVELOPMENT_SHA" | sort
+          )
+          ((${#development_paths[@]} == 49)) || {
+            echo "ERROR=development_delta_inventory_changed actual=${#development_paths[@]}" >&2
+            printf '%s\n' "${development_paths[@]}" >&2
+            exit 1
+          }
+
+          required_obsolete_paths=(
+            config/clients/grafana-observability.json
+            config/clients/superset-analytics.json
+            config/clients/openbao-secrets.json
+            config/policy/managed-realm-roles.json
+            config/policy/creatable-realm-roles.json
+            config/policy/secret-export-clients.json
+            scripts/observability_identity_policy.py
+            scripts/protected_identity_engine.py
+            scripts/validate-observability-managed-identities.py
+            scripts/validate-observability-oidc-contract.py
+            scripts/validate-source.py
+          )
+          for path in "${required_obsolete_paths[@]}"; do
+            printf '%s\n' "${development_paths[@]}" | grep -Fx -- "$path" >/dev/null || {
+              echo "ERROR=expected_development_overlay_path_missing path=$path" >&2
+              exit 1
+            }
+          done
+
+          # The development-only history is retained as the second parent, but its tree
+          # is superseded by current protected main. This prevents the older live-capable
+          # observability overlay and reduced wrapper scripts from replacing the current
+          # repository-only desired-state model and hardened plan/apply controls.
           git checkout --detach "$EXPECTED_MAIN_SHA"
           git config user.name 'codestra-keycloak-reconciler'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git merge --strategy=ours --no-commit "$EXPECTED_DEVELOPMENT_SHA"
 
-          set +e
-          git merge --no-ff --no-commit -X ours "$EXPECTED_DEVELOPMENT_SHA" 2>&1 | tee /tmp/keycloak-merge.log
-          merge_rc=${PIPESTATUS[0]}
-          set -e
-
-          # Protected main remains the workflow authority. Development's non-workflow
-          # changes are retained unless they conflict with a main-owned hunk.
-          git restore --source="$EXPECTED_MAIN_SHA" --staged --worktree -- .github/workflows
-          git add -A
-
-          unresolved="$(git diff --name-only --diff-filter=U)"
-          if [[ $merge_rc -ne 0 || -n "$unresolved" ]]; then
-            echo "ERROR=merge_conflicts_remain merge_rc=$merge_rc" >&2
-            printf '%s\n' "$unresolved" >&2
-            exit 1
-          fi
-
-          # Both branches own valid client declarations. Use an ordered union for the
-          # managed/creatable boundaries so main's platform identities and development's
-          # observability browser clients remain explicitly authorized.
-          python3 - <<'PY'
-          import json
-          import os
-          import subprocess
-          from pathlib import Path
-
-          main_sha = os.environ['EXPECTED_MAIN_SHA']
-          development_sha = os.environ['EXPECTED_DEVELOPMENT_SHA']
-          paths = (
-              Path('config/policy/managed-clients.json'),
-              Path('config/policy/creatable-clients.json'),
-          )
-
-          def load_at(commit: str, path: Path) -> list[str]:
-              raw = subprocess.check_output(
-                  ['git', 'show', f'{commit}:{path.as_posix()}'], text=True
-              )
-              payload = json.loads(raw)
-              clients = payload.get('clients')
-              if not isinstance(clients, list) or not all(
-                  isinstance(item, str) and item for item in clients
-              ):
-                  raise SystemExit(f'invalid clients policy at {commit}:{path}')
-              return clients
-
-          for path in paths:
-              main_clients = load_at(main_sha, path)
-              development_clients = load_at(development_sha, path)
-              union = list(main_clients)
-              union.extend(item for item in development_clients if item not in union)
-              required_observability = {
-                  'grafana-observability',
-                  'superset-analytics',
-                  'openbao-secrets',
-              }
-              if not required_observability.issubset(union):
-                  raise SystemExit(f'observability union incomplete for {path}')
-              path.write_text(
-                  json.dumps({'clients': union}, separators=(',', ':')) + '\n',
-                  encoding='utf-8',
-              )
-              print(f'POLICY_UNION={path} CLIENTS={len(union)}')
-          PY
-          git add config/policy/managed-clients.json config/policy/creatable-clients.json
-
-          mkdir -p docs/governance
-          changed_count="$(git diff --cached --name-only | wc -l | tr -d ' ')"
-          conflict_lines="$(grep -c '^CONFLICT ' /tmp/keycloak-merge.log || true)"
-          cat > docs/governance/KEYCLOAK_MAIN_DEVELOPMENT_RECONCILIATION_2026-09-03.md <<EOF
-          # Keycloak main-to-development reconciliation
+          mkdir -p "$(dirname "$EVIDENCE_PATH")"
+          cat > "$EVIDENCE_PATH" <<EOF
+          # Keycloak main-to-development authority reconciliation
 
           Date: 2026-09-03
 
-          ## Exact authority
+          ## Exact ancestry
 
           \`\`\`text
-          main_sha=$EXPECTED_MAIN_SHA
-          development_sha=$EXPECTED_DEVELOPMENT_SHA
+          protected_main_sha=$EXPECTED_MAIN_SHA
+          previous_development_sha=$EXPECTED_DEVELOPMENT_SHA
+          merge_base_sha=$EXPECTED_MERGE_BASE
+          protected_main_unique_commits=$main_unique_count
+          development_unique_commits=$development_unique_count
+          development_delta_paths=${#development_paths[@]}
           target_branch=$TARGET_BRANCH
-          merge_strategy=ort -X ours
-          workflow_authority=main
-          client_policy_resolution=ordered union of main and development
-          staged_path_count=$changed_count
-          reported_conflict_lines=$conflict_lines
+          tree_authority=protected main
+          history_preserved=true
+          force_update=false
           \`\`\`
 
-          The merge starts from protected \`main\`, incorporates every non-conflicting
-          development change, resolves conflicting hunks in favor of current-main
-          authority, and restores \`.github/workflows\` exactly from current \`main\`.
-          The managed and creatable client lists are resolved by ordered union so the
-          current platform clients and development's reviewed observability clients are
-          both retained. The resulting source is published only after the full repository
-          validation suite succeeds.
+          ## Resolution
+
+          The development-only history is preserved as the merge commit's second parent,
+          but its tree is intentionally superseded by current protected \`main\`.
+
+          Repository comparison showed that all 30 development-only commits belong to an
+          older observability managed-identity implementation. That overlay attempted to
+          place Grafana, Superset, and OpenBao browser clients into live-capable managed and
+          creatable policies, while current protected \`main\` intentionally keeps those
+          identities repository-only, requires MFA for every bound role, uses OpenBao-backed
+          runtime secret files, and sets \`liveApplyAuthorized=false\`.
+
+          The old development overlay also replaced the hardened plan, review, apply,
+          rollback-evidence, and plan-gate scripts with small wrappers around a parallel
+          engine. Keeping both authorities produced contradictory policies and failed the
+          repository's own validators. The protected-main tree is therefore retained as
+          the single source of truth; commit ancestry remains auditable and no branch is
+          force-updated.
 
           ## Required follow-up
 
-          This reconciliation must enter \`development\` through a reviewed pull request.
-          Dependent PRs must then rebase on the reconciled development head. It does not
-          authorize a Keycloak realm apply, deployment, credential operation, or runtime
-          mutation.
+          This merge commit must enter \`development\` through a reviewed pull request.
+          Afterward, feature branches must rebase on the reconciled development head and
+          pass exact-head source and merge-result validation. This source reconciliation
+          does not authorize a live realm plan or apply.
 
           ## Safety
 
@@ -176,8 +174,8 @@ jobs:
           PRODUCTION_RUNTIME_CHANGED=false
           \`\`\`
           EOF
-          sed -i 's/^          //' docs/governance/KEYCLOAK_MAIN_DEVELOPMENT_RECONCILIATION_2026-09-03.md
-          git add docs/governance/KEYCLOAK_MAIN_DEVELOPMENT_RECONCILIATION_2026-09-03.md
+          sed -i 's/^          //' "$EVIDENCE_PATH"
+          git add "$EVIDENCE_PATH"
 
           sudo apt-get update
           sudo apt-get install --yes jq shellcheck openssh-client python3-yaml
@@ -189,7 +187,7 @@ jobs:
           shellcheck scripts/*.sh scripts/lib/*.sh
           git diff --cached --check
 
-          git commit -m 'sync(identity): reconcile protected main with development'
+          git commit -m 'sync(identity): reconcile protected main into development'
           merge_sha="$(git rev-parse HEAD)"
           parents="$(git show -s --format=%P HEAD)"
           expected_parents="$EXPECTED_MAIN_SHA $EXPECTED_DEVELOPMENT_SHA"
@@ -198,10 +196,10 @@ jobs:
             exit 1
           }
 
-          workflow_delta="$(git diff --name-only "$EXPECTED_MAIN_SHA" "$merge_sha" -- .github/workflows)"
-          [[ -z "$workflow_delta" ]] || {
-            echo 'ERROR=workflow_authority_changed' >&2
-            printf '%s\n' "$workflow_delta" >&2
+          mapfile -t tree_delta < <(git diff --name-only "$EXPECTED_MAIN_SHA" "$merge_sha")
+          [[ "${#tree_delta[@]}" == 1 && "${tree_delta[0]}" == "$EVIDENCE_PATH" ]] || {
+            echo 'ERROR=reconciled_tree_not_equal_to_protected_main_plus_evidence' >&2
+            printf '%s\n' "${tree_delta[@]}" >&2
             exit 1
           }
 
@@ -216,6 +214,7 @@ jobs:
           echo "MERGE_SHA=$merge_sha"
           echo "PARENTS=$parents"
           echo "TARGET_BRANCH=$TARGET_BRANCH"
+          echo 'TREE_EQUALS_PROTECTED_MAIN_PLUS_EVIDENCE=true'
           echo 'KEYCLOAK_RUNTIME_APPLY=false'
           echo 'SECRETS_READ=0'
           echo 'SSH_CHANGED=false'
