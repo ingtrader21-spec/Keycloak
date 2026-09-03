@@ -1,0 +1,390 @@
+name: One-shot line-structured Keycloak PR authority repair
+
+on:
+  push:
+    branches:
+      - remediation/keycloak-pr-governance-20260903
+    paths:
+      - .github/workflows/one-shot-fix-pr69-validation-v3.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: keycloak-pr69-validation-repair-v3
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact repair commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: true
+          ref: ${{ github.sha }}
+
+      - name: Apply deterministic source repair
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from textwrap import dedent
+
+          expression_open = '$' + '{{'
+          expression_close = '}}'
+
+          def expression(value: str) -> str:
+              return expression_open + ' ' + value + ' ' + expression_close
+
+          audit_workflow = dedent('''\
+          name: Keycloak pull-request authority audit
+
+          on:
+            workflow_dispatch:
+            schedule:
+              - cron: "17 5 * * *"
+
+          permissions:
+            contents: read
+            pull-requests: read
+            checks: read
+
+          concurrency:
+            group: keycloak-pr-authority-audit
+            cancel-in-progress: false
+
+          jobs:
+            audit:
+              name: Keycloak / pull-request-authority
+              runs-on: ubuntu-24.04
+              timeout-minutes: 15
+              steps:
+                - name: Check out exact protected source
+                  uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+                  with:
+                    fetch-depth: 1
+                    persist-credentials: false
+                    ref: __GITHUB_SHA__
+                - name: Compile fail-closed auditor
+                  run: python3 -m py_compile scripts/ci/audit_keycloak_pull_requests.py
+                - name: Run unit regressions
+                  run: python3 -m unittest tests/test_audit_keycloak_pull_requests.py -v
+                - name: Audit every open and draft pull request
+                  env:
+                    GITHUB_TOKEN: __GITHUB_TOKEN__
+                  run: |
+                    python3 scripts/ci/audit_keycloak_pull_requests.py \
+                      --json-output artifacts/keycloak-pr-audit.json \
+                      --markdown-output artifacts/keycloak-pr-audit.md
+                - name: Upload bounded audit evidence
+                  uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+                  with:
+                    name: keycloak-pr-audit-__GITHUB_SHA__
+                    path: |
+                      artifacts/keycloak-pr-audit.json
+                      artifacts/keycloak-pr-audit.md
+                    if-no-files-found: error
+                    retention-days: 30
+          ''').replace('__GITHUB_SHA__', expression('github.sha')).replace(
+              '__GITHUB_TOKEN__', expression('github.token')
+          )
+
+          pr_workflow = dedent('''\
+          name: Keycloak exact-head PR gate
+
+          on:
+            pull_request:
+              branches:
+                - development
+                - test
+                - staging
+                - production
+                - main
+              paths:
+                - "scripts/ci/audit_keycloak_pull_requests.py"
+                - "tests/test_audit_keycloak_pull_requests.py"
+                - ".github/workflows/keycloak-pr-authority-*.yml"
+
+          permissions:
+            contents: read
+            pull-requests: read
+            checks: read
+
+          concurrency:
+            group: keycloak-exact-head-pr-gate-__PR_NUMBER__-__PR_HEAD_SHA__
+            cancel-in-progress: true
+
+          jobs:
+            audit:
+              name: Keycloak / exact-head-pr-authority
+              runs-on: ubuntu-24.04
+              timeout-minutes: 15
+              steps:
+                - name: Check out exact proposed head
+                  uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+                  with:
+                    fetch-depth: 1
+                    persist-credentials: false
+                    ref: __PR_HEAD_SHA__
+                - name: Compile fail-closed auditor
+                  run: python3 -m py_compile scripts/ci/audit_keycloak_pull_requests.py
+                - name: Run unit regressions
+                  run: python3 -m unittest tests/test_audit_keycloak_pull_requests.py -v
+                - name: Run exact-head audit
+                  env:
+                    GITHUB_TOKEN: __GITHUB_TOKEN__
+                  run: |
+                    python3 scripts/ci/audit_keycloak_pull_requests.py \
+                      --json-output artifacts/keycloak-pr-audit.json \
+                      --markdown-output artifacts/keycloak-pr-audit.md
+                - name: Upload bounded audit evidence
+                  if: always()
+                  uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+                  with:
+                    name: keycloak-pr-audit-__PR_HEAD_SHA__
+                    path: |
+                      artifacts/keycloak-pr-audit.json
+                      artifacts/keycloak-pr-audit.md
+                    if-no-files-found: ignore
+                    retention-days: 30
+          ''').replace('__PR_NUMBER__', expression('github.event.pull_request.number')).replace(
+              '__PR_HEAD_SHA__', expression('github.event.pull_request.head.sha')
+          ).replace('__GITHUB_TOKEN__', expression('github.token'))
+
+          Path('.github/workflows/keycloak-pr-authority-audit.yml').write_text(
+              audit_workflow, encoding='utf-8'
+          )
+          Path('.github/workflows/keycloak-pr-authority-pr.yml').write_text(
+              pr_workflow, encoding='utf-8'
+          )
+
+          tests_path = Path('tests/test_audit_keycloak_pull_requests.py')
+          tests = tests_path.read_text(encoding='utf-8')
+          tests = tests.replace('import pytest\n\n', 'import unittest\n\n')
+          replacements = {
+              'def test_protected_promotion_sequence_is_exact() -> None:':
+                  'class AuditPolicyTests(unittest.TestCase):\n    def test_protected_promotion_sequence_is_exact(self) -> None:',
+              '\ndef test_development_accepts_only_governed_temporary_prefixes() -> None:':
+                  '\n    def test_development_accepts_only_governed_temporary_prefixes(self) -> None:',
+              '\ndef test_no_checks_fails_closed() -> None:':
+                  '\n    def test_no_checks_fails_closed(self) -> None:',
+              '\ndef test_failure_and_pending_checks_block() -> None:':
+                  '\n    def test_failure_and_pending_checks_block(self) -> None:',
+              '\ndef test_check_must_be_bound_to_exact_head() -> None:':
+                  '\n    def test_check_must_be_bound_to_exact_head(self) -> None:',
+              '\ndef test_only_latest_exact_head_approval_counts() -> None:':
+                  '\n    def test_only_latest_exact_head_approval_counts(self) -> None:',
+              '\ndef test_stale_approval_does_not_count() -> None:':
+                  '\n    def test_stale_approval_does_not_count(self) -> None:',
+              '\ndef test_unknown_check_conclusion_fails_closed() -> None:':
+                  '\n    def test_unknown_check_conclusion_fails_closed(self) -> None:',
+          }
+          for old, new in replacements.items():
+              if old not in tests:
+                  raise SystemExit(f'test rewrite anchor not found: {old}')
+              tests = tests.replace(old, new, 1)
+
+          source_lines = tests.splitlines()
+          class_index = source_lines.index('class AuditPolicyTests(unittest.TestCase):')
+          for index in range(class_index + 1, len(source_lines)):
+              line = source_lines[index]
+              if line and not line.startswith('    '):
+                  source_lines[index] = '    ' + line
+          tests = '\n'.join(source_lines).rstrip() + '\n\n\nif __name__ == "__main__":\n    unittest.main()\n'
+          tests_path.write_text(tests, encoding='utf-8')
+
+          validator_path = Path('scripts/validate-workflows.py')
+          validator_lines = validator_path.read_text(encoding='utf-8').splitlines()
+          function_lines = dedent(r'''
+          def validate_pr_authority_workflow(path: Path, workflow: dict[str, Any]) -> None:
+              """Validate read-only PR audits without granting runtime authority."""
+              required_permissions = {
+                  "contents": "read",
+                  "pull-requests": "read",
+                  "checks": "read",
+              }
+              validate_permissions(
+                  workflow.get("permissions"),
+                  f"{path}.permissions",
+                  required_permissions,
+              )
+
+              jobs = as_mapping(workflow.get("jobs"), f"{path}.jobs")
+              if set(jobs) != {"audit"}:
+                  fail(f"{path}: PR authority workflow must contain only the audit job")
+              job = as_mapping(jobs["audit"], f"{path}.jobs.audit")
+              if "permissions" in job:
+                  fail(f"{path}.jobs.audit: job-level permissions are prohibited")
+              if "environment" in job:
+                  fail(f"{path}.jobs.audit: read-only audit must not use an Environment")
+              if normalize_runs_on(job.get("runs-on")) != ["ubuntu-24.04"]:
+                  fail(f"{path}.jobs.audit: audit must use ubuntu-24.04")
+              if any(SECRET_EXPRESSION.search(text) for text in recursive_strings(job)):
+                  fail(f"{path}.jobs.audit: repository secrets are prohibited")
+              validate_steps(job, f"{path}.jobs.audit")
+
+              workflow_text = "\n".join(recursive_strings(workflow))
+              for fragment in (
+                  "scripts/ci/audit_keycloak_pull_requests.py",
+                  "tests/test_audit_keycloak_pull_requests.py",
+                  "--json-output",
+                  "--markdown-output",
+                  "actions/upload-artifact",
+                  "retention-days",
+                  "github.token",
+              ):
+                  if fragment not in workflow_text:
+                      fail(f"{path}: incomplete PR audit evidence; missing {fragment}")
+
+              triggers = as_mapping(workflow.get("on"), f"{path}.on")
+              concurrency = as_mapping(workflow.get("concurrency"), f"{path}.concurrency")
+              if path.name == "keycloak-pr-authority-pr.yml":
+                  if set(triggers) != {"pull_request"}:
+                      fail(f"{path}: exact-head audit must be pull_request-only")
+                  pull_request = as_mapping(
+                      triggers["pull_request"], f"{path}.on.pull_request"
+                  )
+                  branches = as_sequence(
+                      pull_request.get("branches"), f"{path}.on.pull_request.branches"
+                  )
+                  expected_branches = [
+                      "development",
+                      "test",
+                      "staging",
+                      "production",
+                      "main",
+                  ]
+                  if branches != expected_branches:
+                      fail(f"{path}: protected promotion branch order changed")
+                  paths = as_sequence(
+                      pull_request.get("paths"), f"{path}.on.pull_request.paths"
+                  )
+                  expected_paths = [
+                      "scripts/ci/audit_keycloak_pull_requests.py",
+                      "tests/test_audit_keycloak_pull_requests.py",
+                      ".github/workflows/keycloak-pr-authority-*.yml",
+                  ]
+                  if paths != expected_paths:
+                      fail(f"{path}: exact-head audit path boundary changed")
+                  if "github.event.pull_request.head.sha" not in workflow_text:
+                      fail(f"{path}: audit must bind to the exact PR head SHA")
+                  if concurrency.get("cancel-in-progress") != "true":
+                      fail(f"{path}: superseded exact-head audits must be cancelled")
+                  upload_steps = [
+                      step
+                      for step in as_sequence(job.get("steps"), f"{path}.jobs.audit.steps")
+                      if isinstance(step, dict)
+                      and str(step.get("uses", "")).startswith("actions/upload-artifact@")
+                  ]
+                  if len(upload_steps) != 1 or upload_steps[0].get("if") != "always()":
+                      fail(f"{path}: exact-head evidence must upload with always()")
+              elif path.name == "keycloak-pr-authority-audit.yml":
+                  if set(triggers) != {"workflow_dispatch", "schedule"}:
+                      fail(f"{path}: repository audit must be manual and scheduled only")
+                  schedule = as_sequence(triggers["schedule"], f"{path}.on.schedule")
+                  if len(schedule) != 1:
+                      fail(f"{path}: exactly one bounded schedule is required")
+                  schedule_item = as_mapping(schedule[0], f"{path}.on.schedule[0]")
+                  if schedule_item != {"cron": "17 5 * * *"}:
+                      fail(f"{path}: audit schedule changed without review")
+                  if "github.sha" not in workflow_text:
+                      fail(f"{path}: scheduled audit must bind to github.sha")
+                  if concurrency.get("cancel-in-progress") != "false":
+                      fail(f"{path}: scheduled audit must preserve active evidence")
+              else:
+                  fail(f"Unsupported PR authority workflow: {path.name}")
+          ''').strip('\n').splitlines()
+
+          expected_line = (
+              '    expected_names = {"validate.yml", "runtime-preflight.yml", '
+              '"deploy.yml", "drift-review.yml"}'
+          )
+          dispatch_lines = [
+              '        if path.name == "validate.yml":',
+              '            validate_source_workflow(path, workflow)',
+              '        else:',
+              '            validate_privileged_workflow(path, workflow)',
+          ]
+
+          output: list[str] = []
+          inserted_function = False
+          replaced_inventory = False
+          replaced_dispatch = False
+          index = 0
+          while index < len(validator_lines):
+              line = validator_lines[index]
+              if line == 'def validate() -> None:' and not inserted_function:
+                  output.extend(function_lines)
+                  output.append('')
+                  inserted_function = True
+              if line == expected_line:
+                  output.extend([
+                      '    expected_names = {',
+                      '        "validate.yml",',
+                      '        "runtime-preflight.yml",',
+                      '        "deploy.yml",',
+                      '        "drift-review.yml",',
+                      '        "keycloak-pr-authority-audit.yml",',
+                      '        "keycloak-pr-authority-pr.yml",',
+                      '    }',
+                  ])
+                  replaced_inventory = True
+                  index += 1
+                  continue
+              if validator_lines[index:index + 4] == dispatch_lines:
+                  output.extend([
+                      '        if path.name == "validate.yml":',
+                      '            validate_source_workflow(path, workflow)',
+                      '        elif path.name in {',
+                      '            "keycloak-pr-authority-audit.yml",',
+                      '            "keycloak-pr-authority-pr.yml",',
+                      '        }:',
+                      '            validate_pr_authority_workflow(path, workflow)',
+                      '        else:',
+                      '            validate_privileged_workflow(path, workflow)',
+                  ])
+                  replaced_dispatch = True
+                  index += 4
+                  continue
+              output.append(line)
+              index += 1
+
+          if not (inserted_function and replaced_inventory and replaced_dispatch):
+              raise SystemExit(
+                  'validator repair incomplete: '
+                  f'function={inserted_function} inventory={replaced_inventory} '
+                  f'dispatch={replaced_dispatch}'
+              )
+          validator_path.write_text('\n'.join(output).rstrip() + '\n', encoding='utf-8')
+          PY
+
+          git rm -- \
+            .github/workflows/one-shot-fix-pr69-validation.yml \
+            .github/workflows/one-shot-fix-pr69-validation-v2.yml \
+            .github/workflows/one-shot-fix-pr69-validation-v3.yml
+
+          sudo apt-get update
+          sudo apt-get install --yes jq shellcheck openssh-client python3-yaml
+          python3 -m py_compile \
+            scripts/validate-workflows.py \
+            scripts/ci/audit_keycloak_pull_requests.py \
+            tests/test_audit_keycloak_pull_requests.py
+          python3 -m unittest tests/test_audit_keycloak_pull_requests.py -v
+          python3 scripts/validate-workflows.py
+          ./scripts/validate.sh
+
+          git add -- \
+            .github/workflows/keycloak-pr-authority-audit.yml \
+            .github/workflows/keycloak-pr-authority-pr.yml \
+            scripts/validate-workflows.py \
+            tests/test_audit_keycloak_pull_requests.py
+          git diff --cached --check
+          git config user.name 'codestra-keycloak-ci-repair'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(ci): validate read-only PR authority workflows'
+          git push origin "HEAD:refs/heads/remediation/keycloak-pr-governance-20260903"
