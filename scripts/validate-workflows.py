@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Validate legacy Keycloak workflows plus repository-name authority workflows."""
+"""Validate legacy Keycloak workflows plus repository and PR authority workflows."""
 
 from __future__ import annotations
 
 import importlib.util
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -15,6 +16,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_DIR = ROOT / ".github" / "workflows"
 CORE_PATH = ROOT / "scripts" / "validate-workflows-core.py"
+PR_AUTHORITY_POLICY = ROOT / "scripts" / "validate-pr-authority-workflows.py"
 LEGACY_WORKFLOWS = {
     "deploy.yml",
     "drift-review.yml",
@@ -23,10 +25,14 @@ LEGACY_WORKFLOWS = {
 }
 AUTHORITY_WORKFLOW = "repository-name-authority.yml"
 LIVE_AUTHORITY_WORKFLOW = "repository-name-live-authority.yml"
+PR_AUTHORITY_WORKFLOWS = {
+    "keycloak-pr-authority-audit.yml",
+    "keycloak-pr-authority-pr.yml",
+}
 EXPECTED_WORKFLOWS = LEGACY_WORKFLOWS | {
     AUTHORITY_WORKFLOW,
     LIVE_AUTHORITY_WORKFLOW,
-}
+} | PR_AUTHORITY_WORKFLOWS
 
 
 def load_core() -> ModuleType:
@@ -196,6 +202,21 @@ def validate_legacy_workflows() -> None:
             CORE.WORKFLOW_DIR = original_directory
 
 
+def validate_pr_authority_workflows() -> None:
+    completed = subprocess.run(
+        [sys.executable, str(PR_AUTHORITY_POLICY)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode:
+        detail = completed.stderr.strip() or completed.stdout.strip()
+        fail(f"PR authority workflow validation failed: {detail}")
+    if "KEYCLOAK_PR_AUTHORITY_WORKFLOW_POLICY=PASS" not in completed.stdout:
+        fail("PR authority workflow validator did not emit its PASS marker")
+
+
 def validate() -> None:
     if not WORKFLOW_DIR.is_dir():
         fail(f"Workflow directory does not exist: {WORKFLOW_DIR}")
@@ -218,8 +239,10 @@ def validate() -> None:
         WORKFLOW_DIR / LIVE_AUTHORITY_WORKFLOW,
         CORE.load_workflow(WORKFLOW_DIR / LIVE_AUTHORITY_WORKFLOW),
     )
+    validate_pr_authority_workflows()
     print(f"WORKFLOW_FILES={len(workflow_files)}")
     print("REPOSITORY_NAME_WORKFLOW_POLICY=PASS")
+    print("PR_AUTHORITY_WORKFLOW_POLICY=PASS")
     print("WORKFLOW_YAML_PARSE=PASS")
     print("WORKFLOW_POLICY=PASS")
 
