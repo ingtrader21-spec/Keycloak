@@ -1,0 +1,171 @@
+name: One-shot build validated Keycloak main-development merge
+
+on:
+  push:
+    branches:
+      - remediation/keycloak-main-development-merge-20260903
+    paths:
+      - .github/workflows/one-shot-build-main-development-merge.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: keycloak-main-development-reconciliation-20260903
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      EXPECTED_MAIN_SHA: 3d8cd0483a178100b679b2c3f0f4d4ca36fe161c
+      EXPECTED_DEVELOPMENT_SHA: 18c130af174dc791222355fa6178422bd6cb30d2
+      TARGET_BRANCH: sync/main-development-reconciled-20260903
+    steps:
+      - name: Check out analysis trigger
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+          ref: ${{ github.sha }}
+
+      - name: Build, validate, and publish the exact merge result
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/development:refs/remotes/origin/development"
+
+          actual_main="$(git rev-parse refs/remotes/origin/main)"
+          actual_development="$(git rev-parse refs/remotes/origin/development)"
+          [[ "$actual_main" == "$EXPECTED_MAIN_SHA" ]] || {
+            echo "ERROR=main_moved expected=$EXPECTED_MAIN_SHA actual=$actual_main" >&2
+            exit 1
+          }
+          [[ "$actual_development" == "$EXPECTED_DEVELOPMENT_SHA" ]] || {
+            echo "ERROR=development_moved expected=$EXPECTED_DEVELOPMENT_SHA actual=$actual_development" >&2
+            exit 1
+          }
+          if git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" >/dev/null 2>&1; then
+            echo "ERROR=target_branch_already_exists branch=$TARGET_BRANCH" >&2
+            exit 1
+          fi
+
+          git checkout --detach "$EXPECTED_MAIN_SHA"
+          git config user.name 'codestra-keycloak-reconciler'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+
+          set +e
+          git merge --no-ff --no-commit -X ours "$EXPECTED_DEVELOPMENT_SHA" 2>&1 | tee /tmp/keycloak-merge.log
+          merge_rc=${PIPESTATUS[0]}
+          set -e
+
+          # Protected main remains the workflow authority. Development's non-workflow
+          # changes are retained unless they conflict with a main-owned hunk.
+          git restore --source="$EXPECTED_MAIN_SHA" --staged --worktree -- .github/workflows
+          git add -A
+
+          unresolved="$(git diff --name-only --diff-filter=U)"
+          if [[ $merge_rc -ne 0 || -n "$unresolved" ]]; then
+            echo "ERROR=merge_conflicts_remain merge_rc=$merge_rc" >&2
+            printf '%s\n' "$unresolved" >&2
+            exit 1
+          fi
+
+          mkdir -p docs/governance
+          changed_count="$(git diff --cached --name-only | wc -l | tr -d ' ')"
+          conflict_lines="$(grep -c '^CONFLICT ' /tmp/keycloak-merge.log || true)"
+          cat > docs/governance/KEYCLOAK_MAIN_DEVELOPMENT_RECONCILIATION_2026-09-03.md <<EOF
+          # Keycloak main-to-development reconciliation
+
+          Date: 2026-09-03
+
+          ## Exact authority
+
+          \`\`\`text
+          main_sha=$EXPECTED_MAIN_SHA
+          development_sha=$EXPECTED_DEVELOPMENT_SHA
+          target_branch=$TARGET_BRANCH
+          merge_strategy=ort -X ours
+          workflow_authority=main
+          staged_path_count=$changed_count
+          reported_conflict_lines=$conflict_lines
+          \`\`\`
+
+          The merge starts from protected \`main\`, incorporates every non-conflicting
+          development change, resolves conflicting hunks in favor of current-main
+          authority, and restores \`.github/workflows\` exactly from current \`main\`.
+          The resulting source is published only after the repository validation suite
+          succeeds.
+
+          ## Required follow-up
+
+          This reconciliation must enter \`development\` through a reviewed pull request.
+          Dependent PRs must then rebase on the reconciled development head. It does not
+          authorize a Keycloak realm apply, deployment, credential operation, or runtime
+          mutation.
+
+          ## Safety
+
+          \`\`\`text
+          KEYCLOAK_RUNTIME_CONTACTED=false
+          KEYCLOAK_RUNTIME_APPLY=false
+          REALMS_CHANGED=0
+          CLIENTS_CHANGED=0
+          USERS_CHANGED=0
+          SECRETS_READ=0
+          SECRETS_WRITTEN=0
+          TOKENS_ISSUED=0
+          SSH_CHANGED=false
+          DNS_CHANGED=false
+          PRODUCTION_RUNTIME_CHANGED=false
+          \`\`\`
+          EOF
+          sed -i 's/^          //' docs/governance/KEYCLOAK_MAIN_DEVELOPMENT_RECONCILIATION_2026-09-03.md
+          git add docs/governance/KEYCLOAK_MAIN_DEVELOPMENT_RECONCILIATION_2026-09-03.md
+
+          sudo apt-get update
+          sudo apt-get install --yes jq shellcheck openssh-client python3-yaml
+
+          python3 -m compileall -q scripts tests
+          ./scripts/validate.sh
+          TEST_KC_CLIENT_SECRET=test-only-secret ./scripts/test-plan-gate.sh
+          ./scripts/test-runtime-preflight.sh
+          shellcheck scripts/*.sh scripts/lib/*.sh
+          git diff --cached --check
+
+          git commit -m 'sync(identity): reconcile protected main with development'
+          merge_sha="$(git rev-parse HEAD)"
+          parents="$(git show -s --format=%P HEAD)"
+          expected_parents="$EXPECTED_MAIN_SHA $EXPECTED_DEVELOPMENT_SHA"
+          [[ "$parents" == "$expected_parents" ]] || {
+            echo "ERROR=unexpected_merge_parents expected='$expected_parents' actual='$parents'" >&2
+            exit 1
+          }
+
+          workflow_delta="$(git diff --name-only "$EXPECTED_MAIN_SHA" "$merge_sha" -- .github/workflows)"
+          [[ -z "$workflow_delta" ]] || {
+            echo 'ERROR=workflow_authority_changed' >&2
+            printf '%s\n' "$workflow_delta" >&2
+            exit 1
+          }
+
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          remote_sha="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          [[ "$remote_sha" == "$merge_sha" ]] || {
+            echo "ERROR=remote_readback_mismatch expected=$merge_sha actual=$remote_sha" >&2
+            exit 1
+          }
+
+          echo 'KEYCLOAK_MAIN_DEVELOPMENT_RECONCILIATION=PASS'
+          echo "MERGE_SHA=$merge_sha"
+          echo "PARENTS=$parents"
+          echo "TARGET_BRANCH=$TARGET_BRANCH"
+          echo 'KEYCLOAK_RUNTIME_APPLY=false'
+          echo 'SECRETS_READ=0'
+          echo 'SSH_CHANGED=false'
+          echo 'PRODUCTION_RUNTIME_CHANGED=false'
