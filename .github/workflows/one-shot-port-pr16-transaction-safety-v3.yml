@@ -1,0 +1,199 @@
+name: One-shot port inventory-aware Keycloak transaction safety
+
+on:
+  push:
+    branches:
+      - remediation/keycloak-pr16-port-builder-20260903
+    paths:
+      - .github/workflows/one-shot-port-pr16-transaction-safety-v3.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: keycloak-pr16-inventory-aware-port-20260903
+  cancel-in-progress: false
+
+jobs:
+  port:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      AUTHORITY_SHA: 0dbb8ea3421a39df88e3e25224845e2742b731e4
+      SOURCE_PARENT_SHA: 49d33b68a1ebf7c9de97049597583fe30a49a3ce
+      SOURCE_SHA: a3e67178d062babf3390094202aee9688995209a
+      TARGET_BRANCH: hardening/keycloak-transaction-safety-20260903
+      WORKFLOW_CANDIDATE: docs/evidence/KEYCLOAK_DEPLOY_TRANSACTION_SAFETY_CANDIDATE.yml
+      EVIDENCE_PATH: docs/governance/KEYCLOAK_TRANSACTION_SAFETY_PORT_2026-09-03.md
+    steps:
+      - name: Check out exact builder trigger
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+          ref: ${{ github.sha }}
+
+      - name: Port, adapt inventory assertion, validate, and publish
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags origin \
+            "+refs/heads/sync/main-development-reconciled-20260903:refs/remotes/origin/sync/main-development-reconciled-20260903"
+          [[ "$(git rev-parse refs/remotes/origin/sync/main-development-reconciled-20260903)" == "$AUTHORITY_SHA" ]]
+          [[ "$(git rev-parse "${SOURCE_SHA}^2")" == "$SOURCE_PARENT_SHA" ]]
+          ! git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" >/dev/null 2>&1
+
+          mapfile -t source_paths < <(git diff --name-only "$SOURCE_PARENT_SHA" "$SOURCE_SHA" | sort)
+          expected_paths=(
+            .github/workflows/deploy.yml
+            Makefile
+            README.md
+            docs/GITOPS.md
+            docs/audits/KEYCLOAK_BASELINE_AUDIT.md
+            scripts/apply-plan.sh
+            scripts/test-plan-gate.sh
+          )
+          [[ "${source_paths[*]}" == "${expected_paths[*]}" ]]
+
+          git checkout --detach "$AUTHORITY_SHA"
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+
+          merge_path() {
+            local path="$1" output="$2"
+            mkdir -p "$tmp/current/$(dirname "$path")" \
+              "$tmp/base/$(dirname "$path")" \
+              "$tmp/incoming/$(dirname "$path")" \
+              "$(dirname "$output")"
+            git show "$AUTHORITY_SHA:$path" >"$tmp/current/$path"
+            git show "$SOURCE_PARENT_SHA:$path" >"$tmp/base/$path"
+            git show "$SOURCE_SHA:$path" >"$tmp/incoming/$path"
+            if ! git merge-file -p \
+              "$tmp/current/$path" \
+              "$tmp/base/$path" \
+              "$tmp/incoming/$path" >"$tmp/merged"; then
+              echo "ERROR=three_way_merge_conflict path=$path" >&2
+              grep -nE -B4 -A8 '^(<<<<<<<|=======|>>>>>>>)' "$tmp/merged" || true
+              exit 1
+            fi
+            ! grep -nE '^(<<<<<<<|=======|>>>>>>>)' "$tmp/merged"
+            install -m 0644 "$tmp/merged" "$output"
+          }
+
+          merge_path Makefile Makefile
+          merge_path README.md README.md
+          merge_path docs/GITOPS.md docs/GITOPS.md
+          merge_path scripts/apply-plan.sh scripts/apply-plan.sh
+          chmod 0755 scripts/apply-plan.sh
+          merge_path scripts/test-plan-gate.sh scripts/test-plan-gate.sh
+          chmod 0755 scripts/test-plan-gate.sh
+          merge_path .github/workflows/deploy.yml "$WORKFLOW_CANDIDATE"
+          git show "$SOURCE_SHA:docs/audits/KEYCLOAK_BASELINE_AUDIT.md" \
+            >docs/audits/KEYCLOAK_BASELINE_AUDIT.md
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/test-plan-gate.sh')
+          text = path.read_text(encoding='utf-8')
+          old = '''jq -e '\n  .partialApply == false\n  and (.operations | length == 16)\n  and all(.operations[]; (.state == "created" or .state == "updated" or .state == "unchanged"))\n' "$test_root/recovery-success/recovery-manifest.json" >/dev/null'''
+          new = '''expected_operation_count="$(jq -er '.operations | length' "$plan_dir/plan.json")"\njq -e --argjson expected_operation_count "$expected_operation_count" '\n  .partialApply == false\n  and (.operations | length == $expected_operation_count)\n  and all(.operations[]; (.state == "created" or .state == "updated" or .state == "unchanged"))\n' "$test_root/recovery-success/recovery-manifest.json" >/dev/null'''
+          if text.count(old) != 1:
+              raise SystemExit('recovery operation-count assertion anchor changed')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+          for token in \
+            '--recovery-dir' \
+            'recovery-manifest.json' \
+            'operation-events.ndjson' \
+            'PARTIAL_APPLY=true' \
+            'rollback-required' \
+            'Immediate pre-write state changed' \
+            '--expected-review-sha'; do
+            grep -F -- "$token" scripts/apply-plan.sh >/dev/null
+          done
+          grep -F -- 'expected_operation_count' scripts/test-plan-gate.sh >/dev/null
+          grep -F -- 'Upload apply recovery manifest' "$WORKFLOW_CANDIDATE" >/dev/null
+          grep -F -- '--recovery-dir' "$WORKFLOW_CANDIDATE" >/dev/null
+
+          mkdir -p "$(dirname "$EVIDENCE_PATH")"
+          cat >"$EVIDENCE_PATH" <<EOF
+          # Keycloak transaction-safety port
+
+          Date: 2026-09-03
+
+          \`\`\`text
+          reconciled_authority_sha=$AUTHORITY_SHA
+          original_pr=16
+          resolved_source_parent_sha=$SOURCE_PARENT_SHA
+          resolved_source_sha=$SOURCE_SHA
+          target_branch=$TARGET_BRANCH
+          port_method=three-way merge of final resolved PR tree
+          recovery_test_operation_count=derived from current reviewed plan
+          workflow_candidate=$WORKFLOW_CANDIDATE
+          \`\`\`
+
+          This port preserves immediate pre-PUT re-fetch and managed-shape validation,
+          concurrent unmanaged-field preservation, mandatory durable recovery evidence,
+          atomic operation-state recording, \`PARTIAL_APPLY=true\` on post-mutation
+          failure, and the current independent review-file/hash boundary. The original
+          sixteen-operation test constant was replaced with the current plan operation
+          count so the regression remains valid as the managed client inventory evolves.
+
+          The deploy workflow candidate is validated here and must be copied to the real
+          workflow by repository workflow-write authority before final exact-head CI.
+
+          \`\`\`text
+          KEYCLOAK_RUNTIME_CONTACTED=false
+          KEYCLOAK_RUNTIME_APPLY=false
+          REALMS_CHANGED=0
+          CLIENTS_CHANGED=0
+          USERS_CHANGED=0
+          SECRETS_READ=0
+          SECRETS_WRITTEN=0
+          TOKENS_ISSUED=0
+          SSH_CHANGED=false
+          PRODUCTION_RUNTIME_CHANGED=false
+          \`\`\`
+          EOF
+          sed -i 's/^          //' "$EVIDENCE_PATH"
+
+          sudo apt-get update
+          sudo apt-get install --yes jq shellcheck openssh-client python3-yaml
+          python3 - <<'PY'
+          from pathlib import Path
+          import yaml
+          data = yaml.safe_load(
+              Path('docs/evidence/KEYCLOAK_DEPLOY_TRANSACTION_SAFETY_CANDIDATE.yml')
+              .read_text(encoding='utf-8')
+          )
+          assert isinstance(data, dict) and 'jobs' in data
+          print('DEPLOY_WORKFLOW_CANDIDATE=PASS')
+          PY
+          python3 -m compileall -q scripts tests
+          TEST_KC_CLIENT_SECRET=test-only-secret ./scripts/test-plan-gate.sh
+          ./scripts/validate.sh
+          ./scripts/test-runtime-preflight.sh
+          shellcheck scripts/*.sh scripts/lib/*.sh
+          git diff --check
+
+          git add -- \
+            Makefile README.md docs/GITOPS.md \
+            docs/audits/KEYCLOAK_BASELINE_AUDIT.md \
+            "$WORKFLOW_CANDIDATE" "$EVIDENCE_PATH" \
+            scripts/apply-plan.sh scripts/test-plan-gate.sh
+          git diff --cached --check
+          git config user.name 'codestra-keycloak-transaction-safety'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(keycloak): port transaction-safe recoverable apply'
+          target_sha="$(git rev-parse HEAD)"
+          [[ "$(git rev-parse HEAD^)" == "$AUTHORITY_SHA" ]]
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          [[ "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" == "$target_sha" ]]
+          echo 'KEYCLOAK_TRANSACTION_SAFETY_PORT=PASS'
+          echo "TARGET_SHA=$target_sha"
+          echo 'KEYCLOAK_RUNTIME_APPLY=false'
+          echo 'SECRETS_READ=0'
+          echo 'SSH_CHANGED=false'
