@@ -21,13 +21,15 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Check out exact protected source
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          fetch-depth: 1
           persist-credentials: false
+          ref: ${{ github.sha }}
       - name: Compile fail-closed auditor
         run: python3 -m py_compile scripts/ci/audit_keycloak_pull_requests.py
-      - name: Run unit regressions
-        run: python3 -m pytest -q tests/test_audit_keycloak_pull_requests.py
+      - name: Run dependency-free unit regressions
+        run: python3 tests/test_audit_keycloak_pull_requests.py
       - name: Audit every open and draft pull request
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -36,7 +38,7 @@ jobs:
             --json-output artifacts/keycloak-pr-audit.json \
             --markdown-output artifacts/keycloak-pr-audit.md
       - name: Upload bounded audit evidence
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: keycloak-pr-audit-${{ github.sha }}
           path: |
