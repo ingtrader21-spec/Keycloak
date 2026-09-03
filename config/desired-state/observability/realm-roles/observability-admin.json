@@ -1,0 +1,13 @@
+{
+  "name": "observability-admin",
+  "description": "Observability application administration; never grants OpenBao access.",
+  "composite": false,
+  "clientRole": false,
+  "attributes": {
+    "codestra.role.family": ["observability"],
+    "codestra.role.level": ["admin"],
+    "codestra.mfa.required": ["true"],
+    "codestra.assignment.independent_approval": ["true"],
+    "codestra.cross_family_grant": ["false"]
+  }
+}

@@ -4,6 +4,7 @@ umask 077
 
 REPORT_FILE=""
 NO_NETWORK=false
+ALLOW_STALE_LOCAL_HEAD=false
 APPROVED_FINGERPRINT=""
 REQUIRE_APPROVED=false
 EXPECTED_DEPLOY_SHA="${EXPECTED_DEPLOY_SHA:-}"
@@ -24,6 +25,8 @@ Options:
   --require-approved SHA256     Require the stable runtime-path fingerprint to
                                 equal the approved 64-character SHA-256 value.
   --no-network                  Skip git ls-remote. Intended only for CI tests.
+  --allow-stale-local-head      Permit a clean, ancestor local HEAD while still
+                                validating approved paths and exact remote main.
   -h, --help                    Show this help.
 
 Required environment variables:
@@ -77,6 +80,10 @@ while (($#)); do
       ;;
     --no-network)
       NO_NETWORK=true
+      shift
+      ;;
+    --allow-stale-local-head)
+      ALLOW_STALE_LOCAL_HEAD=true
       shift
       ;;
     -h | --help)
@@ -251,8 +258,10 @@ repository_status="$(safe_repo_git status --porcelain=v1 --untracked-files=norma
   fail "The runtime repository contains tracked or untracked changes"
 
 repository_head="$(safe_repo_git rev-parse HEAD)"
-[[ "$repository_head" == "$EXPECTED_DEPLOY_SHA" ]] ||
-  fail "Runtime repository HEAD does not equal the selected GitHub deployment SHA"
+if [[ "$ALLOW_STALE_LOCAL_HEAD" == "false" ]]; then
+  [[ "$repository_head" == "$EXPECTED_DEPLOY_SHA" ]] ||
+    fail "Runtime repository HEAD does not equal the selected GitHub deployment SHA"
+fi
 
 key_fingerprint="$(
   timeout 10 ssh-keygen -y -f "$RUNTIME_GIT_SSH_KEY" |
@@ -290,32 +299,7 @@ if [[ "$NO_NETWORK" == "false" ]]; then
   temporary_directory="$(mktemp -d)"
   trap 'rm -rf "$temporary_directory"' EXIT
   ssh_wrapper="$temporary_directory/git-ssh"
-  cat >"$ssh_wrapper" <<'WRAPPER'
-#!/usr/bin/env bash
-set -Eeuo pipefail
-unset SSH_AUTH_SOCK
-exec ssh \
-  -F /dev/null \
-  -i "$RUNTIME_GIT_SSH_KEY" \
-  -o BatchMode=yes \
-  -o IdentitiesOnly=yes \
-  -o IdentityAgent=none \
-  -o PreferredAuthentications=publickey \
-  -o PasswordAuthentication=no \
-  -o KbdInteractiveAuthentication=no \
-  -o StrictHostKeyChecking=yes \
-  -o UpdateHostKeys=no \
-  -o VerifyHostKeyDNS=no \
-  -o CheckHostIP=no \
-  -o GlobalKnownHostsFile=/dev/null \
-  -o "UserKnownHostsFile=$RUNTIME_GIT_KNOWN_HOSTS" \
-  -o HostKeyAlgorithms=ssh-ed25519 \
-  -o ConnectTimeout=10 \
-  -o ServerAliveInterval=5 \
-  -o ServerAliveCountMax=1 \
-  "$@"
-WRAPPER
-  chmod 700 "$ssh_wrapper"
+  "$(dirname -- "$0")/create-runtime-git-ssh-wrapper.sh" "$ssh_wrapper"
   export RUNTIME_GIT_SSH_KEY RUNTIME_GIT_KNOWN_HOSTS
 
   remote_output="$(

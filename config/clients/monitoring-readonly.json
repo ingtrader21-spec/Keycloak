@@ -17,46 +17,16 @@
   "redirectUris": [],
   "webOrigins": [],
   "defaultClientScopes": [],
-  "optionalClientScopes": [],
+  "optionalClientScopes": [
+    "health.read",
+    "metrics.read"
+  ],
   "attributes": {
     "access.token.lifespan": "300",
     "oauth2.device.authorization.grant.enabled": "false",
     "oidc.ciba.grant.enabled": "false"
   },
   "protocolMappers": [
-    {
-      "name": "audience-klyrow-gateway",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-audience-mapper",
-      "consentRequired": false,
-      "config": {
-        "included.custom.audience": "klyrow-gateway",
-        "id.token.claim": "false",
-        "access.token.claim": "true"
-      }
-    },
-    {
-      "name": "audience-kong-gateway",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-audience-mapper",
-      "consentRequired": false,
-      "config": {
-        "included.custom.audience": "kong-gateway",
-        "id.token.claim": "false",
-        "access.token.claim": "true"
-      }
-    },
-    {
-      "name": "audience-kyqra-gateway",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-audience-mapper",
-      "consentRequired": false,
-      "config": {
-        "included.custom.audience": "kyqra-gateway",
-        "id.token.claim": "false",
-        "access.token.claim": "true"
-      }
-    },
     {
       "name": "audience-middleware-api",
       "protocol": "openid-connect",
@@ -66,76 +36,6 @@
         "included.custom.audience": "middleware-api",
         "id.token.claim": "false",
         "access.token.claim": "true"
-      }
-    },
-    {
-      "name": "audience-n8n-automation",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-audience-mapper",
-      "consentRequired": false,
-      "config": {
-        "included.custom.audience": "n8n-automation",
-        "id.token.claim": "false",
-        "access.token.claim": "true"
-      }
-    },
-    {
-      "name": "audience-odoo-integration",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-audience-mapper",
-      "consentRequired": false,
-      "config": {
-        "included.custom.audience": "odoo-integration",
-        "id.token.claim": "false",
-        "access.token.claim": "true"
-      }
-    },
-    {
-      "name": "audience-postly-adapter",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-audience-mapper",
-      "consentRequired": false,
-      "config": {
-        "included.custom.audience": "postly-adapter",
-        "id.token.claim": "false",
-        "access.token.claim": "true"
-      }
-    },
-    {
-      "name": "audience-telnexa-gateway",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-audience-mapper",
-      "consentRequired": false,
-      "config": {
-        "included.custom.audience": "telnexa-gateway",
-        "id.token.claim": "false",
-        "access.token.claim": "true"
-      }
-    },
-    {
-      "name": "audience-vicidial-adapter",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-audience-mapper",
-      "consentRequired": false,
-      "config": {
-        "included.custom.audience": "vicidial-adapter",
-        "id.token.claim": "false",
-        "access.token.claim": "true"
-      }
-    },
-    {
-      "name": "reviewed-service-scopes",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-hardcoded-claim-mapper",
-      "consentRequired": false,
-      "config": {
-        "claim.name": "scope",
-        "claim.value": "health.read metrics.read",
-        "jsonType.label": "String",
-        "id.token.claim": "false",
-        "access.token.claim": "true",
-        "userinfo.token.claim": "false",
-        "access.tokenResponse.claim": "false"
       }
     }
   ]

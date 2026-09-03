@@ -1,0 +1,179 @@
+{
+  "activationPreconditions": [
+    "protected merge SHA recorded",
+    "independently reviewed live-state plan",
+    "before-state rollback bundle and checksum",
+    "approved secret handoff to runtime files",
+    "authorized later server mission"
+  ],
+  "configurationChecksum": "73eec8d32de880cd2f10c61519ac338b0ff869a43d44a964f27e8afd9d45b8e8",
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "kind": "CodestraKeycloakObservabilityDesiredStatePlan",
+  "operations": [
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "48fc9d8a240372308a5be097739527e44650b9f427e108ca878fa2d35ed35439",
+      "resourceId": "grafana-observability",
+      "resourceType": "client"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "81500604967a211b91dc4945d98d658613b761ab07f483633d9a3a39fbb660b2",
+      "resourceId": "superset-analytics",
+      "resourceType": "client"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "b3a901e2ce71dc91f592664d7fe7b37103b2e4ed87f564e83b47b1bf4641fee7",
+      "resourceId": "openbao-secrets",
+      "resourceType": "client"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "f0e11dd44e61a9ab9816fd9648c0ae637f858842e4fcc7036bbc8c37a4348068",
+      "resourceId": "observability-viewer",
+      "resourceType": "realm-role"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "df98bc18c9f78a85ac86e8ae28f7c1af3c2b03bf8a84405db030d393b561146c",
+      "resourceId": "observability-operator",
+      "resourceType": "realm-role"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "d6b01b0c1fd708aa6e00cbeaf2ecc26fed40076882849f7628f18f47af9858ea",
+      "resourceId": "observability-admin",
+      "resourceType": "realm-role"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "fcb775456a426f5a13794af7a7be3ceb0c3d6fe6c0e397c2473329e9e70bf981",
+      "resourceId": "secrets-operator",
+      "resourceType": "realm-role"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "66a68d097475f514639cd825e1ab0a16a444a53e9d687893811b3c0b417befb0",
+      "resourceId": "secrets-admin",
+      "resourceType": "realm-role"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "9e5f43b39ec6c02e1a5ddd149caf38286f4a93195c1553b1da551135505e961a",
+      "resourceId": "codestra-observability-browser-mfa",
+      "resourceType": "authentication-flow"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "4c6d9c1097ff0127206035bc6ec1c099eb14f9d139fa83a1f8d3a93528c173da",
+      "resourceId": "grafana-observability",
+      "resourceType": "realm-role-scope-mapping"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "7f8fe256f0584d86cfbf53de8127493767bbec75c3ce2cf7644bbdbdbb94900a",
+      "resourceId": "grafana-observability",
+      "resourceType": "client-browser-flow-binding"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "35c08922d40cdabfbefad73bc7a134d7aacd17e31ca4d9ad5d0f11dd5c7ccd4f",
+      "resourceId": "superset-analytics",
+      "resourceType": "realm-role-scope-mapping"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "8d2dd0b4a8fffe677d4cda8c86b0d52503758c0b64ba916fdc78ddd27fc76c1e",
+      "resourceId": "superset-analytics",
+      "resourceType": "client-browser-flow-binding"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "12d9ea3ec0811563ba18936192fa9a6c8842b7355247387a2db7f253c5e22380",
+      "resourceId": "openbao-secrets",
+      "resourceType": "realm-role-scope-mapping"
+    },
+    {
+      "action": "RECONCILE_IN_LATER_AUTHORIZED_MISSION",
+      "desiredSha256": "728c3754d25709f4f7200b74818196c7934a6e82e504329649eb8fa597f387ef",
+      "resourceId": "openbao-secrets",
+      "resourceType": "client-browser-flow-binding"
+    }
+  ],
+  "realm": "codestra",
+  "repositoryBoundary": {
+    "liveApplyAuthorized": false,
+    "liveApplyPerformed": false,
+    "runtimeStateRead": false,
+    "secretsGenerated": false
+  },
+  "rollback": {
+    "existingResourceBeforeStateRequired": true,
+    "newClientSequence": [
+      "disable",
+      "verify no active use",
+      "separately approve deletion"
+    ],
+    "newRoleSequence": [
+      "remove assignments",
+      "verify zero mappings",
+      "separately approve deletion"
+    ]
+  },
+  "schemaVersion": 1,
+  "sourceFiles": [
+    {
+      "path": "config/contracts/observability-browser-clients.json",
+      "sha256": "3a3a41416e8c33e4bc19d292d56c223679eb7525b9832f8c7a69996ac9b31dc2"
+    },
+    {
+      "path": "config/desired-state/observability/authentication-flows/observability-browser-mfa.json",
+      "sha256": "9e5f43b39ec6c02e1a5ddd149caf38286f4a93195c1553b1da551135505e961a"
+    },
+    {
+      "path": "config/desired-state/observability/clients/grafana-observability.json",
+      "sha256": "48fc9d8a240372308a5be097739527e44650b9f427e108ca878fa2d35ed35439"
+    },
+    {
+      "path": "config/desired-state/observability/clients/openbao-secrets.json",
+      "sha256": "b3a901e2ce71dc91f592664d7fe7b37103b2e4ed87f564e83b47b1bf4641fee7"
+    },
+    {
+      "path": "config/desired-state/observability/clients/superset-analytics.json",
+      "sha256": "81500604967a211b91dc4945d98d658613b761ab07f483633d9a3a39fbb660b2"
+    },
+    {
+      "path": "config/desired-state/observability/realm-roles/observability-admin.json",
+      "sha256": "d6b01b0c1fd708aa6e00cbeaf2ecc26fed40076882849f7628f18f47af9858ea"
+    },
+    {
+      "path": "config/desired-state/observability/realm-roles/observability-operator.json",
+      "sha256": "df98bc18c9f78a85ac86e8ae28f7c1af3c2b03bf8a84405db030d393b561146c"
+    },
+    {
+      "path": "config/desired-state/observability/realm-roles/observability-viewer.json",
+      "sha256": "f0e11dd44e61a9ab9816fd9648c0ae637f858842e4fcc7036bbc8c37a4348068"
+    },
+    {
+      "path": "config/desired-state/observability/realm-roles/secrets-admin.json",
+      "sha256": "66a68d097475f514639cd825e1ab0a16a444a53e9d687893811b3c0b417befb0"
+    },
+    {
+      "path": "config/desired-state/observability/realm-roles/secrets-operator.json",
+      "sha256": "fcb775456a426f5a13794af7a7be3ceb0c3d6fe6c0e397c2473329e9e70bf981"
+    },
+    {
+      "path": "config/desired-state/observability/scope-mappings/grafana-observability.json",
+      "sha256": "4c6d9c1097ff0127206035bc6ec1c099eb14f9d139fa83a1f8d3a93528c173da"
+    },
+    {
+      "path": "config/desired-state/observability/scope-mappings/openbao-secrets.json",
+      "sha256": "12d9ea3ec0811563ba18936192fa9a6c8842b7355247387a2db7f253c5e22380"
+    },
+    {
+      "path": "config/desired-state/observability/scope-mappings/superset-analytics.json",
+      "sha256": "35c08922d40cdabfbefad73bc7a134d7aacd17e31ca4d9ad5d0f11dd5c7ccd4f"
+    }
+  ]
+}

@@ -25,6 +25,39 @@
   },
   "protocolMappers": [
     {
+      "name": "audience-ai-provider-adapter",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "consentRequired": false,
+      "config": {
+        "included.custom.audience": "ai-provider-adapter",
+        "id.token.claim": "false",
+        "access.token.claim": "true"
+      }
+    },
+    {
+      "name": "audience-klyrow-gateway",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "consentRequired": false,
+      "config": {
+        "included.custom.audience": "klyrow-gateway",
+        "id.token.claim": "false",
+        "access.token.claim": "true"
+      }
+    },
+    {
+      "name": "audience-marketing-provider-adapter",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "consentRequired": false,
+      "config": {
+        "included.custom.audience": "marketing-provider-adapter",
+        "id.token.claim": "false",
+        "access.token.claim": "true"
+      }
+    },
+    {
       "name": "audience-middleware-api",
       "protocol": "openid-connect",
       "protocolMapper": "oidc-audience-mapper",
@@ -36,13 +69,35 @@
       }
     },
     {
+      "name": "audience-postly-adapter",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "consentRequired": false,
+      "config": {
+        "included.custom.audience": "postly-adapter",
+        "id.token.claim": "false",
+        "access.token.claim": "true"
+      }
+    },
+    {
+      "name": "audience-telnexa-gateway",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "consentRequired": false,
+      "config": {
+        "included.custom.audience": "telnexa-gateway",
+        "id.token.claim": "false",
+        "access.token.claim": "true"
+      }
+    },
+    {
       "name": "reviewed-service-scopes",
       "protocol": "openid-connect",
       "protocolMapper": "oidc-hardcoded-claim-mapper",
       "consentRequired": false,
       "config": {
         "claim.name": "scope",
-        "claim.value": "delivery.retry dlq.replay inbox.process outbox.dispatch",
+        "claim.value": "ai.provider.dispatch ai.provider.status.read delivery.retry dlq.replay email.send email.status.read inbox.process marketing.provider.dispatch marketing.provider.status.read outbox.dispatch sms.send sms.status.read social.publish social.status.read",
         "jsonType.label": "String",
         "id.token.claim": "false",
         "access.token.claim": "true",

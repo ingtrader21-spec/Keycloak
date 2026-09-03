@@ -1,0 +1,10 @@
+{
+  "clientId": "superset-analytics",
+  "fullScopeAllowed": false,
+  "realmRoles": [
+    "observability-viewer",
+    "observability-operator",
+    "observability-admin"
+  ],
+  "crossFamilyRolesAllowed": false
+}

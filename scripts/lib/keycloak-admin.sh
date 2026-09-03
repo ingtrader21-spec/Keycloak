@@ -32,9 +32,24 @@ urlencode() {
   jq -rn --arg value "$1" '$value | @uri'
 }
 
+keycloak_endpoint_file() {
+  case "${DEPLOY_ENVIRONMENT:-production}" in
+    staging)
+      printf '%s\n' "$KEYCLOAK_REPOSITORY_ROOT/config/endpoints/codestra-staging.json"
+      ;;
+    production)
+      printf '%s\n' "$KEYCLOAK_REPOSITORY_ROOT/config/endpoints/codestra.json"
+      ;;
+    *)
+      die "DEPLOY_ENVIRONMENT must be staging or production"
+      ;;
+  esac
+}
+
 keycloak_assert_canonical_configuration() {
   require_command jq
-  local endpoint_file="$KEYCLOAK_REPOSITORY_ROOT/config/endpoints/codestra.json"
+  local endpoint_file
+  endpoint_file="$(keycloak_endpoint_file)"
   [[ -f "$endpoint_file" ]] || die "Canonical endpoint file is missing: $endpoint_file"
 
   local expected_base_url expected_public_url expected_realm expected_admin_auth_realm
@@ -68,7 +83,8 @@ keycloak_initialize() {
   require_env KC_BASE_URL
   require_env KC_ADMIN_CLIENT_ID
 
-  local endpoint_file="$KEYCLOAK_REPOSITORY_ROOT/config/endpoints/codestra.json"
+  local endpoint_file
+  endpoint_file="$(keycloak_endpoint_file)"
   local default_admin_auth_realm default_target_realm
   default_admin_auth_realm="$(jq -er '.adminAuthenticationRealm' "$endpoint_file")"
   default_target_realm="$(jq -er '.realm' "$endpoint_file")"

@@ -16,6 +16,12 @@ EXPECTED_CLIENTS = [
     "kong-gateway",
     "middleware-api",
     "middleware-worker",
+    "codestra-ai",
+    "codestra-communication",
+    "codestra-marketing",
+    "codestra-social",
+    "ai-provider-adapter",
+    "marketing-provider-adapter",
     "odoo-integration",
     "n8n-automation",
     "vicidial-adapter",
@@ -180,18 +186,24 @@ def validate() -> None:
 
     required_edges = {
         ("middleware-worker", "middleware-api"),
+        ("codestra-ai", "middleware-api"),
+        ("codestra-communication", "middleware-api"),
+        ("codestra-marketing", "middleware-api"),
+        ("codestra-social", "middleware-api"),
         ("odoo-integration", "middleware-api"),
         ("middleware-api", "odoo-integration"),
         ("n8n-automation", "middleware-api"),
         ("vicidial-adapter", "middleware-api"),
         ("middleware-api", "vicidial-adapter"),
-        ("middleware-api", "telnexa-gateway"),
+        ("middleware-worker", "telnexa-gateway"),
         ("telnexa-gateway", "middleware-api"),
-        ("middleware-api", "klyrow-gateway"),
+        ("middleware-worker", "klyrow-gateway"),
         ("klyrow-gateway", "middleware-api"),
         ("middleware-api", "kyqra-gateway"),
         ("kyqra-gateway", "middleware-api"),
-        ("middleware-api", "postly-adapter"),
+        ("middleware-worker", "postly-adapter"),
+        ("middleware-worker", "ai-provider-adapter"),
+        ("middleware-worker", "marketing-provider-adapter"),
         ("postly-adapter", "middleware-api"),
         ("provisioning-service", "middleware-api"),
     }
@@ -208,12 +220,21 @@ def validate() -> None:
             "klyrow-gateway",
             "kyqra-gateway",
             "postly-adapter",
+            "ai-provider-adapter",
+            "marketing-provider-adapter",
         ]
     }:
         fail("n8n direct-provider prohibition is missing or changed")
     for target in prohibited["n8n-automation"]:
         if ("n8n-automation", target) in grant_index:
             fail(f"n8n must not receive a direct grant to {target}")
+    provider_targets = {
+        "telnexa-gateway", "klyrow-gateway", "postly-adapter",
+        "ai-provider-adapter", "marketing-provider-adapter",
+    }
+    for target in provider_targets:
+        if ("middleware-api", target) in grant_index:
+            fail(f"middleware-api must not receive direct provider authority: {target}")
 
     admin_boundary = access.get("administrativeBoundaries", {}).get("provisioning-service")
     if not isinstance(admin_boundary, dict):
@@ -226,6 +247,15 @@ def validate() -> None:
         "manage-clients",
     ]:
         fail("provisioning-service realm-management prohibition is invalid")
+
+    monitoring_grants = {
+        key: scopes for key, scopes in grant_index.items()
+        if key[0] == "monitoring-readonly"
+    }
+    if monitoring_grants != {
+        ("monitoring-readonly", "middleware-api"): {"health.read", "metrics.read"}
+    }:
+        fail("monitoring-readonly must have only the exact middleware-api read grant")
 
     for (caller, _target), scopes in grant_index.items():
         if caller == "monitoring-readonly":

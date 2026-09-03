@@ -1,0 +1,35 @@
+name: Repository Name Authority
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  repository-name-authority:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Prove exact source identity
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Validate offline stable repository policy
+        run: python3 scripts/validate-repository-name-authority.py
+      - name: Run repository-name authority regression tests
+        run: python3 -m unittest discover -s tests -p 'test_repository_name_authority.py' -v
