@@ -1,0 +1,1353 @@
+{
+  "decision_counts": {
+    "CLEAN_REBASE_GATES_PENDING": 3,
+    "CONFLICT_REMEDIATION_REQUIRED": 4,
+    "DRAFT_REBASE_CANDIDATE": 6,
+    "DRAFT_REWORK_REQUIRED": 5
+  },
+  "expected_main_sha": "3d8cd0483a178100b679b2c3f0f4d4ca36fe161c",
+  "generated_at": "2026-09-03T10:38:51.823606+00:00",
+  "pull_requests": [
+    {
+      "base_ref": "main",
+      "base_sha": "fd9771bcf756c3ef1611422838beacb2d2575caa",
+      "checks": {
+        "failures": [],
+        "green": true,
+        "pending": [],
+        "successes": [
+          "validate-merge-result",
+          "validate-source"
+        ],
+        "total": 2
+      },
+      "decision": "DRAFT_REBASE_CANDIDATE",
+      "draft": true,
+      "git": {
+        "ahead_by": 1,
+        "behind_by": 2,
+        "changed_path_count": 1,
+        "changed_paths": [
+          "orbit/adoption-manifest.json"
+        ],
+        "conflict_paths": [],
+        "equivalent_patch_commits": [],
+        "merge_base": "97883dc065c1113a5a0bce3399636c395a0d8d56",
+        "merge_clean": true,
+        "merge_tree": "fda8750ed7433319bf72dbc62b43bdef27d381ad",
+        "merge_tree_diagnostic": null,
+        "patch_equivalent_to_main": false,
+        "unique_patch_commits": [
+          "260083f9a02e9672565a31cdc20b0868ad3b7356"
+        ]
+      },
+      "head_ref": "codex/codestra-orbit-v2-keycloak",
+      "head_sha": "260083f9a02e9672565a31cdc20b0868ad3b7356",
+      "mergeable": true,
+      "mergeable_state": "behind",
+      "number": 68,
+      "reviews": {
+        "approved_reviewers": [],
+        "changes_requested_by": [],
+        "required_reviewer_approved": false,
+        "states": {}
+      },
+      "state": "open",
+      "thread_query_error": null,
+      "title": "chore(orbit): register supported identity theme and logout rules",
+      "unresolved_threads": 0,
+      "url": "https://github.com/appolon1908-hue/Keycloak/pull/68"
+    },
+    {
+      "base_ref": "main",
+      "base_sha": "28ce563f9e5143bf5dd1e78224e79482d27c18bd",
+      "checks": {
+        "failures": [],
+        "green": true,
+        "pending": [],
+        "successes": [
+          "validate-merge-result",
+          "validate-source"
+        ],
+        "total": 2
+      },
+      "decision": "DRAFT_REWORK_REQUIRED",
+      "draft": true,
+      "git": {
+        "ahead_by": 2,
+        "behind_by": 3,
+        "changed_path_count": 6,
+        "changed_paths": [
+          "config/clients/kong-gateway.json",
+          "config/clients/n8n-automation.json",
+          "docs/PLATFORM-API-SCOPES-V2.md",
+          "scripts/render-machine-client-overlays.py",
+          "tests/test_kong_oidc_contract.py",
+          "tests/test_tenant_bound_service_clients.py"
+        ],
+        "conflict_paths": [
+          "scripts/render-machine-client-overlays.py"
+        ],
+        "equivalent_patch_commits": [],
+        "merge_base": "28ce563f9e5143bf5dd1e78224e79482d27c18bd",
+        "merge_clean": false,
+        "merge_tree": null,
+        "merge_tree_diagnostic": "ec9fac4125d1a7b5f34faa77a2c1e98eecefa818\n100755 eabd45c227f7462f20d9b193e2b95bae003d27df 1\tscripts/render-machine-client-overlays.py\n100755 80b2702e21700724e77ca765185be7f211a5955c 2\tscripts/render-machine-client-overlays.py\n100755 3da94057f16447c9484cb3ac219de66022996760 3\tscripts/render-machine-client-overlays.py\n\nAuto-merging scripts/render-machine-client-overlays.py\nCONFLICT (content): Merge conflict in scripts/render-machine-client-overlays.py\n",
+        "patch_equivalent_to_main": false,
+        "unique_patch_commits": [
+          "22a608e1373da5599d0c9a0ded8c6d5e3cc8dc6b",
+          "b3f43a66d5085decd240d45e91eb923bae95a6ba"
+        ]
+      },
+      "head_ref": "feature/platform-api-scopes-v2-20260901",
+      "head_sha": "b3f43a66d5085decd240d45e91eb923bae95a6ba",
+      "mergeable": false,
+      "mergeable_state": "dirty",
+      "number": 62,
+      "reviews": {
+        "approved_reviewers": [],
+        "changes_requested_by": [],
+        "required_reviewer_approved": false,
+        "states": {}
+      },
+      "state": "open",
+      "thread_query_error": null,
+      "title": "feat(auth): complete platform API clients and scopes v2",
+      "unresolved_threads": 0,
+      "url": "https://github.com/appolon1908-hue/Keycloak/pull/62"
+    },
+    {
+      "base_ref": "main",
+      "base_sha": "28ce563f9e5143bf5dd1e78224e79482d27c18bd",
+      "checks": {
+        "failures": [],
+        "green": true,
+        "pending": [],
+        "successes": [
+          "validate-merge-result",
+          "validate-source"
+        ],
+        "total": 2
+      },
+      "decision": "CONFLICT_REMEDIATION_REQUIRED",
+      "draft": false,
+      "git": {
+        "ahead_by": 19,
+        "behind_by": 3,
+        "changed_path_count": 7,
+        "changed_paths": [
+          ".github/workflows/runtime-preflight.yml",
+          "docs/SERVER_GIT_SSH.md",
+          "scripts/ephemeral-docker-auth.sh",
+          "scripts/runner-systemd-preflight.sh",
+          "scripts/test-ephemeral-docker-auth.sh",
+          "scripts/validate-workflows.py",
+          "scripts/validate.sh"
+        ],
+        "conflict_paths": [
+          "scripts/validate-workflows.py"
+        ],
+        "equivalent_patch_commits": [],
+        "merge_base": "28ce563f9e5143bf5dd1e78224e79482d27c18bd",
+        "merge_clean": false,
+        "merge_tree": null,
+        "merge_tree_diagnostic": "13c2305194766d9da97e4852677cee72eda648a4\n100755 33308b9efda7b1638208ac0f3987ff02f26e008e 1\tscripts/validate-workflows.py\n100755 377e94bd9884536699c7b52bcd14bb92079dc07c 2\tscripts/validate-workflows.py\n100755 d8b0f4aefae43f598597e9bcd3e656a77f27dc4b 3\tscripts/validate-workflows.py\n\nAuto-merging scripts/validate-workflows.py\nCONFLICT (content): Merge conflict in scripts/validate-workflows.py\nAuto-merging scripts/validate.sh\n",
+        "patch_equivalent_to_main": false,
+        "unique_patch_commits": [
+          "14a4103d200acd40765fd715a3073a03188df33f",
+          "b1611feb78f7178f3806f28fcc475060cc4e1df8",
+          "14e896b1184409ec04f072715e2e131cc688c6ed",
+          "0513c47ea1aa9c0c225d2c9d017f3f1b5a767fbb",
+          "fe05bcd2269fc198c557656fee712f345c649014",
+          "7ac32e4bccec998ab2a7cc8a6b9464e560012960",
+          "a99e04214671e5d70827429784efb49b9583ae69",
+          "aaa7bec952bffe046cd2f4fe06af50a338057e00",
+          "4df533dcf6e2c61e97c9905a701432a4160dbb02",
+          "2bd309a3da351bdf51a3582fbba010cb5fa11cdc",
+          "1c177d4d67b070ece9ea423003ee6c3d47313f34",
+          "cc9732f15aac5991890579d7bfb63fdaefd56db0",
+          "9c4957983f30031eb86498f422b686ab48437477",
+          "949af77db0b59ec8a0f94f0ff32ac88e999d400b",
+          "80b2ab2eaddb48b2dcaa3a90d7169f4da8dafb2c",
+          "a39a5648cad4a2a3e954f95ef7d035b959d68376",
+          "9879c6bd28d89962b5bde6dad2b330146364d194"
+        ]
+      },
+      "head_ref": "harden/stage6-ephemeral-docker-auth-20260831",
+      "head_sha": "9879c6bd28d89962b5bde6dad2b330146364d194",
+      "mergeable": false,
+      "mergeable_state": "dirty",
+      "number": 59,
+      "reviews": {
+        "approved_reviewers": [
+          "kazan555"
+        ],
+        "changes_requested_by": [],
+        "required_reviewer_approved": true,
+        "states": {
+          "kazan555": "APPROVED"
+        }
+      },
+      "state": "open",
+      "thread_query_error": null,
+      "title": "fix(stage6): harden runner Docker authentication",
+      "unresolved_threads": 0,
+      "url": "https://github.com/appolon1908-hue/Keycloak/pull/59"
+    },
+    {
+      "base_ref": "main",
+      "base_sha": "92ca388323db23c1f308ce4e33d9f36b0c77c74e",
+      "checks": {
+        "failures": [],
+        "green": true,
+        "pending": [],
+        "successes": [
+          "validate-merge-result",
+          "validate-source"
+        ],
+        "total": 2
+      },
+      "decision": "DRAFT_REBASE_CANDIDATE",
+      "draft": true,
+      "git": {
+        "ahead_by": 1,
+        "behind_by": 19,
+        "changed_path_count": 1,
+        "changed_paths": [
+          "REPOSITORY_PROFILE.md"
+        ],
+        "conflict_paths": [],
+        "equivalent_patch_commits": [],
+        "merge_base": "92ca388323db23c1f308ce4e33d9f36b0c77c74e",
+        "merge_clean": true,
+        "merge_tree": "6135716865f9b9997b37b5ab68c119c3b15b6d39",
+        "merge_tree_diagnostic": null,
+        "patch_equivalent_to_main": false,
+        "unique_patch_commits": [
+          "a1f5d4191cfb7e9efeb58df947c8991e1440d3cc"
+        ]
+      },
+      "head_ref": "docs/repository-profile-v1",
+      "head_sha": "a1f5d4191cfb7e9efeb58df947c8991e1440d3cc",
+      "mergeable": true,
+      "mergeable_state": "behind",
+      "number": 44,
+      "reviews": {
+        "approved_reviewers": [],
+        "changes_requested_by": [],
+        "required_reviewer_approved": false,
+        "states": {}
+      },
+      "state": "open",
+      "thread_query_error": null,
+      "title": "docs: add repository profile and authority outline",
+      "unresolved_threads": 0,
+      "url": "https://github.com/appolon1908-hue/Keycloak/pull/44"
+    },
+    {
+      "base_ref": "feature/observability-managed-clients-v1",
+      "base_sha": "93bf3e98b2a6fcd954524cbb2afb36fa02b2aefc",
+      "checks": {
+        "failures": [],
+        "green": false,
+        "pending": [],
+        "successes": [],
+        "total": 0
+      },
+      "decision": "DRAFT_REWORK_REQUIRED",
+      "draft": true,
+      "git": {
+        "ahead_by": 29,
+        "behind_by": 19,
+        "changed_path_count": 51,
+        "changed_paths": [
+          ".github/workflows/validate.yml",
+          "config/clients/grafana-observability.json",
+          "config/clients/openbao-secrets.json",
+          "config/clients/sdk-intake.json",
+          "config/clients/superset-analytics.json",
+          "config/contracts/observability-browser-clients.json",
+          "config/export-allowlists/grafana-observability.json",
+          "config/export-allowlists/openbao-secrets.json",
+          "config/export-allowlists/realm-roles/observability-admin.json",
+          "config/export-allowlists/realm-roles/observability-operator.json",
+          "config/export-allowlists/realm-roles/observability-viewer.json",
+          "config/export-allowlists/realm-roles/secrets-admin.json",
+          "config/export-allowlists/realm-roles/secrets-operator.json",
+          "config/export-allowlists/sdk-intake.json",
+          "config/export-allowlists/superset-analytics.json",
+          "config/policy/creatable-clients.json",
+          "config/policy/creatable-realm-roles.json",
+          "config/policy/managed-clients.json",
+          "config/policy/managed-realm-roles.json",
+          "config/policy/secret-export-clients.json",
+          "config/realm-roles/observability-admin.json",
+          "config/realm-roles/observability-operator.json",
+          "config/realm-roles/observability-viewer.json",
+          "config/realm-roles/secrets-admin.json",
+          "config/realm-roles/secrets-operator.json",
+          "docs/OBSERVABILITY-MANAGED-IDENTITIES.md",
+          "docs/OBSERVABILITY-OIDC.md",
+          "scripts/apply-plan.sh",
+          "scripts/export-client.sh",
+          "scripts/export-generated-client-secrets.sh",
+          "scripts/observability_identity_policy.py",
+          "scripts/plan.sh",
+          "scripts/prepare-rollback-evidence.sh",
+          "scripts/protected_identity/__init__.py",
+          "scripts/protected_identity/api.py",
+          "scripts/protected_identity/apply.py",
+          "scripts/protected_identity/cli.py",
+          "scripts/protected_identity/common.py",
+          "scripts/protected_identity/export.py",
+          "scripts/protected_identity/plan_review.py",
+          "scripts/protected_identity/state.py",
+          "scripts/protected_identity_engine.py",
+          "scripts/protected_identity_test_server.py",
+          "scripts/review-plan.sh",
+          "scripts/test-plan-gate.sh",
+          "scripts/test-protected-identity-engine.py",
+          "scripts/validate-moneybee-oidc-contract.py",
+          "scripts/validate-observability-managed-identities.py",
+          "scripts/validate-observability-oidc-contract.py",
+          "scripts/validate-source.py",
+          "scripts/validate.sh"
+        ],
+        "conflict_paths": [
+          "config/contracts/observability-browser-clients.json",
+          "config/policy/creatable-clients.json",
+          "config/policy/managed-clients.json",
+          "scripts/apply-plan.sh",
+          "scripts/plan.sh",
+          "scripts/test-plan-gate.sh",
+          "scripts/validate-moneybee-oidc-contract.py",
+          "scripts/validate.sh"
+        ],
+        "equivalent_patch_commits": [],
+        "merge_base": "92ca388323db23c1f308ce4e33d9f36b0c77c74e",
+        "merge_clean": false,
+        "merge_tree": null,
+        "merge_tree_diagnostic": "2e197075cb4bd883bbb57a7c21ae2e4359870a78\n100644 3a4bf9f8b7b63a2d56af15ed0f4d8f8ec2f4d32f 2\tconfig/contracts/observability-browser-clients.json\n100644 236e7c3199c1381b71b582ee57920ce8a12058f8 3\tconfig/contracts/observability-browser-clients.json\n100644 eca43a802798acdb7de46fa377bf7130ba968542 1\tconfig/policy/creatable-clients.json\n100644 7aedc582fe9b68b9da862b4dee3de077d4d5c9a4 2\tconfig/policy/creatable-clients.json\n100644 78c6a1735a947b9740fbf7ec87cabe34197a4e9f 3\tconfig/policy/creatable-clients.json\n100644 3893b5e8f129c53aae3d2523ddbce90b62e09eaa 1\tconfig/policy/managed-clients.json\n100644 b9605f87f4817e3d7f5a9b41c32d765b86d7e16d 2\tconfig/policy/managed-clients.json\n100644 70a16f9971faa22d6a897581668bc9c2c9d5a775 3\tconfig/policy/managed-clients.json\n100755 732731ac4ff41678f9a30b46306d43ba42b85b28 1\tscripts/apply-plan.sh\n100755 bf1aad9760591f4750554972a7c4460528f66164 2\tscripts/apply-plan.sh\n100755 75cc9206002ba52265de78c4fca068ee0edd1e1e 3\tscripts/apply-plan.sh\n100755 170475cfca51d56dda3f55c373bf4feb2b568ea9 1\tscripts/plan.sh\n100755 ccb276da605cae77bb6be8e2e0a15ecbf751e0da 2\tscripts/plan.sh\n100755 271a602daf74ec2ca1a6d38f68e2c82a284f79b2 3\tscripts/plan.sh\n100755 1b3783f07bc27b6d42a8d21850a050f5afcc35a0 1\tscripts/test-plan-gate.sh\n100755 5b119f41fc015233b5783e8c213ecf83e81c51f1 2\tscripts/test-plan-gate.sh\n100755 26cc46b16b519446bd4677b2f1efc4ee75ef0217 3\tscripts/test-plan-gate.sh\n100644 50c98c646ec94e0e78fe05f41618b44928a6e124 1\tscripts/validate-moneybee-oidc-contract.py\n100644 b9c7f168e42afacc711be105509784a790812403 2\tscripts/validate-moneybee-oidc-contract.py\n100644 f831854cbe87cf27c1eec2873ae225fdc97cbbbb 3\tscripts/validate-moneybee-oidc-contract.py\n100755 2c73b032b3ea8e0aebed3b20fe85e7138c5b7fb3 1\tscripts/validate.sh\n100755 dad6609faf21cb1420001feaeb9c97f08973b561 2\tscripts/validate.sh\n100755 cb78efc83668fc9896d4ddb5ed6acd831b39e839 3\tscripts/validate.sh\n\nAuto-merging .github/workflows/validate.yml\nAuto-merging config/contracts/observability-browser-clients.json\nCONFLICT (add/add): Merge conflict in config/contracts/observability-browser-clients.json\nAuto-merging config/policy/creatable-clients.json\nCONFLICT (content): Merge conflict in config/policy/creatable-clients.json\nAuto-merging config/policy/managed-clients.json\nCONFLICT (content): Merge conflict in config/policy/managed-clients.json\nAuto-merging scripts/apply-plan.sh\nCONFLICT (content): Merge conflict in scripts/apply-plan.sh\nAuto-merging scripts/plan.sh\nCONFLICT (content): Merge conflict in scripts/plan.sh\nAuto-merging scripts/test-plan-gate.sh\nCONFLICT (content): Merge conflict in scripts/test-plan-gate.sh\nAuto-merging scripts/validate-moneybee-oidc-contract.py\nCONFLICT (content): Merge conflict in scripts/validate-moneybee-oidc-contract.py\nAuto-merging scripts/validate.sh\nCONFLICT (content): Merge conflict in scripts/validate.sh\n",
+        "patch_equivalent_to_main": false,
+        "unique_patch_commits": [
+          "54610df590a6b3bfe81e13b755b673fb17e051de",
+          "91d7c5f0973ac48542753131e6f3546bb041ccf6",
+          "6a95e3e3e41500d79e0d3e278c837f4be44bb399",
+          "b766147909c33d8fa27d0debc26791d210ca1e70",
+          "86332be58f6953a2bef218df22d7492f13d4b9b8",
+          "d9984905b758e3fbec9ae8f8faac1fe70045f50b",
+          "709300256eb11d0bf494e1ba41d85a75160ca6d1",
+          "a06f14faba71d3f5527dff85abad36ba23d580f6",
+          "fc34e5921c2165295bb41d3724b4c6ea837dd50f",
+          "68ed97de02a1484bfa461154b32e6f05c4519800",
+          "87e3219173a787079253e602fa249b1c95003934",
+          "a950a7e363841fb3902a8ee4779a3c0400b26be9",
+          "77fd8a665528d170952c364598d7cf23ad78a6d6",
+          "4252f45cb8159766f725b884e09245e87283e706",
+          "1d0183e3b5aa7861f1f4ee1cb9765bfe78c2fc4b",
+          "86e6291956063d0808a189bf9547f5681fce4583",
+          "c6c8339a63bb20f1e82f41f8d132a4a107cb00ba",
+          "9c2a1aee84c19f258694c63ff1391694e940dc64",
+          "addeb74dc97de3014fb840d61997c9aa7c436b71",
+          "dafda3d4be26ffdcd0964781964c5a81a1768bcf",
+          "c10d8766f8d06d433215d7b16df1569b7c910db6",
+          "26ef3371a532b2acb032a15572163b71ff6c4c00",
+          "0f7c91d3bc676cf29851f2feb59d3325e5585732",
+          "6820cb16ede5977b34a64e8aa101e9e46e3420ad",
+          "8c5a7c0d125c7c9c95c9bf69d4df167ef7dede8c",
+          "3ba274af904112e9cc10e09574c996161a643a9b",
+          "a886eb7ca8adf911ad02690e476b4a2b99a25ab0",
+          "065df79425175f21f7bc78725a3ff14ebb2f50b7",
+          "f37878fba4e7419f77e53a30731a61302ab0e05e"
+        ]
+      },
+      "head_ref": "cert2/sdk-intake-exact-ci",
+      "head_sha": "f37878fba4e7419f77e53a30731a61302ab0e05e",
+      "mergeable": false,
+      "mergeable_state": "dirty",
+      "number": 37,
+      "reviews": {
+        "approved_reviewers": [],
+        "changes_requested_by": [],
+        "required_reviewer_approved": false,
+        "states": {}
+      },
+      "state": "open",
+      "thread_query_error": null,
+      "title": "cert2: fresh exact-head sdk-intake validation",
+      "unresolved_threads": 0,
+      "url": "https://github.com/appolon1908-hue/Keycloak/pull/37"
+    },
+    {
+      "base_ref": "feature/observability-managed-clients-v1",
+      "base_sha": "93bf3e98b2a6fcd954524cbb2afb36fa02b2aefc",
+      "checks": {
+        "failures": [],
+        "green": false,
+        "pending": [],
+        "successes": [],
+        "total": 0
+      },
+      "decision": "DRAFT_REWORK_REQUIRED",
+      "draft": true,
+      "git": {
+        "ahead_by": 20,
+        "behind_by": 19,
+        "changed_path_count": 51,
+        "changed_paths": [
+          ".github/workflows/validate.yml",
+          "config/clients/grafana-observability.json",
+          "config/clients/openbao-secrets.json",
+          "config/clients/sdk-intake.json",
+          "config/clients/superset-analytics.json",
+          "config/contracts/observability-browser-clients.json",
+          "config/export-allowlists/grafana-observability.json",
+          "config/export-allowlists/openbao-secrets.json",
+          "config/export-allowlists/realm-roles/observability-admin.json",
+          "config/export-allowlists/realm-roles/observability-operator.json",
+          "config/export-allowlists/realm-roles/observability-viewer.json",
+          "config/export-allowlists/realm-roles/secrets-admin.json",
+          "config/export-allowlists/realm-roles/secrets-operator.json",
+          "config/export-allowlists/sdk-intake.json",
+          "config/export-allowlists/superset-analytics.json",
+          "config/policy/creatable-clients.json",
+          "config/policy/creatable-realm-roles.json",
+          "config/policy/managed-clients.json",
+          "config/policy/managed-realm-roles.json",
+          "config/policy/secret-export-clients.json",
+          "config/realm-roles/observability-admin.json",
+          "config/realm-roles/observability-operator.json",
+          "config/realm-roles/observability-viewer.json",
+          "config/realm-roles/secrets-admin.json",
+          "config/realm-roles/secrets-operator.json",
+          "docs/OBSERVABILITY-MANAGED-IDENTITIES.md",
+          "docs/OBSERVABILITY-OIDC.md",
+          "scripts/apply-plan.sh",
+          "scripts/export-client.sh",
+          "scripts/export-generated-client-secrets.sh",
+          "scripts/observability_identity_policy.py",
+          "scripts/plan.sh",
+          "scripts/prepare-rollback-evidence.sh",
+          "scripts/protected_identity/__init__.py",
+          "scripts/protected_identity/api.py",
+          "scripts/protected_identity/apply.py",
+          "scripts/protected_identity/cli.py",
+          "scripts/protected_identity/common.py",
+          "scripts/protected_identity/export.py",
+          "scripts/protected_identity/plan_review.py",
+          "scripts/protected_identity/state.py",
+          "scripts/protected_identity_engine.py",
+          "scripts/protected_identity_test_server.py",
+          "scripts/review-plan.sh",
+          "scripts/test-plan-gate.sh",
+          "scripts/test-protected-identity-engine.py",
+          "scripts/validate-moneybee-oidc-contract.py",
+          "scripts/validate-observability-managed-identities.py",
+          "scripts/validate-observability-oidc-contract.py",
+          "scripts/validate-source.py",
+          "scripts/validate.sh"
+        ],
+        "conflict_paths": [
+          "config/contracts/observability-browser-clients.json",
+          "config/policy/creatable-clients.json",
+          "config/policy/managed-clients.json",
+          "scripts/apply-plan.sh",
+          "scripts/plan.sh",
+          "scripts/test-plan-gate.sh",
+          "scripts/validate-moneybee-oidc-contract.py",
+          "scripts/validate.sh"
+        ],
+        "equivalent_patch_commits": [],
+        "merge_base": "92ca388323db23c1f308ce4e33d9f36b0c77c74e",
+        "merge_clean": false,
+        "merge_tree": null,
+        "merge_tree_diagnostic": "65eb164d3ccbe1ef43d5f2d2d473e7bc60ad3f98\n100644 3a4bf9f8b7b63a2d56af15ed0f4d8f8ec2f4d32f 2\tconfig/contracts/observability-browser-clients.json\n100644 236e7c3199c1381b71b582ee57920ce8a12058f8 3\tconfig/contracts/observability-browser-clients.json\n100644 eca43a802798acdb7de46fa377bf7130ba968542 1\tconfig/policy/creatable-clients.json\n100644 7aedc582fe9b68b9da862b4dee3de077d4d5c9a4 2\tconfig/policy/creatable-clients.json\n100644 78c6a1735a947b9740fbf7ec87cabe34197a4e9f 3\tconfig/policy/creatable-clients.json\n100644 3893b5e8f129c53aae3d2523ddbce90b62e09eaa 1\tconfig/policy/managed-clients.json\n100644 b9605f87f4817e3d7f5a9b41c32d765b86d7e16d 2\tconfig/policy/managed-clients.json\n100644 70a16f9971faa22d6a897581668bc9c2c9d5a775 3\tconfig/policy/managed-clients.json\n100755 732731ac4ff41678f9a30b46306d43ba42b85b28 1\tscripts/apply-plan.sh\n100755 bf1aad9760591f4750554972a7c4460528f66164 2\tscripts/apply-plan.sh\n100755 75cc9206002ba52265de78c4fca068ee0edd1e1e 3\tscripts/apply-plan.sh\n100755 170475cfca51d56dda3f55c373bf4feb2b568ea9 1\tscripts/plan.sh\n100755 ccb276da605cae77bb6be8e2e0a15ecbf751e0da 2\tscripts/plan.sh\n100755 271a602daf74ec2ca1a6d38f68e2c82a284f79b2 3\tscripts/plan.sh\n100755 1b3783f07bc27b6d42a8d21850a050f5afcc35a0 1\tscripts/test-plan-gate.sh\n100755 5b119f41fc015233b5783e8c213ecf83e81c51f1 2\tscripts/test-plan-gate.sh\n100755 26cc46b16b519446bd4677b2f1efc4ee75ef0217 3\tscripts/test-plan-gate.sh\n100644 50c98c646ec94e0e78fe05f41618b44928a6e124 1\tscripts/validate-moneybee-oidc-contract.py\n100644 b9c7f168e42afacc711be105509784a790812403 2\tscripts/validate-moneybee-oidc-contract.py\n100644 cd667bbace0a4f6588f8f18840eba9b7dd226d3f 3\tscripts/validate-moneybee-oidc-contract.py\n100755 2c73b032b3ea8e0aebed3b20fe85e7138c5b7fb3 1\tscripts/validate.sh\n100755 dad6609faf21cb1420001feaeb9c97f08973b561 2\tscripts/validate.sh\n100755 cb78efc83668fc9896d4ddb5ed6acd831b39e839 3\tscripts/validate.sh\n\nAuto-merging .github/workflows/validate.yml\nAuto-merging config/contracts/observability-browser-clients.json\nCONFLICT (add/add): Merge conflict in config/contracts/observability-browser-clients.json\nAuto-merging config/policy/creatable-clients.json\nCONFLICT (content): Merge conflict in config/policy/creatable-clients.json\nAuto-merging config/policy/managed-clients.json\nCONFLICT (content): Merge conflict in config/policy/managed-clients.json\nAuto-merging scripts/apply-plan.sh\nCONFLICT (content): Merge conflict in scripts/apply-plan.sh\nAuto-merging scripts/plan.sh\nCONFLICT (content): Merge conflict in scripts/plan.sh\nAuto-merging scripts/test-plan-gate.sh\nCONFLICT (content): Merge conflict in scripts/test-plan-gate.sh\nAuto-merging scripts/validate-moneybee-oidc-contract.py\nCONFLICT (content): Merge conflict in scripts/validate-moneybee-oidc-contract.py\nAuto-merging scripts/validate.sh\nCONFLICT (content): Merge conflict in scripts/validate.sh\n",
+        "patch_equivalent_to_main": false,
+        "unique_patch_commits": [
+          "54610df590a6b3bfe81e13b755b673fb17e051de",
+          "91d7c5f0973ac48542753131e6f3546bb041ccf6",
+          "6a95e3e3e41500d79e0d3e278c837f4be44bb399",
+          "b766147909c33d8fa27d0debc26791d210ca1e70",
+          "86332be58f6953a2bef218df22d7492f13d4b9b8",
+          "d9984905b758e3fbec9ae8f8faac1fe70045f50b",
+          "709300256eb11d0bf494e1ba41d85a75160ca6d1",
+          "a06f14faba71d3f5527dff85abad36ba23d580f6",
+          "fc34e5921c2165295bb41d3724b4c6ea837dd50f",
+          "68ed97de02a1484bfa461154b32e6f05c4519800",
+          "87e3219173a787079253e602fa249b1c95003934",
+          "a950a7e363841fb3902a8ee4779a3c0400b26be9",
+          "77fd8a665528d170952c364598d7cf23ad78a6d6",
+          "4252f45cb8159766f725b884e09245e87283e706",
+          "1d0183e3b5aa7861f1f4ee1cb9765bfe78c2fc4b",
+          "86e6291956063d0808a189bf9547f5681fce4583",
+          "c6c8339a63bb20f1e82f41f8d132a4a107cb00ba",
+          "9c2a1aee84c19f258694c63ff1391694e940dc64",
+          "addeb74dc97de3014fb840d61997c9aa7c436b71",
+          "dafda3d4be26ffdcd0964781964c5a81a1768bcf"
+        ]
+      },
+      "head_ref": "feature/sdk-intake-client-v2",
+      "head_sha": "dafda3d4be26ffdcd0964781964c5a81a1768bcf",
+      "mergeable": false,
+      "mergeable_state": "dirty",
+      "number": 32,
+      "reviews": {
+        "approved_reviewers": [],
+        "changes_requested_by": [],
+        "required_reviewer_approved": false,
+        "states": {}
+      },
+      "state": "open",
+      "thread_query_error": null,
+      "title": "feat: add sdk-intake through managed-client GitOps",
+      "unresolved_threads": 0,
+      "url": "https://github.com/appolon1908-hue/Keycloak/pull/32"
+    },
+    {
+      "base_ref": "main",
+      "base_sha": "92ca388323db23c1f308ce4e33d9f36b0c77c74e",
+      "checks": {
+        "failures": [],
+        "green": true,
+        "pending": [],
+        "successes": [
+          "validate-merge-result",
+          "validate-source"
+        ],
+        "total": 2
+      },
+      "decision": "DRAFT_REBASE_CANDIDATE",
+      "draft": true,
+      "git": {
+        "ahead_by": 1,
+        "behind_by": 19,
+        "changed_path_count": 1,
+        "changed_paths": [
+          "docs/COMMUNICATIONS_PLATFORM_AUTHORITY.md"
+        ],
+        "conflict_paths": [],
+        "equivalent_patch_commits": [],
+        "merge_base": "92ca388323db23c1f308ce4e33d9f36b0c77c74e",
+        "merge_clean": true,
+        "merge_tree": "c68dda94a41c011c08fc534a8642e9a3abcad76f",
+        "merge_tree_diagnostic": null,
+        "patch_equivalent_to_main": false,
+        "unique_patch_commits": [
+          "6d0663be63b9ed47e5ead1a482e6f2525de3d75d"
+        ]
+      },
+      "head_ref": "docs/communications-platform-authority",
+      "head_sha": "6d0663be63b9ed47e5ead1a482e6f2525de3d75d",
+      "mergeable": true,
+      "mergeable_state": "behind",
+      "number": 28,
+      "reviews": {
+        "approved_reviewers": [],
+        "changes_requested_by": [],
+        "required_reviewer_approved": false,
+        "states": {}
+      },
+      "state": "open",
+      "thread_query_error": null,
+      "title": "Document communications identity authority",
+      "unresolved_threads": 0,
+      "url": "https://github.com/appolon1908-hue/Keycloak/pull/28"
+    },
+    {
+      "base_ref": "main",
+      "base_sha": "04f603b4a4c430aeaa37b3c9cebedccabfc95d1a",
+      "checks": {
+        "failures": [],
+        "green": true,
+        "pending": [],
+        "successes": [
+          "validate-merge-result",
+          "validate-source"
+        ],
+        "total": 2
+      },
+      "decision": "DRAFT_REWORK_REQUIRED",
+      "draft": true,
+      "git": {
+        "ahead_by": 26,
+        "behind_by": 20,
+        "changed_path_count": 23,
+        "changed_paths": [
+          ".github/workflows/deploy.yml",
+          ".github/workflows/validate.yml",
+          "Dockerfile",
+          "config/email/keycloak-security-smtp.json",
+          "config/identity/browser-registration-policy.json",
+          "config/realms/codestra.json",
+          "config/security/realm-security-policy.json",
+          "docs/BROWSER_SELF_REGISTRATION.md",
+          "docs/KEYCLOAK_PASSWORD_RESET_SMTP.md",
+          "docs/security/BROWSER_CLIENT_POLICY.md",
+          "docs/security/REALM_SECURITY_POLICY.md",
+          "docs/security/TOKEN_POLICY.md",
+          "extensions/codestra-registration-gate/pom.xml",
+          "extensions/codestra-registration-gate/src/main/java/co/codestra/keycloak/registration/CodestraRegistrationGate.java",
+          "extensions/codestra-registration-gate/src/main/resources/META-INF/services/org.keycloak.authentication.FormActionFactory",
+          "scripts/apply-plan.sh",
+          "scripts/plan.sh",
+          "scripts/review-plan.sh",
+          "scripts/test-plan-gate.sh",
+          "scripts/validate-browser-registration-policy.py",
+          "scripts/validate-password-reset-contract.py",
+          "scripts/validate-realm-security-policy.py",
+          "scripts/validate.sh"
+        ],
+        "conflict_paths": [
+          "scripts/test-plan-gate.sh",
+          "scripts/validate.sh"
+        ],
+        "equivalent_patch_commits": [],
+        "merge_base": "04f603b4a4c430aeaa37b3c9cebedccabfc95d1a",
+        "merge_clean": false,
+        "merge_tree": null,
+        "merge_tree_diagnostic": "a40a88264ed2f00e6ee8b2d88eec5b6aac215055\n100755 f4ac792ecaaeaf18041966ac4caa1b3de6f9c9cd 1\tscripts/test-plan-gate.sh\n100755 5b119f41fc015233b5783e8c213ecf83e81c51f1 2\tscripts/test-plan-gate.sh\n100755 52333a22164c48d01e25d02bc6e107c21c0ad942 3\tscripts/test-plan-gate.sh\n100755 f25bb9b802755dd824bdc60749430ae92da3c38d 1\tscripts/validate.sh\n100755 dad6609faf21cb1420001feaeb9c97f08973b561 2\tscripts/validate.sh\n100755 d11c19f2d92035cdb1e0cb1cc30b07fb03f12907 3\tscripts/validate.sh\n\nAuto-merging .github/workflows/deploy.yml\nAuto-merging .github/workflows/validate.yml\nAuto-merging scripts/apply-plan.sh\nAuto-merging scripts/plan.sh\nAuto-merging scripts/test-plan-gate.sh\nCONFLICT (content): Merge conflict in scripts/test-plan-gate.sh\nAuto-merging scripts/validate.sh\nCONFLICT (content): Merge conflict in scripts/validate.sh\n",
+        "patch_equivalent_to_main": false,
+        "unique_patch_commits": [
+          "0726fb1f0d98602bd770f696ab0c623fad91d74b",
+          "40c6f8c33655ee431a65ee3800d21414f9c6740d",
+          "3fb0e586c8657a87582a130e8dc16121fd111c99",
+          "f7e931627e7e2afcf63d46f146ca1e62f07bdac9",
+          "9d51df6ada648c788f920802b03e1770cf599cc9",
+          "2a718995ae436d9aeea527120b2b37071346b5f6",
+          "976985238ebc80338296737f78c2de13cb6e2416",
+          "718b8d73db02c9870b91e9a8b4538dce55b85151",
+          "048698a36a5ec2336cbe8c2e28b9cf0688094c38",
+          "ac3be9a9c90a671e5330b768abadf7a90a8cc566",
+          "323ed5a3169c212f0d957672fd216125b4cdfc09",
+          "34c21c8cfeee592e7da86a0fd91afc888acebd13",
+          "7c132d7d06aa7ea28c053bafa8e91e8781b70e51",
+          "a9892876d4b12756b5c1bce84cbb2e3a9ca20e1d",
+          "e22ff40e07a70cb59013be187816c0d0ce9fc307",
+          "2026935ece219eb9177dc07c0856e714d76442ac",
+          "d93b5e99f97cb6edbc9a2e40ec7524ce21c74933",
+          "dc57b3dc7763e83b8ab0956759f66cbe0c6c8471",
+          "501b426b75a80e17b1eca6acaac08e04311d62a1",
+          "b3498cfc7676fc4d6d27e579b7a56dfd21449b6f",
+          "ee8e86285f1a82ba25124acb64817ab476ed61ea",
+          "0b8dff56f23f215cbe0abf17b70141440e54c167",
+          "e57a78c194a1d763b5f368722d4ac88449cbac84",
+          "def030a6cde380fb5c60045188a0a3312d4b698e"
+        ]
+      },
+      "head_ref": "integration/registration-recovery-20260829",
+      "head_sha": "def030a6cde380fb5c60045188a0a3312d4b698e",
+      "mergeable": false,
+      "mergeable_state": "dirty",
+      "number": 27,
+      "reviews": {
+        "approved_reviewers": [],
+        "changes_requested_by": [],
+        "required_reviewer_approved": false,
+        "states": {}
+      },
+      "state": "open",
+      "thread_query_error": null,
+      "title": "feat(identity): unify MoneyBee, Beyvra, and Breero registration and recovery",
+      "unresolved_threads": 0,
+      "url": "https://github.com/appolon1908-hue/Keycloak/pull/27"
+    },
+    {
+      "base_ref": "main",
+      "base_sha": "92ca388323db23c1f308ce4e33d9f36b0c77c74e",
+      "checks": {
+        "failures": [
+          "validate-merge-result",
+          "validate-source"
+        ],
+        "green": false,
+        "pending": [],
+        "successes": [],
+        "total": 2
+      },
+      "decision": "CONFLICT_REMEDIATION_REQUIRED",
+      "draft": false,
+      "git": {
+        "ahead_by": 2,
+        "behind_by": 19,
+        "changed_path_count": 9,
+        "changed_paths": [
+          ".github/workflows/deploy.yml",
+          "config/contracts/machine-secret-destinations.json",
+          "docs/operations/CLIENT_PROVISIONING.md",
+          "docs/security/ACCESS_CONTRACTS.md",
+          "docs/security/MACHINE_IDENTITY_POLICY.md",
+          "scripts/apply-plan.sh",
+          "scripts/test-plan-gate.sh",
+          "scripts/validate-machine-secret-contract.py",
+          "scripts/validate.sh"
+        ],
+        "conflict_paths": [
+          "scripts/test-plan-gate.sh",
+          "scripts/validate.sh"
+        ],
+        "equivalent_patch_commits": [],
+        "merge_base": "92ca388323db23c1f308ce4e33d9f36b0c77c74e",
+        "merge_clean": false,
+        "merge_tree": null,
+        "merge_tree_diagnostic": "764b4d7c8c4369d42a312b9b574bc772c4156d82\n100755 1b3783f07bc27b6d42a8d21850a050f5afcc35a0 1\tscripts/test-plan-gate.sh\n100755 5b119f41fc015233b5783e8c213ecf83e81c51f1 2\tscripts/test-plan-gate.sh\n100755 7f9877b11038ec641a4a507cfe609e2ebf5e8d68 3\tscripts/test-plan-gate.sh\n100755 2c73b032b3ea8e0aebed3b20fe85e7138c5b7fb3 1\tscripts/validate.sh\n100755 dad6609faf21cb1420001feaeb9c97f08973b561 2\tscripts/validate.sh\n100755 7799fb225dae84470ad1349f9d8e8a76d14a62f1 3\tscripts/validate.sh\n\nAuto-merging .github/workflows/deploy.yml\nAuto-merging scripts/apply-plan.sh\nAuto-merging scripts/test-plan-gate.sh\nCONFLICT (content): Merge conflict in scripts/test-plan-gate.sh\nAuto-merging scripts/validate.sh\nCONFLICT (content): Merge conflict in scripts/validate.sh\n",
+        "patch_equivalent_to_main": false,
+        "unique_patch_commits": [
+          "f054c770f9019eb254cf13b3113cf48d88ed3769",
+          "82a3be32c4479e46821279036ba237756995a4c1"
+        ]
+      },
+      "head_ref": "feat/keycloak-machine-identities",
+      "head_sha": "82a3be32c4479e46821279036ba237756995a4c1",
+      "mergeable": false,
+      "mergeable_state": "dirty",
+      "number": 19,
+      "reviews": {
+        "approved_reviewers": [
+          "kazan555"
+        ],
+        "changes_requested_by": [],
+        "required_reviewer_approved": true,
+        "states": {
+          "kazan555": "APPROVED"
+        }
+      },
+      "state": "open",
+      "thread_query_error": null,
+      "title": "security: externalize machine client credentials",
+      "unresolved_threads": 2,
+      "url": "https://github.com/appolon1908-hue/Keycloak/pull/19"
+    },
+    {
+      "base_ref": "main",
+      "base_sha": "92ca388323db23c1f308ce4e33d9f36b0c77c74e",
+      "checks": {
+        "failures": [
+          "validate-merge-result",
+          "validate-source"
+        ],
+        "green": false,
+        "pending": [],
+        "successes": [],
+        "total": 2
+      },
+      "decision": "CONFLICT_REMEDIATION_REQUIRED",
+      "draft": false,
+      "git": {
+        "ahead_by": 5,
+        "behind_by": 19,
+        "changed_path_count": 13,
+        "changed_paths": [
+          ".github/workflows/deploy.yml",
+          "config/realms/codestra.json",
+          "config/security/realm-security-policy.json",
+          "docs/KEYCLOAK_PASSWORD_RESET_SMTP.md",
+          "docs/security/BROWSER_CLIENT_POLICY.md",
+          "docs/security/REALM_SECURITY_POLICY.md",
+          "docs/security/TOKEN_POLICY.md",
+          "scripts/apply-plan.sh",
+          "scripts/plan.sh",
+          "scripts/review-plan.sh",
+          "scripts/test-plan-gate.sh",
+          "scripts/validate-realm-security-policy.py",
+          "scripts/validate.sh"
+        ],
+        "conflict_paths": [
+          "scripts/test-plan-gate.sh",
+          "scripts/validate.sh"
+        ],
+        "equivalent_patch_commits": [],
+        "merge_base": "92ca388323db23c1f308ce4e33d9f36b0c77c74e",
+        "merge_clean": false,
+        "merge_tree": null,
+        "merge_tree_diagnostic": "8cdecc1d9c9aa4b4fa8fecb141edb9dd9af1ddaf\n100755 1b3783f07bc27b6d42a8d21850a050f5afcc35a0 1\tscripts/test-plan-gate.sh\n100755 5b119f41fc015233b5783e8c213ecf83e81c51f1 2\tscripts/test-plan-gate.sh\n100755 7b902c1b12e254cc0f4e9010a03216e327472b0e 3\tscripts/test-plan-gate.sh\n100755 2c73b032b3ea8e0aebed3b20fe85e7138c5b7fb3 1\tscripts/validate.sh\n100755 dad6609faf21cb1420001feaeb9c97f08973b561 2\tscripts/validate.sh\n100755 cab628792955dfc19b4798415ce9c7ec2f997b6b 3\tscripts/validate.sh\n\nAuto-merging .github/workflows/deploy.yml\nAuto-merging scripts/apply-plan.sh\nAuto-merging scripts/plan.sh\nAuto-merging scripts/test-plan-gate.sh\nCONFLICT (content): Merge conflict in scripts/test-plan-gate.sh\nAuto-merging scripts/validate.sh\nCONFLICT (content): Merge conflict in scripts/validate.sh\n",
+        "patch_equivalent_to_main": false,
+        "unique_patch_commits": [
+          "aedbd33fa720047a7466d42505269924574ff729",
+          "98cf4a8c2f637cf785ec3f65b194ed4573399001",
+          "4ece7576434ef223cb7158c7bb04924fc96d4cf8",
+          "7d1f5eea2b35a52bd821dbeebea057714a685f1e",
+          "168168f387e7d0466871ba5ac048a0bf47b959ff"
+        ]
+      },
+      "head_ref": "feat/keycloak-realm-security-policy",
+      "head_sha": "168168f387e7d0466871ba5ac048a0bf47b959ff",
+      "mergeable": false,
+      "mergeable_state": "dirty",
+      "number": 18,
+      "reviews": {
+        "approved_reviewers": [
+          "kazan555"
+        ],
+        "changes_requested_by": [],
+        "required_reviewer_approved": true,
+        "states": {
+          "kazan555": "APPROVED"
+        }
+      },
+      "state": "open",
+      "thread_query_error": null,
+      "title": "feat: manage Keycloak realm security and recovery policy",
+      "unresolved_threads": 2,
+      "url": "https://github.com/appolon1908-hue/Keycloak/pull/18"
+    },
+    {
+      "base_ref": "main",
+      "base_sha": "49d33b68a1ebf7c9de97049597583fe30a49a3ce",
+      "checks": {
+        "failures": [],
+        "green": true,
+        "pending": [],
+        "successes": [
+          "validate-merge-result",
+          "validate-source"
+        ],
+        "total": 2
+      },
+      "decision": "CONFLICT_REMEDIATION_REQUIRED",
+      "draft": false,
+      "git": {
+        "ahead_by": 4,
+        "behind_by": 21,
+        "changed_path_count": 19,
+        "changed_paths": [
+          ".env.example",
+          ".github/workflows/release-image.yml",
+          ".github/workflows/validate.yml",
+          "Dockerfile",
+          "Makefile",
+          "README.md",
+          "compose.yaml",
+          "deploy/secrets/admin-api.env.example",
+          "deploy/secrets/bootstrap-admin.env.example",
+          "deploy/secrets/monitoring.env.example",
+          "deploy/secrets/postgres.env.example",
+          "deploy/secrets/runtime-ssh.env.example",
+          "deploy/secrets/smtp.env.example",
+          "docs/audits/KEYCLOAK_RUNTIME_GAP_ANALYSIS.md",
+          "docs/operations/SECRET_ROTATION.md",
+          "docs/security/CONTAINER_SUPPLY_CHAIN.md",
+          "scripts/validate-runtime-security.py",
+          "scripts/validate-workflows.py",
+          "scripts/validate.sh"
+        ],
+        "conflict_paths": [
+          "README.md",
+          "docs/audits/KEYCLOAK_RUNTIME_GAP_ANALYSIS.md",
+          "scripts/validate-workflows.py"
+        ],
+        "equivalent_patch_commits": [],
+        "merge_base": "49d33b68a1ebf7c9de97049597583fe30a49a3ce",
+        "merge_clean": false,
+        "merge_tree": null,
+        "merge_tree_diagnostic": "723b7ff3d145e4a4a277b579866a66cc14cf24a9\n100644 8fc177368b4472151e3f34c0914fcb84e27224c8 1\tREADME.md\n100644 109ea96fcbfbee2c6daeeebb79c5d84ae6f6fde3 2\tREADME.md\n100644 6912c6251516d4d0a552d530c28517e12f9be722 3\tREADME.md\n100644 9d00956ed37e37c94c20386788e26f765fdfdfb3 2\tdocs/audits/KEYCLOAK_RUNTIME_GAP_ANALYSIS.md\n100644 dad5c53c2d3d3a6129464d3fc85e636398a2f043 3\tdocs/audits/KEYCLOAK_RUNTIME_GAP_ANALYSIS.md\n100755 0af1333e8036e6921d9cc3d1b7b4473615d2a8e1 1\tscripts/validate-workflows.py\n100755 377e94bd9884536699c7b52bcd14bb92079dc07c 2\tscripts/validate-workflows.py\n100755 25aa5381a1b4c0aad023f1f779542d460031bffd 3\tscripts/validate-workflows.py\n\nAuto-merging .github/workflows/validate.yml\nAuto-merging Makefile\nAuto-merging README.md\nCONFLICT (content): Merge conflict in README.md\nAuto-merging docs/audits/KEYCLOAK_RUNTIME_GAP_ANALYSIS.md\nCONFLICT (add/add): Merge conflict in docs/audits/KEYCLOAK_RUNTIME_GAP_ANALYSIS.md\nAuto-merging scripts/validate-workflows.py\nCONFLICT (content): Merge conflict in scripts/validate-workflows.py\nAuto-merging scripts/validate.sh\n",
+        "patch_equivalent_to_main": false,
+        "unique_patch_commits": [
+          "372b3764f67cf2f49dcd9f20919fb5641b58c823",
+          "8596dda1d6e20ceef794b9d15b113608ca1e29e5",
+          "3f9449fc2678d3cd4fa2077d07f622ba55825c3b"
+        ]
+      },
+      "head_ref": "security/keycloak-runtime-hardening",
+      "head_sha": "60d81a61fb55706dd04757f044a11791162a2e3d",
+      "mergeable": false,
+      "mergeable_state": "dirty",
+      "number": 17,
+      "reviews": {
+        "approved_reviewers": [
+          "kazan555"
+        ],
+        "changes_requested_by": [],
+        "required_reviewer_approved": true,
+        "states": {
+          "kazan555": "APPROVED"
+        }
+      },
+      "state": "open",
+      "thread_query_error": null,
+      "title": "security: harden immutable Keycloak runtime supply chain",
+      "unresolved_threads": 2,
+      "url": "https://github.com/appolon1908-hue/Keycloak/pull/17"
+    },
+    {
+      "base_ref": "main",
+      "base_sha": "49d33b68a1ebf7c9de97049597583fe30a49a3ce",
+      "checks": {
+        "failures": [],
+        "green": true,
+        "pending": [],
+        "successes": [
+          "validate-merge-result",
+          "validate-source"
+        ],
+        "total": 2
+      },
+      "decision": "CLEAN_REBASE_GATES_PENDING",
+      "draft": false,
+      "git": {
+        "ahead_by": 3,
+        "behind_by": 21,
+        "changed_path_count": 7,
+        "changed_paths": [
+          ".github/workflows/deploy.yml",
+          "Makefile",
+          "README.md",
+          "docs/GITOPS.md",
+          "docs/audits/KEYCLOAK_BASELINE_AUDIT.md",
+          "scripts/apply-plan.sh",
+          "scripts/test-plan-gate.sh"
+        ],
+        "conflict_paths": [],
+        "equivalent_patch_commits": [],
+        "merge_base": "49d33b68a1ebf7c9de97049597583fe30a49a3ce",
+        "merge_clean": true,
+        "merge_tree": "2cae737488169988ec1f16ea86421ce0c1a2d34a",
+        "merge_tree_diagnostic": null,
+        "patch_equivalent_to_main": false,
+        "unique_patch_commits": [
+          "fa43f7b93324619fd980f33c4ef300dbd0215677",
+          "39ffe5ce16ad45f7b6db60cc47d80ab78bc2eb7a"
+        ]
+      },
+      "head_ref": "fix/keycloak-apply-transaction-safety",
+      "head_sha": "a3e67178d062babf3390094202aee9688995209a",
+      "mergeable": true,
+      "mergeable_state": "behind",
+      "number": 16,
+      "reviews": {
+        "approved_reviewers": [
+          "kazan555"
+        ],
+        "changes_requested_by": [],
+        "required_reviewer_approved": true,
+        "states": {
+          "kazan555": "APPROVED"
+        }
+      },
+      "state": "open",
+      "thread_query_error": null,
+      "title": "fix: make Keycloak apply transaction-safe and recoverable",
+      "unresolved_threads": 1,
+      "url": "https://github.com/appolon1908-hue/Keycloak/pull/16"
+    },
+    {
+      "base_ref": "main",
+      "base_sha": "85b8c3f54d79331cd93a3efe5bd2f4bfb9064667",
+      "checks": {
+        "failures": [],
+        "green": true,
+        "pending": [],
+        "successes": [
+          "validate-merge-result",
+          "validate-source"
+        ],
+        "total": 2
+      },
+      "decision": "CLEAN_REBASE_GATES_PENDING",
+      "draft": false,
+      "git": {
+        "ahead_by": 3,
+        "behind_by": 22,
+        "changed_path_count": 3,
+        "changed_paths": [
+          "README.md",
+          "docs/CODESTRA_MISSION_PLAN.md",
+          "docs/KEYCLOAK_REPOSITORY_AUTHORITY.md"
+        ],
+        "conflict_paths": [],
+        "equivalent_patch_commits": [],
+        "merge_base": "85b8c3f54d79331cd93a3efe5bd2f4bfb9064667",
+        "merge_clean": true,
+        "merge_tree": "d4705f84765af0bcb81024410c8a4489bde42210",
+        "merge_tree_diagnostic": null,
+        "patch_equivalent_to_main": false,
+        "unique_patch_commits": [
+          "9c1c26d46ebcfa24562f4ac6cb79cbaad960d1a0",
+          "fba9c036bcc6573be0e5a8e26a0b625bf5337309",
+          "1547c05d68f728af561579eb7d4625e70dcb10da"
+        ]
+      },
+      "head_ref": "docs/independent-keycloak-authority",
+      "head_sha": "1547c05d68f728af561579eb7d4625e70dcb10da",
+      "mergeable": true,
+      "mergeable_state": "behind",
+      "number": 14,
+      "reviews": {
+        "approved_reviewers": [
+          "kazan555"
+        ],
+        "changes_requested_by": [],
+        "required_reviewer_approved": true,
+        "states": {
+          "chatgpt-codex-connector[bot]": "COMMENTED",
+          "kazan555": "APPROVED"
+        }
+      },
+      "state": "open",
+      "thread_query_error": null,
+      "title": "docs: establish Keycloak as independent identity authority",
+      "unresolved_threads": 2,
+      "url": "https://github.com/appolon1908-hue/Keycloak/pull/14"
+    },
+    {
+      "base_ref": "feat/service-api-webhook-identity-contracts",
+      "base_sha": "460e7271d6e2c28fcfd78856960e0bf84962e0f9",
+      "checks": {
+        "failures": [
+          "validate-merge-result",
+          "validate-source"
+        ],
+        "green": false,
+        "pending": [],
+        "successes": [
+          "scrapper-identity"
+        ],
+        "total": 4
+      },
+      "decision": "DRAFT_REBASE_CANDIDATE",
+      "draft": true,
+      "git": {
+        "ahead_by": 3,
+        "behind_by": 26,
+        "changed_path_count": 3,
+        "changed_paths": [
+          ".github/workflows/scrapper-identity-contract.yml",
+          "contracts/scrapper-turnkey-identity-v1.json",
+          "docs/SCRAPPER_TURNKEY_IDENTITY.md"
+        ],
+        "conflict_paths": [],
+        "equivalent_patch_commits": [],
+        "merge_base": "460e7271d6e2c28fcfd78856960e0bf84962e0f9",
+        "merge_clean": true,
+        "merge_tree": "513183def4aa355dea28f7d475df620469609b0b",
+        "merge_tree_diagnostic": null,
+        "patch_equivalent_to_main": false,
+        "unique_patch_commits": [
+          "1afce83112ef198296cef8286a5786ad9c5f2a6a",
+          "2c2b354308d57b6ab53f2ead2246e8e775e767cb",
+          "64b4c966cda79d42b452f29ec59312f5ca6bdc00"
+        ]
+      },
+      "head_ref": "feat/scrapper-turnkey-identity-v1",
+      "head_sha": "64b4c966cda79d42b452f29ec59312f5ca6bdc00",
+      "mergeable": true,
+      "mergeable_state": "unstable",
+      "number": 12,
+      "reviews": {
+        "approved_reviewers": [],
+        "changes_requested_by": [],
+        "required_reviewer_approved": false,
+        "states": {}
+      },
+      "state": "open",
+      "thread_query_error": null,
+      "title": "contract: turnkey scrapper BFF and service identities",
+      "unresolved_threads": 0,
+      "url": "https://github.com/appolon1908-hue/Keycloak/pull/12"
+    },
+    {
+      "base_ref": "main",
+      "base_sha": "d3ed59800c53b82b03323960fe006fc15a08091e",
+      "checks": {
+        "failures": [],
+        "green": true,
+        "pending": [],
+        "successes": [
+          "validate-merge-result",
+          "validate-source"
+        ],
+        "total": 2
+      },
+      "decision": "DRAFT_REBASE_CANDIDATE",
+      "draft": true,
+      "git": {
+        "ahead_by": 5,
+        "behind_by": 23,
+        "changed_path_count": 6,
+        "changed_paths": [
+          "config/contracts/integration-fabric-service-clients-v2.json",
+          "config/contracts/n8n-automation-clients-v2.json",
+          "docs/integrations/CODESTRA_INTEGRATION_FABRIC_IDENTITIES_V2.md",
+          "docs/integrations/INTEGRATION_FABRIC_IDENTITY_BRANCH_MAP.md",
+          "docs/integrations/n8n-automation-identities.md",
+          "scripts/validate_integration_fabric_clients.py"
+        ],
+        "conflict_paths": [],
+        "equivalent_patch_commits": [],
+        "merge_base": "d3ed59800c53b82b03323960fe006fc15a08091e",
+        "merge_clean": true,
+        "merge_tree": "f125c88f0f133abd97d3ecc50356f312402c98b2",
+        "merge_tree_diagnostic": null,
+        "patch_equivalent_to_main": false,
+        "unique_patch_commits": [
+          "afa70402597877459368ff992c9097c704588b5e",
+          "cbba3b9478a797775372593c4adae3b3fe71841b",
+          "496dd0974bfb457719776833589bcd8c6562e476",
+          "cb2aac84bebf3a6c07958172af78c0944af49036",
+          "fb2bda91e52385c0f673f358ab3147f93b42b766"
+        ]
+      },
+      "head_ref": "integration/n8n-service-identities-v2-20260827",
+      "head_sha": "fb2bda91e52385c0f673f358ab3147f93b42b766",
+      "mergeable": true,
+      "mergeable_state": "behind",
+      "number": 10,
+      "reviews": {
+        "approved_reviewers": [],
+        "changes_requested_by": [],
+        "required_reviewer_approved": false,
+        "states": {}
+      },
+      "state": "open",
+      "thread_query_error": null,
+      "title": "feat(identity): define isolated integration-fabric service identities v2",
+      "unresolved_threads": 0,
+      "url": "https://github.com/appolon1908-hue/Keycloak/pull/10"
+    },
+    {
+      "base_ref": "main",
+      "base_sha": "d3ed59800c53b82b03323960fe006fc15a08091e",
+      "checks": {
+        "failures": [],
+        "green": true,
+        "pending": [],
+        "successes": [
+          "validate-merge-result",
+          "validate-source"
+        ],
+        "total": 2
+      },
+      "decision": "DRAFT_REBASE_CANDIDATE",
+      "draft": true,
+      "git": {
+        "ahead_by": 2,
+        "behind_by": 23,
+        "changed_path_count": 2,
+        "changed_paths": [
+          "config/contracts/n8n-automation-clients-v2.json",
+          "docs/N8N_AUTOMATION_SERVICE_CLIENTS_V2.md"
+        ],
+        "conflict_paths": [],
+        "equivalent_patch_commits": [],
+        "merge_base": "d3ed59800c53b82b03323960fe006fc15a08091e",
+        "merge_clean": true,
+        "merge_tree": "5537bb8ab7d11c6b9f7cf1ab010797c4fe9a077a",
+        "merge_tree_diagnostic": null,
+        "patch_equivalent_to_main": false,
+        "unique_patch_commits": [
+          "eb5b7c6334eefcf66bef7909fbbd90efa3de659e",
+          "51e28b9d0ce6db7c11be43c152d100341a9bef9b"
+        ]
+      },
+      "head_ref": "feature/n8n-automation-service-clients-v2",
+      "head_sha": "51e28b9d0ce6db7c11be43c152d100341a9bef9b",
+      "mergeable": true,
+      "mergeable_state": "behind",
+      "number": 9,
+      "reviews": {
+        "approved_reviewers": [],
+        "changes_requested_by": [],
+        "required_reviewer_approved": false,
+        "states": {}
+      },
+      "state": "open",
+      "thread_query_error": null,
+      "title": "feat(identity): declare n8n automation service clients v2",
+      "unresolved_threads": 0,
+      "url": "https://github.com/appolon1908-hue/Keycloak/pull/9"
+    },
+    {
+      "base_ref": "main",
+      "base_sha": "d3ed59800c53b82b03323960fe006fc15a08091e",
+      "checks": {
+        "failures": [
+          "validate-source"
+        ],
+        "green": false,
+        "pending": [],
+        "successes": [
+          "validate-merge-result"
+        ],
+        "total": 2
+      },
+      "decision": "CLEAN_REBASE_GATES_PENDING",
+      "draft": false,
+      "git": {
+        "ahead_by": 25,
+        "behind_by": 23,
+        "changed_path_count": 26,
+        "changed_paths": [
+          ".env.example",
+          ".github/workflows/validate.yml",
+          "Dockerfile",
+          "compose.yaml",
+          "config/contracts/moneybee-backend-producer.json",
+          "config/email/keycloak-security-smtp.json",
+          "config/identity/moneybee-enterprise-access-policy.json",
+          "config/identity/moneybee-registration.json",
+          "config/realms/codestra.json",
+          "docs/KEYCLOAK_PASSWORD_RESET_SMTP.md",
+          "docs/MONEYBEE_SECURITY_SENDER_POLICY.md",
+          "extensions/moneybee-email-otp/pom.xml",
+          "extensions/moneybee-email-otp/src/main/java/co/codestra/keycloak/moneybee/MoneyBeeEmailOtpRequiredAction.java",
+          "extensions/moneybee-email-otp/src/main/java/co/codestra/keycloak/moneybee/MoneyBeeRegistrationGate.java",
+          "extensions/moneybee-email-otp/src/main/resources/META-INF/services/org.keycloak.authentication.FormActionFactory",
+          "extensions/moneybee-email-otp/src/main/resources/META-INF/services/org.keycloak.authentication.RequiredActionFactory",
+          "scripts/plan-moneybee-registration.sh",
+          "scripts/validate-moneybee-registration.py",
+          "scripts/validate-password-reset-contract.py",
+          "themes/codestra-identity/email/html/moneybee-email-otp.ftl",
+          "themes/codestra-identity/email/messages/messages_en.properties",
+          "themes/codestra-identity/email/messages/messages_es.properties",
+          "themes/codestra-identity/email/text/moneybee-email-otp.ftl",
+          "themes/codestra-identity/email/theme.properties",
+          "themes/codestra-identity/login/moneybee-email-otp.ftl",
+          "themes/codestra-identity/login/theme.properties"
+        ],
+        "conflict_paths": [],
+        "equivalent_patch_commits": [],
+        "merge_base": "d3ed59800c53b82b03323960fe006fc15a08091e",
+        "merge_clean": true,
+        "merge_tree": "4418ce81dedf7cd9e608d63fe097c4af4d7b0bc6",
+        "merge_tree_diagnostic": null,
+        "patch_equivalent_to_main": false,
+        "unique_patch_commits": [
+          "c744b5e35fb6799345e7d95b73e5fef0cc46b9ae",
+          "8d52b323d04d889104dc29365fe91adc377d6ddf",
+          "89f4ec52e2eaba7af602363ba42256bc31b4e379",
+          "b9ceb1374e25bf635d112434a9bfe33379317a41",
+          "209165700fc579897b40cdae6b3c2a8f0e28694a",
+          "4e7fe4e2a664d5fede0045a0ab4b9b327508f763",
+          "8cb47a68fa267bc5f801b5c1358aa68c21ab1f1e",
+          "07c5191776854a25d489322cbc5d9d0bfbf88621",
+          "99b57dcb22cb7aed0875ce7eeab2de10e0edad52",
+          "9ab7766cd18561fcb69d969c7ae1176ce0626f84",
+          "0b9f70a11e7653d4775addb63ad27e02f4729ede",
+          "69b4504f7b664fd8909c8d047ca5914596ef0eda",
+          "b31971865532c379f8b2b7c7df33db0bd3e02d40",
+          "652bbca8d89e61f6d5b52e10c88573d8a3e4f1a4",
+          "1b6568c79bd0809ca849ba4cdc7e3ec13b03e2b1",
+          "8f32753a8c6fea1f0d89941354fe0cafa25256ed",
+          "a4346b1976e894ef57c45df3774634caf936c31c",
+          "bb801ed26a66283d6e48a3c8c3431907a3aea866",
+          "409661143d9b156767810b073342c1f629556acd",
+          "2d477b430d8ff3b8f429d0b6f347d75259a9abcc",
+          "10f9ca4a639e0aae099f7ef3da69ceaed009b824",
+          "4a66d1a06e2e64bba9c462300783c92a40c5dde3",
+          "df50ec776f37a6900c50b843217560de0b496dde",
+          "91b3693f608b4d9cb63594ea75a7323c90bbce70",
+          "5bfb717570f93a25312a815b8806387d6564af61"
+        ]
+      },
+      "head_ref": "feat/moneybee-registration-email-otp",
+      "head_sha": "5bfb717570f93a25312a815b8806387d6564af61",
+      "mergeable": true,
+      "mergeable_state": "behind",
+      "number": 8,
+      "reviews": {
+        "approved_reviewers": [
+          "kazan555"
+        ],
+        "changes_requested_by": [],
+        "required_reviewer_approved": true,
+        "states": {
+          "kazan555": "APPROVED"
+        }
+      },
+      "state": "open",
+      "thread_query_error": null,
+      "title": "feat(identity): add MoneyBee borrower registration and email OTP",
+      "unresolved_threads": 0,
+      "url": "https://github.com/appolon1908-hue/Keycloak/pull/8"
+    },
+    {
+      "base_ref": "feat/klyrow-smtp-password-reset",
+      "base_sha": "f25f06345649d5ff2fe47bb26e3325404a1a734c",
+      "checks": {
+        "failures": [
+          "validate-merge-result",
+          "validate-merge-result-e2e",
+          "validate-source",
+          "validate-source-e2e"
+        ],
+        "green": false,
+        "pending": [],
+        "successes": [],
+        "total": 4
+      },
+      "decision": "DRAFT_REWORK_REQUIRED",
+      "draft": true,
+      "git": {
+        "ahead_by": 6,
+        "behind_by": 26,
+        "changed_path_count": 12,
+        "changed_paths": [
+          ".github/workflows/password-reset-staging-e2e.yml",
+          ".github/workflows/validate-password-reset-e2e.yml",
+          ".github/workflows/validate.yml",
+          "config/email/keycloak-security-smtp.json",
+          "config/identity/application-domain-registry.json",
+          "deploy/keycloak-email.env.example",
+          "docs/KEYCLOAK_PASSWORD_RESET_SMTP.md",
+          "docs/PASSWORD_RESET_E2E_ACCEPTANCE.md",
+          "scripts/password-reset-e2e.py",
+          "scripts/validate-domain-application-registry.py",
+          "scripts/validate-password-reset-contract.py",
+          "scripts/validate-password-reset-e2e.py"
+        ],
+        "conflict_paths": [
+          ".github/workflows/validate.yml",
+          "config/email/keycloak-security-smtp.json",
+          "config/identity/application-domain-registry.json",
+          "scripts/validate-domain-application-registry.py",
+          "scripts/validate-password-reset-contract.py"
+        ],
+        "equivalent_patch_commits": [
+          "b0464fbce240e90542eb5834e70530abd396d5a4"
+        ],
+        "merge_base": "460e7271d6e2c28fcfd78856960e0bf84962e0f9",
+        "merge_clean": false,
+        "merge_tree": null,
+        "merge_tree_diagnostic": "a74bc09f98eff7d156cdc1631ee451fb7d636e9c\n100644 89ad268ede45d31f3597d627965143cdcc3b4faa 1\t.github/workflows/validate.yml\n100644 95b35172be1500312fa8c28d7ebdf922fb39560b 2\t.github/workflows/validate.yml\n100644 a56a7f7b88dc47a7ee6df6a16c2b6d49326a6363 3\t.github/workflows/validate.yml\n100644 1b7fa58fd94f298636a8f48a6c26b9b8fe475f19 2\tconfig/email/keycloak-security-smtp.json\n100644 91d154d6d01c1496c497c333ad3c7f1d780373f9 3\tconfig/email/keycloak-security-smtp.json\n100644 af5168068e9ab7c6ba233cd4186b24be6cf4430f 2\tconfig/identity/application-domain-registry.json\n100644 7c30245534fe68443bff0ea420212e2beec3de5d 3\tconfig/identity/application-domain-registry.json\n100755 b61c4193746223bc3b6a70986ab2ed6fb474654d 2\tscripts/validate-domain-application-registry.py\n100755 e4799afd7a4766d7b7a2db601663ac062acfb7bb 3\tscripts/validate-domain-application-registry.py\n100755 2e71e163d17ac1e6396d77ec9fed07e98385be39 2\tscripts/validate-password-reset-contract.py\n100755 eb6f072c85f485d9023109e9baf902dd0d77336a 3\tscripts/validate-password-reset-contract.py\n\nAuto-merging .github/workflows/validate.yml\nCONFLICT (content): Merge conflict in .github/workflows/validate.yml\nAuto-merging config/email/keycloak-security-smtp.json\nCONFLICT (add/add): Merge conflict in config/email/keycloak-security-smtp.json\nAuto-merging config/identity/application-domain-registry.json\nCONFLICT (add/add): Merge conflict in config/identity/application-domain-registry.json\nAuto-merging scripts/validate-domain-application-registry.py\nCONFLICT (add/add): Merge conflict in scripts/validate-domain-application-registry.py\nAuto-merging scripts/validate-password-reset-contract.py\nCONFLICT (add/add): Merge conflict in scripts/validate-password-reset-contract.py\n",
+        "patch_equivalent_to_main": false,
+        "unique_patch_commits": [
+          "9fbdb349c6c797e536829d3ef64d5d86f8012508",
+          "fb68e6533657338dbff7cc86de10921d6748a88d",
+          "f5b87e75d0e4a42f325ba9590265438ae39d1b30",
+          "e1d5259ac302f3c94de005b076506fe120762aa0",
+          "96c0db86cef0c2f54c8a108181d49fdf4dd77c0b"
+        ]
+      },
+      "head_ref": "feat/password-reset-e2e-acceptance",
+      "head_sha": "96c0db86cef0c2f54c8a108181d49fdf4dd77c0b",
+      "mergeable": true,
+      "mergeable_state": "unstable",
+      "number": 6,
+      "reviews": {
+        "approved_reviewers": [
+          "kazan555"
+        ],
+        "changes_requested_by": [],
+        "required_reviewer_approved": true,
+        "states": {
+          "kazan555": "APPROVED"
+        }
+      },
+      "state": "open",
+      "thread_query_error": null,
+      "title": "Add protected end-to-end password-reset acceptance for gates 1\u201311",
+      "unresolved_threads": 0,
+      "url": "https://github.com/appolon1908-hue/Keycloak/pull/6"
+    }
+  ],
+  "repository": "appolon1908-hue/Keycloak",
+  "safety": {
+    "keycloak_runtime_apply": false,
+    "keycloak_runtime_contacted": false,
+    "production_changed": false,
+    "prs_merged": 0,
+    "secrets_read": 0,
+    "ssh_changed": false,
+    "tokens_issued": 0
+  },
+  "schema_version": 1
+}
