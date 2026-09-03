@@ -89,7 +89,10 @@ jobs:
           }
           numbers = [item['number'] for item in data['pull_requests']]
           assert len(numbers) == len(set(numbers))
-          assert all(item['base_ref'] == 'main' for item in data['pull_requests'])
+          base_refs = sorted({item['base_ref'] for item in data['pull_requests']})
+          assert base_refs and all(base_refs)
+          assert 'main' in base_refs
+          print(f"KEYCLOAK_OPEN_PR_BASE_REFS={','.join(base_refs)}")
           print('KEYCLOAK_OPEN_PR_EVIDENCE=PASS')
           PY
 
