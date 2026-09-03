@@ -1,0 +1,139 @@
+name: One-shot establish Keycloak test promotion branch
+
+on:
+  push:
+    branches:
+      - remediation/keycloak-branch-topology-20260903
+    paths:
+      - .github/workflows/one-shot-establish-test-branch.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: keycloak-establish-test-promotion-branch
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      EXPECTED_DEVELOPMENT_SHA: 18c130af174dc791222355fa6178422bd6cb30d2
+      EXPECTED_LEGACY_SHA: fb2bda91e52385c0f673f358ab3147f93b42b766
+      LEGACY_BRANCH: test/integration-token-matrix-v2
+      ARCHIVE_BRANCH: archive/integration-token-matrix-v2-20260903
+      PROMOTION_BRANCH: test
+    steps:
+      - name: Guard and migrate conflicting branch namespace
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          repository = os.environ['GITHUB_REPOSITORY']
+          token = os.environ['GITHUB_TOKEN']
+          expected_development = os.environ['EXPECTED_DEVELOPMENT_SHA']
+          expected_legacy = os.environ['EXPECTED_LEGACY_SHA']
+          legacy_branch = os.environ['LEGACY_BRANCH']
+          archive_branch = os.environ['ARCHIVE_BRANCH']
+          promotion_branch = os.environ['PROMOTION_BRANCH']
+          owner = repository.split('/', 1)[0]
+          api = f'https://api.github.com/repos/{repository}'
+
+          def request(path, *, method='GET', body=None, allow_404=False):
+              headers = {
+                  'Accept': 'application/vnd.github+json',
+                  'Authorization': f'Bearer {token}',
+                  'Content-Type': 'application/json',
+                  'User-Agent': 'codestra-keycloak-branch-topology',
+                  'X-GitHub-Api-Version': '2022-11-28',
+              }
+              data = None if body is None else json.dumps(body).encode('utf-8')
+              req = urllib.request.Request(api + path, headers=headers, data=data, method=method)
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      if response.status == 204:
+                          return None
+                      return json.load(response)
+              except urllib.error.HTTPError as exc:
+                  if allow_404 and exc.code == 404:
+                      return None
+                  detail = exc.read().decode('utf-8', errors='replace')[:1000]
+                  raise RuntimeError(f'{method} {path} failed: HTTP {exc.code}: {detail}') from exc
+
+          def ref_sha(branch):
+              encoded = urllib.parse.quote(f'heads/{branch}', safe='/')
+              payload = request(f'/git/ref/{encoded}', allow_404=True)
+              if payload is None:
+                  return None
+              return payload['object']['sha']
+
+          development_sha = ref_sha('development')
+          legacy_sha = ref_sha(legacy_branch)
+          archive_sha = ref_sha(archive_branch)
+          promotion_sha = ref_sha(promotion_branch)
+
+          if development_sha != expected_development:
+              raise SystemExit(
+                  f'development moved: expected={expected_development} actual={development_sha}'
+              )
+          if legacy_sha != expected_legacy:
+              raise SystemExit(f'legacy branch drift: expected={expected_legacy} actual={legacy_sha}')
+          if archive_sha != expected_legacy:
+              raise SystemExit(f'archive proof mismatch: expected={expected_legacy} actual={archive_sha}')
+          if promotion_sha is not None:
+              raise SystemExit(f'promotion branch already exists at {promotion_sha}')
+
+          head = urllib.parse.quote(f'{owner}:{legacy_branch}', safe='')
+          pulls = request(f'/pulls?state=all&head={head}&per_page=100')
+          if pulls:
+              numbers = [item.get('number') for item in pulls]
+              raise SystemExit(f'legacy branch still referenced by pull requests: {numbers}')
+
+          deleted = False
+          try:
+              encoded_legacy = urllib.parse.quote(f'heads/{legacy_branch}', safe='/')
+              request(f'/git/refs/{encoded_legacy}', method='DELETE')
+              deleted = True
+              request(
+                  '/git/refs',
+                  method='POST',
+                  body={'ref': f'refs/heads/{promotion_branch}', 'sha': expected_development},
+              )
+          except Exception:
+              if deleted and ref_sha(legacy_branch) is None:
+                  request(
+                      '/git/refs',
+                      method='POST',
+                      body={'ref': f'refs/heads/{legacy_branch}', 'sha': expected_legacy},
+                  )
+              raise
+
+          final_test_sha = ref_sha(promotion_branch)
+          final_legacy_sha = ref_sha(legacy_branch)
+          final_archive_sha = ref_sha(archive_branch)
+          if final_test_sha != expected_development:
+              raise SystemExit(
+                  f'test branch verification failed: expected={expected_development} actual={final_test_sha}'
+              )
+          if final_legacy_sha is not None:
+              raise SystemExit(f'legacy branch still exists at {final_legacy_sha}')
+          if final_archive_sha != expected_legacy:
+              raise SystemExit('archive changed during migration')
+
+          print('KEYCLOAK_TEST_BRANCH_MIGRATION=PASS')
+          print(f'TEST_SHA={final_test_sha}')
+          print(f'ARCHIVED_LEGACY_SHA={final_archive_sha}')
+          print('RUNTIME_CHANGED=false')
+          print('SSH_CHANGED=false')
+          print('SECRETS_READ=0')
+          PY
