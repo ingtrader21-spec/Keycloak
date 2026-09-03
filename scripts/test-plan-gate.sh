@@ -202,9 +202,9 @@ plan_dir="$test_root/plan"
 [[ "$(jq -er '.api.adminApiBaseUrl' "$plan_dir/plan.json")" == "https://auth-staging.codestra.co" ]]
 [[ "$(jq -er '.api.issuer' "$plan_dir/plan.json")" == "https://auth-staging.codestra.co/realms/codestra" ]]
 
-[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 29 ]]
+[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 31 ]]
 [[ "$(jq -er '.blockedCount' "$plan_dir/plan.json")" -eq 0 ]]
-[[ "$(jq -er '.createCount' "$plan_dir/plan.json")" -eq 28 ]]
+[[ "$(jq -er '.createCount' "$plan_dir/plan.json")" -eq 30 ]]
 [[ "$(jq -er '.updateCount' "$plan_dir/plan.json")" -eq 1 ]]
 [[ "$(jq -er '.clients[] | select(.clientId == "klyrow-portal") | .action' "$plan_dir/plan.json")" == "update" ]]
 for client_id in moneybee-admin moneybee-borrower moneybee-lender moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra; do
@@ -239,7 +239,7 @@ mapfile -t managed_clients < <(jq -r '.clients[]' "$ROOT_DIR/config/policy/manag
   "${managed_clients[@]}" >/dev/null
 [[ -f "$rollback_dir/config/clients/klyrow-portal.json" ]]
 [[ "$(jq -er '.existingClientCount' "$rollback_dir/rollback-metadata.json")" -eq 1 ]]
-[[ "$(jq -er '.absentCreatableClientCount' "$rollback_dir/rollback-metadata.json")" -eq 28 ]]
+[[ "$(jq -er '.absentCreatableClientCount' "$rollback_dir/rollback-metadata.json")" -eq 30 ]]
 
 if "$ROOT_DIR/scripts/apply-plan.sh" \
   --plan "$plan_dir/plan.json" \
@@ -289,7 +289,7 @@ mv "$state_file.tmp" "$state_file"
   --expected-review-sha "$review_sha256" \
   --expected-deploy-sha "$expected_sha" >/dev/null
 
-for client_id in klyrow-portal moneybee-admin moneybee-borrower moneybee-lender moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra; do
+for client_id in klyrow-portal moneybee-admin moneybee-borrower moneybee-lender moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra sdk-intake alertmanager; do
   jq -e --arg client_id "$client_id" 'has($client_id)' "$state_file" >/dev/null
 done
 jq -e --slurpfile desired "$ROOT_DIR/config/clients/klyrow-portal.json" '
@@ -310,7 +310,7 @@ for client_id in moneybee-admin moneybee-borrower moneybee-lender; do
     .[$client_id].representation.protocolMappers[0].name == "moneybee-api-audience"
   ' "$state_file" >/dev/null
 done
-for client_id in moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra; do
+for client_id in moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra sdk-intake alertmanager; do
   jq -e --arg client_id "$client_id" '
     .[$client_id].representation.serviceAccountsEnabled == true
     and .[$client_id].representation.publicClient == false
