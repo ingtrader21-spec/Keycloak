@@ -1,0 +1,53 @@
+name: Keycloak exact-head PR gate
+
+on:
+  pull_request:
+    branches:
+      - development
+      - test
+      - staging
+      - production
+      - main
+    paths:
+      - "scripts/ci/audit_keycloak_pull_requests.py"
+      - "tests/test_audit_keycloak_pull_requests.py"
+      - ".github/workflows/keycloak-pr-authority-*.yml"
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+
+concurrency:
+  group: keycloak-exact-head-pr-gate-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: Keycloak / exact-head-pr-authority
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact proposed head
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Compile fail-closed auditor
+        run: python3 -m py_compile scripts/ci/audit_keycloak_pull_requests.py
+      - name: Run exact-head audit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/ci/audit_keycloak_pull_requests.py \
+            --json-output artifacts/keycloak-pr-audit.json \
+            --markdown-output artifacts/keycloak-pr-audit.md
+      - name: Upload bounded audit evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: keycloak-pr-audit-${{ github.event.pull_request.head.sha }}
+          path: |
+            artifacts/keycloak-pr-audit.json
+            artifacts/keycloak-pr-audit.md
+          if-no-files-found: ignore
+          retention-days: 30
