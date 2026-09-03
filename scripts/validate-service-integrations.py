@@ -205,6 +205,11 @@ def client_ok(cid: str, document: dict[str, Any], scopes: set[str] | None = None
     if re.search(r'"tenant[_-]?id"\s*:', serialized, re.I):
         fail(f"{cid}: static tenant mapper prohibited")
     mappers = document.get("protocolMappers", [])
+    for mapper_document in mappers:
+        mapper_config = mapper_document.get("config", {}) if isinstance(mapper_document, dict) else {}
+        claim_name = str(mapper_config.get("claim.name", "")).strip().lower()
+        if claim_name in {"tenant_id", "tenant-id", "tenant.id", "tenant"}:
+            fail(f"{cid}: static tenant mapper prohibited")
     aud = [m for m in mappers if m.get("protocolMapper") == "oidc-audience-mapper"]
     claims = [m for m in mappers if m.get("name") == "reviewed-service-scopes"]
     if len(aud) != 1 or aud[0].get("config", {}).get("included.custom.audience") != "middleware-api":
