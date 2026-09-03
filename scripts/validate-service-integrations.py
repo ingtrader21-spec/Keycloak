@@ -197,7 +197,7 @@ def client_ok(cid: str, document: dict[str, Any], scopes: set[str] | None = None
         fail(f"{cid}: token TTL above 300")
     if attrs.get("oauth2.device.authorization.grant.enabled") != "false":
         fail(f"{cid}: device flow enabled")
-    if attrs.get("oidc.ciba.grant.enabled" != "false":
+    if attrs.get("oidc.ciba.grant.enabled") != "false":
         fail(f"{cid}: CIBA enabled")
     no_secrets(document)
 
