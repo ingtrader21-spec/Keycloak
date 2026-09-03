@@ -98,7 +98,7 @@ jobs:
           path = Path('scripts/test-plan-gate.sh')
           text = path.read_text(encoding='utf-8')
           old = '''jq -e '\n  .partialApply == false\n  and (.operations | length == 16)\n  and all(.operations[]; (.state == "created" or .state == "updated" or .state == "unchanged"))\n' "$test_root/recovery-success/recovery-manifest.json" >/dev/null'''
-          new = '''expected_operation_count="$(jq -er '.operations | length' "$plan_dir/plan.json")"\njq -e --argjson expected_operation_count "$expected_operation_count" '\n  .partialApply == false\n  and (.operations | length == $expected_operation_count)\n  and all(.operations[]; (.state == "created" or .state == "updated" or .state == "unchanged"))\n' "$test_root/recovery-success/recovery-manifest.json" >/dev/null'''
+          new = '''expected_operation_count="$(jq -er '.clients | length' "$plan_dir/plan.json")"\njq -e --argjson expected_operation_count "$expected_operation_count" '\n  .partialApply == false\n  and (.operations | length == $expected_operation_count)\n  and all(.operations[]; (.state == "created" or .state == "updated" or .state == "unchanged"))\n' "$test_root/recovery-success/recovery-manifest.json" >/dev/null'''
           if text.count(old) != 1:
               raise SystemExit('recovery operation-count assertion anchor changed')
           path.write_text(text.replace(old, new, 1), encoding='utf-8')
@@ -114,7 +114,7 @@ jobs:
             '--expected-review-sha'; do
             grep -F -- "$token" scripts/apply-plan.sh >/dev/null
           done
-          grep -F -- 'expected_operation_count' scripts/test-plan-gate.sh >/dev/null
+          grep -F -- "'.clients | length'" scripts/test-plan-gate.sh >/dev/null
           grep -F -- 'Upload apply recovery manifest' "$WORKFLOW_CANDIDATE" >/dev/null
           grep -F -- '--recovery-dir' "$WORKFLOW_CANDIDATE" >/dev/null
 
@@ -131,7 +131,7 @@ jobs:
           resolved_source_sha=$SOURCE_SHA
           target_branch=$TARGET_BRANCH
           port_method=three-way merge of final resolved PR tree
-          recovery_test_operation_count=derived from current reviewed plan
+          recovery_test_operation_count=derived from current reviewed plan client inventory
           workflow_candidate=$WORKFLOW_CANDIDATE
           \`\`\`
 
@@ -139,8 +139,8 @@ jobs:
           concurrent unmanaged-field preservation, mandatory durable recovery evidence,
           atomic operation-state recording, \`PARTIAL_APPLY=true\` on post-mutation
           failure, and the current independent review-file/hash boundary. The original
-          sixteen-operation test constant was replaced with the current plan operation
-          count so the regression remains valid as the managed client inventory evolves.
+          sixteen-operation test constant was replaced with the current plan's client
+          inventory count so the regression remains valid as managed clients evolve.
 
           The deploy workflow candidate is validated here and must be copied to the real
           workflow by repository workflow-write authority before final exact-head CI.
