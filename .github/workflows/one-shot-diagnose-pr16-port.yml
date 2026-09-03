@@ -1,0 +1,75 @@
+name: One-shot diagnose Keycloak transaction-safety port
+
+on:
+  push:
+    branches:
+      - remediation/keycloak-pr16-port-builder-20260903
+    paths:
+      - .github/workflows/one-shot-diagnose-pr16-port.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keycloak-pr16-port-diagnostic-20260903
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      AUTHORITY_SHA: 0dbb8ea3421a39df88e3e25224845e2742b731e4
+      SOURCE_PARENT_SHA: 49d33b68a1ebf7c9de97049597583fe30a49a3ce
+      SOURCE_SHA: a3e67178d062babf3390094202aee9688995209a
+      TEST_KC_CLIENT_SECRET: test-only-secret
+    steps:
+      - name: Check out exact diagnostic trigger
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Reconstruct only the transaction scripts
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git checkout --detach "$AUTHORITY_SHA"
+          tmp="$(mktemp -d)"
+          for path in scripts/apply-plan.sh scripts/test-plan-gate.sh; do
+            mkdir -p "$tmp/current/$(dirname "$path")" "$tmp/base/$(dirname "$path")" "$tmp/incoming/$(dirname "$path")"
+            git show "$AUTHORITY_SHA:$path" >"$tmp/current/$path"
+            git show "$SOURCE_PARENT_SHA:$path" >"$tmp/base/$path"
+            git show "$SOURCE_SHA:$path" >"$tmp/incoming/$path"
+            git merge-file -p "$tmp/current/$path" "$tmp/base/$path" "$tmp/incoming/$path" >"$tmp/merged"
+            install -m 0755 "$tmp/merged" "$path"
+          done
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/test-plan-gate.sh')
+          text = path.read_text(encoding='utf-8')
+          old = '''jq -e '\n  .partialApply == false\n  and (.operations | length == 16)\n  and all(.operations[]; (.state == "created" or .state == "updated" or .state == "unchanged"))\n' "$test_root/recovery-success/recovery-manifest.json" >/dev/null'''
+          new = '''expected_operation_count="$(jq -er '.operations | length' "$plan_dir/plan.json")"\njq -e --argjson expected_operation_count "$expected_operation_count" '\n  .partialApply == false\n  and (.operations | length == $expected_operation_count)\n  and all(.operations[]; (.state == "created" or .state == "updated" or .state == "unchanged"))\n' "$test_root/recovery-success/recovery-manifest.json" >/dev/null'''
+          if text.count(old) != 1:
+              raise SystemExit('operation-count anchor changed')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Trace exact failing regression
+        shell: bash
+        run: |
+          set +e
+          PS4='+${LINENO}: ' bash -x scripts/test-plan-gate.sh >diagnostic.stdout 2>diagnostic.stderr
+          rc=$?
+          set -e
+          echo "TEST_PLAN_GATE_RC=$rc"
+          echo '--- STDOUT ---'
+          tail -n 100 diagnostic.stdout || true
+          echo '--- STDERR TAIL ---'
+          tail -n 400 diagnostic.stderr || true
+          if [[ $rc -eq 0 ]]; then
+            echo 'TRANSACTION_SAFETY_DIAGNOSTIC=UNEXPECTED_PASS'
+            exit 1
+          fi
+          echo 'TRANSACTION_SAFETY_DIAGNOSTIC=CAPTURED'
