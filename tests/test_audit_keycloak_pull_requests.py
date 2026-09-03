@@ -3,8 +3,6 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[1]
 MODULE_PATH = ROOT / "scripts/ci/audit_keycloak_pull_requests.py"
 SPEC = importlib.util.spec_from_file_location("audit_keycloak_pull_requests", MODULE_PATH)
@@ -86,3 +84,15 @@ def test_unknown_check_conclusion_fails_closed() -> None:
     )
     assert state == "BLOCKED"
     assert blockers == ["unrecognized check result: mystery (unexpected)"]
+
+if __name__ == "__main__":
+    executed = 0
+    for test_name in sorted(name for name in globals() if name.startswith("test_")):
+        test = globals()[test_name]
+        if callable(test):
+            test()
+            executed += 1
+    if executed == 0:
+        raise SystemExit("no audit policy tests executed")
+    print(f"AUDIT_POLICY_TESTS={executed}")
+    print("AUDIT_POLICY_TESTS_RESULT=PASS")

@@ -266,11 +266,116 @@ def validate_privileged_workflow(path: Path, workflow: dict[str, Any]) -> None:
                 fail(f"{path}: independent drift-review gate is incomplete; missing {required_fragment}")
 
 
+def validate_pr_authority_workflow(path: Path, workflow: dict[str, Any]) -> None:
+    """Validate read-only PR audits without granting runtime authority."""
+    required_permissions = {
+        "contents": "read",
+        "pull-requests": "read",
+        "checks": "read",
+    }
+    validate_permissions(
+        workflow.get("permissions"),
+        f"{path}.permissions",
+        required_permissions,
+    )
+
+    jobs = as_mapping(workflow.get("jobs"), f"{path}.jobs")
+    if set(jobs) != {"audit"}:
+        fail(f"{path}: PR authority workflow must contain only the audit job")
+    job = as_mapping(jobs["audit"], f"{path}.jobs.audit")
+    if "permissions" in job:
+        fail(f"{path}.jobs.audit: job-level permissions are prohibited")
+    if "environment" in job:
+        fail(f"{path}.jobs.audit: read-only audit must not use an Environment")
+    if normalize_runs_on(job.get("runs-on")) != ["ubuntu-24.04"]:
+        fail(f"{path}.jobs.audit: audit must use ubuntu-24.04")
+    if any(SECRET_EXPRESSION.search(text) for text in recursive_strings(job)):
+        fail(f"{path}.jobs.audit: repository secrets are prohibited")
+    validate_steps(job, f"{path}.jobs.audit")
+
+    workflow_text = "\n".join(recursive_strings(workflow))
+    for fragment in (
+        "scripts/ci/audit_keycloak_pull_requests.py",
+        "tests/test_audit_keycloak_pull_requests.py",
+        "--json-output",
+        "--markdown-output",
+        "actions/upload-artifact",
+        "retention-days",
+        "github.token",
+    ):
+        if fragment not in workflow_text:
+            fail(f"{path}: incomplete PR audit evidence; missing {fragment}")
+
+    triggers = as_mapping(workflow.get("on"), f"{path}.on")
+    concurrency = as_mapping(workflow.get("concurrency"), f"{path}.concurrency")
+    if path.name == "keycloak-pr-authority-pr.yml":
+        if set(triggers) != {"pull_request"}:
+            fail(f"{path}: exact-head audit must be pull_request-only")
+        pull_request = as_mapping(
+            triggers["pull_request"], f"{path}.on.pull_request"
+        )
+        branches = as_sequence(
+            pull_request.get("branches"), f"{path}.on.pull_request.branches"
+        )
+        expected_branches = [
+            "development",
+            "test",
+            "staging",
+            "production",
+            "main",
+        ]
+        if branches != expected_branches:
+            fail(f"{path}: protected promotion branch order changed")
+        paths = as_sequence(
+            pull_request.get("paths"), f"{path}.on.pull_request.paths"
+        )
+        expected_paths = [
+            "scripts/ci/audit_keycloak_pull_requests.py",
+            "tests/test_audit_keycloak_pull_requests.py",
+            ".github/workflows/keycloak-pr-authority-*.yml",
+        ]
+        if paths != expected_paths:
+            fail(f"{path}: exact-head audit path boundary changed")
+        if "github.event.pull_request.head.sha" not in workflow_text:
+            fail(f"{path}: audit must bind to the exact PR head SHA")
+        if concurrency.get("cancel-in-progress") != "true":
+            fail(f"{path}: superseded exact-head audits must be cancelled")
+        upload_steps = [
+            step
+            for step in as_sequence(job.get("steps"), f"{path}.jobs.audit.steps")
+            if isinstance(step, dict)
+            and str(step.get("uses", "")).startswith("actions/upload-artifact@")
+        ]
+        if len(upload_steps) != 1 or upload_steps[0].get("if") != "always()":
+            fail(f"{path}: exact-head evidence must upload with always()")
+    elif path.name == "keycloak-pr-authority-audit.yml":
+        if set(triggers) != {"workflow_dispatch", "schedule"}:
+            fail(f"{path}: repository audit must be manual and scheduled only")
+        schedule = as_sequence(triggers["schedule"], f"{path}.on.schedule")
+        if len(schedule) != 1:
+            fail(f"{path}: exactly one bounded schedule is required")
+        schedule_item = as_mapping(schedule[0], f"{path}.on.schedule[0]")
+        if schedule_item != {"cron": "17 5 * * *"}:
+            fail(f"{path}: audit schedule changed without review")
+        if "github.sha" not in workflow_text:
+            fail(f"{path}: scheduled audit must bind to github.sha")
+        if concurrency.get("cancel-in-progress") != "false":
+            fail(f"{path}: scheduled audit must preserve active evidence")
+    else:
+        fail(f"Unsupported PR authority workflow: {path.name}")
+
 def validate() -> None:
     if not WORKFLOW_DIR.is_dir():
         fail(f"Workflow directory does not exist: {WORKFLOW_DIR}")
     workflow_files = sorted([*WORKFLOW_DIR.glob("*.yml"), *WORKFLOW_DIR.glob("*.yaml")])
-    expected_names = {"validate.yml", "runtime-preflight.yml", "deploy.yml", "drift-review.yml"}
+    expected_names = {
+        "validate.yml",
+        "runtime-preflight.yml",
+        "deploy.yml",
+        "drift-review.yml",
+        "keycloak-pr-authority-audit.yml",
+        "keycloak-pr-authority-pr.yml",
+    }
     actual_names = {path.name for path in workflow_files}
     if actual_names != expected_names:
         fail(f"Expected workflow files {sorted(expected_names)}, found {sorted(actual_names)}")
@@ -279,6 +384,11 @@ def validate() -> None:
         workflow = load_workflow(path)
         if path.name == "validate.yml":
             validate_source_workflow(path, workflow)
+        elif path.name in {
+            "keycloak-pr-authority-audit.yml",
+            "keycloak-pr-authority-pr.yml",
+        }:
+            validate_pr_authority_workflow(path, workflow)
         else:
             validate_privileged_workflow(path, workflow)
 
