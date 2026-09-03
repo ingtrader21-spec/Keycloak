@@ -1,0 +1,56 @@
+name: Reconcile platform identity plan-gate counts
+
+on:
+  push:
+    branches:
+      - feature/platform-api-identities-v3-20260903
+    paths:
+      - scripts/fix-platform-identity-plan-gate.py
+      - .github/workflows/fix-platform-identity-plan-gate.yml
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    if: >-
+      github.repository == 'appolon1908-hue/Keycloak' &&
+      github.actor == 'appolon1908-hue'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: feature/platform-api-identities-v3-20260903
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Verify exact branch authority
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git branch --show-current)" = "feature/platform-api-identities-v3-20260903"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: Apply count and coverage reconciliation
+        run: python scripts/fix-platform-identity-plan-gate.py
+      - name: Validate shell and source drift
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash -n scripts/test-plan-gate.sh
+          git diff --check
+      - name: Commit reconciled plan gate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name "codestra-keycloak-remediation-bot"
+          git config user.email "codestra-keycloak-remediation-bot@users.noreply.github.com"
+          git add scripts/test-plan-gate.sh
+          git diff --cached --quiet && {
+            echo "ERROR=no_plan_gate_changes" >&2
+            exit 1
+          }
+          git commit -m "test(auth): include sdk-intake and Alertmanager in plan gate"
+          git push origin HEAD:feature/platform-api-identities-v3-20260903
