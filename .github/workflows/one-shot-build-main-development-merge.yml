@@ -76,6 +76,54 @@ jobs:
             exit 1
           fi
 
+          # Both branches own valid client declarations. Use an ordered union for the
+          # managed/creatable boundaries so main's platform identities and development's
+          # observability browser clients remain explicitly authorized.
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          main_sha = os.environ['EXPECTED_MAIN_SHA']
+          development_sha = os.environ['EXPECTED_DEVELOPMENT_SHA']
+          paths = (
+              Path('config/policy/managed-clients.json'),
+              Path('config/policy/creatable-clients.json'),
+          )
+
+          def load_at(commit: str, path: Path) -> list[str]:
+              raw = subprocess.check_output(
+                  ['git', 'show', f'{commit}:{path.as_posix()}'], text=True
+              )
+              payload = json.loads(raw)
+              clients = payload.get('clients')
+              if not isinstance(clients, list) or not all(
+                  isinstance(item, str) and item for item in clients
+              ):
+                  raise SystemExit(f'invalid clients policy at {commit}:{path}')
+              return clients
+
+          for path in paths:
+              main_clients = load_at(main_sha, path)
+              development_clients = load_at(development_sha, path)
+              union = list(main_clients)
+              union.extend(item for item in development_clients if item not in union)
+              required_observability = {
+                  'grafana-observability',
+                  'superset-analytics',
+                  'openbao-secrets',
+              }
+              if not required_observability.issubset(union):
+                  raise SystemExit(f'observability union incomplete for {path}')
+              path.write_text(
+                  json.dumps({'clients': union}, separators=(',', ':')) + '\n',
+                  encoding='utf-8',
+              )
+              print(f'POLICY_UNION={path} CLIENTS={len(union)}')
+          PY
+          git add config/policy/managed-clients.json config/policy/creatable-clients.json
+
           mkdir -p docs/governance
           changed_count="$(git diff --cached --name-only | wc -l | tr -d ' ')"
           conflict_lines="$(grep -c '^CONFLICT ' /tmp/keycloak-merge.log || true)"
@@ -92,6 +140,7 @@ jobs:
           target_branch=$TARGET_BRANCH
           merge_strategy=ort -X ours
           workflow_authority=main
+          client_policy_resolution=ordered union of main and development
           staged_path_count=$changed_count
           reported_conflict_lines=$conflict_lines
           \`\`\`
@@ -99,8 +148,10 @@ jobs:
           The merge starts from protected \`main\`, incorporates every non-conflicting
           development change, resolves conflicting hunks in favor of current-main
           authority, and restores \`.github/workflows\` exactly from current \`main\`.
-          The resulting source is published only after the repository validation suite
-          succeeds.
+          The managed and creatable client lists are resolved by ordered union so the
+          current platform clients and development's reviewed observability clients are
+          both retained. The resulting source is published only after the full repository
+          validation suite succeeds.
 
           ## Required follow-up
 
