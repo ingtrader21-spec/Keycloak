@@ -1,0 +1,40 @@
+name: Live Repository Name Authority
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_sha:
+        description: Exact 40-character Keycloak main SHA to validate
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate-live-repository-ids:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 10
+    env:
+      CODESTRA_REPOSITORY_READ_TOKEN: ${{ secrets.CODESTRA_REPOSITORY_READ_TOKEN }}
+      CONFIRM_SHA: ${{ inputs.confirm_sha }}
+    steps:
+      - name: Check out the exact reviewed main commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.confirm_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Require exact protected main identity
+        run: |
+          set -Eeuo pipefail
+          [[ "$CONFIRM_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$CONFIRM_SHA" ]]
+          [[ -n "$CODESTRA_REPOSITORY_READ_TOKEN" ]]
+      - name: Resolve all private operational repositories and verify stable IDs
+        run: python3 scripts/validate-repository-name-authority.py --live

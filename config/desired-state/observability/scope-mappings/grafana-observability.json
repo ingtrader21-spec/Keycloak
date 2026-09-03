@@ -1,0 +1,10 @@
+{
+  "clientId": "grafana-observability",
+  "fullScopeAllowed": false,
+  "realmRoles": [
+    "observability-viewer",
+    "observability-operator",
+    "observability-admin"
+  ],
+  "crossFamilyRolesAllowed": false
+}

@@ -1,0 +1,13 @@
+{
+  "name": "observability-viewer",
+  "description": "Read-only access to approved observability dashboards and queries.",
+  "composite": false,
+  "clientRole": false,
+  "attributes": {
+    "codestra.role.family": ["observability"],
+    "codestra.role.level": ["viewer"],
+    "codestra.mfa.required": ["true"],
+    "codestra.assignment.independent_approval": ["true"],
+    "codestra.cross_family_grant": ["false"]
+  }
+}
