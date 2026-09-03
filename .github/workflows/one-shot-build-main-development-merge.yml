@@ -74,7 +74,7 @@ jobs:
           }
 
           mapfile -t development_paths < <(
-            git diff --name-only "$EXPECTED_MAIN_SHA" "$EXPECTED_DEVELOPMENT_SHA" | sort
+            git diff --name-only "$EXPECTED_MAIN_SHA...$EXPECTED_DEVELOPMENT_SHA" | sort
           )
           ((${#development_paths[@]} == 49)) || {
             echo "ERROR=development_delta_inventory_changed actual=${#development_paths[@]}" >&2
