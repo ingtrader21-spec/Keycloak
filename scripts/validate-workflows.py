@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Validate legacy Keycloak workflows plus repository and PR authority workflows."""
+"""Validate all Keycloak workflow, repository, PR, and release authorities."""
 
 from __future__ import annotations
 
 import importlib.util
+import json
 import re
 import shutil
 import subprocess
@@ -17,6 +18,8 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_DIR = ROOT / ".github" / "workflows"
 CORE_PATH = ROOT / "scripts" / "validate-workflows-core.py"
 PR_AUTHORITY_POLICY = ROOT / "scripts" / "validate-pr-authority-workflows.py"
+RELEASE_CONTRACT = ROOT / ".codestra" / "production-orchestrator-contract.v1.json"
+
 LEGACY_WORKFLOWS = {
     "deploy.yml",
     "drift-review.yml",
@@ -25,14 +28,16 @@ LEGACY_WORKFLOWS = {
 }
 AUTHORITY_WORKFLOW = "repository-name-authority.yml"
 LIVE_AUTHORITY_WORKFLOW = "repository-name-live-authority.yml"
+MANUAL_RELEASE_WORKFLOW = "manual-release-intent.yml"
 PR_AUTHORITY_WORKFLOWS = {
     "keycloak-pr-authority-audit.yml",
     "keycloak-pr-authority-pr.yml",
 }
-EXPECTED_WORKFLOWS = LEGACY_WORKFLOWS | {
-    AUTHORITY_WORKFLOW,
-    LIVE_AUTHORITY_WORKFLOW,
-} | PR_AUTHORITY_WORKFLOWS
+EXPECTED_WORKFLOWS = (
+    LEGACY_WORKFLOWS
+    | {AUTHORITY_WORKFLOW, LIVE_AUTHORITY_WORKFLOW, MANUAL_RELEASE_WORKFLOW}
+    | PR_AUTHORITY_WORKFLOWS
+)
 
 
 def load_core() -> ModuleType:
@@ -62,14 +67,10 @@ def validate_repository_name_authority(path: Path, workflow: dict[str, Any]) -> 
     if set(triggers) != {"pull_request", "push"}:
         fail(f"{path}: authority validation must trigger only on pull_request and push")
 
-    pull_request = CORE.as_mapping(
-        triggers["pull_request"],
-        f"{path}.on.pull_request",
-    )
+    pull_request = CORE.as_mapping(triggers["pull_request"], f"{path}.on.pull_request")
     push = CORE.as_mapping(triggers["push"], f"{path}.on.push")
     if CORE.as_sequence(
-        pull_request.get("branches"),
-        f"{path}.on.pull_request.branches",
+        pull_request.get("branches"), f"{path}.on.pull_request.branches"
     ) != ["main"]:
         fail(f"{path}: pull-request validation must target main only")
     if CORE.as_sequence(push.get("branches"), f"{path}.on.push.branches") != [
@@ -78,17 +79,14 @@ def validate_repository_name_authority(path: Path, workflow: dict[str, Any]) -> 
         fail(f"{path}: push validation must target main only")
 
     CORE.validate_permissions(
-        workflow.get("permissions"),
-        f"{path}.permissions",
-        {"contents": "read"},
+        workflow.get("permissions"), f"{path}.permissions", {"contents": "read"}
     )
     jobs = CORE.as_mapping(workflow.get("jobs"), f"{path}.jobs")
     if set(jobs) != {"repository-name-authority"}:
         fail(f"{path}: unexpected authority job set")
 
     job = CORE.as_mapping(
-        jobs["repository-name-authority"],
-        f"{path}.jobs.repository-name-authority",
+        jobs["repository-name-authority"], f"{path}.jobs.repository-name-authority"
     )
     if "permissions" in job or "environment" in job:
         fail(f"{path}: offline authority job cannot override permissions or use an Environment")
@@ -113,16 +111,14 @@ def validate_repository_name_authority(path: Path, workflow: dict[str, Any]) -> 
 
 
 def validate_repository_name_live_authority(
-    path: Path,
-    workflow: dict[str, Any],
+    path: Path, workflow: dict[str, Any]
 ) -> None:
     triggers = CORE.as_mapping(workflow.get("on"), f"{path}.on")
     if set(triggers) != {"workflow_dispatch"}:
         fail(f"{path}: live repository identity must be workflow_dispatch-only")
 
     dispatch = CORE.as_mapping(
-        triggers["workflow_dispatch"],
-        f"{path}.on.workflow_dispatch",
+        triggers["workflow_dispatch"], f"{path}.on.workflow_dispatch"
     )
     inputs = CORE.as_mapping(dispatch.get("inputs"), f"{path}.on.workflow_dispatch.inputs")
     if set(inputs) != {"confirm_sha"}:
@@ -132,9 +128,7 @@ def validate_repository_name_live_authority(
         fail(f"{path}: confirm_sha must be a required string")
 
     CORE.validate_permissions(
-        workflow.get("permissions"),
-        f"{path}.permissions",
-        {"contents": "read"},
+        workflow.get("permissions"), f"{path}.permissions", {"contents": "read"}
     )
     jobs = CORE.as_mapping(workflow.get("jobs"), f"{path}.jobs")
     if set(jobs) != {"validate-live-repository-ids"}:
@@ -185,7 +179,7 @@ def validate_repository_name_live_authority(
 
 
 def validate_legacy_workflows() -> None:
-    """Run the unchanged legacy policy against only the original four workflows."""
+    """Run the unchanged legacy policy against only the original workflows."""
 
     with tempfile.TemporaryDirectory(prefix="keycloak-workflow-policy-") as directory:
         legacy_directory = Path(directory)
@@ -217,6 +211,186 @@ def validate_pr_authority_workflows() -> None:
         fail("PR authority workflow validator did not emit its PASS marker")
 
 
+def validate_release_contract() -> None:
+    if not RELEASE_CONTRACT.is_file() or RELEASE_CONTRACT.is_symlink():
+        fail("release-intent contract is missing or unsafe")
+    try:
+        contract = json.loads(RELEASE_CONTRACT.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        fail(f"release-intent contract is invalid: {exc}")
+    if not isinstance(contract, dict):
+        fail("release-intent contract root must be an object")
+
+    exact_keys = {
+        "schema_version",
+        "repository",
+        "repository_id",
+        "default_branch",
+        "role",
+        "release_intent_workflow",
+        "deployment_authority",
+        "require_verified_commit",
+        "required_checks",
+        "supported_phases",
+        "artifact_policy",
+        "environments",
+        "native_workflows",
+        "safety",
+        "blockers",
+    }
+    if set(contract) != exact_keys:
+        fail("release-intent contract key set drift")
+
+    expected_scalars = {
+        "schema_version": "codestra.production-orchestrator-contract.v1",
+        "repository": "appolon1908-hue/Keycloak",
+        "repository_id": 1347523366,
+        "default_branch": "main",
+        "role": "identity",
+        "release_intent_workflow": ".github/workflows/manual-release-intent.yml",
+        "deployment_authority": True,
+        "require_verified_commit": True,
+    }
+    for key, expected in expected_scalars.items():
+        if contract.get(key) != expected:
+            fail(f"release-intent contract drift: {key}")
+
+    if contract.get("required_checks") != ["validate"]:
+        fail("release-intent required-check authority drift")
+    if contract.get("supported_phases") != ["plan", "staging", "canary", "production"]:
+        fail("release-intent phase authority drift")
+    if contract.get("artifact_policy") != {
+        "minimum_images": 0,
+        "maximum_images": 0,
+        "require_digest": True,
+        "allow_rebuild_after_staging": False,
+        "allow_retag_after_staging": False,
+        "require_sbom": False,
+        "require_provenance": False,
+        "require_signature": False,
+    }:
+        fail("release-intent artifact policy drift")
+    if contract.get("environments") != {
+        "staging": "staging-readonly",
+        "canary": "production-readonly-canary",
+        "production": "production",
+    }:
+        fail("release-intent environment mapping drift")
+    if contract.get("native_workflows") != {
+        "plan_apply": ".github/workflows/deploy.yml",
+        "drift_review": ".github/workflows/drift-review.yml",
+    }:
+        fail("release-intent native workflow mapping drift")
+
+    expected_safety = {
+        "external_effects_default": False,
+        "live_email_delivery": False,
+        "live_sms_delivery": False,
+        "live_pstn_dialing": False,
+        "odoo_write": False,
+        "n8n_external_delivery": False,
+        "live_trading": False,
+        "payment_execution": False,
+    }
+    if contract.get("safety") != expected_safety:
+        fail("release-intent safety defaults must remain exact and false")
+    if contract.get("blockers") != []:
+        fail("release-intent blocker field must be an explicit empty list")
+
+
+def validate_manual_release_intent(path: Path, workflow: dict[str, Any]) -> None:
+    triggers = CORE.as_mapping(workflow.get("on"), f"{path}.on")
+    if set(triggers) != {"workflow_dispatch"}:
+        fail(f"{path}: release intent must be workflow_dispatch-only")
+    dispatch = CORE.as_mapping(
+        triggers["workflow_dispatch"], f"{path}.on.workflow_dispatch"
+    )
+    inputs = CORE.as_mapping(dispatch.get("inputs"), f"{path}.on.workflow_dispatch.inputs")
+    expected_inputs = {
+        "phase",
+        "source_sha",
+        "release_id",
+        "candidate_sha256",
+        "images_json",
+        "previous_images_json",
+        "prior_evidence_sha256",
+        "confirmation",
+    }
+    if set(inputs) != expected_inputs:
+        fail(f"{path}: release-intent inputs must be exact and bounded")
+    for name, raw in inputs.items():
+        item = CORE.as_mapping(raw, f"{path}.inputs.{name}")
+        if item.get("required") != "true":
+            fail(f"{path}: input {name} must be required")
+    phase = CORE.as_mapping(inputs["phase"], f"{path}.inputs.phase")
+    if phase.get("type") != "choice" or CORE.as_sequence(
+        phase.get("options"), f"{path}.inputs.phase.options"
+    ) != ["plan", "staging", "canary", "production"]:
+        fail(f"{path}: phase input must use the exact bounded choice set")
+    for name in expected_inputs - {"phase"}:
+        item = CORE.as_mapping(inputs[name], f"{path}.inputs.{name}")
+        if item.get("type") != "string":
+            fail(f"{path}: input {name} must be a string")
+
+    CORE.validate_permissions(
+        workflow.get("permissions"),
+        f"{path}.permissions",
+        {"actions": "read", "checks": "read", "contents": "read"},
+    )
+    jobs = CORE.as_mapping(workflow.get("jobs"), f"{path}.jobs")
+    if set(jobs) != {"verify", "plan-intent", "protected-intent"}:
+        fail(f"{path}: unexpected release-intent job set")
+
+    for name, raw_job in jobs.items():
+        job = CORE.as_mapping(raw_job, f"{path}.jobs.{name}")
+        if "permissions" in job:
+            fail(f"{path}: release-intent jobs cannot override permissions")
+        if "self-hosted" in CORE.normalize_runs_on(job.get("runs-on")):
+            fail(f"{path}: release-intent policy cannot use a self-hosted runner")
+        if any(
+            CORE.SECRET_EXPRESSION.search(text)
+            for text in CORE.recursive_strings(job)
+        ):
+            fail(f"{path}: release-intent policy cannot reference secrets")
+        CORE.validate_steps(job, f"{path}.jobs.{name}")
+
+    if "environment" in CORE.as_mapping(jobs["verify"], f"{path}.jobs.verify"):
+        fail(f"{path}: pre-approval verify job cannot use an Environment")
+    if "environment" in CORE.as_mapping(jobs["plan-intent"], f"{path}.jobs.plan-intent"):
+        fail(f"{path}: plan intent cannot use an Environment")
+    if "environment" not in CORE.as_mapping(
+        jobs["protected-intent"], f"{path}.jobs.protected-intent"
+    ):
+        fail(f"{path}: protected intent must use the selected protected Environment")
+
+    text = workflow_text(workflow)
+    for required in (
+        "refs/heads/",
+        "git rev-parse HEAD",
+        "branches/",
+        "check-runs?per_page=100",
+        "@sha256:",
+        "allow_rebuild_after_staging",
+        "allow_retag_after_staging",
+        "staging-readonly",
+        "production-readonly-canary",
+        "protected_environment_approved",
+        "runtime_contacted",
+        "production_changed",
+        "external_effects_enabled",
+    ):
+        if required not in text:
+            fail(f"{path}: release-intent policy is missing {required}")
+
+    prohibited = re.compile(
+        r"(?i)(pull_request_target|ssh\s|scp\s|rsync\s|docker\s|kubectl|"
+        r"helm\s|terraform|tofu\s|keycloak-config-cli|curl\s+[^\n]*-[Xx]\s*"
+        r"(POST|PUT|PATCH|DELETE))"
+    )
+    if any(prohibited.search(value) for value in CORE.recursive_strings(workflow)):
+        fail(f"{path}: release intent must remain metadata-only")
+
+
 def validate() -> None:
     if not WORKFLOW_DIR.is_dir():
         fail(f"Workflow directory does not exist: {WORKFLOW_DIR}")
@@ -240,9 +414,17 @@ def validate() -> None:
         CORE.load_workflow(WORKFLOW_DIR / LIVE_AUTHORITY_WORKFLOW),
     )
     validate_pr_authority_workflows()
+    validate_manual_release_intent(
+        WORKFLOW_DIR / MANUAL_RELEASE_WORKFLOW,
+        CORE.load_workflow(WORKFLOW_DIR / MANUAL_RELEASE_WORKFLOW),
+    )
+    validate_release_contract()
+
     print(f"WORKFLOW_FILES={len(workflow_files)}")
     print("REPOSITORY_NAME_WORKFLOW_POLICY=PASS")
     print("PR_AUTHORITY_WORKFLOW_POLICY=PASS")
+    print("MANUAL_RELEASE_INTENT_POLICY=PASS")
+    print("RELEASE_INTENT_CONTRACT=PASS")
     print("WORKFLOW_YAML_PARSE=PASS")
     print("WORKFLOW_POLICY=PASS")
 
