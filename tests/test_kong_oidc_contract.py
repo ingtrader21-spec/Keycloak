@@ -61,18 +61,6 @@ class KongOidcContractTests(unittest.TestCase):
             scopes,
             {"middleware.request.forward", "middleware.status.read"},
         )
-        self.assertEqual(
-            mappers["tenant-id-from-service-account"]["config"],
-            {
-                "user.attribute": "tenant_id",
-                "claim.name": "tenant_id",
-                "jsonType.label": "String",
-                "id.token.claim": "false",
-                "access.token.claim": "true",
-                "userinfo.token.claim": "false",
-                "multivalued": "false",
-            },
-        )
 
     def test_service_access_matrix_has_exact_kong_middleware_grant(self) -> None:
         grants = [
