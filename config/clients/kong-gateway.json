@@ -49,21 +49,6 @@
         "userinfo.token.claim": "false",
         "access.tokenResponse.claim": "false"
       }
-    },
-    {
-      "name": "tenant-id-from-service-account",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-usermodel-attribute-mapper",
-      "consentRequired": false,
-      "config": {
-        "user.attribute": "tenant_id",
-        "claim.name": "tenant_id",
-        "jsonType.label": "String",
-        "id.token.claim": "false",
-        "access.token.claim": "true",
-        "userinfo.token.claim": "false",
-        "multivalued": "false"
-      }
     }
   ]
 }

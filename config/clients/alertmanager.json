@@ -1,6 +1,6 @@
 {
-  "clientId": "n8n-automation",
-  "name": "Codestra service identity: n8n-automation",
+  "clientId": "alertmanager",
+  "name": "Codestra service identity: alertmanager",
   "description": "Confidential machine identity managed by protected Keycloak GitOps.",
   "enabled": true,
   "protocol": "openid-connect",
@@ -42,7 +42,7 @@
       "consentRequired": false,
       "config": {
         "claim.name": "scope",
-        "claim.value": "middleware.request.forward middleware.status.read workflow.result.publish",
+        "claim.value": "alerts.write",
         "jsonType.label": "String",
         "id.token.claim": "false",
         "access.token.claim": "true",
