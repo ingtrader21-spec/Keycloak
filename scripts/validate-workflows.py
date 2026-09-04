@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate legacy Keycloak workflows plus repository-name authority workflows."""
+"""Validate Keycloak workflows plus repository and release-intent authorities."""
 
 from __future__ import annotations
 
@@ -23,9 +23,11 @@ LEGACY_WORKFLOWS = {
 }
 AUTHORITY_WORKFLOW = "repository-name-authority.yml"
 LIVE_AUTHORITY_WORKFLOW = "repository-name-live-authority.yml"
+MANUAL_RELEASE_WORKFLOW = "manual-release-intent.yml"
 EXPECTED_WORKFLOWS = LEGACY_WORKFLOWS | {
     AUTHORITY_WORKFLOW,
     LIVE_AUTHORITY_WORKFLOW,
+    MANUAL_RELEASE_WORKFLOW,
 }
 
 
@@ -178,6 +180,79 @@ def validate_repository_name_live_authority(
         fail(f"{path}: live repository identity workflow must remain metadata-only")
 
 
+def validate_manual_release_intent(path: Path, workflow: dict[str, Any]) -> None:
+    """Require a bounded, read-only release-intent interface."""
+
+    triggers = CORE.as_mapping(workflow.get("on"), f"{path}.on")
+    if set(triggers) != {"workflow_dispatch"}:
+        fail(f"{path}: release intent must be workflow_dispatch-only")
+    dispatch = CORE.as_mapping(
+        triggers["workflow_dispatch"],
+        f"{path}.on.workflow_dispatch",
+    )
+    inputs = CORE.as_mapping(dispatch.get("inputs"), f"{path}.on.workflow_dispatch.inputs")
+    expected_inputs = {
+        "phase",
+        "source_sha",
+        "release_id",
+        "candidate_sha256",
+        "images_json",
+        "previous_images_json",
+        "prior_evidence_sha256",
+        "confirmation",
+    }
+    if set(inputs) != expected_inputs:
+        fail(f"{path}: release-intent inputs must be exact and bounded")
+
+    CORE.validate_permissions(
+        workflow.get("permissions"),
+        f"{path}.permissions",
+        {"actions": "read", "checks": "read", "contents": "read"},
+    )
+    jobs = CORE.as_mapping(workflow.get("jobs"), f"{path}.jobs")
+    if set(jobs) != {"verify", "plan-intent", "protected-intent"}:
+        fail(f"{path}: unexpected release-intent job set")
+
+    for name, raw_job in jobs.items():
+        job = CORE.as_mapping(raw_job, f"{path}.jobs.{name}")
+        if "permissions" in job:
+            fail(f"{path}: release-intent jobs cannot override permissions")
+        if "self-hosted" in CORE.normalize_runs_on(job.get("runs-on")):
+            fail(f"{path}: release-intent policy cannot use a self-hosted runner")
+        if any(
+            CORE.SECRET_EXPRESSION.search(text)
+            for text in CORE.recursive_strings(job)
+        ):
+            fail(f"{path}: release-intent policy cannot reference secrets")
+        CORE.validate_steps(job, f"{path}.jobs.{name}")
+
+    text = workflow_text(workflow)
+    for required in (
+        "refs/heads/",
+        "git rev-parse HEAD",
+        "branches/",
+        "check-runs?per_page=100",
+        "@sha256:",
+        "allow_rebuild_after_staging",
+        "allow_retag_after_staging",
+        "staging-readonly",
+        "production-readonly-canary",
+        "protected_environment_approved",
+        "production_changed",
+        "external_effects_enabled",
+    ):
+        if required not in text:
+            fail(f"{path}: release-intent policy is missing {required}")
+
+    prohibited = re.compile(
+        r"(?i)(pull_request_target|ssh\s|scp\s|rsync\s|docker\s|kubectl|"
+        r"helm\s|terraform|tofu\s|keycloak-config-cli|curl\s+[^\n]*-[Xx]\s*"
+        r"(POST|PUT|PATCH|DELETE))"
+    )
+    if any(prohibited.search(value) for value in CORE.recursive_strings(workflow)):
+        fail(f"{path}: release intent must remain metadata-only")
+
+
 def validate_legacy_workflows() -> None:
     """Run the unchanged legacy policy against only the original four workflows."""
 
@@ -218,8 +293,13 @@ def validate() -> None:
         WORKFLOW_DIR / LIVE_AUTHORITY_WORKFLOW,
         CORE.load_workflow(WORKFLOW_DIR / LIVE_AUTHORITY_WORKFLOW),
     )
+    validate_manual_release_intent(
+        WORKFLOW_DIR / MANUAL_RELEASE_WORKFLOW,
+        CORE.load_workflow(WORKFLOW_DIR / MANUAL_RELEASE_WORKFLOW),
+    )
     print(f"WORKFLOW_FILES={len(workflow_files)}")
     print("REPOSITORY_NAME_WORKFLOW_POLICY=PASS")
+    print("MANUAL_RELEASE_INTENT_POLICY=PASS")
     print("WORKFLOW_YAML_PARSE=PASS")
     print("WORKFLOW_POLICY=PASS")
 
