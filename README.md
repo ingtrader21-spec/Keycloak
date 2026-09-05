@@ -27,10 +27,18 @@ clients with five-minute tokens, disabled browser/password flows, no redirect
 origins, `fullScopeAllowed=false`, and only reviewed audiences and scopes.
 Keycloak generates a distinct credential for every client; none enters Git.
 
+The community-edition n8n editor uses the confidential `n8n-editor-gateway`
+client through oauth2-proxy. It permits Authorization Code with PKCE S256 only,
+has exact production/staging callback origins, and receives no service account
+or password grant. Runtime calls continue to use the separately governed
+`n8n-automation` Client Credentials identity.
+
 The protected managed-client boundary is explicit in
 `config/policy/managed-clients.json`. It contains the twelve machine clients,
 `klyrow-portal`, and the three MoneyBee browser clients. Creation is separately
-allowlisted in `config/policy/creatable-clients.json`; Klyrow remains update-only.
+allowlisted in `config/policy/creatable-clients.json`; `klyrow-portal` is
+creatable only through the reviewed plan/apply gate with disable-first and
+separate-reviewed-delete rollback metadata.
 
 MoneyBee uses three public PKCE clients:
 
@@ -103,6 +111,23 @@ make validate
 
 CI additionally validates Docker Compose, exercises the protected plan gate,
 and builds the pinned Keycloak image without publishing it.
+
+## PostgreSQL recovery evidence
+
+`scripts/backup-postgres.sh` publishes an encrypted custom-format dump and its
+checksum under a non-blocking publication lock. It refuses timestamp
+collisions and syncs the artifact, checksum, and destination directory before
+reporting success. Database credentials are supplied only through a protected
+PostgreSQL passfile.
+
+`scripts/verify-backup.sh` requires an explicitly isolated restore database,
+validates the encrypted artifact checksum and archive inventory, performs the
+restore, verifies the required Keycloak `realm` and `client` tables, and then
+atomically publishes checksum-bound restore evidence. It refuses the source
+database identity. `scripts/check-recovery-freshness.sh` accepts only complete,
+checksum-valid, successful restore evidence inside the configured age limit.
+These commands are operational authorities; source validation does not prove
+that a live backup or restore test has occurred.
 
 ## Governance that remains external to Git
 
