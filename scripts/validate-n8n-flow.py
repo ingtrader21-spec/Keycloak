@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Enforce the reviewed middleware-to-n8n command and n8n-to-middleware result flow."""
+"""Enforce the reviewed Middleware↔n8n command/result flow."""
 
 from __future__ import annotations
 
@@ -38,6 +38,8 @@ def main() -> None:
             "workflow.trigger",
         },
         ("n8n-automation", "middleware-api"): {
+            "middleware.request.forward",
+            "middleware.status.read",
             "workflow.result.publish",
         },
     }
@@ -53,6 +55,8 @@ def main() -> None:
         "klyrow-gateway",
         "kyqra-gateway",
         "postly-adapter",
+        "ai-provider-adapter",
+        "marketing-provider-adapter",
     }
     if prohibited_targets != expected_targets:
         fail("direct_provider_prohibition_changed")
@@ -62,6 +66,7 @@ def main() -> None:
 
     print("N8N_COMMAND_DIRECTION=PASS")
     print("N8N_RESULT_DIRECTION=PASS")
+    print("N8N_MIDDLEWARE_COMMAND_SCOPES=PASS")
     print("N8N_DIRECT_PROVIDER_GRANTS=DISALLOWED")
 
 

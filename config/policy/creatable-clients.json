@@ -1,7 +1,1 @@
-{
-  "clients": [
-    "moneybee-admin",
-    "moneybee-borrower",
-    "moneybee-lender"
-  ]
-}
+{"clients":["ai-provider-adapter","alertmanager","beyvra-backend","breero-backend","codestra-ai","codestra-communication","codestra-marketing","codestra-social","klyrow-portal","kong-gateway","klyrow-gateway","kyqra-gateway","larim-a-backend","marketing-provider-adapter","middleware-api","middleware-worker","monitoring-readonly","moneybee-admin","moneybee-backend","moneybee-borrower","moneybee-lender","n8n-automation","n8n-editor-gateway","odoo-integration","postly-adapter","provisioning-service","sdk-intake","social-codestra","telnexa-gateway","transportation-backend","vicidial-adapter"]}

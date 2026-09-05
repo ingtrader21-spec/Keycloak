@@ -93,7 +93,14 @@ project_live_to_desired_shape() {
       def project($current; $wanted):
         if ($wanted | type) == "object" then
           reduce ($wanted | keys_unsorted[]) as $key
-            ({}; .[$key] = project($current[$key]; $wanted[$key]))
+            ({}; .[$key] = (
+              if $key == "authorizationServicesEnabled"
+                 and $wanted[$key] == false
+                 and $current[$key] == null
+              then false
+              else project($current[$key]; $wanted[$key])
+              end
+            ))
         elif ($wanted | type) == "array" then
           if all($wanted[]?; (type == "object" and has("name"))) then
             [
@@ -214,7 +221,7 @@ for client_id in "${managed_clients[@]}"; do
     ' >>"$resources_ndjson"
 done
 
-endpoint_file="$ROOT_DIR/config/endpoints/codestra.json"
+endpoint_file="$(keycloak_endpoint_file)"
 
 plan_file="$OUTPUT_DIR/plan.json"
 canonical_plan_file="$OUTPUT_DIR/plan.canonical.json"

@@ -1,0 +1,49 @@
+{
+  "schema_version": "codestra.production-orchestrator-contract.v1",
+  "repository": "appolon1908-hue/Keycloak",
+  "repository_id": 1347523366,
+  "default_branch": "main",
+  "role": "identity",
+  "release_intent_workflow": ".github/workflows/manual-release-intent.yml",
+  "deployment_authority": true,
+  "require_verified_commit": true,
+  "required_checks": [
+    "validate"
+  ],
+  "supported_phases": [
+    "plan",
+    "staging",
+    "canary",
+    "production"
+  ],
+  "artifact_policy": {
+    "minimum_images": 0,
+    "maximum_images": 0,
+    "require_digest": true,
+    "allow_rebuild_after_staging": false,
+    "allow_retag_after_staging": false,
+    "require_sbom": false,
+    "require_provenance": false,
+    "require_signature": false
+  },
+  "environments": {
+    "staging": "staging-readonly",
+    "canary": "production-readonly-canary",
+    "production": "production"
+  },
+  "native_workflows": {
+    "plan_apply": ".github/workflows/deploy.yml",
+    "drift_review": ".github/workflows/drift-review.yml"
+  },
+  "safety": {
+    "external_effects_default": false,
+    "live_email_delivery": false,
+    "live_sms_delivery": false,
+    "live_pstn_dialing": false,
+    "odoo_write": false,
+    "n8n_external_delivery": false,
+    "live_trading": false,
+    "payment_execution": false
+  },
+  "blockers": []
+}
