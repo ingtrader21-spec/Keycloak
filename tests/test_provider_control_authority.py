@@ -13,6 +13,16 @@ SPEC = importlib.util.spec_from_file_location(
 assert SPEC is not None and SPEC.loader is not None
 VALIDATOR = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(VALIDATOR)
+CALLING_CONTRACT_LOCK = ROOT / ".codestra" / "calling-contract.lock.json"
+
+
+def reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
 
 
 class ProviderControlAuthorityTests(unittest.TestCase):
@@ -105,6 +115,35 @@ class ProviderControlAuthorityTests(unittest.TestCase):
         )
         grant["scopes"] = ["marketing.campaign.request"]
         self.reject(contract)
+
+
+class CallingContractLockTests(unittest.TestCase):
+    EXPECTED = {
+        "schema_version": "codestra.calling-contract-lock.v1",
+        "version": "1.0.0",
+        "sha256": "b39cdffe56a8185c91174228f0423df68b1137f34875f6ee52f9914f904bf724",
+        "authority": "appolon1908-hue/codestra-production-platform#257",
+        "role": "identity",
+        "external_effects_enabled": False,
+    }
+
+    def test_identity_lock_matches_protected_contract_exactly(self) -> None:
+        actual = json.loads(
+            CALLING_CONTRACT_LOCK.read_text(encoding="utf-8"),
+            object_pairs_hook=reject_duplicate_keys,
+        )
+        self.assertEqual(actual, self.EXPECTED)
+        self.assertIs(actual["external_effects_enabled"], False)
+
+    def test_duplicate_contract_keys_are_rejected(self) -> None:
+        for sample in (
+            '{"sha256":"wrong","sha256":"b39cdffe56a8185c91174228f0423df68b1137f34875f6ee52f9914f904bf724"}',
+            '{"role":"wrong","role":"identity"}',
+            '{"external_effects_enabled":true,"external_effects_enabled":false}',
+        ):
+            with self.subTest(sample=sample):
+                with self.assertRaises(ValueError):
+                    json.loads(sample, object_pairs_hook=reject_duplicate_keys)
 
 
 if __name__ == "__main__":
