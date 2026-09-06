@@ -217,10 +217,11 @@ plan_dir="$test_root/plan"
 [[ "$(jq -er '.api.adminApiBaseUrl' "$plan_dir/plan.json")" == "https://auth-staging.codestra.co" ]]
 [[ "$(jq -er '.api.issuer' "$plan_dir/plan.json")" == "https://auth-staging.codestra.co/realms/codestra" ]]
 
-[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 31 ]]
+[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 32 ]]
 [[ "$(jq -er '.blockedCount' "$plan_dir/plan.json")" -eq 0 ]]
 [[ "$(jq -er '.createCount' "$plan_dir/plan.json")" -eq 30 ]]
-[[ "$(jq -er '.updateCount' "$plan_dir/plan.json")" -eq 1 ]]
+[[ "$(jq -er '.updateCount' "$plan_dir/plan.json")" -eq 2 ]]
+[[ "$(jq -er '.realmPolicy.action' "$plan_dir/plan.json")" == "update" ]]
 [[ "$(jq -er '.clients[] | select(.clientId == "klyrow-portal") | .action' "$plan_dir/plan.json")" == "update" ]]
 for client_id in moneybee-admin moneybee-borrower moneybee-lender moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra; do
   [[ "$(jq -er --arg client_id "$client_id" '.clients[] | select(.clientId == $client_id) | .action' "$plan_dir/plan.json")" == "create" ]]
