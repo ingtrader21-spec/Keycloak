@@ -26,4 +26,9 @@ jobs:
           python3 scripts/validate-browser-registration-policy.py
           python3 scripts/validate-realm-security-policy.py
       - name: Build supported registration provider
-        run: mvn --batch-mode --no-transfer-progress -f extensions/codestra-registration-gate/pom.xml -DskipTests package
+        run: |
+          docker run --rm \
+            --volume "$PWD/extensions/codestra-registration-gate:/src" \
+            --workdir /src \
+            maven:3.9.11-eclipse-temurin-21 \
+            mvn --batch-mode --no-transfer-progress -DskipTests package
