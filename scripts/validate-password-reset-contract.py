@@ -50,6 +50,7 @@ EXPECTED_FORBIDDEN_CONSUMERS = {
     "kong-gateway",
     "middleware-api",
     "middleware-worker",
+    "moneybee-backend",
     "odoo-integration",
     "n8n-automation",
     "vicidial-adapter",
