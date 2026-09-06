@@ -19,10 +19,17 @@
     "audit": true,
     "rollback": true
   },
-  "status": "branch-created",
+  "status": "implementation-in-progress",
   "blockers": [
-    "Use the approved Codestra identity, token, color, and operator-theme contracts after SDK-repository pull request 75 is protected-merged.",
-    "Implement login, registration, recovery, account, consent, error, and administration branding through supported Keycloak themes and extensions only.",
-    "Verify auth.codestra.co, realm/client redirect allowlists, front-channel and back-channel logout, session revocation, administrator isolation, upgrades, monitoring, and rollback evidence before promotion."
+    "Reconcile this branch with current protected main before promotion.",
+    "Capture protected staging screenshots and keyboard/screen-reader evidence for every authentication state.",
+    "Verify canonical issuer, exact redirect/logout allowlists, session revocation, administrator isolation, upgrade and rollback evidence before production."
+  ],
+  "implemented": [
+    "Supported Keycloak login theme inheriting keycloak.v2",
+    "Shared login, registration, verification, recovery, MFA, consent, logout and error styling through inherited native templates",
+    "English, Spanish and French security-flow labels",
+    "Reduced-motion accessibility behavior",
+    "Theme validation and container image build CI"
   ]
 }
