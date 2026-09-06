@@ -328,9 +328,10 @@ mv "$state_file.tmp" "$state_file"
   --expected-deploy-sha "$expected_sha" \
   --recovery-dir "$test_root/recovery-success" >/dev/null
 
-jq -e '
+expected_operation_count="$(jq -er '.clients | length' "$plan_dir/plan.json")"
+jq -e --argjson expected_operation_count "$expected_operation_count" '
   .partialApply == false
-  and (.operations | length == 16)
+  and (.operations | length == $expected_operation_count)
   and all(.operations[]; (.state == "created" or .state == "updated" or .state == "unchanged"))
 ' "$test_root/recovery-success/recovery-manifest.json" >/dev/null
 
