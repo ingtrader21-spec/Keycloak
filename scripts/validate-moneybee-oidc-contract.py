@@ -10,6 +10,8 @@ CONTRACT = ROOT / "config" / "identity" / "moneybee-oidc-clients.json"
 DOMAIN_REGISTRY = ROOT / "config" / "identity" / "application-domain-registry.json"
 MANAGED_CLIENTS = ROOT / "config" / "policy" / "managed-clients.json"
 CREATABLE_CLIENTS = ROOT / "config" / "policy" / "creatable-clients.json"
+MACHINE_CLIENTS = ROOT / "config" / "contracts" / "machine-clients.json"
+PRODUCT_MIDDLEWARE_CLIENTS = ROOT / "config" / "contracts" / "product-middleware-clients.json"
 CLIENT_DIR = ROOT / "config" / "clients"
 
 EXPECTED_ISSUER = "https://auth.codestra.co/realms/codestra"
@@ -188,8 +190,27 @@ def main() -> int:
         fail("all MoneyBee clients must be in the protected managed-client policy")
 
     creatable = load(CREATABLE_CLIENTS)
-    if set(creatable.get("clients") or []) != EXPECTED_CLIENT_IDS:
-        fail("only and all three MoneyBee portal clients must be reviewed creatable clients")
+    machine_ids = {
+        item.get("clientId")
+        for item in load(MACHINE_CLIENTS).get("clients", [])
+        if isinstance(item, dict)
+    }
+    product_ids = {
+        item.get("clientId")
+        for item in load(PRODUCT_MIDDLEWARE_CLIENTS).get("clients", [])
+        if isinstance(item, dict)
+    }
+    if None in product_ids:
+        fail("product Middleware client contract contains an invalid clientId")
+    expected_creatable = EXPECTED_CLIENT_IDS | machine_ids | product_ids | {
+        "klyrow-portal",
+        "n8n-editor-gateway",
+    }
+    if set(creatable.get("clients") or []) != expected_creatable:
+        fail(
+            "creatable clients must be exactly MoneyBee, klyrow portal, "
+            "n8n editor gateway, and reviewed machine identities"
+        )
 
     registry = load(DOMAIN_REGISTRY)
     domains = registry.get("domains")

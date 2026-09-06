@@ -2,6 +2,8 @@
 
 GitOps repository for the Codestra identity service.
 
+> **Repository authority:** this is the independent Git authority for Codestra Keycloak desired state and protected identity changes. Other repositories consume its versioned identity contracts; they do not control or directly mutate Keycloak. See [`docs/KEYCLOAK_REPOSITORY_AUTHORITY.md`](docs/KEYCLOAK_REPOSITORY_AUTHORITY.md). The cross-repository rollout sequence starts in [`docs/CODESTRA_MISSION_PLAN.md`](docs/CODESTRA_MISSION_PLAN.md).
+
 ```text
 Public URL:       https://auth.codestra.co
 Canonical issuer: https://auth.codestra.co/realms/codestra
@@ -21,16 +23,24 @@ flow and password/direct grants are prohibited.
 
 Machine clients use confidential service accounts with short-lived Client
 Credentials tokens. Every service receives its own client ID, scope namespace,
-and audience. The twelve recommended machine identities are declared in
-`config/contracts/machine-clients.json`; they are deliberately marked
-`declared-not-created` until caller-to-audience access contracts and client-
-specific administration are independently reviewed.
+and audience. The twelve required machine identities are active protected
+desired state. Their generated overlays are confidential service-account
+clients with five-minute tokens, disabled browser/password flows, no redirect
+origins, `fullScopeAllowed=false`, and only reviewed audiences and scopes.
+Keycloak generates a distinct credential for every client; none enters Git.
+
+The community-edition n8n editor uses the confidential `n8n-editor-gateway`
+client through oauth2-proxy. It permits Authorization Code with PKCE S256 only,
+has exact production/staging callback origins, and receives no service account
+or password grant. Runtime calls continue to use the separately governed
+`n8n-automation` Client Credentials identity.
 
 The protected managed-client boundary is explicit in
-`config/policy/managed-clients.json`. It currently contains `klyrow-portal` and
-the three MoneyBee production browser clients. Client creation is separately
-allowlisted in `config/policy/creatable-clients.json`; only the three MoneyBee
-client IDs may receive a reviewed `create` action. Klyrow remains update-only.
+`config/policy/managed-clients.json`. It contains the twelve machine clients,
+`klyrow-portal`, and the three MoneyBee browser clients. Creation is separately
+allowlisted in `config/policy/creatable-clients.json`; `klyrow-portal` is
+creatable only through the reviewed plan/apply gate with disable-first and
+separate-reviewed-delete rollback metadata.
 
 MoneyBee uses three public PKCE clients:
 
@@ -54,18 +64,19 @@ access tokens contain the `moneybee-api` audience required by the backend.
 9. Independently approve the stable runtime-path fingerprint.
 10. Run **Deploy Keycloak configuration** in `check` mode from `main`, with
     `confirm_sha` exactly equal to the selected `GITHUB_SHA`.
-11. Review every plan action, require `blockedCount=0`, and record the check-run
-    ID plus `PLAN_SHA256`.
-12. Run the same workflow in `apply` mode with that same main SHA, prior run ID,
-    protected environment approval, and reviewed plan hash.
-13. Apply rechecks all existing pre-change hashes and every reviewed create's
+11. Review every plan action through **Review Keycloak drift**. The reviewer
+    must differ from the change author; record its run ID and review hash.
+12. Run `apply` with that main SHA, check run/hash, review run/hash, and the
+    protected production approval.
+13. Apply rechecks both artifacts, all existing pre-change hashes, and every reviewed create's
     absence before the first write, applies only the reviewed plan, regenerates
     the plan, requires zero drift/blocked/create/update actions, and runs the
     read-only OIDC smoke test.
 
 A merge never changes the live Keycloak instance. A PR-branch SHA is never a
-valid production-check SHA. `apply` cannot run without a successful prior check
-artifact for the same environment and exact merged `main` commit.
+valid production-check SHA. `apply` cannot run without successful prior check
+and independent drift-review artifacts for the same environment and exact
+merged `main` commit.
 
 ## Repository layout
 
@@ -102,6 +113,23 @@ make validate
 
 CI additionally validates Docker Compose, exercises the protected plan gate,
 and builds the pinned Keycloak image without publishing it.
+
+## PostgreSQL recovery evidence
+
+`scripts/backup-postgres.sh` publishes an encrypted custom-format dump and its
+checksum under a non-blocking publication lock. It refuses timestamp
+collisions and syncs the artifact, checksum, and destination directory before
+reporting success. Database credentials are supplied only through a protected
+PostgreSQL passfile.
+
+`scripts/verify-backup.sh` requires an explicitly isolated restore database,
+validates the encrypted artifact checksum and archive inventory, performs the
+restore, verifies the required Keycloak `realm` and `client` tables, and then
+atomically publishes checksum-bound restore evidence. It refuses the source
+database identity. `scripts/check-recovery-freshness.sh` accepts only complete,
+checksum-valid, successful restore evidence inside the configured age limit.
+These commands are operational authorities; source validation does not prove
+that a live backup or restore test has occurred.
 
 ## Governance that remains external to Git
 

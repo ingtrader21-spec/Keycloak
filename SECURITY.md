@@ -26,8 +26,10 @@ Secrets are generated and rotated outside Git.
 
 The protected managed-client set is versioned in
 `config/policy/managed-clients.json`. Client creation is separately constrained
-by `config/policy/creatable-clients.json`; only the three reviewed MoneyBee
-portal clients are creatable. `klyrow-portal` remains update-only.
+by `config/policy/creatable-clients.json`. The three reviewed MoneyBee portal
+clients and `klyrow-portal` are creatable only through an independently reviewed
+plan; absent-state verification and disable-first/separate-reviewed-delete
+rollback metadata remain mandatory.
 
 MoneyBee access tokens must contain the `moneybee-api` audience. Each MoneyBee
 client overlay therefore manages an explicit `oidc-audience-mapper`, and CI

@@ -10,8 +10,10 @@ Administrative auth realm:     master
 ```
 
 Applications discover authorization, token, logout, user-info, and signing-key
-endpoints through the `codestra` realm discovery document. The exact expected
-endpoint contract is versioned in `config/endpoints/codestra.json`.
+endpoints through the `codestra` realm discovery document. The exact production
+endpoint contract is versioned in `config/endpoints/codestra.json`. Staging uses
+the separate fail-closed contract in `config/endpoints/codestra-staging.json`;
+a staging plan cannot contain the production administration URL or issuer.
 
 The protected deployment identity authenticates through the `master` realm but
 all reviewed client administration continues to target the `codestra` realm.
@@ -32,12 +34,14 @@ The protected normal workflow manages exactly the client IDs listed in
 It treats the `codestra` realm file as a validation invariant and never creates
 or mutates a realm.
 
-Client creation is a separate, narrower policy. Only the three MoneyBee IDs in
+Client creation is a separate, narrower policy. Only IDs explicitly listed in
 `config/policy/creatable-clients.json` may receive a reviewed `create` action.
-`klyrow-portal` remains update-only: if it is absent, the plan reports
-`blocked_missing`.
+The staging check at `caaff6ad8753def75ed32279f53572ee3f9cfb5d` proved that
+`klyrow-portal` is absent, so its creation is now explicitly gated by that
+allowlist and the same reviewed disable-first rollback semantics as every other
+creatable client.
 
-A missing creatable MoneyBee client does not authorize an immediate write. The
+A missing creatable client does not authorize an immediate write. The
 check plan must record the exact absent state, desired-state hash, `create`
 action, and disable-first/separate-reviewed-delete rollback metadata. Apply then
 rechecks all reviewed create targets are still absent immediately before the
@@ -68,11 +72,10 @@ client-create capability without a broader realm-level permission, do not
 silently broaden the identity: keep create operations blocked until that
 administrative permission change is separately reviewed and approved.
 
-The twelve machine identities in `config/contracts/machine-clients.json` are a
-reviewed naming and flow contract, not active provisioning. Each client must be
-promoted in its own pull request after its caller-to-audience map, scopes,
-secret destination, token lifetime, administrative scope, and rollback policy
-are approved.
+The twelve machine identities in `config/contracts/machine-clients.json` are
+active protected desired state. Each is a distinct confidential service-account
+client. Generated overlays and rollback allowlists are checked against the
+caller-to-audience matrix; shared credentials are neither declared nor accepted.
 
 ## Pull-request validation
 
@@ -118,7 +121,7 @@ is:
 5. record the resulting exact 40-character `main` SHA;
 6. dispatch production `check` mode with `confirm_sha` equal to that `main` SHA.
 
-## Check and reviewed-plan apply
+## Check, independent drift review, and protected apply
 
 Run **Deploy Keycloak configuration** in `check` mode first. It creates:
 
@@ -133,9 +136,12 @@ The plan is deterministic: it contains no timestamp and includes the exact Git
 SHA, target environment, canonical API URLs, managed current values, desired
 values, pre-change hashes, create/update/noop actions, and rollback metadata.
 
-Review every action. `blockedCount` must be zero before apply is eligible. For a
+Review every action through **Review Keycloak drift**. `blockedCount` must be
+zero before review is eligible. For a
 `create`, verify the plan recorded `before: {}` and the exact intended client ID.
-Record the successful check run ID and `PLAN_SHA256`.
+Record the successful check run ID and `PLAN_SHA256`. The reviewer must differ
+from the change author and records a change ticket. The review artifact binds
+every action and before/desired hash to the plan, repository SHA, and environment.
 
 Apply must use:
 
@@ -143,6 +149,7 @@ Apply must use:
 - the same protected environment;
 - the successful check-run ID;
 - the exact reviewed plan SHA-256.
+- the exact independent drift-review run and artifact SHA-256.
 
 Apply verifies the source run and artifact, confirms the human-approved hash,
 rechecks every existing pre-change hash, then rechecks every reviewed create is

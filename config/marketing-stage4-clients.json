@@ -1,0 +1,15 @@
+{
+  "clients": [
+    {"clientId":"codestra-marketing","serviceAccountsEnabled":true,"publicClient":false,"standardFlowEnabled":false},
+    {"clientId":"codestra-ai","serviceAccountsEnabled":true,"publicClient":false,"standardFlowEnabled":false},
+    {"clientId":"codestra-communication","serviceAccountsEnabled":true,"publicClient":false,"standardFlowEnabled":false},
+    {"clientId":"codestra-social","serviceAccountsEnabled":true,"publicClient":false,"standardFlowEnabled":false},
+    {"clientId":"codestra-n8n-marketing","serviceAccountsEnabled":true,"publicClient":false,"standardFlowEnabled":false}
+  ],
+  "clientScopes": [
+    "marketing.read", "marketing.write", "marketing.approve", "marketing.provider.read",
+    "ai.generate", "communication.send", "communication.read", "social.read", "social.write", "social.publish"
+  ],
+  "forbiddenAutomationScopes": ["marketing.approve", "marketing.provider.write", "marketing.budget.raise"],
+  "notes": "Import through the repository's managed realm-plan/apply mechanism only. Do not apply directly to production."
+}
