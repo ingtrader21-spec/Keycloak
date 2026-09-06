@@ -21,27 +21,45 @@ assert matrix["stagingIssuer"] != matrix["productionIssuer"]
 assert matrix["environmentsTrustEachOther"] is False
 assert matrix["productionMutationAllowed"] is False
 
-required_cases = {
+required_positive_cases = {
+    "valid_service_identity", "valid_tenant_binding", "valid_campaign_binding",
+}
+required_negative_cases = {
+    "missing_token", "malformed_token",
     "wrong_issuer", "wrong_audience", "wrong_azp", "insufficient_scope",
     "wrong_tenant", "wrong_campaign", "expired", "not_before",
     "invalid_signature", "unknown_signing_key", "forwarded_only_token",
     "cross_client_scope_confusion", "replayed_jti",
 }
-assert required_cases <= set(matrix["negativeCases"])
-assert {"iss", "aud", "azp", "scope", "tenant_id", "jti"} <= set(matrix["requiredClaims"])
-assert {"repository_sha", "realm_export_sha256", "case_results", "rollback_result"} <= set(matrix["requiredEvidence"])
+required_claims = {"iss", "sub", "aud", "azp", "iat", "exp", "nbf", "jti", "scope", "tenant_id"}
+required_evidence = {
+    "repository_sha", "realm_export_sha256", "issuer", "jwks_fingerprint",
+    "kong_configuration_sha256", "middleware_configuration_sha256",
+    "case_results", "rollback_result",
+}
+assert set(matrix["positiveCases"]) == required_positive_cases
+assert set(matrix["negativeCases"]) == required_negative_cases
+assert set(matrix["requiredClaims"]) == required_claims
+assert set(matrix["requiredEvidence"]) == required_evidence
 
 assert environment["schemaVersion"] == 1
 assert environment["environment"] == "production"
 assert environment["protectedBranchesOnly"] is True
 assert environment["preventSelfReview"] is True
 assert environment["administratorBypassAllowed"] is False
-assert environment["requiredIndependentReviewer"]
+assert environment["requiredIndependentReviewer"] == "kazan555"
 assert environment["applyRequiresReviewedPlan"] is True
 assert environment["applyRequiresIndependentDriftReview"] is True
 assert environment["sourceOnlyMayEnableProduction"] is False
-assert {"KC_BASE_URL", "KC_PUBLIC_URL", "KC_TARGET_REALM", "KC_ADMIN_REALM", "RUNTIME_PATHS_APPROVED_SHA256"} <= set(environment["requiredVariables"])
-assert {"KC_ADMIN_CLIENT_ID", "KC_ADMIN_CLIENT_SECRET"} <= set(environment["requiredSecrets"])
+required_variables = {
+    "KC_BASE_URL", "KC_PUBLIC_URL", "KC_TARGET_REALM", "KC_ADMIN_REALM",
+    "KC_SMTP_CREDENTIAL_VERSION", "RUNTIME_REPO_DIR", "RUNTIME_COMPOSE_FILE",
+    "RUNTIME_ENV_FILE", "RUNTIME_CADDY_FILE", "RUNTIME_GIT_SSH_KEY",
+    "RUNTIME_GIT_KNOWN_HOSTS", "RUNTIME_GIT_REMOTE", "RUNTIME_GIT_BRANCH",
+    "RUNTIME_PATHS_APPROVED_SHA256",
+}
+assert set(environment["requiredVariables"]) == required_variables
+assert set(environment["requiredSecrets"]) == {"KC_ADMIN_CLIENT_ID", "KC_ADMIN_CLIENT_SECRET"}
 
 print("SERVICE_IDENTITY_CERTIFICATION_CONTRACT=PASS")
 print("PRODUCTION_ENVIRONMENT_CONTRACT=PASS")
