@@ -4,15 +4,28 @@ umask 077
 
 fail() { printf 'KONG_CERTIFICATION=FAIL\nERROR=%s\n' "$*" >&2; exit 1; }
 for command_name in curl jq base64 install date; do command -v "$command_name" >/dev/null || fail "missing command: $command_name"; done
-for variable in KONG_TEST_URL CERT_CLIENT_ID CERT_CLIENT_SECRET DISABLED_CLIENT_ID DISABLED_CLIENT_SECRET EXPECTED_AUDIENCE EXPECTED_SCOPE KONG_EVIDENCE_FILE; do
+for variable in KONG_TEST_URL CERT_CLIENT_ID CERT_CLIENT_SECRET DISABLED_CLIENT_ID DISABLED_CLIENT_SECRET DISABLED_CLIENT_EVIDENCE_FILE EXPECTED_AUDIENCE EXPECTED_SCOPE KONG_EVIDENCE_FILE; do
   [[ -n "${!variable:-}" ]] || fail "required environment variable is missing: $variable"
 done
 [[ "$KONG_TEST_URL" == https://* ]] || fail "KONG_TEST_URL must use HTTPS"
 [[ "$KONG_EVIDENCE_FILE" == /* && ! -L "$KONG_EVIDENCE_FILE" ]] || fail "KONG_EVIDENCE_FILE must be an absolute non-symlink path"
+[[ "$DISABLED_CLIENT_EVIDENCE_FILE" == /* && -f "$DISABLED_CLIENT_EVIDENCE_FILE" && ! -L "$DISABLED_CLIENT_EVIDENCE_FILE" ]] || fail "DISABLED_CLIENT_EVIDENCE_FILE must be an absolute regular non-symlink file"
 
 root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 token_endpoint="$(jq -er '.tokenEndpoint' "$root_dir/config/endpoints/codestra.json")"
 expected_issuer="$(jq -er '.issuer' "$root_dir/config/endpoints/codestra.json")"
+evidence_now="$(date +%s)"
+jq -e --arg client "$DISABLED_CLIENT_ID" --arg issuer "$expected_issuer" --argjson now "$evidence_now" '
+  .schemaVersion == 1
+  and .evidenceType == "keycloak-admin-readback"
+  and .issuer == $issuer
+  and .realm == "codestra"
+  and .clientId == $client
+  and (.internalClientId | type == "string" and length > 0)
+  and .enabled == false
+  and (.capturedAt | fromdateiso8601) <= $now
+  and (.capturedAt | fromdateiso8601) >= ($now - 900)
+' "$DISABLED_CLIENT_EVIDENCE_FILE" >/dev/null || fail "disabled client evidence is invalid, stale, or does not match the fixture"
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"; unset CERT_CLIENT_SECRET valid_token' EXIT
 

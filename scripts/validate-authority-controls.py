@@ -40,7 +40,7 @@ for required_control in (
     if required_control not in verify_script:
         raise SystemExit(f"Restore checksum binding is missing: {required_control}")
 kong_script = (root / "scripts/certify-kong.sh").read_text()
-for case_name in ("missing", "malformed", "wrong_issuer", "wrong_audience", "insufficient_scope", "expired", "invalid_signature"):
+for case_name in ("missing", "malformed", "wrong_issuer", "wrong_audience", "insufficient_scope", "expired", "invalid_signature", "DISABLED_CLIENT_EVIDENCE_FILE", "keycloak-admin-readback"):
     if case_name not in kong_script:
         raise SystemExit(f"Kong certification is missing case: {case_name}")
 alert_contract = (root / "config/observability/keycloak-alerts.yaml").read_text()

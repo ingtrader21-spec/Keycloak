@@ -74,6 +74,13 @@ assert "production_mutation_not_authorized_by_certification_contract" in deploy_
 for secret_name in machine_secrets:
     assert f"secrets.{secret_name}" in deploy_workflow
 
+kong_certification = (ROOT / "scripts/certify-kong.sh").read_text(encoding="utf-8")
+assert "DISABLED_CLIENT_EVIDENCE_FILE" in kong_certification
+assert 'keycloak-admin-readback' in kong_certification
+assert '.clientId == $client' in kong_certification
+assert '.enabled == false' in kong_certification
+assert '($now - 900)' in kong_certification
+
 print("SERVICE_IDENTITY_CERTIFICATION_CONTRACT=PASS")
 print("PRODUCTION_ENVIRONMENT_CONTRACT=PASS")
 print("PRODUCTION_MUTATION_ALLOWED=NO")
