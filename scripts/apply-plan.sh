@@ -12,6 +12,8 @@ REVIEW_FILE=""
 EXPECTED_REVIEW_SHA256=""
 EXPECTED_DEPLOY_SHA="${EXPECTED_DEPLOY_SHA:-}"
 DEPLOY_ENVIRONMENT="${DEPLOY_ENVIRONMENT:-}"
+RECOVERY_DIR=""
+WORKFLOW_RUN_ID="${GITHUB_RUN_ID:-local}"
 
 usage() {
   cat <<'USAGE'
@@ -20,7 +22,8 @@ Usage: scripts/apply-plan.sh \
   --expected-plan-sha SHA256 \
   --review PATH \
   --expected-review-sha SHA256 \
-  --expected-deploy-sha SHA
+  --expected-deploy-sha SHA \
+  --recovery-dir PATH
 
 Applies only a previously generated and human-reviewed plan. Before the first
 write, the script verifies the plan hash, repository SHA, environment, managed
@@ -57,6 +60,11 @@ while (($#)); do
       EXPECTED_DEPLOY_SHA="$2"
       shift 2
       ;;
+    --recovery-dir)
+      [[ $# -ge 2 ]] || die "--recovery-dir requires a path"
+      RECOVERY_DIR="$2"
+      shift 2
+      ;;
     -h | --help)
       usage
       exit 0
@@ -69,8 +77,11 @@ while (($#)); do
 done
 
 [[ -n "$PLAN_FILE" ]] || die "--plan is required"
+[[ -n "$RECOVERY_DIR" ]] || die "--recovery-dir is required"
 [[ "$PLAN_FILE" == /* ]] || die "--plan must use an absolute path"
 [[ -f "$PLAN_FILE" && ! -L "$PLAN_FILE" ]] || die "Plan must be a regular non-symlink file"
+[[ "$RECOVERY_DIR" == /* && ! -L "$RECOVERY_DIR" ]] ||
+  die "Recovery directory must be an absolute non-symlink path"
 [[ "$EXPECTED_PLAN_SHA256" =~ ^[0-9a-f]{64}$ ]] ||
   die "Expected plan hash must be 64 lowercase hexadecimal characters"
 [[ "$REVIEW_FILE" == /* && -f "$REVIEW_FILE" && ! -L "$REVIEW_FILE" ]] ||
@@ -163,7 +174,87 @@ done
 keycloak_authenticate
 
 tmp_dir="$(mktemp -d)"
-trap 'rm -rf "$tmp_dir"; unset KC_ACCESS_TOKEN' EXIT
+mkdir -p "$RECOVERY_DIR"
+chmod 700 "$RECOVERY_DIR"
+recovery_manifest="$RECOVERY_DIR/recovery-manifest.json"
+recovery_events="$RECOVERY_DIR/operation-events.ndjson"
+: >"$recovery_events"
+chmod 600 "$recovery_events"
+
+mutated_count=0
+active_sequence=""
+mutation_started=false
+apply_finished=false
+
+record_operation_state() {
+  local sequence="$1"
+  local state="$2"
+  local detail="${3:-}"
+  local event_tmp manifest_tmp
+  event_tmp="$(mktemp "$RECOVERY_DIR/.event.XXXXXX")"
+  manifest_tmp="$(mktemp "$RECOVERY_DIR/.manifest.XXXXXX")"
+  jq -c -n \
+    --argjson sequence "$sequence" \
+    --arg state "$state" \
+    --arg detail "$detail" \
+    --arg timestamp "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+    '{sequence: $sequence, state: $state, timestamp: $timestamp}
+     + (if $detail == "" then {} else {detail: $detail} end)' >"$event_tmp"
+  cat "$event_tmp" >>"$recovery_events"
+  jq \
+    --argjson sequence "$sequence" \
+    --arg state "$state" \
+    --arg detail "$detail" \
+    --arg timestamp "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" '
+      .operations |= map(
+        if .sequence == $sequence then
+          .state = $state
+          | .updatedAt = $timestamp
+          | if $detail == "" then del(.detail) else .detail = $detail end
+        else . end
+      )
+    ' "$recovery_manifest" >"$manifest_tmp"
+  chmod 600 "$manifest_tmp"
+  mv -f "$manifest_tmp" "$recovery_manifest"
+  rm -f "$event_tmp"
+}
+
+handle_apply_exit() {
+  local exit_code=$?
+  trap - EXIT
+  if [[ "$apply_finished" != "true" && -f "$recovery_manifest" ]]; then
+    if [[ -n "$active_sequence" ]]; then
+      if [[ "$mutation_started" == "true" ]]; then
+        # A transport/readback failure cannot prove that Keycloak did not commit
+        # the request. Preserve it as a rollback candidate and fail closed.
+        record_operation_state "$active_sequence" rollback-required \
+          "mutation outcome uncertain; verify live state before reviewed rollback (exit ${exit_code})" || true
+      else
+        record_operation_state "$active_sequence" failed \
+          "apply command exited before mutation with status ${exit_code}" || true
+      fi
+    fi
+    if ((mutated_count > 0)) || [[ "$mutation_started" == "true" ]]; then
+      local manifest_tmp
+      manifest_tmp="$(mktemp "$RECOVERY_DIR/.manifest.XXXXXX")"
+      jq '
+        .partialApply = true
+        | .operations |= map(
+            if (.state == "created" or .state == "updated") then
+              .lastSuccessfulState = .state
+              | .state = "rollback-required"
+            else . end
+          )
+      ' "$recovery_manifest" >"$manifest_tmp" && mv -f "$manifest_tmp" "$recovery_manifest"
+      printf 'PARTIAL_APPLY=true\n' >&2
+      printf 'RECOVERY_MANIFEST=%s\n' "$recovery_manifest" >&2
+    fi
+  fi
+  rm -rf "$tmp_dir"
+  unset KC_ACCESS_TOKEN
+  exit "$exit_code"
+}
+trap handle_apply_exit EXIT
 apply_manifest="$tmp_dir/apply-manifest.ndjson"
 : >"$apply_manifest"
 
@@ -313,11 +404,13 @@ while IFS= read -r resource; do
     jq -c -n \
       --arg client_id "$client_id" \
       --arg action "$action" \
-      --arg desired_file "$desired_file" '
+      --arg desired_file "$desired_file" \
+      --arg expected_before_sha256 "$expected_before_sha256" '
         {
           clientId: $client_id,
           action: $action,
-          desiredFile: $desired_file
+          desiredFile: $desired_file,
+          expectedBeforeSha256: $expected_before_sha256
         }
       ' >>"$apply_manifest"
     resource_index=$((resource_index + 1))
@@ -330,7 +423,6 @@ while IFS= read -r resource; do
   client_uuid="$(jq -er '.[0].id' "$client_list_file")"
   live_file="$tmp_dir/live-${safe_client_id}.json"
   before_file="$tmp_dir/before-${safe_client_id}.json"
-  merged_file="$tmp_dir/merged-${safe_client_id}.json"
 
   keycloak_api GET \
     "/admin/realms/$(urlencode "$KC_TARGET_REALM")/clients/$(urlencode "$client_uuid")" \
@@ -360,22 +452,18 @@ while IFS= read -r resource; do
       die "Plan marked client ${client_id} for update but it is already synchronized"
   fi
 
-  jq -S -s '
-    .[0] * .[1]
-    | del(.secret, .registrationAccessToken, .access)
-  ' "$live_file" "$desired_file" >"$merged_file"
-  chmod 600 "$merged_file"
-
   jq -c -n \
     --arg client_id "$client_id" \
     --arg action "$action" \
     --arg client_uuid "$client_uuid" \
-    --arg merged_file "$merged_file" '
+    --arg desired_file "$desired_file" \
+    --arg expected_before_sha256 "$expected_before_sha256" '
       {
         clientId: $client_id,
         action: $action,
         clientUuid: $client_uuid,
-        mergedFile: $merged_file
+        desiredFile: $desired_file,
+        expectedBeforeSha256: $expected_before_sha256
       }
     ' >>"$apply_manifest"
   resource_index=$((resource_index + 1))
@@ -383,6 +471,71 @@ done < <(jq -c '.clients[]' "$PLAN_FILE")
 
 [[ "$resource_index" -eq "${#policy_clients[@]}" ]] ||
   die "Plan resource count does not match the managed-client policy"
+
+# This manifest is written before the first mutation and updated atomically
+# after every state transition. It intentionally contains hashes and artifact
+# references, never client secrets or access tokens.
+jq -S -s \
+  --arg repository_sha "$EXPECTED_DEPLOY_SHA" \
+  --arg environment "$DEPLOY_ENVIRONMENT" \
+  --arg plan_sha256 "$EXPECTED_PLAN_SHA256" \
+  --arg workflow_run_id "$WORKFLOW_RUN_ID" \
+  --arg timestamp "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+  --arg realm "$KC_TARGET_REALM" \
+  --arg rollback_artifact "${ROLLBACK_ARTIFACT_REFERENCE:-keycloak-before-${DEPLOY_ENVIRONMENT}-${EXPECTED_DEPLOY_SHA}}" '
+    {
+      schemaVersion: 1,
+      repositorySha: $repository_sha,
+      environment: $environment,
+      planSha256: $plan_sha256,
+      workflowRunId: $workflow_run_id,
+      createdAt: $timestamp,
+      realm: $realm,
+      partialApply: false,
+      supportedStates: [
+        "pending",
+        "started",
+        "created",
+        "updated",
+        "unchanged",
+        "failed",
+        "rollback-required",
+        "rollback-completed"
+      ],
+      rollbackArtifactReference: $rollback_artifact,
+      operations: (
+        to_entries | map({
+          sequence: (.key + 1),
+          clientId: .value.clientId,
+          clientUuid: (.value.clientUuid // null),
+          action: .value.action,
+          preStateHash: (.value.expectedBeforeSha256 // null),
+          expectedPostStateHash: (
+            .value.clientId as $client_id
+            | $client_id
+          ),
+          rollbackArtifactReference: $rollback_artifact,
+          state: "pending"
+        })
+      )
+    }
+  ' "$apply_manifest" >"$recovery_manifest"
+
+# Replace the temporary client-id placeholder with the reviewed desired hash.
+manifest_tmp="$(mktemp "$RECOVERY_DIR/.manifest.XXXXXX")"
+jq --slurpfile plan "$PLAN_FILE" '
+  .operations |= map(
+    . as $operation
+    | .expectedPostStateHash = (
+        $plan[0].clients[]
+        | select(.clientId == $operation.clientId)
+        | .desiredSha256
+      )
+  )
+' "$recovery_manifest" >"$manifest_tmp"
+chmod 600 "$manifest_tmp"
+mv -f "$manifest_tmp" "$recovery_manifest"
+chmod 600 "$recovery_manifest"
 
 # Phase 2: immediately before the first mutation, re-check every reviewed create
 # target is still absent. Any race or operator-created client invalidates the
@@ -403,31 +556,65 @@ changed_count=0
 created_count=0
 updated_count=0
 while IFS= read -r operation; do
+  # Sequence is the manifest order, including noops, rather than mutation count.
+  operation_sequence="$(jq -er --arg client_id "$(jq -er '.clientId' <<<"$operation")" '.operations[] | select(.clientId == $client_id) | .sequence' "$recovery_manifest")"
+  active_sequence="$operation_sequence"
+  mutation_started=false
+  record_operation_state "$operation_sequence" started
   action="$(jq -er '.action' <<<"$operation")"
   client_id="$(jq -er '.clientId' <<<"$operation")"
   case "$action" in
     create)
       desired_file="$(jq -er '.desiredFile' <<<"$operation")"
+      mutation_started=true
       keycloak_api POST \
         "/admin/realms/$(urlencode "$KC_TARGET_REALM")/clients" \
         "$desired_file" >/dev/null
       created_count=$((created_count + 1))
       changed_count=$((changed_count + 1))
+      mutated_count=$((mutated_count + 1))
       [[ "$(keycloak_api GET "/admin/realms/$(urlencode "$KC_TARGET_REALM")/clients?clientId=$(urlencode "$client_id")&exact=true" | jq -er 'length')" -eq 1 ]] ||
         die "Created client could not be read back uniquely: ${client_id}"
+      record_operation_state "$operation_sequence" created
+      active_sequence=""
+      mutation_started=false
       printf 'CREATED=client:%s\n' "$client_id"
       ;;
     update)
       client_uuid="$(jq -er '.clientUuid' <<<"$operation")"
-      merged_file="$(jq -er '.mergedFile' <<<"$operation")"
+      desired_file="$(jq -er '.desiredFile' <<<"$operation")"
+      expected_before_sha256="$(jq -er '.expectedBeforeSha256' <<<"$operation")"
+      safe_client_id="$(printf '%s' "$client_id" | LC_ALL=C tr -c '[:alnum:]_.-' '_')"
+      immediate_live_file="$tmp_dir/immediate-live-${safe_client_id}.json"
+      immediate_before_file="$tmp_dir/immediate-before-${safe_client_id}.json"
+      merged_file="$tmp_dir/immediate-merged-${safe_client_id}.json"
+      keycloak_api GET \
+        "/admin/realms/$(urlencode "$KC_TARGET_REALM")/clients/$(urlencode "$client_uuid")" \
+        >"$immediate_live_file"
+      project_live_to_desired_shape "$immediate_live_file" "$desired_file" "$immediate_before_file"
+      [[ "$(canonical_hash "$immediate_before_file")" == "$expected_before_sha256" ]] ||
+        die "Immediate pre-write state changed for client ${client_id}"
+      jq -S -s '
+        .[0] * .[1]
+        | del(.secret, .registrationAccessToken, .access)
+      ' "$immediate_live_file" "$desired_file" >"$merged_file"
+      chmod 600 "$merged_file"
+      mutation_started=true
       keycloak_api PUT \
         "/admin/realms/$(urlencode "$KC_TARGET_REALM")/clients/$(urlencode "$client_uuid")" \
         "$merged_file" >/dev/null
       updated_count=$((updated_count + 1))
       changed_count=$((changed_count + 1))
+      mutated_count=$((mutated_count + 1))
+      record_operation_state "$operation_sequence" updated
+      active_sequence=""
+      mutation_started=false
       printf 'UPDATED=client:%s\n' "$client_id"
       ;;
     noop)
+      record_operation_state "$operation_sequence" unchanged
+      active_sequence=""
+      mutation_started=false
       printf 'UNCHANGED=client:%s\n' "$client_id"
       ;;
     *)
@@ -488,3 +675,6 @@ printf 'CHANGED_COUNT=%s\n' "$changed_count"
 printf 'DRIFT_COUNT=0\n'
 printf 'BLOCKED_COUNT=0\n'
 printf 'RECONCILE=APPLIED_AND_VERIFIED\n'
+printf 'PARTIAL_APPLY=false\n'
+printf 'RECOVERY_MANIFEST=%s\n' "$recovery_manifest"
+apply_finished=true

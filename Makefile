@@ -43,7 +43,8 @@ apply-plan:
 	: "$${REVIEW_SHA256:?Set REVIEW_SHA256 to the review hash}"
 	: "$${EXPECTED_DEPLOY_SHA:?Set EXPECTED_DEPLOY_SHA}"
 	: "$${DEPLOY_ENVIRONMENT:?Set DEPLOY_ENVIRONMENT to staging or production}"
-	./scripts/apply-plan.sh --plan "$${PLAN_FILE}" --expected-plan-sha "$${PLAN_SHA256}" --review "$${REVIEW_FILE}" --expected-review-sha "$${REVIEW_SHA256}" --expected-deploy-sha "$${EXPECTED_DEPLOY_SHA}"
+	: "$${RECOVERY_DIR:?Set RECOVERY_DIR to a durable absolute artifact directory}"
+	./scripts/apply-plan.sh --plan "$${PLAN_FILE}" --expected-plan-sha "$${PLAN_SHA256}" --review "$${REVIEW_FILE}" --expected-review-sha "$${REVIEW_SHA256}" --expected-deploy-sha "$${EXPECTED_DEPLOY_SHA}" --recovery-dir "$${RECOVERY_DIR}"
 
 export-klyrow:
 	./scripts/export-client.sh --output "$${PWD}/artifacts/before" klyrow-portal

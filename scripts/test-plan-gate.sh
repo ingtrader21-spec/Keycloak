@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+report_error() {
+  local exit_status="$1"
+  local line_number="$2"
+  printf 'TEST_PLAN_GATE_ERROR=line:%s status:%s\n' "$line_number" "$exit_status" >&2
+  exit "$exit_status"
+}
+trap 'report_error "$?" "$LINENO"' ERR
 umask 077
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -19,6 +26,8 @@ trap cleanup EXIT
 state_file="$test_root/clients.json"
 realm_state_file="$test_root/realm.json"
 port_file="$test_root/port"
+control_file="$test_root/control.json"
+printf '{}\n' >"$control_file"
 
 jq -S '.rememberMe = true' "$ROOT_DIR/config/realms/codestra.json" >"$realm_state_file"
 
@@ -45,6 +54,7 @@ from urllib.parse import parse_qs, urlparse
 state_path = Path(os.environ["MOCK_STATE_FILE"])
 realm_state_path = Path(os.environ["MOCK_REALM_STATE_FILE"])
 port_path = Path(os.environ["MOCK_PORT_FILE"])
+control_path = Path(os.environ["MOCK_CONTROL_FILE"])
 
 
 def load_state() -> dict[str, dict]:
@@ -53,6 +63,29 @@ def load_state() -> dict[str, dict]:
 
 def save_state(value: dict[str, dict]) -> None:
     state_path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
+
+
+def apply_controlled_get_mutation(client_id: str, state: dict[str, dict]) -> dict[str, dict]:
+    control = json.loads(control_path.read_text())
+    if not control.get("armed") or control.get("clientId") != client_id:
+        return state
+    remaining = int(control.get("remainingGets", 0))
+    if remaining > 0:
+        control["remainingGets"] = remaining - 1
+        control_path.write_text(json.dumps(control, sort_keys=True) + "\n")
+        return state
+    representation = state[client_id]["representation"]
+    if control.get("kind") == "managed":
+        representation["redirectUris"] = ["https://concurrent.example/callback"]
+    elif control.get("kind") == "unmanaged":
+        representation["unmanagedConcurrentMarker"] = "preserved"
+    else:
+        raise RuntimeError("unsupported controlled mutation")
+    control["armed"] = False
+    control["fired"] = True
+    save_state(state)
+    control_path.write_text(json.dumps(control, sort_keys=True) + "\n")
+    return state
 
 
 def live_representation(client_id: str, item: dict) -> dict:
@@ -132,6 +165,8 @@ class Handler(BaseHTTPRequestHandler):
             client_uuid = parsed.path.removeprefix(prefix)
             for client_id, item in state.items():
                 if item["id"] == client_uuid:
+                    state = apply_controlled_get_mutation(client_id, state)
+                    item = state[client_id]
                     self.send_json(200, live_representation(client_id, item))
                     return
             self.send_json(404, {"error": "not_found"})
@@ -179,6 +214,7 @@ PY
 MOCK_STATE_FILE="$state_file" \
 MOCK_REALM_STATE_FILE="$realm_state_file" \
 MOCK_PORT_FILE="$port_file" \
+MOCK_CONTROL_FILE="$control_file" \
 python3 "$test_root/mock_keycloak.py" &
 server_pid=$!
 
@@ -263,7 +299,8 @@ if "$ROOT_DIR/scripts/apply-plan.sh" \
   --expected-plan-sha 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' \
   --review "$review_file" \
   --expected-review-sha "$review_sha256" \
-  --expected-deploy-sha "$expected_sha" >/dev/null 2>&1; then
+  --expected-deploy-sha "$expected_sha" \
+  --recovery-dir "$test_root/recovery-bad-hash" >/dev/null 2>&1; then
   echo 'TEST_ERROR=mismatched_plan_hash_was_accepted' >&2
   exit 1
 fi
@@ -282,7 +319,8 @@ if "$ROOT_DIR/scripts/apply-plan.sh" \
   --expected-plan-sha "$plan_sha256" \
   --review "$review_file" \
   --expected-review-sha "$review_sha256" \
-  --expected-deploy-sha "$expected_sha" >/dev/null 2>&1; then
+  --expected-deploy-sha "$expected_sha" \
+  --recovery-dir "$test_root/recovery-create-race" >/dev/null 2>&1; then
   echo 'TEST_ERROR=create_race_was_not_rejected' >&2
   exit 1
 fi
@@ -304,7 +342,15 @@ mv "$state_file.tmp" "$state_file"
   --expected-plan-sha "$plan_sha256" \
   --review "$review_file" \
   --expected-review-sha "$review_sha256" \
-  --expected-deploy-sha "$expected_sha" >/dev/null
+  --expected-deploy-sha "$expected_sha" \
+  --recovery-dir "$test_root/recovery-success" >/dev/null
+
+expected_operation_count="$(jq -er '.clients | length' "$plan_dir/plan.json")"
+jq -e --argjson expected_operation_count "$expected_operation_count" '
+  .partialApply == false
+  and (.operations | length == $expected_operation_count)
+  and all(.operations[]; (.state == "created" or .state == "updated" or .state == "unchanged"))
+' "$test_root/recovery-success/recovery-manifest.json" >/dev/null
 
 for client_id in klyrow-portal moneybee-admin moneybee-borrower moneybee-lender moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra sdk-intake alertmanager; do
   jq -e --arg client_id "$client_id" 'has($client_id)' "$state_file" >/dev/null
@@ -352,6 +398,75 @@ for client_id in moneybee-backend breero-backend larim-a-backend transportation-
   ' "$state_file" >/dev/null
 done
 
+# Two reviewed updates are prepared. The first succeeds, then the second is
+# changed concurrently immediately before its PUT. Apply must fail closed and
+# leave exact durable partial-apply evidence.
+jq -S '
+  .["klyrow-portal"].representation.redirectUris = ["https://drift-one.example/callback"]
+  | .["moneybee-admin"].representation.redirectUris = ["https://drift-two.example/callback"]
+' "$state_file" >"$state_file.tmp"
+mv "$state_file.tmp" "$state_file"
+multi_update_plan="$test_root/multi-update-plan"
+"$ROOT_DIR/scripts/plan.sh" \
+  --output-dir "$multi_update_plan" \
+  --expected-deploy-sha "$expected_sha" >/dev/null
+[[ "$(jq -er '.updateCount' "$multi_update_plan/plan.json")" -eq 2 ]]
+multi_update_hash="$(awk 'NR == 1 {print $1}' "$multi_update_plan/plan.sha256")"
+multi_update_review="$test_root/multi-update-review.json"
+"$ROOT_DIR/scripts/review-plan.sh" --plan "$multi_update_plan/plan.json" --expected-plan-sha "$multi_update_hash" --expected-deploy-sha "$expected_sha" --output "$multi_update_review" >/dev/null
+multi_update_review_hash="$(awk 'NR == 1 {print $1}' "${multi_update_review}.sha256")"
+jq -n '{armed: true, clientId: "moneybee-admin", remainingGets: 1, kind: "managed"}' >"$control_file"
+if "$ROOT_DIR/scripts/apply-plan.sh" \
+  --plan "$multi_update_plan/plan.json" \
+  --expected-plan-sha "$multi_update_hash" \
+  --review "$multi_update_review" \
+  --expected-review-sha "$multi_update_review_hash" \
+  --expected-deploy-sha "$expected_sha" \
+  --recovery-dir "$test_root/recovery-update-race" \
+  >"$test_root/update-race.stdout" 2>"$test_root/update-race.stderr"; then
+  echo 'TEST_ERROR=update_race_was_not_rejected' >&2
+  exit 1
+fi
+grep -q '^PARTIAL_APPLY=true$' "$test_root/update-race.stderr"
+jq -e '
+  .partialApply == true
+  and ([.operations[] | select(.clientId == "klyrow-portal")][0].state == "rollback-required")
+  and ([.operations[] | select(.clientId == "moneybee-admin")][0].state == "failed")
+  and all(.operations[] | select(.clientId == "moneybee-borrower" or .clientId == "moneybee-lender"); .state == "pending")
+' "$test_root/recovery-update-race/recovery-manifest.json" >/dev/null
+jq -e --slurpfile desired "$ROOT_DIR/config/clients/klyrow-portal.json" '
+  .["klyrow-portal"].representation == $desired[0]
+  and .["moneybee-admin"].representation.redirectUris == ["https://concurrent.example/callback"]
+' "$state_file" >/dev/null
+
+# An unmanaged field may change concurrently: the immediate re-read must retain
+# that field while still applying only the reviewed managed overlay.
+jq -S --slurpfile admin "$ROOT_DIR/config/clients/moneybee-admin.json" '
+  .["moneybee-admin"].representation = $admin[0]
+  | .["klyrow-portal"].representation.redirectUris = ["https://unmanaged-race.example/callback"]
+' "$state_file" >"$state_file.tmp"
+mv "$state_file.tmp" "$state_file"
+unmanaged_plan="$test_root/unmanaged-plan"
+"$ROOT_DIR/scripts/plan.sh" \
+  --output-dir "$unmanaged_plan" \
+  --expected-deploy-sha "$expected_sha" >/dev/null
+unmanaged_hash="$(awk 'NR == 1 {print $1}' "$unmanaged_plan/plan.sha256")"
+unmanaged_review="$test_root/unmanaged-review.json"
+"$ROOT_DIR/scripts/review-plan.sh" --plan "$unmanaged_plan/plan.json" --expected-plan-sha "$unmanaged_hash" --expected-deploy-sha "$expected_sha" --output "$unmanaged_review" >/dev/null
+unmanaged_review_hash="$(awk 'NR == 1 {print $1}' "${unmanaged_review}.sha256")"
+jq -n '{armed: true, clientId: "klyrow-portal", remainingGets: 1, kind: "unmanaged"}' >"$control_file"
+"$ROOT_DIR/scripts/apply-plan.sh" \
+  --plan "$unmanaged_plan/plan.json" \
+  --expected-plan-sha "$unmanaged_hash" \
+  --review "$unmanaged_review" \
+  --expected-review-sha "$unmanaged_review_hash" \
+  --expected-deploy-sha "$expected_sha" \
+  --recovery-dir "$test_root/recovery-unmanaged-race" >/dev/null
+jq -e '
+  .["klyrow-portal"].representation.unmanagedConcurrentMarker == "preserved"
+  and .["klyrow-portal"].representation.redirectUris == ["https://klyrow.com/"]
+' "$state_file" >/dev/null
+
 jq -S 'del(."klyrow-portal")' "$state_file" >"$state_file.tmp"
 mv "$state_file.tmp" "$state_file"
 missing_dir="$test_root/missing-creatable"
@@ -375,6 +490,9 @@ printf 'ADMIN_AUTH_REALM=master\n'
 printf 'TARGET_REALM=codestra\n'
 printf 'REVIEWED_CREATE_TESTS=PASS\n'
 printf 'CREATE_PREWRITE_RACE_GUARD=PASS\n'
+printf 'UPDATE_PREWRITE_RACE_GUARD=PASS\n'
+printf 'UNMANAGED_CONCURRENT_STATE_PRESERVATION=PASS\n'
+printf 'PARTIAL_APPLY_RECOVERY_MANIFEST=PASS\n'
 printf 'ROLLBACK_EVIDENCE_TESTS=PASS\n'
 printf 'MAPPER_NORMALIZATION_TESTS=PASS\n'
 printf 'PRODUCT_MACHINE_CLIENT_CREATE_TESTS=PASS\n'

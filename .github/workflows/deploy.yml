@@ -423,7 +423,17 @@ jobs:
             --expected-plan-sha "$APPROVED_PLAN_SHA256" \
             --review "$RUNNER_TEMP/reviewed-drift/review.json" \
             --expected-review-sha "$APPROVED_REVIEW_SHA256" \
-            --expected-deploy-sha "$GITHUB_SHA"
+            --expected-deploy-sha "$GITHUB_SHA" \
+            --recovery-dir "$RUNNER_TEMP/keycloak-apply-recovery"
+
+      - name: Upload apply recovery manifest
+        if: ${{ always() && inputs.mode == 'apply' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: keycloak-apply-recovery-${{ inputs.environment }}-${{ github.sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/keycloak-apply-recovery
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Run read-only OIDC smoke test
         if: ${{ inputs.mode == 'apply' }}
