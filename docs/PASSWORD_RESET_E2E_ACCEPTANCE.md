@@ -120,10 +120,11 @@ The endpoint must return either a JSON array or:
 }
 ```
 
-The response may contain privacy-safe identifiers, event type, outcome,
-correlation ID, provider message ID hash, and timestamps. It must never contain
-passwords, temporary passwords, reset tokens, action tokens, full reset URLs,
-SMTP credentials, `kc_action`, or an action-token path.
+Each event is a flat object restricted to privacy-safe identifiers, event type
+and family, outcome/status, correlation ID, provider message ID hash, subject,
+and timestamps. Nested payloads and unknown fields fail acceptance. Every value
+is also compared with the passwords, action URLs, and action-token keys observed
+during the run; an exact or embedded match fails acceptance.
 
 An empty event array is valid because the password-recovery data plane is
 Keycloak → Klyrow/Postal, not Middleware. Any sanitized lifecycle event must

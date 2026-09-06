@@ -34,16 +34,10 @@ import requests
 from bs4 import BeautifulSoup
 
 CANONICAL_ISSUER = "https://auth.codestra.co/realms/codestra"
-FORBIDDEN_MIDDLEWARE_MARKERS = {
-    "password",
-    "new_password",
-    "temporary_password",
-    "reset_token",
-    "reset_url",
-    "action_token",
-    "smtp_password",
-    "kc_action",
-    "login-actions/action-token",
+ALLOWED_MIDDLEWARE_EVENT_FIELDS = {
+    "id", "event_id", "event_type", "type", "event_family", "outcome",
+    "status", "correlation_id", "provider_message_id_hash", "identity_subject",
+    "subject", "timestamp", "created_at", "occurred_at",
 }
 SAFE_IDENTIFIER = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 ACTION_URL_PATTERN = re.compile(
@@ -655,7 +649,10 @@ def verify_postal_received_headers(message: Message) -> None:
 
 
 def verify_middleware_secret_boundary(
-    config: Config, user_id: str, started_at: datetime
+    config: Config,
+    user_id: str,
+    started_at: datetime,
+    reset_secrets: Iterable[str],
 ) -> int:
     response = requests.get(
         config.middleware_audit_url,
@@ -678,12 +675,17 @@ def verify_middleware_secret_boundary(
     events = body.get("events") if isinstance(body, dict) else body
     if not isinstance(events, list):
         raise AcceptanceError("middleware sanitized-audit response must contain an events array")
-    serialized = json.dumps(events, sort_keys=True).lower()
-    for marker in FORBIDDEN_MIDDLEWARE_MARKERS:
-        if marker in serialized:
-            raise AcceptanceError(
-                f"middleware audit contains prohibited password-reset material: {marker}"
-            )
+    sensitive_values = {value for value in reset_secrets if value}
+    for event in events:
+        if not isinstance(event, dict) or not set(event) <= ALLOWED_MIDDLEWARE_EVENT_FIELDS:
+            raise AcceptanceError("middleware audit event does not match the sanitized schema")
+        for value in event.values():
+            if isinstance(value, (dict, list)):
+                raise AcceptanceError("middleware audit event contains a nested payload")
+            if isinstance(value, str) and any(
+                secret == value or secret in value for secret in sensitive_values
+            ):
+                raise AcceptanceError("middleware audit contains observed password-reset material")
     return len(events)
 
 
@@ -802,12 +804,22 @@ def run(config: Config) -> dict[str, Any]:
         assert_action_link_rejected(config, second_action_url, "expired")
         report["gates"]["reset_link_expiration_enforced"] = "PASS"
 
-        middleware_events = verify_middleware_secret_boundary(config, user_id, started_at)
+        observed_reset_secrets = {
+            initial_password,
+            reset_password,
+            first_action_url,
+            second_action_url,
+            *parse_qs(urlsplit(first_action_url).query).get("key", []),
+            *parse_qs(urlsplit(second_action_url).query).get("key", []),
+        }
+        middleware_events = verify_middleware_secret_boundary(
+            config, user_id, started_at, observed_reset_secrets
+        )
         report["middleware_event_count"] = middleware_events
         report["gates"]["middleware_receives_no_reset_secret"] = "PASS"
     finally:
         if user_id:
-            delete_test_user(config, token, user_id)
+            delete_test_user(config, admin_token(config), user_id)
             report["gates"]["disposable_user_deleted"] = "PASS"
 
     report["completed_at"] = datetime.now(timezone.utc).isoformat()
@@ -834,7 +846,7 @@ def main() -> int:
             "completed_at": datetime.now(timezone.utc).isoformat(),
             "result": "FAIL",
             "error_type": type(exc).__name__,
-            "error": str(exc),
+            "error": "password_reset_acceptance_failed",
         }
         try:
             write_report(report_path, failure)
