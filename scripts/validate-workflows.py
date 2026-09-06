@@ -29,7 +29,7 @@ LEGACY_WORKFLOWS = {
 AUTHORITY_WORKFLOW = "repository-name-authority.yml"
 LIVE_AUTHORITY_WORKFLOW = "repository-name-live-authority.yml"
 MANUAL_RELEASE_WORKFLOW = "manual-release-intent.yml"
-ADDITIONAL_REVIEWED_WORKFLOWS = {"orbit-theme.yml"}
+ADDITIONAL_REVIEWED_WORKFLOWS = {"orbit-theme.yml", "scrapper-identity-contract.yml"}
 PR_AUTHORITY_WORKFLOWS = {
     "keycloak-pr-authority-audit.yml",
     "keycloak-pr-authority-pr.yml",
@@ -206,14 +206,19 @@ def validate_additional_reviewed_workflows() -> None:
             workflow.get("permissions"), f"{path}.permissions", {"contents": "read"}
         )
         jobs = CORE.as_mapping(workflow.get("jobs"), f"{path}.jobs")
+        if not jobs:
+            fail(f"{path}: workflow must define at least one job")
         for job_name, value in jobs.items():
             job = CORE.as_mapping(value, f"{path}.jobs.{job_name}")
             if "permissions" in job or "environment" in job:
-                fail(f"{path}: validation jobs cannot elevate permissions")
+                fail(f"{path}: reviewed validation jobs cannot elevate permissions")
             if "self-hosted" in CORE.normalize_runs_on(job.get("runs-on")):
-                fail(f"{path}: validation jobs cannot use self-hosted runners")
-            if any(CORE.SECRET_EXPRESSION.search(text) for text in CORE.recursive_strings(job)):
-                fail(f"{path}: validation jobs cannot reference secrets")
+                fail(f"{path}: reviewed validation jobs cannot use self-hosted runners")
+            if any(
+                CORE.SECRET_EXPRESSION.search(text)
+                for text in CORE.recursive_strings(job)
+            ):
+                fail(f"{path}: reviewed validation jobs cannot reference secrets")
             CORE.validate_steps(job, f"{path}.jobs.{job_name}")
 
 
