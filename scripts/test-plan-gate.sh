@@ -17,7 +17,10 @@ cleanup() {
 trap cleanup EXIT
 
 state_file="$test_root/clients.json"
+realm_state_file="$test_root/realm.json"
 port_file="$test_root/port"
+
+jq -S '.rememberMe = true' "$ROOT_DIR/config/realms/codestra.json" >"$realm_state_file"
 
 jq -S -n \
   --slurpfile klyrow "$ROOT_DIR/config/clients/klyrow-portal.json" '
@@ -40,6 +43,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 state_path = Path(os.environ["MOCK_STATE_FILE"])
+realm_state_path = Path(os.environ["MOCK_REALM_STATE_FILE"])
 port_path = Path(os.environ["MOCK_PORT_FILE"])
 
 
@@ -108,6 +112,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
+        if parsed.path == "/admin/realms/codestra":
+            self.send_json(200, json.loads(realm_state_path.read_text()))
+            return
         state = load_state()
         if parsed.path == "/admin/realms/codestra/clients":
             query = parse_qs(parsed.query)
@@ -133,6 +140,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_PUT(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
+        if parsed.path == "/admin/realms/codestra":
+            realm_state_path.write_text(
+                json.dumps(self.read_json(), indent=2, sort_keys=True) + "\n"
+            )
+            self.send_response(204)
+            self.end_headers()
+            return
         prefix = "/admin/realms/codestra/clients/"
         if not parsed.path.startswith(prefix):
             self.send_json(404, {"error": "not_found"})
@@ -163,6 +177,7 @@ server.serve_forever()
 PY
 
 MOCK_STATE_FILE="$state_file" \
+MOCK_REALM_STATE_FILE="$realm_state_file" \
 MOCK_PORT_FILE="$port_file" \
 python3 "$test_root/mock_keycloak.py" &
 server_pid=$!
@@ -187,6 +202,7 @@ export KC_ADMIN_CLIENT_SECRET=$TEST_KC_CLIENT_SECRET
 export ALLOW_INSECURE_KC_BASE_URL="true"
 export ALLOW_NONCANONICAL_KC_BASE_URL_FOR_TESTS="true"
 export DEPLOY_ENVIRONMENT="staging"
+export KC_SMTP_CREDENTIAL_VERSION="ci-rotation-v1"
 expected_sha="1111111111111111111111111111111111111111"
 
 [[ "$(keycloak_endpoint_file)" == "$ROOT_DIR/config/endpoints/codestra-staging.json" ]]
@@ -202,10 +218,11 @@ plan_dir="$test_root/plan"
 [[ "$(jq -er '.api.adminApiBaseUrl' "$plan_dir/plan.json")" == "https://auth-staging.codestra.co" ]]
 [[ "$(jq -er '.api.issuer' "$plan_dir/plan.json")" == "https://auth-staging.codestra.co/realms/codestra" ]]
 
-[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 31 ]]
+[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 32 ]]
 [[ "$(jq -er '.blockedCount' "$plan_dir/plan.json")" -eq 0 ]]
 [[ "$(jq -er '.createCount' "$plan_dir/plan.json")" -eq 30 ]]
-[[ "$(jq -er '.updateCount' "$plan_dir/plan.json")" -eq 1 ]]
+[[ "$(jq -er '.updateCount' "$plan_dir/plan.json")" -eq 2 ]]
+[[ "$(jq -er '.realmPolicy.action' "$plan_dir/plan.json")" == "update" ]]
 [[ "$(jq -er '.clients[] | select(.clientId == "klyrow-portal") | .action' "$plan_dir/plan.json")" == "update" ]]
 for client_id in moneybee-admin moneybee-borrower moneybee-lender moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra; do
   [[ "$(jq -er --arg client_id "$client_id" '.clients[] | select(.clientId == $client_id) | .action' "$plan_dir/plan.json")" == "create" ]]
@@ -314,6 +331,23 @@ converged_dir="$test_root/converged"
 [[ "$(jq -er '.createCount' "$converged_dir/plan.json")" -eq 0 ]]
 [[ "$(jq -er '.updateCount' "$converged_dir/plan.json")" -eq 0 ]]
 
+# A non-secret credential-version change must produce reviewed realm drift even
+# when every non-secret realm field is already converged. Secrets must never be
+# serialized into the plan.
+export KC_SMTP_CREDENTIAL_VERSION="ci-rotation-v2"
+rotation_dir="$test_root/smtp-rotation"
+"$ROOT_DIR/scripts/plan.sh" \
+  --output-dir "$rotation_dir" \
+  --expected-deploy-sha "$expected_sha" >/dev/null
+[[ "$(jq -er '.realmPolicy.action' "$rotation_dir/plan.json")" == "update" ]]
+[[ "$(jq -er '.realmPolicy.smtpCredentialVersion' "$rotation_dir/plan.json")" == "ci-rotation-v2" ]]
+[[ "$(jq -er '.driftCount' "$rotation_dir/plan.json")" -eq 1 ]]
+if rg -F "$KC_SMTP_USERNAME" "$rotation_dir" || rg -F "$KC_SMTP_PASSWORD" "$rotation_dir"; then
+  echo 'TEST_ERROR=smtp_secret_was_serialized_in_plan' >&2
+  exit 1
+fi
+export KC_SMTP_CREDENTIAL_VERSION="ci-rotation-v1"
+
 for client_id in moneybee-admin moneybee-borrower moneybee-lender; do
   jq -e --arg client_id "$client_id" '
     .[$client_id].representation.protocolMappers[0].name == "moneybee-api-audience"
@@ -354,3 +388,4 @@ printf 'ROLLBACK_EVIDENCE_TESTS=PASS\n'
 printf 'MAPPER_NORMALIZATION_TESTS=PASS\n'
 printf 'PRODUCT_MACHINE_CLIENT_CREATE_TESTS=PASS\n'
 printf 'KLYROW_PORTAL_REVIEWED_CREATE=PASS\n'
+printf 'SMTP_CREDENTIAL_ROTATION_PLAN=PASS\n'
