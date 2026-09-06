@@ -21,10 +21,11 @@ def fail(message: str) -> None:
 
 compose = yaml.safe_load((ROOT / "compose.yaml").read_text())
 services = compose.get("services", {})
-if set(services) != {"postgres", "keycloak"}:
-    fail("dedicated compose may contain only postgres and keycloak")
+if set(services) != {"postgres", "keycloak-image-policy", "keycloak"}:
+    fail("dedicated compose may contain only postgres, image policy, and keycloak")
 
 postgres = services["postgres"]
+image_policy = services["keycloak-image-policy"]
 keycloak = services["keycloak"]
 if not DIGEST.fullmatch(str(postgres.get("image", ""))):
     fail("postgres image must use a version and immutable sha256 digest")
@@ -33,7 +34,7 @@ if not GHCR_RUNTIME.fullmatch(str(keycloak.get("image", ""))):
 if "build" in keycloak:
     fail("production compose must deploy a published image, not build in place")
 
-for name, service in services.items():
+for name, service in {"postgres": postgres, "keycloak": keycloak}.items():
     if service.get("privileged") is True:
         fail(f"{name} must not be privileged")
     if service.get("read_only") is not True:
@@ -54,6 +55,28 @@ for name, service in services.items():
         "max-file": "5",
     }:
         fail(f"{name} log rotation policy is invalid")
+
+if image_policy.get("image") != postgres.get("image"):
+    fail("image policy helper must reuse the immutable postgres image")
+if image_policy.get("restart") != "no":
+    fail("image policy helper must be a one-shot service")
+if image_policy.get("read_only") is not True:
+    fail("image policy helper root filesystem must be read-only")
+if image_policy.get("cap_drop") != ["ALL"]:
+    fail("image policy helper must drop all capabilities")
+if image_policy.get("security_opt") != ["no-new-privileges:true"]:
+    fail("image policy helper must set no-new-privileges")
+if image_policy.get("networks") != ["keycloak-internal"]:
+    fail("image policy helper must use only the dedicated internal network")
+if set(image_policy.get("environment", {})) != {"CANDIDATE_IMAGE"}:
+    fail("image policy helper environment is invalid")
+if image_policy.get("entrypoint") != ["/bin/sh", "-ec"]:
+    fail("image policy helper entrypoint is invalid")
+policy_command = image_policy.get("command")
+if not isinstance(policy_command, list) or len(policy_command) != 1:
+    fail("image policy helper command is invalid")
+if "ghcr.io/appolon1908-hue/" not in policy_command[0] or "@sha256:" not in policy_command[0]:
+    fail("image policy helper must enforce approved GHCR digest identity")
 
 if "ports" in postgres:
     fail("postgres must not publish a host port")
