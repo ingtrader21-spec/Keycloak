@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "environment": "production",
+  "protectedBranchesOnly": true,
+  "preventSelfReview": true,
+  "administratorBypassAllowed": false,
+  "requiredIndependentReviewer": "kazan555",
+  "requiredVariables": [
+    "KC_BASE_URL",
+    "KC_PUBLIC_URL",
+    "KC_TARGET_REALM",
+    "KC_ADMIN_REALM",
+    "RUNTIME_REPO_DIR",
+    "RUNTIME_COMPOSE_FILE",
+    "RUNTIME_ENV_FILE",
+    "RUNTIME_CADDY_FILE",
+    "RUNTIME_GIT_SSH_KEY",
+    "RUNTIME_GIT_KNOWN_HOSTS",
+    "RUNTIME_GIT_REMOTE",
+    "RUNTIME_GIT_BRANCH",
+    "RUNTIME_PATHS_APPROVED_SHA256"
+  ],
+  "requiredSecrets": [
+    "KC_ADMIN_CLIENT_ID",
+    "KC_ADMIN_CLIENT_SECRET"
+  ],
+  "applyRequiresReviewedPlan": true,
+  "applyRequiresIndependentDriftReview": true,
+  "sourceOnlyMayEnableProduction": false
+}

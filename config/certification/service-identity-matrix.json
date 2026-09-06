@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "stagingIssuer": "https://auth-staging.codestra.co/realms/codestra",
+  "productionIssuer": "https://auth.codestra.co/realms/codestra",
+  "environmentsTrustEachOther": false,
+  "requiredClaims": ["iss", "sub", "aud", "azp", "iat", "exp", "nbf", "jti", "scope", "tenant_id"],
+  "positiveCases": [
+    "valid_service_identity",
+    "valid_tenant_binding",
+    "valid_campaign_binding"
+  ],
+  "negativeCases": [
+    "missing_token",
+    "malformed_token",
+    "wrong_issuer",
+    "wrong_audience",
+    "wrong_azp",
+    "insufficient_scope",
+    "wrong_tenant",
+    "wrong_campaign",
+    "expired",
+    "not_before",
+    "invalid_signature",
+    "unknown_signing_key",
+    "forwarded_only_token",
+    "cross_client_scope_confusion",
+    "replayed_jti"
+  ],
+  "requiredEvidence": [
+    "repository_sha",
+    "realm_export_sha256",
+    "issuer",
+    "jwks_fingerprint",
+    "kong_configuration_sha256",
+    "middleware_configuration_sha256",
+    "case_results",
+    "rollback_result"
+  ],
+  "productionMutationAllowed": false
+}
