@@ -171,6 +171,7 @@ chmod 600 "$recovery_events"
 
 mutated_count=0
 active_sequence=""
+mutation_started=false
 apply_finished=false
 
 record_operation_state() {
@@ -211,12 +212,17 @@ handle_apply_exit() {
   trap - EXIT
   if [[ "$apply_finished" != "true" && -f "$recovery_manifest" ]]; then
     if [[ -n "$active_sequence" ]]; then
-      # A transport/readback failure cannot prove that Keycloak did not commit
-      # the request. Preserve it as a rollback candidate and fail closed.
-      record_operation_state "$active_sequence" rollback-required \
-        "mutation outcome uncertain; verify live state before reviewed rollback (exit ${exit_code})" || true
+      if [[ "$mutation_started" == "true" ]]; then
+        # A transport/readback failure cannot prove that Keycloak did not commit
+        # the request. Preserve it as a rollback candidate and fail closed.
+        record_operation_state "$active_sequence" rollback-required \
+          "mutation outcome uncertain; verify live state before reviewed rollback (exit ${exit_code})" || true
+      else
+        record_operation_state "$active_sequence" failed \
+          "apply command exited before mutation with status ${exit_code}" || true
+      fi
     fi
-    if ((mutated_count > 0)) || [[ -n "$active_sequence" ]]; then
+    if ((mutated_count > 0)) || [[ "$mutation_started" == "true" ]]; then
       local manifest_tmp
       manifest_tmp="$(mktemp "$RECOVERY_DIR/.manifest.XXXXXX")"
       jq '
@@ -501,14 +507,15 @@ updated_count=0
 while IFS= read -r operation; do
   # Sequence is the manifest order, including noops, rather than mutation count.
   operation_sequence="$(jq -er --arg client_id "$(jq -er '.clientId' <<<"$operation")" '.operations[] | select(.clientId == $client_id) | .sequence' "$recovery_manifest")"
-  active_sequence=""
+  active_sequence="$operation_sequence"
+  mutation_started=false
   record_operation_state "$operation_sequence" started
   action="$(jq -er '.action' <<<"$operation")"
   client_id="$(jq -er '.clientId' <<<"$operation")"
   case "$action" in
     create)
       desired_file="$(jq -er '.desiredFile' <<<"$operation")"
-      active_sequence="$operation_sequence"
+      mutation_started=true
       keycloak_api POST \
         "/admin/realms/$(urlencode "$KC_TARGET_REALM")/clients" \
         "$desired_file" >/dev/null
@@ -519,6 +526,7 @@ while IFS= read -r operation; do
         die "Created client could not be read back uniquely: ${client_id}"
       record_operation_state "$operation_sequence" created
       active_sequence=""
+      mutation_started=false
       printf 'CREATED=client:%s\n' "$client_id"
       ;;
     update)
@@ -540,7 +548,7 @@ while IFS= read -r operation; do
         | del(.secret, .registrationAccessToken, .access)
       ' "$immediate_live_file" "$desired_file" >"$merged_file"
       chmod 600 "$merged_file"
-      active_sequence="$operation_sequence"
+      mutation_started=true
       keycloak_api PUT \
         "/admin/realms/$(urlencode "$KC_TARGET_REALM")/clients/$(urlencode "$client_uuid")" \
         "$merged_file" >/dev/null
@@ -549,11 +557,13 @@ while IFS= read -r operation; do
       mutated_count=$((mutated_count + 1))
       record_operation_state "$operation_sequence" updated
       active_sequence=""
+      mutation_started=false
       printf 'UPDATED=client:%s\n' "$client_id"
       ;;
     noop)
       record_operation_state "$operation_sequence" unchanged
       active_sequence=""
+      mutation_started=false
       printf 'UNCHANGED=client:%s\n' "$client_id"
       ;;
     *)
