@@ -17,6 +17,8 @@ python3 -c 'import yaml' >/dev/null 2>&1 || fail "PyYAML is required"
 [[ -d "$CONFIG_ROOT" ]] || fail "Configuration root does not exist: $CONFIG_ROOT"
 
 python3 "$ROOT_DIR/scripts/validate-authority-controls.py"
+python3 "$ROOT_DIR/scripts/validate-browser-registration-policy.py"
+python3 "$ROOT_DIR/scripts/validate-realm-security-policy.py"
 python3 "$ROOT_DIR/scripts/validate-provider-control-authority.py"
 python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_provider_control_authority.py' -v
 "$ROOT_DIR/scripts/test-backup-contract.sh"

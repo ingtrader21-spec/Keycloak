@@ -28,12 +28,15 @@ for key in ("verifyEmail", "loginWithEmailAllowed", "resetPasswordAllowed"):
 password_fragments = {
     "length(14)", "maxLength(128)", "upperCase(1)", "lowerCase(1)",
     "digits(1)", "specialChars(1)", "notUsername(undefined)",
-    "notEmail(undefined)", "passwordHistory(12)", "hashIterations(600000)",
+    "notEmail(undefined)", "passwordHistory(12)", "hashAlgorithm(pbkdf2-sha512)",
+    "hashIterations(600000)",
 }
 require(set(REALM["passwordPolicy"].split(" and ")) == password_fragments, "password policy")
 passwords = POLICY["passwords"]
 require(passwords["minimumLength"] == 14 and passwords["maximumLength"] == 128, "password length")
-require(passwords["history"] >= 12 and passwords["hashIterations"] >= 600000, "password reuse/hash")
+require(passwords["history"] >= 12, "password reuse")
+require(passwords["hashAlgorithm"] == "pbkdf2-sha512", "password hash algorithm")
+require(passwords["hashIterations"] >= 600000, "password hash iterations")
 require(passwords["commonPasswordProviderState"] == "blocked-requires-reviewed-provider", "common-password blocker")
 
 require(REALM["bruteForceProtected"] is True and REALM["failureFactor"] == 5, "brute force")

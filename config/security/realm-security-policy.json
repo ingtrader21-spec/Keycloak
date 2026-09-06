@@ -12,6 +12,7 @@
     "minimumSpecialCharacters": 1,
     "rejectUsername": true,
     "rejectEmail": true,
+    "hashAlgorithm": "pbkdf2-sha512",
     "hashIterations": 600000,
     "commonPasswordProviderState": "blocked-requires-reviewed-provider"
   },

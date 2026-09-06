@@ -11,7 +11,7 @@
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
-  "passwordPolicy": "length(14) and maxLength(128) and upperCase(1) and lowerCase(1) and digits(1) and specialChars(1) and notUsername(undefined) and notEmail(undefined) and passwordHistory(12) and hashIterations(600000)",
+  "passwordPolicy": "length(14) and maxLength(128) and upperCase(1) and lowerCase(1) and digits(1) and specialChars(1) and notUsername(undefined) and notEmail(undefined) and passwordHistory(12) and hashAlgorithm(pbkdf2-sha512) and hashIterations(600000)",
   "bruteForceProtected": true,
   "permanentLockout": false,
   "failureFactor": 5,
