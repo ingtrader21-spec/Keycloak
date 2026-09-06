@@ -1,5 +1,13 @@
 {
   "realm": "codestra",
   "enabled": true,
-  "displayName": "CODESTRA"
+  "displayName": "CODESTRA",
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "verifyEmail": false,
+  "loginTheme": "codestra-identity",
+  "emailTheme": "codestra-identity"
 }
