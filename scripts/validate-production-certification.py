@@ -71,6 +71,8 @@ deploy_workflow = (ROOT / ".github/workflows/deploy.yml").read_text(encoding="ut
 assert "Enforce production mutation stop flag" in deploy_workflow
 assert ".productionMutationAllowed == true" in deploy_workflow
 assert "production_mutation_not_authorized_by_certification_contract" in deploy_workflow
+for secret_name in machine_secrets:
+    assert f"secrets.{secret_name}" in deploy_workflow
 
 print("SERVICE_IDENTITY_CERTIFICATION_CONTRACT=PASS")
 print("PRODUCTION_ENVIRONMENT_CONTRACT=PASS")

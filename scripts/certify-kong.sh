@@ -4,7 +4,7 @@ umask 077
 
 fail() { printf 'KONG_CERTIFICATION=FAIL\nERROR=%s\n' "$*" >&2; exit 1; }
 for command_name in curl jq base64 install date; do command -v "$command_name" >/dev/null || fail "missing command: $command_name"; done
-for variable in KONG_TEST_URL CERT_CLIENT_ID CERT_CLIENT_SECRET EXPECTED_AUDIENCE EXPECTED_SCOPE KONG_EVIDENCE_FILE; do
+for variable in KONG_TEST_URL CERT_CLIENT_ID CERT_CLIENT_SECRET DISABLED_CLIENT_ID DISABLED_CLIENT_SECRET EXPECTED_AUDIENCE EXPECTED_SCOPE KONG_EVIDENCE_FILE; do
   [[ -n "${!variable:-}" ]] || fail "required environment variable is missing: $variable"
 done
 [[ "$KONG_TEST_URL" == https://* ]] || fail "KONG_TEST_URL must use HTTPS"
@@ -80,11 +80,8 @@ replacement='A'; [[ "$last_character" == A ]] && replacement='B'
 invalid_signature_token="${valid_token::-1}${replacement}"
 request_kong invalid_signature "$invalid_signature_token" '^(401|403)$'
 
-disabled_status='NOT_RUN'
-if [[ -n "${DISABLED_CLIENT_ID:-}" && -n "${DISABLED_CLIENT_SECRET:-}" ]]; then
-  disabled_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 30 --request POST "$token_endpoint" --data-urlencode 'grant_type=client_credentials' --data-urlencode "client_id=$DISABLED_CLIENT_ID" --data-urlencode "client_secret=$DISABLED_CLIENT_SECRET")"
-  [[ "$disabled_status" =~ ^(400|401)$ ]] || fail "disabled client unexpectedly obtained a token (HTTP $disabled_status)"
-fi
+disabled_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 30 --request POST "$token_endpoint" --data-urlencode 'grant_type=client_credentials' --data-urlencode "client_id=$DISABLED_CLIENT_ID" --data-urlencode "client_secret=$DISABLED_CLIENT_SECRET")"
+[[ "$disabled_status" =~ ^(400|401)$ ]] || fail "disabled client unexpectedly obtained a token (HTTP $disabled_status)"
 
 install -d -m 0700 -- "$(dirname -- "$KONG_EVIDENCE_FILE")"
 jq -S -n \
