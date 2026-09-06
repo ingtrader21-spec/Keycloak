@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "clientId": "moneybee-backend",
+  "clientType": "confidential",
+  "grantType": "client_credentials",
+  "serviceAccountsEnabled": true,
+  "standardFlowEnabled": false,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "targetClientId": "middleware-api",
+  "audience": "middleware-api",
+  "scopes": ["moneybee.events.publish"],
+  "maximumAccessTokenLifetimeSeconds": 300,
+  "refreshTokensAllowed": false,
+  "fullScopeAllowed": false,
+  "humanLoginAllowed": false,
+  "keycloakAdminApiAccess": false,
+  "prohibitedRealmManagementRoles": [
+    "realm-admin",
+    "manage-realm",
+    "manage-clients"
+  ],
+  "provisioningState": "declared-not-created"
+}
