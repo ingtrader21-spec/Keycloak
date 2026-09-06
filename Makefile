@@ -9,10 +9,10 @@ test-runtime-preflight:
 	./scripts/test-runtime-preflight.sh
 
 build:
-	docker build --build-arg KEYCLOAK_VERSION=$${KEYCLOAK_VERSION:-26.7.2} -t $${KEYCLOAK_IMAGE:-codestra-keycloak:local} .
+	docker build -t $${KEYCLOAK_BUILD_TAG:-codestra-keycloak:local} .
 
 up:
-	docker compose up -d --build
+	docker compose up -d
 
 down:
 	docker compose down
