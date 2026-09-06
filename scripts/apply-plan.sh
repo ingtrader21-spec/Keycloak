@@ -378,8 +378,8 @@ while IFS= read -r operation; do
       if [[ -n "$secret_environment" ]]; then
         require_env "$secret_environment"
         create_body_file="$tmp_dir/create-${client_id}.json"
-        jq -S --arg client_secret "${!secret_environment}" \
-          '.secret = $client_secret' "$desired_file" >"$create_body_file"
+        jq -S --arg secret_environment "$secret_environment" \
+          '.secret = env[$secret_environment]' "$desired_file" >"$create_body_file"
         chmod 600 "$create_body_file"
         request_body_file="$create_body_file"
       fi
