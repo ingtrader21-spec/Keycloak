@@ -16,6 +16,7 @@ CLIENT_SCOPE_DIR = ROOT / "config/client-scopes"
 ALLOWLIST_DIR = ROOT / "config/export-allowlists"
 MONITORING_CLIENT_ID = "monitoring-readonly"
 MONITORING_OPTIONAL_SCOPES = ("health.read", "metrics.read")
+MONITORING_TARGET = "middleware-api"
 
 
 def canonical(value: object) -> str:
@@ -79,6 +80,14 @@ def render() -> dict[Path, str]:
         ]
         optional_client_scopes: list[str] = []
         if client_id == MONITORING_CLIENT_ID:
+            if len(grants) != 1 or grants[0].get("targetClientId") != MONITORING_TARGET:
+                raise ValueError(
+                    "monitoring-readonly must have exactly one grant to middleware-api"
+                )
+            if audiences != [MONITORING_TARGET]:
+                raise ValueError(
+                    "monitoring-readonly must have exactly the middleware-api audience"
+                )
             if tuple(scopes) != MONITORING_OPTIONAL_SCOPES:
                 raise ValueError(
                     "monitoring-readonly grants must contain only health.read and metrics.read"

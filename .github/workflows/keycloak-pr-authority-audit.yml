@@ -1,0 +1,48 @@
+name: Keycloak pull-request authority audit
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * *"
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+
+concurrency:
+  group: keycloak-pr-authority-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: Keycloak / pull-request-authority
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - name: Compile fail-closed auditor
+        run: python3 -m py_compile scripts/ci/audit_keycloak_pull_requests.py
+      - name: Run dependency-free unit regressions
+        run: python3 tests/test_audit_keycloak_pull_requests.py
+      - name: Audit every open and draft pull request
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/ci/audit_keycloak_pull_requests.py \
+            --json-output artifacts/keycloak-pr-audit.json \
+            --markdown-output artifacts/keycloak-pr-audit.md
+      - name: Upload bounded audit evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: keycloak-pr-audit-${{ github.sha }}
+          path: |
+            artifacts/keycloak-pr-audit.json
+            artifacts/keycloak-pr-audit.md
+          if-no-files-found: error
+          retention-days: 30
