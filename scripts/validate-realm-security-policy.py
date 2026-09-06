@@ -66,12 +66,12 @@ require(POLICY["administrators"]["mfaRequired"] is True, "administrator MFA")
 require(POLICY["requiredActions"]["webauthnRegistrationForPrivilegedUsers"] is True, "privileged WebAuthn")
 
 smtp = REALM["smtpServer"]
+smtp_contract = SMTP["smtp"]
 require(set(smtp) == {"host", "port", "from", "fromDisplayName", "replyTo", "envelopeFrom", "auth", "starttls", "ssl"}, "SMTP secret boundary")
-require(smtp["host"] == "mail.klyrow.com" and smtp["port"] == "25", "SMTP endpoint")
+require(smtp["host"] == smtp_contract["defaultHost"] and int(smtp["port"]) == smtp_contract["defaultPort"], "SMTP endpoint")
 require(smtp["auth"] == "true" and smtp["starttls"] == "true" and smtp["ssl"] == "false", "SMTP transport")
 
-smtp_contract = SMTP["smtp"]
-require(smtp_contract["defaultHost"] == "mail.klyrow.com" and smtp_contract["defaultPort"] == 25, "SMTP contract endpoint")
+require(smtp_contract["connectivity"] == "private-vlan-only", "SMTP private connectivity")
 require(smtp_contract["encryption"] == "starttls", "SMTP contract STARTTLS")
 require(smtp_contract["requiredKlyrowStream"] == "SECURITY", "SECURITY stream")
 
