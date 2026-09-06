@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "state": "desired-not-activated",
+  "realm": "codestra",
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "canonicalDomain": "moneybeeloan.com",
+  "personas": {
+    "borrower": {
+      "clientId": "moneybee-borrower",
+      "publicRegistration": true,
+      "registrationGateRequired": true,
+      "emailVerification": "moneybee-verify-email-otp",
+      "mfaPolicy": "optional-with-step-up",
+      "preferredStrongAuthenticator": "webauthn",
+      "passwordTransitToMoneyBee": false
+    },
+    "lender": {
+      "clientId": "moneybee-lender",
+      "publicRegistration": false,
+      "provisioning": "invite-and-organization-approval-only",
+      "emailVerificationRequired": true,
+      "mfaRequired": true,
+      "allowedStrongAuthenticators": ["otp", "webauthn"],
+      "enterpriseSsoAllowed": true,
+      "passwordTransitToMoneyBee": false
+    },
+    "admin": {
+      "clientId": "moneybee-admin",
+      "publicRegistration": false,
+      "provisioning": "privileged-admin-approval-only",
+      "emailVerificationRequired": true,
+      "mfaRequired": true,
+      "preferredStrongAuthenticator": "webauthn",
+      "allowedStrongAuthenticators": ["webauthn", "otp"],
+      "maxSessionIdleMinutes": 30,
+      "privilegedActionReauthenticationRequired": true,
+      "passwordTransitToMoneyBee": false
+    }
+  },
+  "serviceIdentity": {
+    "moneybeeBackendContract": "config/contracts/moneybee-backend-producer.json",
+    "humanLoginAllowed": false,
+    "keycloakAdminApiAccess": false
+  },
+  "securityMail": {
+    "policy": "docs/MONEYBEE_SECURITY_SENDER_POLICY.md",
+    "preferredSender": "security@moneybeeloan.com",
+    "stream": "SECURITY",
+    "marketingTransportAllowed": false
+  },
+  "realmIsolationRoadmap": {
+    "evaluateDedicatedMoneyBeeRealm": true,
+    "migrationRequiresSeparateArchitectureReview": true,
+    "automaticMigration": false,
+    "reason": "Reduce financial-platform identity blast radius while preserving current shared-realm compatibility."
+  },
+  "productionActivation": {
+    "featureBranchApplyAllowed": false,
+    "exactMergedShaRequired": true,
+    "protectedEnvironmentApprovalRequired": true,
+    "rollbackEvidenceRequired": true
+  }
+}
