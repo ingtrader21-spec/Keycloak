@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "realm": "codestra",
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "state": "desired-flow-not-activated",
+  "providerId": "codestra-registration-gate",
+  "registrationFlow": "codestra-registration",
+  "allowedPublicRegistrationClients": [
+    "moneybee-borrower",
+    "beyvra-web-production",
+    "breero-portal"
+  ],
+  "explicitlyDeniedRegistrationClients": [
+    "moneybee-lender",
+    "moneybee-admin"
+  ],
+  "credentialAuthority": "keycloak-only",
+  "emailVerificationAuthority": "keycloak-standard-verify-email",
+  "passwordRecoveryAuthority": "keycloak-only",
+  "smtpAuthority": "config/email/keycloak-security-smtp.json",
+  "applicationPasswordCollectionAllowed": false,
+  "middlewareResetMaterialAllowed": false,
+  "kongResetMaterialAllowed": false,
+  "activation": {
+    "realmRegistrationAllowedBeforeGatedFlowExists": false,
+    "copyBuiltInRegistrationFlow": true,
+    "gateRequirement": "REQUIRED",
+    "gateScope": "registration-form",
+    "enableRealmRegistrationOnlyAfterGateReadback": true,
+    "verifyDeniedClientBeforeActivation": true,
+    "verifyAllowedClientsBeforeActivation": true
+  }
+}
