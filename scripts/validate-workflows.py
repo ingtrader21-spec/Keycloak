@@ -30,7 +30,14 @@ AUTHORITY_WORKFLOW = "repository-name-authority.yml"
 LIVE_AUTHORITY_WORKFLOW = "repository-name-live-authority.yml"
 MANUAL_RELEASE_WORKFLOW = "manual-release-intent.yml"
 IMAGE_RELEASE_WORKFLOW = "release-image.yml"
-ADDITIONAL_REVIEWED_WORKFLOWS = {"orbit-theme.yml", "scrapper-identity-contract.yml"}
+ADDITIONAL_REVIEWED_WORKFLOWS = {
+    "orbit-theme.yml",
+    "scrapper-identity-contract.yml",
+}
+PASSWORD_RESET_WORKFLOWS = {
+    "password-reset-staging-e2e.yml",
+    "validate-password-reset-e2e.yml",
+}
 PR_AUTHORITY_WORKFLOWS = {
     "keycloak-pr-authority-audit.yml",
     "keycloak-pr-authority-pr.yml",
@@ -40,6 +47,7 @@ EXPECTED_WORKFLOWS = (
     | {AUTHORITY_WORKFLOW, LIVE_AUTHORITY_WORKFLOW, MANUAL_RELEASE_WORKFLOW, IMAGE_RELEASE_WORKFLOW}
     | PR_AUTHORITY_WORKFLOWS
     | ADDITIONAL_REVIEWED_WORKFLOWS
+    | PASSWORD_RESET_WORKFLOWS
 )
 
 
