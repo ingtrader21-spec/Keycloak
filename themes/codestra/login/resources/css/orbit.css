@@ -1,0 +1,56 @@
+:root {
+  --codestra-bg: #07111f;
+  --codestra-panel: #0f1d2e;
+  --codestra-border: #29415e;
+  --codestra-text: #f6f8fb;
+  --codestra-muted: #a8b5c5;
+  --codestra-accent: #55d6be;
+  --codestra-accent-hover: #79e3cf;
+  --codestra-danger: #ff6b7a;
+}
+
+body {
+  background:
+    radial-gradient(circle at 15% 10%, rgba(85, 214, 190, 0.14), transparent 34rem),
+    linear-gradient(145deg, #07111f, #0a1727 55%, #07111f);
+  color: var(--codestra-text);
+  min-height: 100vh;
+}
+
+.pf-v5-c-login__container,
+.pf-c-login__container {
+  background: var(--codestra-panel);
+  border: 1px solid var(--codestra-border);
+  border-radius: 18px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.38);
+}
+
+.pf-v5-c-button.pf-m-primary,
+.pf-c-button.pf-m-primary,
+#kc-login {
+  background: var(--codestra-accent);
+  border-color: var(--codestra-accent);
+  color: #04130f;
+  font-weight: 700;
+}
+
+.pf-v5-c-button.pf-m-primary:hover,
+.pf-c-button.pf-m-primary:hover,
+#kc-login:hover {
+  background: var(--codestra-accent-hover);
+  border-color: var(--codestra-accent-hover);
+}
+
+a { color: var(--codestra-accent); }
+a:hover { color: var(--codestra-accent-hover); }
+.instruction, .pf-v5-c-helper-text, .pf-c-helper-text { color: var(--codestra-muted); }
+.pf-v5-c-alert.pf-m-danger, .pf-c-alert.pf-m-danger { border-color: var(--codestra-danger); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
