@@ -50,8 +50,8 @@
   "webAuthnPolicyAvoidSameAuthenticatorRegister": true,
   "webAuthnPolicyAcceptableAaguids": [],
   "smtpServer": {
-    "host": "mail.klyrow.com",
-    "port": "25",
+    "host": "10.40.0.4",
+    "port": "587",
     "from": "security@codestra.co",
     "fromDisplayName": "Codestra Security",
     "replyTo": "support@codestra.co",
