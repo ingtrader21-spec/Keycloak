@@ -2,8 +2,16 @@ name: Registration and recovery foundation
 
 on:
   pull_request:
+    branches: [main]
     paths:
+      - "Dockerfile"
+      - "config/contracts/machine-clients.json"
+      - "config/email/keycloak-security-smtp.json"
+      - "config/identity/application-domain-registry.json"
+      - "config/identity/beyvra-oidc-client.json"
       - "config/identity/browser-registration-policy.json"
+      - "config/identity/moneybee-oidc-clients.json"
+      - "config/realms/codestra.json"
       - "config/security/realm-security-policy.json"
       - "extensions/codestra-registration-gate/**"
       - "scripts/validate-browser-registration-policy.py"
@@ -18,9 +26,16 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - name: Check out exact source SHA
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
+          fetch-depth: 1
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Verify exact source identity
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - name: Validate fail-closed policies
         run: |
           python3 scripts/validate-browser-registration-policy.py
