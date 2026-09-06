@@ -108,6 +108,7 @@ allowed_keycloak_env = {
     "KC_CACHE_STACK",
     "KC_BOOTSTRAP_ADMIN_USERNAME",
     "KC_BOOTSTRAP_ADMIN_PASSWORD",
+    "MONEYBEE_EMAIL_OTP_HMAC_KEY",
 }
 if set(postgres.get("environment", {})) != allowed_postgres_env:
     fail("postgres environment contains missing or unrelated variables")
@@ -137,6 +138,7 @@ secret_examples = {
         "KEYCLOAK_MONITORING_CLIENT_SECRET",
     },
     "runtime-ssh.env.example": {"RUNTIME_GIT_SSH_KEY", "RUNTIME_GIT_KNOWN_HOSTS"},
+    "moneybee-otp.env.example": {"MONEYBEE_EMAIL_OTP_HMAC_KEY"},
 }
 secret_dir = ROOT / "deploy" / "secrets"
 for filename, expected_names in secret_examples.items():

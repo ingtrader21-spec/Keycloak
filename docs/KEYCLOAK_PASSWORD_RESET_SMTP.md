@@ -1,104 +1,71 @@
-# Keycloak password reset through Klyrow and Postal
+# Keycloak security email through Klyrow and Postal
 
 ## Authority boundary
 
 The `codestra` realm at `https://auth.codestra.co/realms/codestra` is the only
-password authority for Codestra-managed human users.
+password, login-email verification, MFA, recovery-token and browser-session
+authority for Codestra-managed human users.
 
 ```text
-Application login UI
-  -> Codestra Keycloak login/reset-credentials flow
-  -> authenticated STARTTLS SMTP over the private VLAN
+Application login / registration UI
+  -> Codestra Keycloak
+  -> private authenticated STARTTLS SMTP
   -> Klyrow SECURITY relay
   -> Postal delivery
   -> user inbox
 ```
 
-Application APIs, Odoo, n8n, Codestra Middleware, and machine clients must never
-receive a reset token, temporary password, new password, SMTP password, or
-complete reset URL. They may record only privacy-safe operational evidence such
-as a provider message ID, delivery outcome, correlation ID, and timestamp.
+Application APIs, Kong, Codestra Middleware, Odoo, n8n, Mautic and machine
+clients must never receive a password, verification code, verification-code
+hash, reset token, complete reset URL, SMTP password or Keycloak administrator
+credential. They may record only privacy-safe operational evidence such as a
+provider message ID, delivery outcome, correlation ID and timestamp.
 
-## Fifteen-domain identity registry
+## MoneyBee identity mapping
 
-The authoritative desired-state registry is:
+The canonical MoneyBee root domain is `moneybeeloan.com`.
 
-```text
-config/identity/application-domain-registry.json
-```
+| Application | Client | Origin |
+|---|---|---|
+| Borrower | `moneybee-borrower` | `https://app.moneybeeloan.com` |
+| Lender | `moneybee-lender` | `https://lenders.moneybeeloan.com` |
+| Administrator | `moneybee-admin` | `https://admin.moneybeeloan.com` |
 
-It contains exactly fifteen root domains:
+`moneybee.loan` is a disabled legacy alias. It must not be used for runtime
+login, registration, password recovery, redirect URIs or web origins.
+`moneybee-portal` is obsolete and must not be reintroduced.
 
-| Domain | Keycloak mapping | Identity state | Postal DNS evidence |
-|---|---|---|---|
-| `codestra.agency` | legacy alias of `codestra-portal-production` | disabled; no redirect or recovery | operator-reported SPF/DKIM/MX/return-path OK |
-| `codestra.co` | `codestra-portal-production` | declared; exact runtime binding required | operator-reported OK |
-| `nativoenglish.com` | `nativoenglish-portal` | declared; exact runtime binding required | operator-reported OK |
-| `moneybeeloan.com` | alias of `moneybee-portal` | declared; exact runtime binding required | operator-reported OK |
-| `codestra.cloud` | `codestra-cloud-service` | confidential service only; no human recovery | operator-reported OK |
-| `codestra.digital` | `codestra-digital-portal` | declared; exact runtime binding required | operator-reported OK |
-| `codestra.media` | `codestra-media-portal` | declared; exact runtime binding required | operator-reported OK |
-| `moneybee.loan` | `moneybee-portal` | declared canonical MoneyBee domain | operator-reported OK |
-| `klyrow.com` | `klyrow-portal` | managed with exact `https://klyrow.com/` redirect | operator-reported OK |
-| `beyvra.com` | `beyvra-web-production` + `beyvra-api-production` audience | declared trading frontend/backend mapping | operator-reported OK |
-| `kyqra.com` | `kyqra-portal` + `kyqra-gateway` audience | declared | operator-reported OK |
-| `breero.com` | `breero-portal` + `breero-api-production` audience | declared | operator-reported OK |
-| `breero.shop` | alias of `breero-portal` | declared alias | operator-reported OK |
-| `telnexa.co` | `telnexa-portal` + `telnexa-gateway` audience | declared | operator-reported OK |
-| `booked4seasons.com` | `booked4seasons-portal` | declared but DNS-blocked | no completed Postal DNS check confirmed |
+All three browser clients use Authorization Code Flow with PKCE `S256`.
+Public self-registration is permitted only when the initiating client is
+`moneybee-borrower`. Lender and administrator accounts remain invitation /
+privileged-provisioning flows.
 
-The Postal status above is operator-provided evidence and is not a substitute
-for a fresh protected runtime preflight. The registry requires runtime
-reverification before staging or production activation.
+## MoneyBee email verification code
 
-A domain declaration does not authorize a wildcard redirect or a live client.
-Except for the already reviewed Klyrow redirect, every browser client remains
-disabled with empty redirect and origin lists until the deployed callback path
-is verified from the application repository and runtime.
+MoneyBee borrower registration uses the Keycloak required action
+`moneybee-verify-email-otp` after the standard Keycloak registration form.
+Keycloak remains the credential authority; the MoneyBee frontend never receives
+or submits a password to the MoneyBee API.
 
-The registry enforces these rules:
+The verification contract is:
 
 ```text
-EXACT_DOMAIN_COUNT=15
-PUBLIC_PKCE_DOMAINS=13
-SERVICE_ONLY_DOMAINS=1
-LEGACY_DISABLED_DOMAINS=1
-POSTAL_DNS_REPORTED_OK_DOMAINS=14
-BOOKED4SEASONS_DNS_BLOCK=ENFORCED
-WILDCARD_REDIRECTS=DISALLOWED
-LOCAL_PASSWORD_RESET=DISALLOWED
-CLIENT_CREATION_BEFORE_RUNTIME_VERIFICATION=DISALLOWED
+CODE_LENGTH=6 numeric digits
+TTL=600 seconds
+MAX_ATTEMPTS=5
+RESEND_COOLDOWN=60 seconds
+MAX_SENDS_PER_HOUR=5
+ONE_TIME_USE=true
+INVALIDATE_PREVIOUS_ON_RESEND=true
+PLAINTEXT_CODE_PERSISTENCE=false
 ```
 
-## Application password-recovery clients
+Only an HMAC verifier is stored in the Keycloak authentication session. The
+runtime HMAC secret is supplied outside Git through
+`MONEYBEE_EMAIL_OTP_HMAC_KEY` and must be a long random secret.
 
-The thirteen human domains delegate recovery to Keycloak:
-
-```text
-codestra-portal-production
-nativoenglish-portal
-moneybee-portal
-codestra-digital-portal
-codestra-media-portal
-klyrow-portal
-beyvra-web-production
-kyqra-portal
-breero-portal
-telnexa-portal
-booked4seasons-portal
-```
-
-`moneybeeloan.com` and `moneybee.loan` share the reviewed MoneyBee application
-client. `breero.com` and `breero.shop` share the reviewed Breero application
-client. `codestra.agency` is legacy-disabled and must not initiate authentication
-or recovery. `codestra.cloud` is service-only and receives no browser client.
-`booked4seasons.com` remains disabled even though its future recovery authority
-is Keycloak, because its Postal DNS status and exact callback/origin bindings
-are not confirmed.
-
-Human applications use Authorization Code Flow with PKCE `S256`. Machine
-clients and API audiences never initiate password recovery and never receive
-reset material.
+The Keycloak email theme provides HTML and plain-text messages and does not use
+Mautic, tracking pixels or marketing content.
 
 ## Klyrow SMTP contract
 
@@ -112,18 +79,13 @@ AUTHENTICATION=REQUIRED
 STREAM=SECURITY
 ```
 
-The live endpoint, firewall path, certificate, sender domain, sender identity,
-and credential must still be verified at runtime. The Klyrow credential must be
-dedicated to Keycloak and limited to one verified sender and the `SECURITY`
-stream.
-
-Keycloak has one realm SMTP configuration. Declaring fifteen application/mail
-domains does not configure fifteen From addresses. One reviewed security sender
-must be selected and verified for the realm. Alternative senders require their
-own reviewed change.
+The Klyrow credential must be dedicated to Keycloak, restricted to exactly the
+`SECURITY` stream and one reviewed verified sender. The live endpoint,
+firewall path, certificate, sender domain/identity and credential must be
+verified before activation.
 
 The Git repository stores only variable and secret names. Configure these in a
-protected GitHub Environment or the approved runtime secret provider:
+protected GitHub Environment or approved runtime secret provider:
 
 ```text
 KC_SMTP_HOST
@@ -134,13 +96,15 @@ KC_SMTP_FROM
 KC_SMTP_FROM_DISPLAY_NAME
 KC_SMTP_REPLY_TO
 KC_SMTP_ENVELOPE_FROM
+MONEYBEE_EMAIL_OTP_HMAC_KEY
 ```
 
 Never commit their live values.
 
-## Realm settings
+## Password recovery
 
-The protected apply must configure and verify:
+Password recovery remains Keycloak-only and uses the same Klyrow SECURITY
+transport. The protected configuration must preserve:
 
 ```text
 Forgot password = enabled
@@ -151,38 +115,35 @@ SMTP authentication = enabled
 STARTTLS = enabled
 ```
 
-Use generic responses so the forgot-password page does not reveal whether an
-account exists.
+Account lookup responses must remain generic so the recovery UI does not reveal
+whether an account exists.
 
-## Activation sequence
+## Runtime activation sequence
 
-1. Protected-merge the secure Keycloak GitOps foundation.
-2. Protected-merge the service identity/API/webhook contracts.
-3. Protected-merge this fifteen-domain/password-reset contract.
-4. Rotate every Postal DKIM private key exposed in previous diagnostic output,
-   publish replacement DNS records, and verify the new selectors.
-5. Implement and review the Klyrow `SECURITY` SMTP stream.
-6. Reverify all fourteen reported-good Postal domains and complete the missing
-   Postal DNS check for `booked4seasons.com`.
-7. Verify `10.40.0.1 -> 10.40.0.4:587` connectivity without sending mail.
-8. Register and verify the approved sender domain and address in Klyrow.
-9. Create a dedicated, expiring Klyrow SMTP credential and store it outside Git.
-10. Verify each application's exact callback, post-logout redirect, and origin
-    before enabling its declared Keycloak client.
-11. Run a Keycloak drift check and review the exact plan hash.
-12. Apply realm email settings through protected staging approval.
-13. Exercise password recovery from every enabled human application in staging.
-14. Verify one delivery, expiration, one-time use, replay rejection, disabled
-    user denial, and forced re-login; confirm no machine client received reset
-    material.
-15. Repeat with a separately reviewed production plan.
+1. Review and merge the Keycloak registration/OTP extension and themes.
+2. Build and deploy the exact reviewed Keycloak image with registration still
+   fail-closed until the custom providers are confirmed installed.
+3. Verify Klyrow's dedicated SECURITY credential, verified sender/domain,
+   encrypted ephemeral payload storage and private STARTTLS path.
+4. Run the protected Keycloak configuration check and review the exact plan.
+5. Register/enable the custom required action and borrower-only registration
+   flow through a separately approved configuration change.
+6. Exercise borrower registration in staging: create account, receive one code,
+   reject a wrong code, verify one correct code, reject replay, complete PKCE,
+   and bootstrap exactly one MoneyBee account.
+7. Confirm lender/admin public registration is denied.
+8. Confirm Middleware, Odoo, n8n and Mautic receive no code/reset/password
+   material.
+9. Repeat with a separately reviewed production plan and canary.
 
 ## Fail-closed conditions
 
-Do not enable the reset flow or a declared client when any of these is
-unverified:
+Do not enable MoneyBee registration, password recovery or SECURITY live delivery
+when any of these is unverified:
 
 ```text
+MONEYBEE_REGISTRATION_PROVIDER_INSTALLED=NO
+MONEYBEE_REQUIRED_ACTION_REGISTERED=NO
 KLYROW_SECURITY_STREAM=UNAVAILABLE
 SMTP_STARTTLS=FAIL
 SMTP_CERTIFICATE=FAIL
@@ -190,11 +151,10 @@ SMTP_AUTHENTICATION=FAIL
 SENDER_DOMAIN=UNVERIFIED
 SENDER_IDENTITY=INACTIVE
 FIREWALL_PATH=UNVERIFIED
-RESET_TOKEN_LIFESPAN=UNAPPROVED
+SECURITY_PAYLOAD_ENCRYPTION=FAIL
 EXACT_REDIRECT_URI=UNVERIFIED
 EXACT_POST_LOGOUT_URI=UNVERIFIED
 EXACT_WEB_ORIGIN=UNVERIFIED
-LOCAL_PASSWORD_RESET_STILL_ACTIVE=YES
-POSTAL_DKIM_ROTATION=INCOMPLETE
-BOOKED4SEASONS_POSTAL_DNS=UNCONFIRMED
+PUBLIC_LENDER_REGISTRATION=ENABLED
+PUBLIC_ADMIN_REGISTRATION=ENABLED
 ```
