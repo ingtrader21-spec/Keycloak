@@ -1,0 +1,148 @@
+name: Release immutable Keycloak image
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_sha:
+        description: Exact 40-character merged main SHA to build once
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: keycloak-image-release-${{ inputs.confirm_sha }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  release-image:
+    runs-on: ubuntu-24.04
+    environment: keycloak-image-release
+    timeout-minutes: 45
+    env:
+      IMAGE_REPOSITORY: ghcr.io/appolon1908-hue/codestra-keycloak
+      CONFIRM_SHA: ${{ inputs.confirm_sha }}
+
+    steps:
+      - name: Check out exact merged main SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Require exact protected main release identity
+        run: |
+          set -Eeuo pipefail
+          [[ "$GITHUB_REF" == 'refs/heads/main' ]]
+          [[ "$CONFIRM_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CONFIRM_SHA" == "$GITHUB_SHA" ]]
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
+
+      - name: Authenticate to GHCR without persisting credentials
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      - name: Refuse a second publication for the source SHA
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          registry_token="$(curl --silent --show-error --fail-with-body \
+            --proto '=https' --tlsv1.2 \
+            --user "$GITHUB_ACTOR:$GHCR_TOKEN" \
+            'https://ghcr.io/token?service=ghcr.io&scope=repository:appolon1908-hue/codestra-keycloak:pull' \
+            | jq -er '.token')"
+          status="$({ curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+            --proto '=https' --tlsv1.2 \
+            --header "Authorization: Bearer $registry_token" \
+            --header 'Accept: application/vnd.oci.image.manifest.v1+json' \
+            "https://ghcr.io/v2/appolon1908-hue/codestra-keycloak/manifests/$GITHUB_SHA"; } || true)"
+          [[ "$status" == "404" ]] || {
+            echo "ERROR=image_tag_already_exists_or_registry_check_failed status=$status" >&2
+            exit 1
+          }
+
+      - name: Build once and publish SBOM and provenance attestations
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$RUNNER_TEMP/keycloak-release"
+          docker buildx build \
+            --platform linux/amd64 \
+            --provenance=mode=max \
+            --sbom=true \
+            --push \
+            --tag "$IMAGE_REPOSITORY:$GITHUB_SHA" \
+            --metadata-file "$RUNNER_TEMP/keycloak-release/build-metadata.json" \
+            .
+
+      - name: Resolve immutable release digest
+        id: digest
+        run: |
+          set -Eeuo pipefail
+          digest="$(jq -er '.["containerimage.digest"]' "$RUNNER_TEMP/keycloak-release/build-metadata.json")"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          printf 'digest=%s\n' "$digest" >>"$GITHUB_OUTPUT"
+          printf '%s:%s@%s\n' "$IMAGE_REPOSITORY" "$GITHUB_SHA" "$digest" >"$RUNNER_TEMP/keycloak-release/image-reference.txt"
+
+      - name: Install pinned Trivy launcher
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567
+        with:
+          version: v0.74.0
+          cache: true
+
+      - name: Scan and generate release SBOM from the exact digest
+        env:
+          RELEASE_DIGEST: ${{ steps.digest.outputs.digest }}
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          release_ref="$IMAGE_REPOSITORY@$RELEASE_DIGEST"
+          trivy image \
+            --exit-code 1 \
+            --severity HIGH,CRITICAL \
+            --scanners vuln \
+            "$release_ref"
+          trivy image \
+            --format cyclonedx \
+            --output "$RUNNER_TEMP/keycloak-release/sbom.cdx.json" \
+            "$release_ref"
+
+      - name: Write immutable release evidence and checksums
+        env:
+          RELEASE_DIGEST: ${{ steps.digest.outputs.digest }}
+        run: |
+          set -Eeuo pipefail
+          jq -n \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg sourceSha "$GITHUB_SHA" \
+            --arg imageRepository "$IMAGE_REPOSITORY" \
+            --arg imageDigest "$RELEASE_DIGEST" \
+            --arg workflowRunId "$GITHUB_RUN_ID" \
+            '{schemaVersion: 1, repository: $repository, sourceSha: $sourceSha,
+              imageRepository: $imageRepository, imageDigest: $imageDigest,
+              workflowRunId: $workflowRunId, vulnerabilityPolicy: "no HIGH or CRITICAL"}' \
+            >"$RUNNER_TEMP/keycloak-release/release-evidence.json"
+          (cd "$RUNNER_TEMP/keycloak-release" && sha256sum -- * >checksums.sha256)
+
+      - name: Upload immutable release evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: keycloak-image-release-${{ github.sha }}
+          path: ${{ runner.temp }}/keycloak-release
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Remove registry credentials
+        if: ${{ always() }}
+        run: docker logout ghcr.io || true
