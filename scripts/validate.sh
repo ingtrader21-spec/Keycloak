@@ -313,6 +313,7 @@ fi
 
 python3 "$ROOT_DIR/scripts/validate-workflows.py"
 python3 "$ROOT_DIR/scripts/validate-runtime-security.py"
+python3 "$ROOT_DIR/scripts/validate-machine-secret-contract.py"
 python3 "$ROOT_DIR/scripts/validate-realm-security-policy.py"
 
 if grep -RInE --exclude-dir=.git 'BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY' .; then
