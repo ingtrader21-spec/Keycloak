@@ -276,7 +276,6 @@ def validate_password_reset_workflows() -> None:
     if "PASSWORD_RESET_E2E_WORKFLOW_POLICY=PASS" not in completed.stdout:
         fail("password-reset workflow validator did not emit its PASS marker")
 
-
 def validate_release_contract() -> None:
     if not RELEASE_CONTRACT.is_file() or RELEASE_CONTRACT.is_symlink():
         fail("release-intent contract is missing or unsafe")
