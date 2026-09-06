@@ -198,6 +198,30 @@ def validate_legacy_workflows() -> None:
             CORE.WORKFLOW_DIR = original_directory
 
 
+def validate_additional_reviewed_workflows() -> None:
+    for name in sorted(ADDITIONAL_REVIEWED_WORKFLOWS):
+        path = WORKFLOW_DIR / name
+        workflow = CORE.load_workflow(path)
+        CORE.validate_permissions(
+            workflow.get("permissions"), f"{path}.permissions", {"contents": "read"}
+        )
+        jobs = CORE.as_mapping(workflow.get("jobs"), f"{path}.jobs")
+        if not jobs:
+            fail(f"{path}: workflow must define at least one job")
+        for job_name, value in jobs.items():
+            job = CORE.as_mapping(value, f"{path}.jobs.{job_name}")
+            if "permissions" in job or "environment" in job:
+                fail(f"{path}: reviewed validation jobs cannot elevate permissions")
+            if "self-hosted" in CORE.normalize_runs_on(job.get("runs-on")):
+                fail(f"{path}: reviewed validation jobs cannot use self-hosted runners")
+            if any(
+                CORE.SECRET_EXPRESSION.search(text)
+                for text in CORE.recursive_strings(job)
+            ):
+                fail(f"{path}: reviewed validation jobs cannot reference secrets")
+            CORE.validate_steps(job, f"{path}.jobs.{job_name}")
+
+
 def validate_pr_authority_workflows() -> None:
     completed = subprocess.run(
         [sys.executable, str(PR_AUTHORITY_POLICY)],
@@ -407,6 +431,7 @@ def validate() -> None:
         )
 
     validate_legacy_workflows()
+    validate_additional_reviewed_workflows()
     validate_repository_name_authority(
         WORKFLOW_DIR / AUTHORITY_WORKFLOW,
         CORE.load_workflow(WORKFLOW_DIR / AUTHORITY_WORKFLOW),

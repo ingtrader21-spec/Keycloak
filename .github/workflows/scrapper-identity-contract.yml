@@ -17,10 +17,14 @@ jobs:
   scrapper-identity:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    env:
+      EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
         with:
+          fetch-depth: 1
           persist-credentials: false
+          ref: ${{ env.EXPECTED_SHA }}
 
       - name: Validate identity contract
         shell: bash
@@ -44,8 +48,19 @@ jobs:
           assert 'scraper.inbox.write' in clients['codestra-middleware-scrapper-commands']['service_scopes']
           assert contract['token_policy']['access_token_lifespan_seconds'] <= 300
           assert contract['token_policy']['service_token_lifespan_seconds'] <= 300
+          def reject_client_secrets(value, location='$'):
+              if isinstance(value, dict):
+                  for key, child in value.items():
+                      normalized = ''.join(char for char in key.lower() if char.isalnum())
+                      if normalized in {'clientsecret', 'clientcredentials'} and child:
+                          raise AssertionError(f'populated client secret at {location}.{key}')
+                      reject_client_secrets(child, f'{location}.{key}')
+              elif isinstance(value, list):
+                  for index, child in enumerate(value):
+                      reject_client_secrets(child, f'{location}[{index}]')
+          reject_client_secrets(contract)
           PY
-          ! grep -RniE 'BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|client_secret[[:space:]]*[:=][[:space:]]*[A-Za-z0-9_-]{16,}' contracts docs
+          ! grep -RniE 'BEGIN (RSA|OPENSSH|EC) PRIVATE KEY' contracts docs
 
       - name: Validate clean patch
         run: git diff --check
