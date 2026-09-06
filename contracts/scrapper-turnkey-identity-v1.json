@@ -1,0 +1,93 @@
+{
+  "contract_version": "1.0",
+  "realm": "codestra",
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "status": "disabled-until-staging-approved",
+  "human_roles": [
+    "scraper-viewer",
+    "scraper-operator",
+    "scraper-admin",
+    "platform-admin"
+  ],
+  "tenant_membership": {
+    "group_pattern": "/codestra/tenants/{tenant_id}",
+    "access_token_claim": "tenant_ids",
+    "id_token_claim": "tenant_ids",
+    "multivalued": true,
+    "required_for_tenant_routes": true,
+    "platform_admin_bypass": true
+  },
+  "clients": [
+    {
+      "client_id": "codestra-scrapper-bff",
+      "client_type": "confidential",
+      "authorization_code_flow": true,
+      "pkce_method": "S256",
+      "direct_access_grants": false,
+      "implicit_flow": false,
+      "service_accounts": false,
+      "redirect_uris": [
+        "https://scrapper-console.codestra.co/auth/callback",
+        "https://scrapper-staging.codestra.co/auth/callback"
+      ],
+      "web_origins": [
+        "https://scrapper-console.codestra.co",
+        "https://scrapper-staging.codestra.co"
+      ],
+      "audiences": ["codestra-scrapper"],
+      "default_scopes": ["openid", "profile", "email", "roles", "tenant-membership"]
+    },
+    {
+      "client_id": "codestra-scrapper-middleware-events",
+      "client_type": "confidential-service",
+      "authorization_code_flow": false,
+      "direct_access_grants": false,
+      "service_accounts": true,
+      "preferred_authentication": ["tls_client_auth", "private_key_jwt"],
+      "fallback_authentication": "client_secret",
+      "audiences": ["codestra-middleware"],
+      "service_scopes": ["scrapper.events.write"]
+    },
+    {
+      "client_id": "codestra-middleware-scrapper-commands",
+      "client_type": "confidential-service",
+      "authorization_code_flow": false,
+      "direct_access_grants": false,
+      "service_accounts": true,
+      "preferred_authentication": ["tls_client_auth", "private_key_jwt"],
+      "fallback_authentication": "client_secret",
+      "audiences": ["codestra-scrapper"],
+      "service_scopes": ["scraper.inbox.write", "scraper.inbox.read"]
+    },
+    {
+      "client_id": "codestra-scrapper-control-worker",
+      "client_type": "confidential-service",
+      "authorization_code_flow": false,
+      "direct_access_grants": false,
+      "service_accounts": true,
+      "preferred_authentication": ["private_key_jwt", "client_secret"],
+      "audiences": ["codestra-scrapper"],
+      "service_scopes": [
+        "scraper.jobs.write",
+        "scraper.jobs.cancel",
+        "scraper.sources.write"
+      ],
+      "tenant_impersonation": true
+    }
+  ],
+  "token_policy": {
+    "access_token_lifespan_seconds": 300,
+    "refresh_token_rotation": true,
+    "reuse_refresh_tokens": false,
+    "service_token_lifespan_seconds": 300,
+    "clock_skew_seconds": 30
+  },
+  "security": {
+    "browser_tokens_stored_in_local_storage": false,
+    "bff_session_cookie_http_only": true,
+    "bff_session_cookie_secure": true,
+    "bff_session_cookie_same_site": "Lax",
+    "machine_secrets_committed_to_git": false,
+    "wildcard_scope_assignment": false
+  }
+}
