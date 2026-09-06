@@ -74,13 +74,38 @@ Stage 0 audit of the Keycloak repository is complete.
 6. Re-fetch every existing client immediately before its `PUT` and reject the apply if the live pre-change hash no longer matches the reviewed state.
 7. Produce a durable partial-apply/recovery manifest for every mutation attempt.
 8. Pin runtime images by immutable digest before production certification.
-9. Prove Client Credentials flow from at least one service client through the canonical issuer and verify Kong accepts the resulting token under the intended audience/scope contract.
+9. Promote one reviewed test caller from `declared-not-created` into the active desired state in `config/contracts/machine-clients.json`, `config/policy/managed-clients.json`, and `config/policy/creatable-clients.json`; validate its unique protected credential before mutation and retain rollback evidence.
+10. Prove Client Credentials flow from at least one service client through the canonical issuer and verify Kong accepts the resulting token under the intended audience/scope contract.
 
 ### Exit condition
 
 A service successfully completes Client Credentials against the canonical issuer and receives a token accepted by Kong, verified against the live runtime; the protected Keycloak check/apply path has also passed its concurrency, recovery, immutable-image, convergence, and rollback-rehearsal gates.
 
 ---
+
+## Stage 2 — Edge authorization
+
+Owner: `appolon1908-hue/Kong`. Consume the exact Stage 1 issuer, audience, scope, and tenant claims; pass positive and negative route tests. Exit only when unauthorized, wrong-audience, wrong-tenant, and excessive-scope requests are denied.
+
+## Stage 3 — Middleware integration
+
+Owner: `appolon1908-hue/Middleware-`. Bind browser and machine callers to the reviewed Keycloak/Kong contract, durable inbox/outbox processing, tenancy, idempotency, and audit. Exit only after exact-SHA integration and rollback gates pass with external delivery disabled.
+
+## Stage 4 — Odoo and n8n application flows
+
+Owners: `appolon1908-hue/Odoo` and `appolon1908-hue/N8N`. Consume narrow Middleware identities; do not receive Keycloak password, reset, OTP, or client-secret material. Exit after tenant isolation, duplicate-event, retry, and no-effect failure tests pass.
+
+## Stage 5 — Provider adapters and communications
+
+Owners: Telnexa, Klyrow, Kyqra, Postal, social, and communications repositories. Use dedicated machine identities and reviewed provider contracts. Exit after controlled staging evidence proves correlation, consent, suppression, delivery reconciliation, and kill switches; live external effects remain disabled.
+
+## Stage 6 — Telephony and provisioning
+
+Owners: VICIdial/Asterisk and provisioning repositories. Require campaign-scoped identities and deny predictive dialing, customer-list activation, and broad administrative writes by default. Exit only after the separately approved one-call authorization package and complete rollback rehearsal.
+
+## Stage 7 — Protected production promotion
+
+Each owning repository publishes an immutable, signed, attested release and records its exact source/image tuple. The production platform verifies all component attestations, compatibility locks, approvals, backup/restore evidence, and unchanged kill switches before any narrow operator is installed. Merge alone never authorizes deployment.
 
 ## Stage ownership rule
 
