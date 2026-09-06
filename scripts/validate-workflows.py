@@ -29,13 +29,14 @@ LEGACY_WORKFLOWS = {
 AUTHORITY_WORKFLOW = "repository-name-authority.yml"
 LIVE_AUTHORITY_WORKFLOW = "repository-name-live-authority.yml"
 MANUAL_RELEASE_WORKFLOW = "manual-release-intent.yml"
+IMAGE_RELEASE_WORKFLOW = "release-image.yml"
 PR_AUTHORITY_WORKFLOWS = {
     "keycloak-pr-authority-audit.yml",
     "keycloak-pr-authority-pr.yml",
 }
 EXPECTED_WORKFLOWS = (
     LEGACY_WORKFLOWS
-    | {AUTHORITY_WORKFLOW, LIVE_AUTHORITY_WORKFLOW, MANUAL_RELEASE_WORKFLOW}
+    | {AUTHORITY_WORKFLOW, LIVE_AUTHORITY_WORKFLOW, MANUAL_RELEASE_WORKFLOW, IMAGE_RELEASE_WORKFLOW}
     | PR_AUTHORITY_WORKFLOWS
 )
 
@@ -391,6 +392,41 @@ def validate_manual_release_intent(path: Path, workflow: dict[str, Any]) -> None
         fail(f"{path}: release intent must remain metadata-only")
 
 
+def validate_image_release_workflow(path: Path, workflow: dict[str, Any]) -> None:
+    triggers = CORE.as_mapping(workflow.get("on"), f"{path}.on")
+    if set(triggers) != {"workflow_dispatch"}:
+        fail(f"{path}: image release must be workflow_dispatch-only")
+    CORE.validate_permissions(
+        workflow.get("permissions"),
+        f"{path}.permissions",
+        {"contents": "read", "packages": "write"},
+        {"packages"},
+    )
+    jobs = CORE.as_mapping(workflow.get("jobs"), f"{path}.jobs")
+    if set(jobs) != {"release-image"}:
+        fail(f"{path}: image release must contain only release-image")
+    job = CORE.as_mapping(jobs["release-image"], f"{path}.jobs.release-image")
+    if str(job.get("environment", "")) != "keycloak-image-release":
+        fail(f"{path}: image publication must use the protected release Environment")
+    if "self-hosted" in CORE.normalize_runs_on(job.get("runs-on")):
+        fail(f"{path}: image release must not run on a production runner")
+    CORE.validate_steps(job, f"{path}.jobs.release-image")
+    text = workflow_text(workflow)
+    for fragment in (
+        "refs/heads/main",
+        "inputs.confirm_sha",
+        "git rev-parse HEAD",
+        "--provenance=mode=max",
+        "--sbom=true",
+        "containerimage.digest",
+        "$IMAGE_REPOSITORY:$GITHUB_SHA@$digest",
+        "trivy image",
+        "sha256sum",
+    ):
+        if fragment not in text:
+            fail(f"{path}: immutable image release gate is incomplete; missing {fragment}")
+
+
 def validate() -> None:
     if not WORKFLOW_DIR.is_dir():
         fail(f"Workflow directory does not exist: {WORKFLOW_DIR}")
@@ -419,12 +455,17 @@ def validate() -> None:
         CORE.load_workflow(WORKFLOW_DIR / MANUAL_RELEASE_WORKFLOW),
     )
     validate_release_contract()
+    validate_image_release_workflow(
+        WORKFLOW_DIR / IMAGE_RELEASE_WORKFLOW,
+        CORE.load_workflow(WORKFLOW_DIR / IMAGE_RELEASE_WORKFLOW),
+    )
 
     print(f"WORKFLOW_FILES={len(workflow_files)}")
     print("REPOSITORY_NAME_WORKFLOW_POLICY=PASS")
     print("PR_AUTHORITY_WORKFLOW_POLICY=PASS")
     print("MANUAL_RELEASE_INTENT_POLICY=PASS")
     print("RELEASE_INTENT_CONTRACT=PASS")
+    print("IMMUTABLE_IMAGE_RELEASE_WORKFLOW=PASS")
     print("WORKFLOW_YAML_PARSE=PASS")
     print("WORKFLOW_POLICY=PASS")
 
