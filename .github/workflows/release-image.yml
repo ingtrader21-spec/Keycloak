@@ -92,7 +92,7 @@ jobs:
           digest="$(jq -er '.["containerimage.digest"]' "$RUNNER_TEMP/keycloak-release/build-metadata.json")"
           [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           printf 'digest=%s\n' "$digest" >>"$GITHUB_OUTPUT"
-          printf '%s@%s\n' "$IMAGE_REPOSITORY" "$digest" >"$RUNNER_TEMP/keycloak-release/image-reference.txt"
+          printf '%s:%s@%s\n' "$IMAGE_REPOSITORY" "$GITHUB_SHA" "$digest" >"$RUNNER_TEMP/keycloak-release/image-reference.txt"
 
       - name: Install pinned Trivy launcher
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567
