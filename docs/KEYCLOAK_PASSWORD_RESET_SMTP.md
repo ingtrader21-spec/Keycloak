@@ -101,6 +101,11 @@ MONEYBEE_EMAIL_OTP_HMAC_KEY
 
 Never commit their live values.
 
+The non-secret realm SMTP transport and sender fields are managed in
+`config/realms/codestra.json`. The deterministic plan contains those fields but
+never the SMTP username or password. Protected apply injects those credentials
+only into its mode-0600 temporary realm request.
+
 ## Password recovery
 
 Password recovery remains Keycloak-only and uses the same Klyrow SECURITY
