@@ -66,6 +66,7 @@ require(POLICY["administrators"]["mfaRequired"] is True, "administrator MFA")
 require(POLICY["requiredActions"]["webauthnRegistrationForPrivilegedUsers"] is True, "privileged WebAuthn")
 
 smtp = REALM["smtpServer"]
+smtp_contract = SMTP["smtp"]
 require(set(smtp) == {"host", "port", "from", "fromDisplayName", "replyTo", "envelopeFrom", "auth", "starttls", "ssl"}, "SMTP secret boundary")
 require(smtp["host"] == "10.40.0.4" and smtp["port"] == "587", "SMTP endpoint")
 require(smtp["auth"] == "true" and smtp["starttls"] == "true" and smtp["ssl"] == "false", "SMTP transport")
