@@ -294,6 +294,15 @@ mapfile -t managed_clients < <(jq -r '.clients[]' "$ROOT_DIR/config/policy/manag
 [[ "$(jq -er '.existingClientCount' "$rollback_dir/rollback-metadata.json")" -eq 1 ]]
 [[ "$(jq -er '.absentCreatableClientCount' "$rollback_dir/rollback-metadata.json")" -eq 30 ]]
 
+# Exercise the apply create path with a non-empty test credential for every
+# managed machine identity. Production values remain supplied only by the
+# protected apply workflow; these placeholders never leave the test process.
+while IFS= read -r secret_name; do
+  printf -v "$secret_name" 'ci-only-%s' "$secret_name"
+  export "${secret_name?}"
+done < <(jq -er '.clients[].applyEnvironment' \
+  "$ROOT_DIR/config/contracts/machine-secret-destinations.json")
+
 if "$ROOT_DIR/scripts/apply-plan.sh" \
   --plan "$plan_dir/plan.json" \
   --expected-plan-sha 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' \

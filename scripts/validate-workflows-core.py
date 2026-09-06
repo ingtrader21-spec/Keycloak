@@ -21,6 +21,7 @@ ALLOWED_ACTIONS = {
     "actions/setup-python": "5fda3b95a4ea91299a34e894583c3862153e4b97",
     "actions/upload-artifact": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
     "actions/download-artifact": "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+    "aquasecurity/setup-trivy": "81e514348e19b6112ce2a7e3ecbafe19c1e1f567",
 }
 ACTION_REFERENCE = re.compile(r"^(?P<action>[^@\s]+)@(?P<sha>[0-9a-f]{40})$")
 WRITE_PERMISSION = re.compile(r"^(?:write|write-all)$", re.IGNORECASE)
@@ -100,13 +101,19 @@ def normalize_runs_on(value: Any) -> list[str]:
     fail("runs-on must be a string or a sequence of strings")
 
 
-def validate_permissions(value: Any, label: str, required: dict[str, str]) -> None:
+def validate_permissions(
+    value: Any,
+    label: str,
+    required: dict[str, str],
+    allowed_write_scopes: set[str] | None = None,
+) -> None:
     permissions = as_mapping(value, label)
     normalized = {str(key): str(permission).lower() for key, permission in permissions.items()}
+    allowed_writes = allowed_write_scopes or set()
     for scope, permission in normalized.items():
-        if WRITE_PERMISSION.fullmatch(permission):
+        if WRITE_PERMISSION.fullmatch(permission) and scope not in allowed_writes:
             fail(f"{label}: write permission is prohibited for {scope}")
-        if permission not in {"read", "none"}:
+        if permission not in {"read", "none"} and not (permission == "write" and scope in allowed_writes):
             fail(f"{label}: unsupported permission {scope}: {permission}")
     if normalized != required:
         fail(f"{label}: expected permissions {required}, found {normalized}")

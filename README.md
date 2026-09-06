@@ -131,6 +131,8 @@ checksum-valid, successful restore evidence inside the configured age limit.
 These commands are operational authorities; source validation does not prove
 that a live backup or restore test has occurred.
 
+Production Compose requires `KEYCLOAK_IMAGE` to be an approved GHCR release reference in `repository:source-SHA@sha256:digest` form. The protected manual image-release workflow builds once, publishes SBOM and provenance attestations, scans the exact digest, and emits checksummed release evidence; it never deploys Keycloak.
+
 ## Governance that remains external to Git
 
 Repository rules, protected GitHub Environments, reviewer identities,
