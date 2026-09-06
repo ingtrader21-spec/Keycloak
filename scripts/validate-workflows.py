@@ -246,6 +246,33 @@ def validate_pr_authority_workflows() -> None:
         fail("PR authority workflow validator did not emit its PASS marker")
 
 
+def validate_password_reset_workflows() -> None:
+    """Run the specialized safety policy and core action-pin checks."""
+    validator = ROOT / "scripts" / "validate-password-reset-e2e.py"
+    completed = subprocess.run(
+        [sys.executable, str(validator)], cwd=ROOT, text=True,
+        capture_output=True, check=False,
+    )
+    if completed.returncode:
+        detail = completed.stderr.strip() or completed.stdout.strip()
+        fail(f"password-reset workflow validation failed: {detail}")
+    if "PASSWORD_RESET_E2E_WORKFLOW_POLICY=PASS" not in completed.stdout:
+        fail("password-reset validator did not emit its PASS marker")
+
+    for name in sorted(PASSWORD_RESET_WORKFLOWS):
+        path = WORKFLOW_DIR / name
+        workflow = CORE.load_workflow(path)
+        CORE.validate_permissions(
+            workflow.get("permissions"), f"{path}.permissions", {"contents": "read"}
+        )
+        jobs = CORE.as_mapping(workflow.get("jobs"), f"{path}.jobs")
+        if not jobs:
+            fail(f"{path}: workflow must define at least one job")
+        for job_name, raw_job in jobs.items():
+            job = CORE.as_mapping(raw_job, f"{path}.jobs.{job_name}")
+            CORE.validate_steps(job, f"{path}.jobs.{job_name}")
+
+
 def validate_release_contract() -> None:
     if not RELEASE_CONTRACT.is_file() or RELEASE_CONTRACT.is_symlink():
         fail("release-intent contract is missing or unsafe")
@@ -485,6 +512,7 @@ def validate() -> None:
         CORE.load_workflow(WORKFLOW_DIR / LIVE_AUTHORITY_WORKFLOW),
     )
     validate_pr_authority_workflows()
+    validate_password_reset_workflows()
     validate_manual_release_intent(
         WORKFLOW_DIR / MANUAL_RELEASE_WORKFLOW,
         CORE.load_workflow(WORKFLOW_DIR / MANUAL_RELEASE_WORKFLOW),

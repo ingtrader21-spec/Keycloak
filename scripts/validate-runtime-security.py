@@ -75,8 +75,10 @@ if image_policy.get("entrypoint") != ["/bin/sh", "-ec"]:
 policy_command = image_policy.get("command")
 if not isinstance(policy_command, list) or len(policy_command) != 1:
     fail("image policy helper command is invalid")
-if "ghcr.io/appolon1908-hue/" not in policy_command[0] or "@sha256:" not in policy_command[0]:
+if "ghcr.io/appolon1908-hue/codestra-keycloak:" not in policy_command[0] or "@sha256:" not in policy_command[0]:
     fail("image policy helper must enforce approved GHCR digest identity")
+if "ghcr.io/appolon1908-hue/*:" in policy_command[0]:
+    fail("image policy helper must not accept another package in the owner namespace")
 
 if "ports" in postgres:
     fail("postgres must not publish a host port")
