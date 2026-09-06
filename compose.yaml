@@ -35,12 +35,31 @@ services:
         max-size: 10m
         max-file: "5"
 
+  keycloak-image-policy:
+    image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+    restart: "no"
+    environment:
+      CANDIDATE_IMAGE: ${KEYCLOAK_IMAGE:?KEYCLOAK_IMAGE must be an approved GHCR source-SHA and sha256 digest}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        case "$CANDIDATE_IMAGE" in
+          ghcr.io/appolon1908-hue/*:[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]@sha256:[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
+          *) echo "KEYCLOAK_IMAGE must use approved GHCR source-SHA@sha256 identity" >&2; exit 1 ;;
+        esac
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [keycloak-internal]
+
   keycloak:
     image: ${KEYCLOAK_IMAGE:?KEYCLOAK_IMAGE must be an approved GHCR version and sha256 digest}
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
+      keycloak-image-policy:
+        condition: service_completed_successfully
     command: ["start", "--optimized"]
     environment:
       KC_DB: postgres
