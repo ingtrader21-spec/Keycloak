@@ -246,7 +246,7 @@ mapfile -t managed_clients < <(jq -r '.clients[]' "$ROOT_DIR/config/policy/manag
 # protected apply workflow; these placeholders never leave the test process.
 while IFS= read -r secret_name; do
   printf -v "$secret_name" 'ci-only-%s' "$secret_name"
-  export "$secret_name"
+  export "${secret_name?}"
 done < <(jq -er '.clients[].applyEnvironment' \
   "$ROOT_DIR/config/contracts/machine-secret-destinations.json")
 
