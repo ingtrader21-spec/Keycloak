@@ -125,6 +125,20 @@ jobs:
       - name: Validate reviewed repository state
         run: ./scripts/validate.sh
 
+      - name: Enforce production mutation stop flag
+        env:
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          set -Eeuo pipefail
+          if [[ "$DEPLOY_ENVIRONMENT" == production && "$MODE" == apply ]]; then
+            jq -e '.productionMutationAllowed == true' \
+              config/certification/service-identity-matrix.json >/dev/null || {
+                echo 'ERROR=production_mutation_not_authorized_by_certification_contract' >&2
+                exit 1
+              }
+          fi
+
   reconcile:
     needs: guard
     runs-on: [self-hosted, linux, x64, codestra-keycloak]

@@ -24,6 +24,7 @@
     "unknown_signing_key",
     "forwarded_only_token",
     "cross_client_scope_confusion",
+    "disabled_client",
     "replayed_jti"
   ],
   "requiredEvidence": [

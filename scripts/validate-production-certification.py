@@ -29,7 +29,7 @@ required_negative_cases = {
     "wrong_issuer", "wrong_audience", "wrong_azp", "insufficient_scope",
     "wrong_tenant", "wrong_campaign", "expired", "not_before",
     "invalid_signature", "unknown_signing_key", "forwarded_only_token",
-    "cross_client_scope_confusion", "replayed_jti",
+    "cross_client_scope_confusion", "disabled_client", "replayed_jti",
 }
 required_claims = {"iss", "sub", "aud", "azp", "iat", "exp", "nbf", "jti", "scope", "tenant_id"}
 required_evidence = {
@@ -59,7 +59,18 @@ required_variables = {
     "RUNTIME_PATHS_APPROVED_SHA256",
 }
 assert set(environment["requiredVariables"]) == required_variables
-assert set(environment["requiredSecrets"]) == {"KC_ADMIN_CLIENT_ID", "KC_ADMIN_CLIENT_SECRET"}
+destinations = load("config/contracts/machine-secret-destinations.json")
+machine_secrets = {client["applyEnvironment"] for client in destinations["clients"]}
+required_secrets = {
+    "KC_ADMIN_CLIENT_ID", "KC_ADMIN_CLIENT_SECRET", "KC_SMTP_USERNAME",
+    "KC_SMTP_PASSWORD",
+} | machine_secrets
+assert set(environment["requiredSecrets"]) == required_secrets
+
+deploy_workflow = (ROOT / ".github/workflows/deploy.yml").read_text(encoding="utf-8")
+assert "Enforce production mutation stop flag" in deploy_workflow
+assert ".productionMutationAllowed == true" in deploy_workflow
+assert "production_mutation_not_authorized_by_certification_contract" in deploy_workflow
 
 print("SERVICE_IDENTITY_CERTIFICATION_CONTRACT=PASS")
 print("PRODUCTION_ENVIRONMENT_CONTRACT=PASS")
