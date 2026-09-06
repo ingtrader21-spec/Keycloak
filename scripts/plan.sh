@@ -27,6 +27,7 @@ Required environment:
   KC_ADMIN_CLIENT_ID
   plus either KC_ADMIN_CLIENT_SECRET or KC_ADMIN_USERNAME/KC_ADMIN_PASSWORD
   DEPLOY_ENVIRONMENT=staging|production
+  KC_SMTP_CREDENTIAL_VERSION (non-secret rotation identifier)
 USAGE
 }
 
@@ -67,6 +68,9 @@ case "$DEPLOY_ENVIRONMENT" in
 esac
 
 "$ROOT_DIR/scripts/validate.sh"
+require_env KC_SMTP_CREDENTIAL_VERSION
+[[ "$KC_SMTP_CREDENTIAL_VERSION" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]] ||
+  die "KC_SMTP_CREDENTIAL_VERSION must be a 1-64 character non-secret identifier"
 keycloak_authenticate
 
 mkdir -p "$OUTPUT_DIR"
@@ -108,6 +112,12 @@ project_live_to_desired_shape() {
               | (($current // []) | map(select(.name == $wanted_item.name)) | .[0] // {}) as $current_item
               | project($current_item; $wanted_item)
             ]
+          elif all($wanted[]?; (type == "object" and has("alias"))) then
+            [
+              $wanted[] as $wanted_item
+              | (($current // []) | map(select(.alias == $wanted_item.alias)) | .[0] // {}) as $current_item
+              | project($current_item; $wanted_item)
+            ]
           else
             ($current // [])
           end
@@ -118,7 +128,10 @@ project_live_to_desired_shape() {
     ' >"$destination"
 }
 
-realm_desired_file="$ROOT_DIR/config/realms/codestra.json"
+realm_desired_file="$tmp_dir/realm-desired.json"
+jq -S --arg version "$KC_SMTP_CREDENTIAL_VERSION" \
+  '.attributes["codestra.smtpCredentialVersion"] = $version' \
+  "$ROOT_DIR/config/realms/codestra.json" >"$realm_desired_file"
 realm_live_file="$tmp_dir/realm-live.json"
 realm_before_file="$tmp_dir/realm-before.json"
 keycloak_api GET \
@@ -140,6 +153,7 @@ jq -S -n \
   --arg action "$realm_action" \
   --arg before_sha256 "$realm_before_sha256" \
   --arg desired_sha256 "$realm_desired_sha256" \
+  --arg smtp_credential_version "$KC_SMTP_CREDENTIAL_VERSION" \
   --slurpfile before "$realm_before_file" \
   --slurpfile desired "$realm_desired_file" '
     {
@@ -148,6 +162,7 @@ jq -S -n \
       action: $action,
       beforeSha256: $before_sha256,
       desiredSha256: $desired_sha256,
+      smtpCredentialVersion: $smtp_credential_version,
       before: $before[0],
       desired: $desired[0],
       rollback: {

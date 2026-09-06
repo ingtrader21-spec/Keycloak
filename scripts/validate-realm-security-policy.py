@@ -65,9 +65,16 @@ require(POLICY["machineTokens"]["refreshTokensAllowed"] is False, "machine refre
 require(REALM["otpPolicyType"] == "totp", "TOTP type")
 require(REALM["otpPolicyAlgorithm"] == "HmacSHA256", "TOTP algorithm")
 require(REALM["otpPolicyDigits"] == 6 and REALM["otpPolicyPeriod"] == 30, "TOTP parameters")
-require(REALM["webAuthnPolicyRpId"] == "auth.codestra.co", "WebAuthn RP")
+require(REALM["webAuthnPolicyRpId"] == "codestra.co", "WebAuthn RP")
 require(REALM["webAuthnPolicyUserVerificationRequirement"] == "required", "WebAuthn verification")
 require(POLICY["administrators"]["mfaRequired"] is True, "administrator MFA")
+require(REALM["browserFlow"] == "codestra-browser-mfa", "managed MFA browser-flow binding")
+flows = {flow["alias"]: flow for flow in REALM["authenticationFlows"]}
+require(set(flows) == {"codestra-browser-mfa", "codestra-browser-password-mfa"}, "managed MFA flows")
+password_mfa = flows["codestra-browser-password-mfa"]["authenticationExecutions"]
+requirements = {item.get("authenticator"): item.get("requirement") for item in password_mfa}
+require(requirements.get("auth-username-password-form") == "REQUIRED", "required password execution")
+require(requirements.get("auth-otp-form") == "REQUIRED", "password-only login must be rejected")
 require(POLICY["requiredActions"]["webauthnRegistrationForPrivilegedUsers"] is True, "privileged WebAuthn")
 require(POLICY["requiredActions"]["moneybeeEmailOtp"] is True, "MoneyBee email OTP")
 

@@ -202,6 +202,7 @@ export KC_ADMIN_CLIENT_SECRET=$TEST_KC_CLIENT_SECRET
 export ALLOW_INSECURE_KC_BASE_URL="true"
 export ALLOW_NONCANONICAL_KC_BASE_URL_FOR_TESTS="true"
 export DEPLOY_ENVIRONMENT="staging"
+export KC_SMTP_CREDENTIAL_VERSION="ci-rotation-v1"
 expected_sha="1111111111111111111111111111111111111111"
 
 [[ "$(keycloak_endpoint_file)" == "$ROOT_DIR/config/endpoints/codestra-staging.json" ]]
@@ -321,6 +322,23 @@ converged_dir="$test_root/converged"
 [[ "$(jq -er '.createCount' "$converged_dir/plan.json")" -eq 0 ]]
 [[ "$(jq -er '.updateCount' "$converged_dir/plan.json")" -eq 0 ]]
 
+# A non-secret credential-version change must produce reviewed realm drift even
+# when every non-secret realm field is already converged. Secrets must never be
+# serialized into the plan.
+export KC_SMTP_CREDENTIAL_VERSION="ci-rotation-v2"
+rotation_dir="$test_root/smtp-rotation"
+"$ROOT_DIR/scripts/plan.sh" \
+  --output-dir "$rotation_dir" \
+  --expected-deploy-sha "$expected_sha" >/dev/null
+[[ "$(jq -er '.realmPolicy.action' "$rotation_dir/plan.json")" == "update" ]]
+[[ "$(jq -er '.realmPolicy.smtpCredentialVersion' "$rotation_dir/plan.json")" == "ci-rotation-v2" ]]
+[[ "$(jq -er '.driftCount' "$rotation_dir/plan.json")" -eq 1 ]]
+if rg -F "$KC_SMTP_USERNAME" "$rotation_dir" || rg -F "$KC_SMTP_PASSWORD" "$rotation_dir"; then
+  echo 'TEST_ERROR=smtp_secret_was_serialized_in_plan' >&2
+  exit 1
+fi
+export KC_SMTP_CREDENTIAL_VERSION="ci-rotation-v1"
+
 for client_id in moneybee-admin moneybee-borrower moneybee-lender; do
   jq -e --arg client_id "$client_id" '
     .[$client_id].representation.protocolMappers[0].name == "moneybee-api-audience"
@@ -361,3 +379,4 @@ printf 'ROLLBACK_EVIDENCE_TESTS=PASS\n'
 printf 'MAPPER_NORMALIZATION_TESTS=PASS\n'
 printf 'PRODUCT_MACHINE_CLIENT_CREATE_TESTS=PASS\n'
 printf 'KLYROW_PORTAL_REVIEWED_CREATE=PASS\n'
+printf 'SMTP_CREDENTIAL_ROTATION_PLAN=PASS\n'

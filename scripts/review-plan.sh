@@ -79,7 +79,8 @@ jq -S -c -n \
         realm,
         action,
         beforeSha256,
-        desiredSha256
+        desiredSha256,
+        smtpCredentialVersion
       })
     }
   ' >"$OUTPUT_FILE"

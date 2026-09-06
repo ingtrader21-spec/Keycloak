@@ -114,7 +114,7 @@ jq -e \
       $plan[0].clients[] | {clientId, action, beforeSha256, desiredSha256}
     ]
     and .reviewedRealmPolicy == ($plan[0].realmPolicy | {
-      resourceType, realm, action, beforeSha256, desiredSha256
+      resourceType, realm, action, beforeSha256, desiredSha256, smtpCredentialVersion
     })
   ' "$REVIEW_FILE" >/dev/null || die "Independent drift-review evidence is invalid"
 
@@ -198,6 +198,12 @@ project_live_to_desired_shape() {
               | (($current // []) | map(select(.name == $wanted_item.name)) | .[0] // {}) as $current_item
               | project($current_item; $wanted_item)
             ]
+          elif all($wanted[]?; (type == "object" and has("alias"))) then
+            [
+              $wanted[] as $wanted_item
+              | (($current // []) | map(select(.alias == $wanted_item.alias)) | .[0] // {}) as $current_item
+              | project($current_item; $wanted_item)
+            ]
           else
             ($current // [])
           end
@@ -224,7 +230,15 @@ printf '{}\n' >"$empty_state_file"
 empty_state_sha256="$(canonical_hash "$empty_state_file")"
 
 # Validate the reviewed realm policy before any mutation.
-realm_desired_file="$ROOT_DIR/config/realms/codestra.json"
+require_env KC_SMTP_CREDENTIAL_VERSION
+[[ "$KC_SMTP_CREDENTIAL_VERSION" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]] ||
+  die "KC_SMTP_CREDENTIAL_VERSION must be a 1-64 character non-secret identifier"
+[[ "$(jq -er '.realmPolicy.smtpCredentialVersion' "$PLAN_FILE")" == "$KC_SMTP_CREDENTIAL_VERSION" ]] ||
+  die "SMTP credential version differs from the reviewed plan"
+realm_desired_file="$tmp_dir/realm-desired.json"
+jq -S --arg version "$KC_SMTP_CREDENTIAL_VERSION" \
+  '.attributes["codestra.smtpCredentialVersion"] = $version' \
+  "$ROOT_DIR/config/realms/codestra.json" >"$realm_desired_file"
 realm_expected_before_sha256="$(jq -er '.realmPolicy.beforeSha256' "$PLAN_FILE")"
 realm_expected_desired_sha256="$(jq -er '.realmPolicy.desiredSha256' "$PLAN_FILE")"
 realm_action="$(jq -er '.realmPolicy.action' "$PLAN_FILE")"

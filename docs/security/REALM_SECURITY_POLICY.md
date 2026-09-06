@@ -17,10 +17,17 @@ one-minute increment and fifteen-minute maximum wait. Permanent lockout is
 disabled so recovery remains possible.
 
 TOTP uses SHA-256, six digits, a 30-second period, and a one-step look-ahead.
-WebAuthn requires user verification and binds to `auth.codestra.co`.
-Administrators require MFA; phishing-resistant WebAuthn is preferred, recovery
+WebAuthn requires user verification and uses the `codestra.co` RP ID, valid for
+both production and staging authentication subdomains. The managed browser flow
+requires password plus TOTP, so password-only administrator login is rejected.
+Phishing-resistant WebAuthn is preferred, recovery
 requires a second administrator, and break-glass material stays outside Git.
 
 Git configuration is not live evidence. TOTP enrollment, privileged WebAuthn,
 administrator recovery, and required-action behavior must be verified in a
 controlled environment before production approval.
+
+`KC_SMTP_CREDENTIAL_VERSION` is a non-secret deployment variable. Incrementing
+it creates reviewed realm drift and schedules an update even when only the
+external SMTP credentials changed; the credentials remain absent from Git and
+the plan.

@@ -44,7 +44,7 @@
     "ES256",
     "RS256"
   ],
-  "webAuthnPolicyRpId": "auth.codestra.co",
+  "webAuthnPolicyRpId": "codestra.co",
   "webAuthnPolicyAttestationConveyancePreference": "none",
   "webAuthnPolicyAuthenticatorAttachment": "not specified",
   "webAuthnPolicyRequireResidentKey": "not specified",
@@ -52,6 +52,32 @@
   "webAuthnPolicyCreateTimeout": 60,
   "webAuthnPolicyAvoidSameAuthenticatorRegister": true,
   "webAuthnPolicyAcceptableAaguids": [],
+  "browserFlow": "codestra-browser-mfa",
+  "authenticationFlows": [
+    {
+      "alias": "codestra-browser-mfa",
+      "description": "Managed browser flow; a password alone is never sufficient",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {"authenticator": "auth-cookie", "authenticatorFlow": false, "requirement": "ALTERNATIVE", "priority": 10, "userSetupAllowed": false},
+        {"authenticator": "identity-provider-redirector", "authenticatorFlow": false, "requirement": "ALTERNATIVE", "priority": 20, "userSetupAllowed": false},
+        {"authenticatorFlow": true, "flowAlias": "codestra-browser-password-mfa", "requirement": "ALTERNATIVE", "priority": 30, "userSetupAllowed": false}
+      ]
+    },
+    {
+      "alias": "codestra-browser-password-mfa",
+      "description": "Password plus a second factor for every interactive user, including administrators",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {"authenticator": "auth-username-password-form", "authenticatorFlow": false, "requirement": "REQUIRED", "priority": 10, "userSetupAllowed": false},
+        {"authenticator": "auth-otp-form", "authenticatorFlow": false, "requirement": "REQUIRED", "priority": 20, "userSetupAllowed": false}
+      ]
+    }
+  ],
   "loginTheme": "codestra-identity",
   "emailTheme": "codestra-identity",
   "smtpServer": {
