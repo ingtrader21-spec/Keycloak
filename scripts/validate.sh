@@ -313,6 +313,7 @@ fi
 
 python3 "$ROOT_DIR/scripts/validate-workflows.py"
 python3 "$ROOT_DIR/scripts/validate-runtime-security.py"
+python3 "$ROOT_DIR/scripts/validate-realm-security-policy.py"
 
 if grep -RInE --exclude-dir=.git 'BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY' .; then
   fail "Private key material must not be committed"
@@ -334,6 +335,7 @@ if grep -RInE \
 fi
 
 "$ROOT_DIR/scripts/test-runtime-preflight.sh"
+"$ROOT_DIR/scripts/test-ephemeral-docker-auth.sh"
 
 printf 'CONFIG_ROOT=%s\n' "$CONFIG_ROOT"
 printf 'JSON_FILES=%s\n' "${#json_files[@]}"

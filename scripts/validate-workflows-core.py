@@ -331,9 +331,14 @@ def validate_privileged_workflow(path: Path, workflow: dict[str, Any]) -> None:
             "kc_base_url_must_be_canonical_staging_https",
             "kc_public_url_must_be_canonical_staging_https",
             "kc_admin_realm_must_be_master",
+            "source scripts/ephemeral-docker-auth.sh",
         ):
             if fragment not in stage6_text:
                 fail(f"{path}: Stage 6 execution authority is incomplete; missing {fragment}")
+        if stage6_text.count("source scripts/ephemeral-docker-auth.sh") != 2:
+            fail(f"{path}: every Docker-consuming Stage 6 step must use ephemeral GHCR credentials")
+        if "docker login" in stage6_text or "docker logout" in stage6_text:
+            fail(f"{path}: inline persistent Docker authentication is prohibited")
         if "github.event_name == 'push'" not in str(stage6.get("if", "")):
             fail(f"{path}: Stage 6 job must be push-only")
         if str(stage6.get("environment", "")) != "staging":

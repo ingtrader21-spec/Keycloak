@@ -98,6 +98,9 @@ jobs:
       - name: Test exact source reviewed plan-hash gate
         env:
           TEST_KC_CLIENT_SECRET: ${{ format('ci-only-{0}-plan-source', github.run_id) }}
+          KC_SMTP_USERNAME: ci-only-smtp-user
+          KC_SMTP_CREDENTIAL_VERSION: ci-validation-v1
+          KC_SMTP_PASSWORD: ${{ format('ci-only-{0}-smtp-source', github.run_id) }}
         run: ./scripts/test-plan-gate.sh
 
       - name: Validate source Docker Compose without starting services
@@ -197,6 +200,9 @@ jobs:
       - name: Test merge-result reviewed plan-hash gate
         env:
           TEST_KC_CLIENT_SECRET: ${{ format('ci-only-{0}-plan-merge', github.run_id) }}
+          KC_SMTP_USERNAME: ci-only-smtp-user
+          KC_SMTP_CREDENTIAL_VERSION: ci-validation-v1
+          KC_SMTP_PASSWORD: ${{ format('ci-only-{0}-smtp-merge', github.run_id) }}
         run: ./scripts/test-plan-gate.sh
 
       - name: Validate merge-result Docker Compose without starting services
