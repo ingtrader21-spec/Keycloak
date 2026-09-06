@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_DIR = ROOT / ".github" / "workflows"
 CORE_PATH = ROOT / "scripts" / "validate-workflows-core.py"
 PR_AUTHORITY_POLICY = ROOT / "scripts" / "validate-pr-authority-workflows.py"
+PASSWORD_RESET_POLICY = ROOT / "scripts" / "validate-password-reset-e2e.py"
 RELEASE_CONTRACT = ROOT / ".codestra" / "production-orchestrator-contract.v1.json"
 
 LEGACY_WORKFLOWS = {
@@ -244,6 +245,36 @@ def validate_pr_authority_workflows() -> None:
         fail(f"PR authority workflow validation failed: {detail}")
     if "KEYCLOAK_PR_AUTHORITY_WORKFLOW_POLICY=PASS" not in completed.stdout:
         fail("PR authority workflow validator did not emit its PASS marker")
+
+
+def validate_password_reset_workflows() -> None:
+    """Apply common step policy and the dedicated staging acceptance policy."""
+
+    for name in sorted(PASSWORD_RESET_WORKFLOWS):
+        path = WORKFLOW_DIR / name
+        workflow = CORE.load_workflow(path)
+        CORE.validate_permissions(
+            workflow.get("permissions"), f"{path}.permissions", {"contents": "read"}
+        )
+        jobs = CORE.as_mapping(workflow.get("jobs"), f"{path}.jobs")
+        if not jobs:
+            fail(f"{path}: workflow must define at least one job")
+        for job_name, value in jobs.items():
+            job = CORE.as_mapping(value, f"{path}.jobs.{job_name}")
+            CORE.validate_steps(job, f"{path}.jobs.{job_name}")
+
+    completed = subprocess.run(
+        [sys.executable, str(PASSWORD_RESET_POLICY)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode:
+        detail = completed.stderr.strip() or completed.stdout.strip()
+        fail(f"password-reset workflow validation failed: {detail}")
+    if "PASSWORD_RESET_E2E_WORKFLOW_POLICY=PASS" not in completed.stdout:
+        fail("password-reset workflow validator did not emit its PASS marker")
 
 
 def validate_release_contract() -> None:
@@ -485,6 +516,7 @@ def validate() -> None:
         CORE.load_workflow(WORKFLOW_DIR / LIVE_AUTHORITY_WORKFLOW),
     )
     validate_pr_authority_workflows()
+    validate_password_reset_workflows()
     validate_manual_release_intent(
         WORKFLOW_DIR / MANUAL_RELEASE_WORKFLOW,
         CORE.load_workflow(WORKFLOW_DIR / MANUAL_RELEASE_WORKFLOW),
@@ -498,6 +530,7 @@ def validate() -> None:
     print(f"WORKFLOW_FILES={len(workflow_files)}")
     print("REPOSITORY_NAME_WORKFLOW_POLICY=PASS")
     print("PR_AUTHORITY_WORKFLOW_POLICY=PASS")
+    print("PASSWORD_RESET_E2E_WORKFLOW_POLICY=PASS")
     print("MANUAL_RELEASE_INTENT_POLICY=PASS")
     print("RELEASE_INTENT_CONTRACT=PASS")
     print("IMMUTABLE_IMAGE_RELEASE_WORKFLOW=PASS")
