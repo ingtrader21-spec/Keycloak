@@ -1,0 +1,31 @@
+name: Orbit Keycloak theme
+
+on:
+  pull_request:
+    paths:
+      - "themes/**"
+      - "orbit/**"
+      - "Dockerfile"
+      - "scripts/validate-orbit-theme.py"
+      - ".github/workflows/orbit-theme.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ env.EXPECTED_SHA }}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13"
+      - run: python scripts/validate-orbit-theme.py
+      - run: docker build --pull=false -t codestra-keycloak-orbit:${{ github.sha }} .

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "2.0.0",
+  "repository": "appolon1908-hue/Keycloak",
+  "classification": "vendor-operator-ui",
+  "targetBranch": "codex/codestra-orbit-v2-keycloak",
+  "adoptionMode": "operator-theme-sso",
+  "domain": "auth.codestra.co",
+  "domainStatus": "registered",
+  "requirements": {
+    "identitySSO": true,
+    "session": true,
+    "logout": true,
+    "logoutAll": true,
+    "browserTokenStorageProhibited": true,
+    "supportedTheme": true,
+    "sharedHeaderFooter": false,
+    "domainRegistry": true,
+    "operatorAccess": true,
+    "audit": true,
+    "rollback": true
+  },
+  "status": "implementation-in-progress",
+  "blockers": [
+    "Reconcile this branch with current protected main before promotion.",
+    "Capture protected staging screenshots and keyboard/screen-reader evidence for every authentication state.",
+    "Verify canonical issuer, exact redirect/logout allowlists, session revocation, administrator isolation, upgrade and rollback evidence before production."
+  ],
+  "implemented": [
+    "Supported Keycloak login theme inheriting keycloak.v2",
+    "Shared login, registration, verification, recovery, MFA, consent, logout and error styling through inherited native templates",
+    "English, Spanish and French security-flow labels",
+    "Reduced-motion accessibility behavior",
+    "Theme validation and container image build CI"
+  ]
+}

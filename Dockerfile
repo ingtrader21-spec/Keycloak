@@ -10,7 +10,7 @@ ENV KC_DB=postgres \
     KC_HEALTH_ENABLED=true \
     KC_METRICS_ENABLED=true
 COPY --from=extension-builder /src/target/moneybee-email-otp-1.0.0.jar /opt/keycloak/providers/moneybee-email-otp.jar
-COPY themes/codestra-identity/ /opt/keycloak/themes/codestra-identity/
+COPY themes /opt/keycloak/themes
 RUN /opt/keycloak/bin/kc.sh build
 
 FROM ${KEYCLOAK_BASE_IMAGE}
