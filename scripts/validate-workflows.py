@@ -29,6 +29,7 @@ LEGACY_WORKFLOWS = {
 AUTHORITY_WORKFLOW = "repository-name-authority.yml"
 LIVE_AUTHORITY_WORKFLOW = "repository-name-live-authority.yml"
 MANUAL_RELEASE_WORKFLOW = "manual-release-intent.yml"
+ADDITIONAL_REVIEWED_WORKFLOWS = {"registration-recovery.yml"}
 PR_AUTHORITY_WORKFLOWS = {
     "keycloak-pr-authority-audit.yml",
     "keycloak-pr-authority-pr.yml",
@@ -37,6 +38,7 @@ EXPECTED_WORKFLOWS = (
     LEGACY_WORKFLOWS
     | {AUTHORITY_WORKFLOW, LIVE_AUTHORITY_WORKFLOW, MANUAL_RELEASE_WORKFLOW}
     | PR_AUTHORITY_WORKFLOWS
+    | ADDITIONAL_REVIEWED_WORKFLOWS
 )
 
 
