@@ -23,7 +23,8 @@
   },
   "requiredActions": {
     "configureTotp": true,
-    "verifyEmail": true,
+    "verifyEmail": false,
+    "moneybeeEmailOtp": true,
     "updatePassword": true,
     "webauthnRegistrationForPrivilegedUsers": true
   },

@@ -20,10 +20,15 @@ def require(condition: bool, message: str) -> None:
 
 require(REALM["realm"] == "codestra" and REALM["enabled"] is True, "realm identity")
 require(REALM["sslRequired"] == "external", "external TLS")
-for key in ("registrationAllowed", "rememberMe", "duplicateEmailsAllowed", "editUsernameAllowed"):
+for key in ("rememberMe", "duplicateEmailsAllowed", "editUsernameAllowed"):
     require(REALM[key] is False, f"{key} must be false")
-for key in ("verifyEmail", "loginWithEmailAllowed", "resetPasswordAllowed"):
+require(REALM["registrationAllowed"] is True, "reviewed registration gate must be enabled")
+require(REALM["registrationEmailAsUsername"] is True, "registration email identity")
+require(REALM["loginTheme"] == "codestra-identity", "login theme")
+require(REALM["emailTheme"] == "codestra-identity", "email theme")
+for key in ("loginWithEmailAllowed", "resetPasswordAllowed"):
     require(REALM[key] is True, f"{key} must be true")
+require(REALM["verifyEmail"] is False, "standard email verification must defer to reviewed MoneyBee OTP")
 
 password_fragments = {
     "length(14)", "maxLength(128)", "upperCase(1)", "lowerCase(1)",
@@ -64,6 +69,7 @@ require(REALM["webAuthnPolicyRpId"] == "auth.codestra.co", "WebAuthn RP")
 require(REALM["webAuthnPolicyUserVerificationRequirement"] == "required", "WebAuthn verification")
 require(POLICY["administrators"]["mfaRequired"] is True, "administrator MFA")
 require(POLICY["requiredActions"]["webauthnRegistrationForPrivilegedUsers"] is True, "privileged WebAuthn")
+require(POLICY["requiredActions"]["moneybeeEmailOtp"] is True, "MoneyBee email OTP")
 
 smtp = REALM["smtpServer"]
 smtp_contract = SMTP["smtp"]
