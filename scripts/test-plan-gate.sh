@@ -17,7 +17,10 @@ cleanup() {
 trap cleanup EXIT
 
 state_file="$test_root/clients.json"
+realm_state_file="$test_root/realm.json"
 port_file="$test_root/port"
+
+jq -S '.rememberMe = true' "$ROOT_DIR/config/realms/codestra.json" >"$realm_state_file"
 
 jq -S -n \
   --slurpfile klyrow "$ROOT_DIR/config/clients/klyrow-portal.json" '
@@ -40,6 +43,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 state_path = Path(os.environ["MOCK_STATE_FILE"])
+realm_state_path = Path(os.environ["MOCK_REALM_STATE_FILE"])
 port_path = Path(os.environ["MOCK_PORT_FILE"])
 
 
@@ -108,6 +112,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
+        if parsed.path == "/admin/realms/codestra":
+            self.send_json(200, json.loads(realm_state_path.read_text()))
+            return
         state = load_state()
         if parsed.path == "/admin/realms/codestra/clients":
             query = parse_qs(parsed.query)
@@ -133,6 +140,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_PUT(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
+        if parsed.path == "/admin/realms/codestra":
+            realm_state_path.write_text(
+                json.dumps(self.read_json(), indent=2, sort_keys=True) + "\n"
+            )
+            self.send_response(204)
+            self.end_headers()
+            return
         prefix = "/admin/realms/codestra/clients/"
         if not parsed.path.startswith(prefix):
             self.send_json(404, {"error": "not_found"})
@@ -163,6 +177,7 @@ server.serve_forever()
 PY
 
 MOCK_STATE_FILE="$state_file" \
+MOCK_REALM_STATE_FILE="$realm_state_file" \
 MOCK_PORT_FILE="$port_file" \
 python3 "$test_root/mock_keycloak.py" &
 server_pid=$!
