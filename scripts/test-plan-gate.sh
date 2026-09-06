@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-trap 'status=$?; printf "TEST_PLAN_GATE_ERROR=line:%s status:%s\\n" "$LINENO" "$status" >&2; exit "$status"' ERR
+report_error() {
+  local exit_status="$1"
+  local line_number="$2"
+  printf 'TEST_PLAN_GATE_ERROR=line:%s status:%s\n' "$line_number" "$exit_status" >&2
+  exit "$exit_status"
+}
+trap 'report_error "$?" "$LINENO"' ERR
 umask 077
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
