@@ -393,6 +393,56 @@ def validate_manual_release_intent(path: Path, workflow: dict[str, Any]) -> None
         fail(f"{path}: release intent must remain metadata-only")
 
 
+def validate_registration_recovery_workflow(path: Path, workflow: dict[str, Any]) -> None:
+    triggers = CORE.as_mapping(workflow.get("on"), f"{path}.on")
+    if set(triggers) != {"pull_request"}:
+        fail(f"{path}: registration validation must be pull_request-only")
+    pull_request = CORE.as_mapping(triggers["pull_request"], f"{path}.on.pull_request")
+    if CORE.as_sequence(pull_request.get("branches"), f"{path}.branches") != ["main"]:
+        fail(f"{path}: registration validation must target main")
+    required_paths = {
+        "Dockerfile",
+        "config/contracts/machine-clients.json",
+        "config/email/keycloak-security-smtp.json",
+        "config/identity/application-domain-registry.json",
+        "config/identity/beyvra-oidc-client.json",
+        "config/identity/browser-registration-policy.json",
+        "config/identity/moneybee-oidc-clients.json",
+        "config/realms/codestra.json",
+        "config/security/realm-security-policy.json",
+        "extensions/codestra-registration-gate/**",
+        "scripts/validate-browser-registration-policy.py",
+        "scripts/validate-realm-security-policy.py",
+        ".github/workflows/registration-recovery.yml",
+    }
+    if set(CORE.as_sequence(pull_request.get("paths"), f"{path}.paths")) != required_paths:
+        fail(f"{path}: registration validator dependency path set drift")
+    CORE.validate_permissions(
+        workflow.get("permissions"), f"{path}.permissions", {"contents": "read"}
+    )
+    jobs = CORE.as_mapping(workflow.get("jobs"), f"{path}.jobs")
+    if set(jobs) != {"validate"}:
+        fail(f"{path}: unexpected registration validation jobs")
+    job = CORE.as_mapping(jobs["validate"], f"{path}.jobs.validate")
+    if "permissions" in job or "environment" in job:
+        fail(f"{path}: registration validation cannot elevate permissions")
+    if "self-hosted" in CORE.normalize_runs_on(job.get("runs-on")):
+        fail(f"{path}: registration validation cannot use a self-hosted runner")
+    if any(CORE.SECRET_EXPRESSION.search(value) for value in CORE.recursive_strings(job)):
+        fail(f"{path}: registration validation cannot access secrets")
+    CORE.validate_steps(job, f"{path}.jobs.validate")
+    text = workflow_text(workflow)
+    for required in (
+        "github.event.pull_request.head.sha",
+        "git rev-parse HEAD",
+        "validate-browser-registration-policy.py",
+        "validate-realm-security-policy.py",
+        "mvn --batch-mode",
+    ):
+        if required not in text:
+            fail(f"{path}: registration validation is missing {required}")
+
+
 def validate() -> None:
     if not WORKFLOW_DIR.is_dir():
         fail(f"Workflow directory does not exist: {WORKFLOW_DIR}")
@@ -421,12 +471,17 @@ def validate() -> None:
         CORE.load_workflow(WORKFLOW_DIR / MANUAL_RELEASE_WORKFLOW),
     )
     validate_release_contract()
+    validate_registration_recovery_workflow(
+        WORKFLOW_DIR / "registration-recovery.yml",
+        CORE.load_workflow(WORKFLOW_DIR / "registration-recovery.yml"),
+    )
 
     print(f"WORKFLOW_FILES={len(workflow_files)}")
     print("REPOSITORY_NAME_WORKFLOW_POLICY=PASS")
     print("PR_AUTHORITY_WORKFLOW_POLICY=PASS")
     print("MANUAL_RELEASE_INTENT_POLICY=PASS")
     print("RELEASE_INTENT_CONTRACT=PASS")
+    print("REGISTRATION_RECOVERY_WORKFLOW_POLICY=PASS")
     print("WORKFLOW_YAML_PARSE=PASS")
     print("WORKFLOW_POLICY=PASS")
 
