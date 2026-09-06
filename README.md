@@ -2,6 +2,8 @@
 
 GitOps repository for the Codestra identity service.
 
+> **Repository authority:** this is the independent Git authority for Codestra Keycloak desired state and protected identity changes. Other repositories consume its versioned identity contracts; they do not control or directly mutate Keycloak. See [`docs/KEYCLOAK_REPOSITORY_AUTHORITY.md`](docs/KEYCLOAK_REPOSITORY_AUTHORITY.md). The cross-repository rollout sequence starts in [`docs/CODESTRA_MISSION_PLAN.md`](docs/CODESTRA_MISSION_PLAN.md).
+
 ```text
 Public URL:       https://auth.codestra.co
 Canonical issuer: https://auth.codestra.co/realms/codestra
