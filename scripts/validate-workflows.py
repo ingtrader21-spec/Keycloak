@@ -419,7 +419,7 @@ def validate_image_release_workflow(path: Path, workflow: dict[str, Any]) -> Non
         "--provenance=mode=max",
         "--sbom=true",
         "containerimage.digest",
-        "$IMAGE_REPOSITORY:$GITHUB_SHA@$digest",
+        "printf '%s:%s@%s\\n'",
         "trivy image",
         "sha256sum",
     ):
