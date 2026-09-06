@@ -2,6 +2,8 @@ ARG KEYCLOAK_VERSION=26.7.2
 
 FROM quay.io/keycloak/keycloak:${KEYCLOAK_VERSION} AS builder
 
+COPY themes /opt/keycloak/themes
+
 ENV KC_DB=postgres \
     KC_HEALTH_ENABLED=true \
     KC_METRICS_ENABLED=true
