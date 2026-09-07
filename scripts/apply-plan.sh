@@ -98,6 +98,12 @@ case "$DEPLOY_ENVIRONMENT" in
     ;;
 esac
 
+if [[ "$DEPLOY_ENVIRONMENT" == production ]]; then
+  jq -e '.productionMutationAllowed == true' \
+    "$ROOT_DIR/config/certification/service-identity-matrix.json" >/dev/null ||
+    die "production_mutation_not_authorized_by_certification_contract"
+fi
+
 "$ROOT_DIR/scripts/validate.sh"
 jq -e . "$PLAN_FILE" >/dev/null || die "Plan is not valid JSON"
 

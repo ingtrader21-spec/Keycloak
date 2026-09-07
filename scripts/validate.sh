@@ -317,6 +317,7 @@ python3 "$ROOT_DIR/scripts/validate-machine-secret-contract.py"
 python3 "$ROOT_DIR/scripts/validate-password-reset-e2e.py"
 python3 "$ROOT_DIR/scripts/validate-realm-security-policy.py"
 python3 "$ROOT_DIR/scripts/validate-production-certification.py"
+python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_*certification*.py' -v
 
 if grep -RInE --exclude-dir=.git 'BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY' .; then
   fail "Private key material must not be committed"

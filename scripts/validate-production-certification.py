@@ -13,13 +13,20 @@ def load(name: str) -> dict:
     return json.loads((ROOT / name).read_text(encoding="utf-8"))
 
 
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise SystemExit("CERTIFICATION_CONTRACT=FAIL: " + message)
+
+
 matrix = load("config/certification/service-identity-matrix.json")
 environment = load("config/github/production-environment.json")
 
-assert matrix["schemaVersion"] == 1
-assert matrix["stagingIssuer"] != matrix["productionIssuer"]
-assert matrix["environmentsTrustEachOther"] is False
-assert matrix["productionMutationAllowed"] is False
+require(matrix["schemaVersion"] == 1, "unsupported identity matrix schema")
+require(matrix["stagingIssuer"] == load("config/endpoints/codestra-staging.json")["issuer"], "staging issuer must match canonical endpoints")
+require(matrix["productionIssuer"] == load("config/endpoints/codestra.json")["issuer"], "production issuer must match canonical endpoints")
+require(matrix["stagingIssuer"] != matrix["productionIssuer"], "staging and production issuers must differ")
+require(matrix["environmentsTrustEachOther"] is False, "cross-environment trust must remain disabled")
+require(matrix["productionMutationAllowed"] is False, "production mutations require completed live certification")
 
 required_positive_cases = {
     "valid_service_identity", "valid_tenant_binding", "valid_campaign_binding",
@@ -37,20 +44,20 @@ required_evidence = {
     "kong_configuration_sha256", "middleware_configuration_sha256",
     "case_results", "rollback_result",
 }
-assert set(matrix["positiveCases"]) == required_positive_cases
-assert set(matrix["negativeCases"]) == required_negative_cases
-assert set(matrix["requiredClaims"]) == required_claims
-assert set(matrix["requiredEvidence"]) == required_evidence
+require(set(matrix["positiveCases"]) == required_positive_cases, "positive identity cases are incomplete")
+require(set(matrix["negativeCases"]) == required_negative_cases, "negative identity cases are incomplete")
+require(set(matrix["requiredClaims"]) == required_claims, "required identity claims differ from the contract")
+require(set(matrix["requiredEvidence"]) == required_evidence, "required release evidence is incomplete")
 
-assert environment["schemaVersion"] == 1
-assert environment["environment"] == "production"
-assert environment["protectedBranchesOnly"] is True
-assert environment["preventSelfReview"] is True
-assert environment["administratorBypassAllowed"] is False
-assert environment["requiredIndependentReviewer"] == "kazan555"
-assert environment["applyRequiresReviewedPlan"] is True
-assert environment["applyRequiresIndependentDriftReview"] is True
-assert environment["sourceOnlyMayEnableProduction"] is False
+require(environment["schemaVersion"] == 1, "unsupported environment schema")
+require(environment["environment"] == "production", "protected environment must be production")
+require(environment["protectedBranchesOnly"] is True, "production must restrict deployment branches")
+require(environment["preventSelfReview"] is True, "production must prevent self-review")
+require(environment["administratorBypassAllowed"] is False, "production must forbid administrator bypass")
+require(environment["requiredIndependentReviewer"] == "kazan555", "required independent reviewer changed")
+require(environment["applyRequiresReviewedPlan"] is True, "apply must require a reviewed plan")
+require(environment["applyRequiresIndependentDriftReview"] is True, "apply must require independent drift review")
+require(environment["sourceOnlyMayEnableProduction"] is False, "source checks alone must not enable production")
 required_variables = {
     "KC_BASE_URL", "KC_PUBLIC_URL", "KC_TARGET_REALM", "KC_ADMIN_REALM",
     "KC_SMTP_CREDENTIAL_VERSION", "RUNTIME_REPO_DIR", "RUNTIME_COMPOSE_FILE",
@@ -58,28 +65,34 @@ required_variables = {
     "RUNTIME_GIT_KNOWN_HOSTS", "RUNTIME_GIT_REMOTE", "RUNTIME_GIT_BRANCH",
     "RUNTIME_PATHS_APPROVED_SHA256",
 }
-assert set(environment["requiredVariables"]) == required_variables
+require(set(environment["requiredVariables"]) == required_variables, "required production variables are incomplete")
 destinations = load("config/contracts/machine-secret-destinations.json")
 machine_secrets = {client["applyEnvironment"] for client in destinations["clients"]}
 required_secrets = {
     "KC_ADMIN_CLIENT_ID", "KC_ADMIN_CLIENT_SECRET", "KC_SMTP_USERNAME",
     "KC_SMTP_PASSWORD",
 } | machine_secrets
-assert set(environment["requiredSecrets"]) == required_secrets
+require(set(environment["requiredSecrets"]) == required_secrets, "required production credentials are incomplete")
 
 deploy_workflow = (ROOT / ".github/workflows/deploy.yml").read_text(encoding="utf-8")
-assert "Enforce production mutation stop flag" in deploy_workflow
-assert ".productionMutationAllowed == true" in deploy_workflow
-assert "production_mutation_not_authorized_by_certification_contract" in deploy_workflow
+require("Enforce production mutation stop flag" in deploy_workflow, "deployment must include the production stop gate")
+require(".productionMutationAllowed == true" in deploy_workflow, "deployment must enforce the production stop flag")
+require("production_mutation_not_authorized_by_certification_contract" in deploy_workflow, "deployment must reject unauthorized production mutations")
 for secret_name in machine_secrets:
-    assert f"secrets.{secret_name}" in deploy_workflow
+    require(f"secrets.{secret_name}" in deploy_workflow, f"missing apply credential binding: {secret_name}")
 
 kong_certification = (ROOT / "scripts/certify-kong.sh").read_text(encoding="utf-8")
-assert "DISABLED_CLIENT_EVIDENCE_FILE" in kong_certification
-assert 'keycloak-admin-readback' in kong_certification
-assert '.clientId == $client' in kong_certification
-assert '.enabled == false' in kong_certification
-assert '($now - 900)' in kong_certification
+require('python3 "$root_dir/scripts/certify_disabled_client.py"' in kong_certification,
+        "Kong must execute authenticated disabled-client certification")
+require('disabledClientEvidence:$disabledEvidence[0]' in kong_certification,
+        "Kong evidence must include authenticated fixture read-back")
+require('DISABLED_CLIENT_EVIDENCE_FILE' not in kong_certification,
+        "caller-supplied disabled-client evidence must not be trusted")
+apply_script = (ROOT / "scripts/apply-plan.sh").read_text(encoding="utf-8")
+require('.productionMutationAllowed == true' in apply_script,
+        "direct apply must enforce the production mutation stop flag")
+require('production_mutation_not_authorized_by_certification_contract' in apply_script,
+        "direct apply must fail when production certification is blocked")
 
 print("SERVICE_IDENTITY_CERTIFICATION_CONTRACT=PASS")
 print("PRODUCTION_ENVIRONMENT_CONTRACT=PASS")
