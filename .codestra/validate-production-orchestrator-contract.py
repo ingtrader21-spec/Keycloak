@@ -129,6 +129,7 @@ def validate(contract: dict[str, Any]) -> None:
         "production_changed\": False",
         "external_effects_enabled\": False",
         "persist-credentials: false",
+        "[\"git\", \"rev-parse\", \"HEAD\"]",
     ):
         require(marker in intent, f"release-intent safety marker is missing: {marker}")
     require(RUNTIME_COMMAND.search(intent) is None, "release-intent workflow contains a runtime/deployment command")

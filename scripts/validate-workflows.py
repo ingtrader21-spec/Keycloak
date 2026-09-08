@@ -30,6 +30,7 @@ LEGACY_WORKFLOWS = {
 AUTHORITY_WORKFLOW = "repository-name-authority.yml"
 LIVE_AUTHORITY_WORKFLOW = "repository-name-live-authority.yml"
 MANUAL_RELEASE_WORKFLOW = "manual-release-intent.yml"
+ORCHESTRATOR_CONTRACT_WORKFLOW = "production-orchestrator-contract.yml"
 IMAGE_RELEASE_WORKFLOW = "release-image.yml"
 ADDITIONAL_REVIEWED_WORKFLOWS = {
     "orbit-theme.yml",
@@ -45,7 +46,13 @@ PR_AUTHORITY_WORKFLOWS = {
 }
 EXPECTED_WORKFLOWS = (
     LEGACY_WORKFLOWS
-    | {AUTHORITY_WORKFLOW, LIVE_AUTHORITY_WORKFLOW, MANUAL_RELEASE_WORKFLOW, IMAGE_RELEASE_WORKFLOW}
+    | {
+        AUTHORITY_WORKFLOW,
+        LIVE_AUTHORITY_WORKFLOW,
+        MANUAL_RELEASE_WORKFLOW,
+        ORCHESTRATOR_CONTRACT_WORKFLOW,
+        IMAGE_RELEASE_WORKFLOW,
+    }
     | PR_AUTHORITY_WORKFLOWS
     | ADDITIONAL_REVIEWED_WORKFLOWS
     | PASSWORD_RESET_WORKFLOWS
@@ -320,7 +327,7 @@ def validate_release_contract() -> None:
         if contract.get(key) != expected:
             fail(f"release-intent contract drift: {key}")
 
-    if contract.get("required_checks") != ["validate"]:
+    if contract.get("required_checks") != ["orchestrator-contract", "validate"]:
         fail("release-intent required-check authority drift")
     if contract.get("supported_phases") != ["plan", "staging", "canary", "production"]:
         fail("release-intent phase authority drift")
@@ -431,7 +438,7 @@ def validate_manual_release_intent(path: Path, workflow: dict[str, Any]) -> None
     text = workflow_text(workflow)
     for required in (
         "refs/heads/",
-        "git rev-parse HEAD",
+        '["git", "rev-parse", "HEAD"]',
         "branches/",
         "check-runs?per_page=100",
         "@sha256:",

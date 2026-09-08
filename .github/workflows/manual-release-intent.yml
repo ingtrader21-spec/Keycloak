@@ -69,7 +69,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.source_sha }}
-          fetch-depth: 0
+          fetch-depth: 1
           persist-credentials: false
 
       - name: Verify contract, exact branch head, checks, and immutable artifacts
@@ -140,6 +140,10 @@ jobs:
           require(os.environ["CONFIRMATION"] == CONFIRMATIONS[phase], "confirmation mismatch")
           require(SHA.fullmatch(source_sha) is not None, "source_sha must be lowercase 40-hex")
           require(source_sha != "0" * 40, "source_sha must not be zero")
+          checkout_sha = subprocess.check_output(
+              ["git", "rev-parse", "HEAD"], text=True
+          ).strip()
+          require(checkout_sha == source_sha, "checkout does not match source_sha")
           require(DIGEST.fullmatch(candidate_sha256) is not None, "candidate_sha256 must be lowercase 64-hex")
           require(candidate_sha256 != "0" * 64, "candidate_sha256 must not be zero")
           require(DIGEST.fullmatch(prior_evidence_sha256) is not None, "prior evidence must be lowercase 64-hex")
