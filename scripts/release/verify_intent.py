@@ -46,6 +46,7 @@ def validate_plan(plan, repo, requested_sha, expected_hash):
     require(plan.get('sbom_required') is True and plan.get('provenance_required') is True, 'Attestations required')
     expected_image = {'appolon1908-hue/Keycloak': 'ghcr.io/appolon1908-hue/codestra-keycloak',
                       'appolon1908-hue/codestra-server-c': 'ghcr.io/appolon1908-hue/codestra-server-c'}
+    require(repo in expected_image, 'Unrecognized repository')
     require(plan.get('image_repository') == expected_image.get(repo), 'Registry mismatch')
 
 
@@ -117,6 +118,7 @@ def main():
     require(command('git', 'rev-parse', plan['source_sha'] + '^{tree}') == plan['source_tree'], 'Source tree drift')
     subprocess.run(['git', 'merge-base', '--is-ancestor', plan['source_sha'], 'HEAD'], check=True)
     required = {'validate-source', 'validate-merge-result'} if repo.endswith('/Keycloak') else {'backend', 'container'}
+    required |= set(branch.get('protection', {}).get('required_status_checks', {}).get('contexts', []))
     source_pr = reviewed_commit(repo, plan['source_sha'], required)
     intent_commit = command('git', 'log', '-1', '--format=%H', '--', str(path))
     intent_pr = reviewed_commit(repo, intent_commit, required)
