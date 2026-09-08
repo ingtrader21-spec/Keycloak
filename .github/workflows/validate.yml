@@ -56,6 +56,9 @@ jobs:
           sudo apt-get install --yes jq shellcheck openssh-client
           python3 -m pip install --disable-pip-version-check --no-input PyYAML==6.0.3
 
+      - name: Test repository publication intent gate
+        run: python3 -m unittest discover -s scripts/release -v
+
       - name: Validate exact source desired state and policy
         run: ./scripts/validate.sh
 
@@ -158,6 +161,9 @@ jobs:
           sudo apt-get install --yes jq shellcheck openssh-client
           python3 -m pip install --disable-pip-version-check --no-input PyYAML==6.0.3
 
+      - name: Test repository publication intent gate
+        run: python3 -m unittest discover -s scripts/release -v
+
       - name: Validate exact merge result desired state and policy
         run: ./scripts/validate.sh
 
@@ -220,3 +226,25 @@ jobs:
           docker build \
             --tag "codestra-keycloak:merge-${EXPECTED_SHA}" \
             .
+
+  orchestrator-contract:
+    name: orchestrator-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - run: python3 -m pip install PyYAML==6.0.3
+      - name: Validate exact source orchestrator and release contracts
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          python3 scripts/validate-workflows.py
+          python3 -m unittest discover -s scripts/release -v
