@@ -1,4 +1,8 @@
 paths:
+  .github/workflows/release-image.yml:
+    ignore:
+      # Image publication remains disabled until a separately authorized task.
+      - 'constant expression "false" in condition'
   .github/workflows/password-reset-staging-e2e.yml:
     ignore:
       # This live password-reset acceptance job is intentionally disabled

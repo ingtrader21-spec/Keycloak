@@ -67,6 +67,14 @@ CATALOG_REPOSITORIES = {
     "appolon1908-hue/Telnexa-web",
     CONTROLLER_REPOSITORY,
 }
+PR_ONLY_REQUIRED_CHECKS = {
+    "appolon1908-hue/Middleware-": frozenset(
+        {
+            "Validate middleware merge result",
+            "Validate middleware source head",
+        }
+    ),
+}
 
 
 class PolicyError(ValueError):
@@ -240,6 +248,28 @@ def required_check_bindings(branch: dict[str, Any], rules_pages: list[Any], expe
     return names, bindings
 
 
+def head_applicable_required_checks(
+    repository: str,
+    branch_checks: list[str],
+    contract_checks: list[str],
+) -> list[str]:
+    """Bind the contract to the complete effective branch policy."""
+
+    branch_set = set(branch_checks)
+    contract_set = set(contract_checks)
+    pr_only = set(PR_ONLY_REQUIRED_CHECKS.get(repository, frozenset()))
+    require(
+        pr_only <= branch_set,
+        "pinned PR-only required checks are absent from branch protection",
+    )
+    head_checks = branch_set - pr_only
+    require(
+        contract_set == head_checks,
+        "contract exact-head checks do not match effective branch protection",
+    )
+    return sorted(head_checks)
+
+
 def latest_check_conclusions(check_pages: list[Any]) -> dict[tuple[str, int], str | None]:
     runs: list[dict[str, Any]] = []
     for page in check_pages:
@@ -330,7 +360,7 @@ def validate_repository_gates(
     expected_app_id = contract.get("required_check_app_id")
     if not isinstance(expected_app_id, int) or expected_app_id <= 0:
         raise PolicyError("required check app ID is invalid")
-    _, bindings = required_check_bindings(
+    branch_checks, bindings = required_check_bindings(
         branch,
         api_pages(
             f"repos/{repository}/rules/branches/{branch_name}?per_page=100",
@@ -338,12 +368,11 @@ def validate_repository_gates(
         ),
         expected_app_id,
     )
-    # Branch protection may also contain PR-only checks that cannot exist on a
-    # protected-branch head. The contract names the exact head-applicable set;
-    # every one must still be app-bound by the authoritative branch policy.
-    required_checks = sorted(set(contract_checks))
-    unbound = sorted(set(required_checks) - set(bindings))
-    require(not unbound, f"contract checks are not app-bound by branch protection: {unbound}")
+    required_checks = head_applicable_required_checks(
+        repository,
+        branch_checks,
+        contract_checks,
+    )
     latest = latest_check_conclusions(api_pages(f"repos/{repository}/commits/{source_sha}/check-runs?per_page=100"))
     missing = [name for name in required_checks if latest.get((name, bindings[name])) != "success"]
     require(not missing, f"required exact-head checks are not successful from the bound app: {missing}")
@@ -871,6 +900,41 @@ def main() -> int:
 
 def self_test() -> int:
     global NO_REDIRECT_OPENER
+
+    require(
+        head_applicable_required_checks(
+            "appolon1908-hue/Infustruction-repo",
+            ["orchestrator-contract", "validate", "validate-source"],
+            ["orchestrator-contract", "validate", "validate-source"],
+        )
+        == ["orchestrator-contract", "validate", "validate-source"],
+        "exact branch-required check regression failed",
+    )
+    try:
+        head_applicable_required_checks(
+            "appolon1908-hue/Infustruction-repo",
+            ["orchestrator-contract", "validate", "validate-source"],
+            ["orchestrator-contract", "validate-source"],
+        )
+    except PolicyError:
+        pass
+    else:
+        raise PolicyError("negative stale required-check contract regression passed")
+    require(
+        head_applicable_required_checks(
+            "appolon1908-hue/Middleware-",
+            [
+                "Validate middleware merge result",
+                "Validate middleware source head",
+                "connector-runtime-build",
+                "orchestrator-contract",
+                "validate",
+            ],
+            ["connector-runtime-build", "orchestrator-contract", "validate"],
+        )
+        == ["connector-runtime-build", "orchestrator-contract", "validate"],
+        "PR-only required-check classification regression failed",
+    )
 
     digest_a = "ghcr.io/example/app@sha256:" + "a" * 64
     digest_b = "ghcr.io/example/app@sha256:" + "b" * 64

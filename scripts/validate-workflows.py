@@ -331,7 +331,11 @@ def validate_release_contract() -> None:
         if contract.get(key) != expected:
             fail(f"release-intent contract drift: {key}")
 
-    if contract.get("required_checks") != ["orchestrator-contract", "validate"]:
+    if contract.get("required_checks") != [
+        "orchestrator-contract",
+        "validate",
+        "validate-merge-result",
+    ]:
         fail("release-intent required-check authority drift")
     if contract.get("supported_phases") != ["plan", "staging", "canary", "production"]:
         fail("release-intent phase authority drift")
@@ -501,6 +505,10 @@ def validate_image_release_workflow(path: Path, workflow: dict[str, Any]) -> Non
     if set(jobs) != {"release-image"}:
         fail(f"{path}: image release must contain only release-image")
     job = CORE.as_mapping(jobs["release-image"], f"{path}.jobs.release-image")
+    if str(job.get("if", "")) != "${{ false }}":
+        fail(f"{path}: image publication must remain unconditionally disabled")
+    if "RUNTIME_MUTATION_DISABLED=true" not in path.read_text(encoding="utf-8"):
+        fail(f"{path}: image publication disable marker is missing")
     if "environment" in job:
         fail(f"{path}: image release must use repository-reviewed intent, not unsupported environment rules")
     if "scripts/release/verify_intent.py" not in workflow_text(workflow):

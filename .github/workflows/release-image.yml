@@ -34,6 +34,8 @@ defaults:
 
 jobs:
   release-image:
+    # RUNTIME_MUTATION_DISABLED=true — repository-only release preparation
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
