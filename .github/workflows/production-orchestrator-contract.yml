@@ -29,6 +29,8 @@ jobs:
           ref: ${{ env.EXPECTED_SHA }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Install pinned workflow parser
+        run: python3 -m pip install --disable-pip-version-check --no-input PyYAML==6.0.3
       - name: Validate repository-owned contract and no-runtime intent
         run: python3 .codestra/validate-production-orchestrator-contract.py
       - name: Reject malformed diffs

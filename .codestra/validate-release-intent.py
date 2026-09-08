@@ -245,8 +245,12 @@ def latest_check_conclusions(check_pages: list[Any]) -> dict[tuple[str, int], st
     for page in check_pages:
         require(isinstance(page, dict) and isinstance(page.get("check_runs"), list), "check-runs page is invalid")
         runs.extend(page["check_runs"])
+    require(
+        all(isinstance(item, dict) and isinstance(item.get("id"), int) for item in runs),
+        "check run identity is invalid",
+    )
     latest: dict[tuple[str, int], str | None] = {}
-    for item in sorted(runs, key=lambda row: row.get("completed_at") or row.get("started_at") or ""):
+    for item in sorted(runs, key=lambda row: row["id"]):
         name = item.get("name")
         app_id = item.get("app", {}).get("id")
         if isinstance(name, str) and isinstance(app_id, int):
@@ -282,6 +286,7 @@ def validate_environment_document(value: object, environment: str) -> None:
         "protected environment reviewer identity is invalid",
     )
     require(reviewer_rule.get("prevent_self_review") is True, "protected environment permits self-review")
+    require(value.get("can_admins_bypass") is False, "protected environment permits administrator bypass")
     branch_policy = value.get("deployment_branch_policy")
     require(
         isinstance(branch_policy, dict)
@@ -417,6 +422,7 @@ def download_and_validate_candidate(
     controller = api_json(f"repos/{CONTROLLER_REPOSITORY}", administration=True)
     require(controller.get("id") == 1314230781, "controller stable repository ID mismatch")
     require(controller.get("default_branch") == CONTROLLER_BRANCH, "controller protected branch drift")
+    require(controller.get("archived") is False and controller.get("disabled") is False, "controller repository unavailable")
     branch_name = urllib.parse.quote(CONTROLLER_BRANCH, safe="")
     branch = api_json(
         f"repos/{CONTROLLER_REPOSITORY}/branches/{branch_name}",
@@ -428,6 +434,35 @@ def download_and_validate_candidate(
         isinstance(controller_head, str)
         and SHA.fullmatch(controller_head) is not None,
         "controller protected head is invalid",
+    )
+    controller_commit = api_json(
+        f"repos/{CONTROLLER_REPOSITORY}/commits/{controller_head}"
+    )
+    require(
+        controller_commit.get("commit", {}).get("verification", {}).get("verified") is True,
+        "controller protected head is not GitHub-verified",
+    )
+    controller_checks, controller_bindings = required_check_bindings(
+        branch,
+        api_pages(
+            f"repos/{CONTROLLER_REPOSITORY}/rules/branches/{branch_name}?per_page=100",
+            administration=True,
+        ),
+        15368,
+    )
+    controller_latest = latest_check_conclusions(
+        api_pages(
+            f"repos/{CONTROLLER_REPOSITORY}/commits/{controller_head}/check-runs?per_page=100"
+        )
+    )
+    controller_missing = [
+        name
+        for name in controller_checks
+        if controller_latest.get((name, controller_bindings[name])) != "success"
+    ]
+    require(
+        not controller_missing,
+        f"controller required exact-head checks are not successful from the bound app: {controller_missing}",
     )
     path = urllib.parse.quote(f"config/releases/{release_id}.json", safe="/")
     value = api_json(
@@ -501,6 +536,9 @@ def recheck_protected_gates() -> int:
     except json.JSONDecodeError as error:
         raise PolicyError(f"image input is not valid JSON: {error}") from error
     require(isinstance(images, list) and isinstance(previous_images, list), "image inputs must be arrays")
+    policy = contract.get("artifact_policy")
+    require(isinstance(policy, dict), "artifact_policy must be an object")
+    validate_images(images, previous_images, policy)
     download_and_validate_candidate(
         candidate_sha256,
         release_id,
@@ -510,6 +548,8 @@ def recheck_protected_gates() -> int:
         images,
         previous_images,
     )
+    verify_supply_chain(images, policy, repository, branch_name, source_sha, exact_source=True)
+    verify_supply_chain(previous_images, policy, repository, branch_name, source_sha, exact_source=False)
     print("PROTECTED_GATES_RECHECK=PASS")
     return 0
 
@@ -942,8 +982,39 @@ def self_test() -> int:
         pass
     else:
         raise PolicyError("negative wrong-app regression passed")
+    latest = latest_check_conclusions(
+        [
+            {
+                "check_runs": [
+                    {
+                        "id": 10,
+                        "name": "validate",
+                        "app": {"id": 15368},
+                        "status": "completed",
+                        "conclusion": "success",
+                        "started_at": "2026-09-08T00:00:00Z",
+                        "completed_at": "2026-09-08T00:10:00Z",
+                    },
+                    {
+                        "id": 11,
+                        "name": "validate",
+                        "app": {"id": 15368},
+                        "status": "in_progress",
+                        "conclusion": None,
+                        "started_at": "2026-09-08T00:05:00Z",
+                        "completed_at": None,
+                    },
+                ]
+            }
+        ]
+    )
+    require(
+        latest[("validate", 15368)] is None,
+        "newest pending check-run regression failed",
+    )
     protected_environment: dict[str, Any] = {
         "name": "production",
+        "can_admins_bypass": False,
         "protection_rules": [
             {
                 "type": "required_reviewers",
@@ -977,6 +1048,13 @@ def self_test() -> int:
                         "prevent_self_review": False,
                     }
                 ],
+            },
+        ),
+        (
+            "environment administrator bypass",
+            {
+                **protected_environment,
+                "can_admins_bypass": True,
             },
         ),
         (
