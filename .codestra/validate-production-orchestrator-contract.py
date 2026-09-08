@@ -77,6 +77,49 @@ KUBECTL_MUTATIONS = {
 HELM_MUTATIONS = {"install", "rollback", "uninstall", "upgrade"}
 TERRAFORM_MUTATIONS = {"apply", "destroy", "import", "taint", "untaint"}
 CONTAINER_MUTATIONS = {"down", "kill", "rm", "start", "stop", "restart", "up"}
+HTTP_MUTATION_FLAGS = {
+    "--data",
+    "--data-ascii",
+    "--data-binary",
+    "--data-raw",
+    "--form",
+    "--form-string",
+    "--json",
+    "--upload-file",
+    "-d",
+}
+HTTP_MUTATION_METHODS = {"delete", "patch", "post", "put"}
+CLOUD_MUTATION_PREFIXES = (
+    "apply",
+    "associate",
+    "attach",
+    "authorize",
+    "create",
+    "delete",
+    "deregister",
+    "detach",
+    "disable",
+    "disassociate",
+    "enable",
+    "execute",
+    "invoke",
+    "modify",
+    "publish",
+    "put",
+    "reboot",
+    "register",
+    "reset",
+    "restore",
+    "revoke",
+    "run",
+    "send",
+    "start",
+    "stop",
+    "tag",
+    "terminate",
+    "untag",
+    "update",
+)
 MUTATING_ACTION_MARKERS = {
     "ansible",
     "cloudformation",
@@ -219,6 +262,11 @@ APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
     },
     "appolon1908-hue/Moneybee-Backend": {
         "ops/verify-compose-contract.py": "5b9c78f82de3784af3d68945be43abadbbe3eab7e73f3edf0f27ef7042e7e674",
+    },
+}
+APPROVED_CONTROL_PLANE_WORKFLOW_SHA256: dict[str, dict[str, str]] = {
+    "appolon1908-hue/Middleware-": {
+        ".github/workflows/required-ci.yml": "5b135f1eec36d3baa8d605ecddf3d37aa1fbfa7bd9d58e61ba58a5324a087d5e",
     },
 }
 REQUIRED_NATIVE_WORKFLOWS: dict[str, dict[str, str]] = {
@@ -423,6 +471,16 @@ def command_indexes(tokens: list[str]) -> list[int]:
     return indexes
 
 
+def command_arguments(tokens: list[str], index: int) -> list[str]:
+    separators = {"\n", "&", "&&", "(", ")", ";", "|", "||"}
+    arguments: list[str] = []
+    for token in tokens[index + 1 :]:
+        if token in separators:
+            break
+        arguments.append(executable_name(token))
+    return arguments
+
+
 def interpreter_payload(tokens: list[str], index: int) -> str | None:
     name = executable_name(tokens[index])
     if name == "eval":
@@ -616,7 +674,7 @@ def contains_runtime_mutation(
     names = [executable_name(token) for token in tokens]
     for index in command_indexes(tokens):
         name = names[index]
-        tail = names[index + 1 : index + 12]
+        tail = command_arguments(tokens, index)
         lower_name = name.lower()
         payload = interpreter_payload(tokens, index)
         if payload is not None:
@@ -648,6 +706,8 @@ def contains_runtime_mutation(
             item in CONTAINER_MUTATIONS for item in tail
         ):
             return True
+        if api_client_has_mutating_operation(name, tail):
+            return True
         if (
             name.endswith("deploy_immutable")
             or name.endswith("apply-plan.sh")
@@ -658,6 +718,63 @@ def contains_runtime_mutation(
             and any(item in {"apply", "apply-and-issue", "deploy"} for item in tail)
         ):
             return True
+    return False
+
+
+def option_value(tokens: list[str], names: set[str]) -> str | None:
+    for index, token in enumerate(tokens):
+        lower = token.lower()
+        if lower in names:
+            return tokens[index + 1].lower() if index + 1 < len(tokens) else ""
+        for name in names:
+            if lower.startswith(f"{name}="):
+                return lower.split("=", 1)[1]
+            if name in {"-x", "-m"} and lower.startswith(name) and len(lower) > 2:
+                return lower[2:]
+    return None
+
+
+def api_client_has_mutating_operation(name: str, tail: list[str]) -> bool:
+    """Classify explicit write modes for generic API and cloud clients."""
+
+    lower_name = name.lower()
+    lower_tail = [token.lower() for token in tail]
+    if lower_name in {"curl", "wget"}:
+        method = option_value(lower_tail, {"--method", "--request", "-m", "-x"})
+        if method in HTTP_MUTATION_METHODS:
+            return True
+        return any(
+            lower in HTTP_MUTATION_FLAGS
+            or any(
+                lower.startswith(f"{flag}=")
+                for flag in HTTP_MUTATION_FLAGS
+                if flag.startswith("--")
+            )
+            or lower.startswith("-d") and len(token) > 2
+            or token.startswith(("-F", "-T"))
+            or lower.startswith("--post-")
+            for token, lower in zip(tail, lower_tail, strict=True)
+        )
+    if lower_name == "gh" and lower_tail:
+        if lower_tail[0] == "api":
+            method = option_value(lower_tail[1:], {"--method", "-x"})
+            return (
+                method not in {None, "get"}
+                or any(
+                    token in {"--field", "--input", "--raw-field", "-f"}
+                    or token.startswith(
+                        ("--field=", "--input=", "--raw-field=", "-f=")
+                    )
+                    for token in lower_tail[1:]
+                )
+            )
+        return lower_tail[:2] == ["workflow", "run"]
+    if lower_name in {"aws", "az", "doctl", "gcloud"}:
+        return any(
+            token.startswith(CLOUD_MUTATION_PREFIXES)
+            for token in lower_tail[:4]
+            if token and not token.startswith("-")
+        )
     return False
 
 
@@ -717,7 +834,11 @@ def job_condition(job: WorkflowJob) -> str | None:
     return value if isinstance(value, str) else None
 
 
-def job_reusable_workflow_mutation(job: WorkflowJob, path: str) -> bool:
+def job_reusable_workflow_mutation(
+    job: WorkflowJob,
+    path: str,
+    seen_workflows: set[Path] | None = None,
+) -> bool:
     value = job.data.get("uses")
     if value is None:
         return False
@@ -730,10 +851,22 @@ def job_reusable_workflow_mutation(job: WorkflowJob, path: str) -> bool:
     if candidate.is_symlink():
         return True
     try:
-        candidate.resolve(strict=True).relative_to((ROOT / ".github/workflows").resolve())
+        resolved = candidate.resolve(strict=True)
+        resolved.relative_to((ROOT / ".github/workflows").resolve())
     except (OSError, ValueError):
         return True
-    return not candidate.is_file()
+    if not resolved.is_file() or resolved.is_symlink():
+        return True
+    if seen_workflows is None:
+        seen_workflows = set()
+    if resolved in seen_workflows:
+        return True
+    relative = resolved.relative_to(ROOT.resolve()).as_posix()
+    return workflow_has_runtime_mutation(
+        resolved.read_text(encoding="utf-8"),
+        relative,
+        seen_workflows | {resolved},
+    )
 
 
 def workflow_script_aliases(workflow: str, path: str) -> dict[str, str]:
@@ -768,10 +901,27 @@ def workflow_has_runtime_command(workflow: str, path: str) -> bool:
     )
 
 
-def workflow_has_runtime_mutation(workflow: str, path: str) -> bool:
+def workflow_has_runtime_mutation(
+    workflow: str,
+    path: str,
+    seen_workflows: set[Path] | None = None,
+) -> bool:
+    repository = os.environ.get("GITHUB_REPOSITORY")
+    if not repository:
+        repository = json.loads(CONTRACT_PATH.read_text(encoding="utf-8")).get(
+            "repository",
+            "",
+        )
+    approved_hash = APPROVED_CONTROL_PLANE_WORKFLOW_SHA256.get(repository, {}).get(
+        path
+    )
+    if approved_hash is not None:
+        return hashlib.sha256(workflow.encode()).hexdigest() != approved_hash
+    if seen_workflows is None:
+        seen_workflows = set()
     script_aliases = workflow_script_aliases(workflow, path)
     return any(
-        job_reusable_workflow_mutation(job, path)
+        job_reusable_workflow_mutation(job, path, seen_workflows)
         or any(
             contains_runtime_mutation(
                 str(step.get("run", "")),
@@ -1469,6 +1619,34 @@ jobs:
         pass
     else:
         raise ContractError("negative regression unexpectedly passed: reusable workflow mutation")
+    local_reusable = ROOT / ".github/workflows/.codestra-local-runtime-negative.yml"
+    try:
+        local_reusable.write_text(
+            """name: synthetic local runtime
+on: workflow_call
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: kubectl apply -f runtime.yml
+""",
+            encoding="utf-8",
+        )
+        caller = """name: synthetic caller
+jobs:
+  deploy:
+    uses: ./.github/workflows/.codestra-local-runtime-negative.yml
+"""
+        try:
+            require_mutating_jobs_disabled(caller, "synthetic-local-reusable.yml")
+        except ContractError:
+            pass
+        else:
+            raise ContractError(
+                "negative regression unexpectedly passed: local reusable workflow mutation"
+            )
+    finally:
+        local_reusable.unlink(missing_ok=True)
     with tempfile.TemporaryDirectory(prefix=".codestra-contract-", dir=ROOT) as directory:
         local_script = Path(directory) / "runtime.sh"
         local_script.write_text("kubectl apply -f runtime.yml\n", encoding="utf-8")
@@ -1513,6 +1691,15 @@ subprocess.run([\"gh\", \"api\", \"--method\", \"POST\"], check=True)
         pass
     else:
         raise ContractError("negative regression unexpectedly passed: validator status writer")
+    for command in (
+        "curl -X POST https://runtime.example/mutate",
+        "gh api --method POST repos/example/runtime/dispatches",
+        "aws ecs update-service --cluster production --service api",
+    ):
+        require(
+            contains_runtime_mutation(command),
+            f"negative API mutation regression passed: {command}",
+        )
 
 
 def require_mutating_jobs_disabled(workflow: str, path: str) -> None:
