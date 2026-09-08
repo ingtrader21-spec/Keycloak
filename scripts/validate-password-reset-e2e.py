@@ -55,12 +55,10 @@ def validate() -> None:
     job = mapping(jobs["acceptance"], "acceptance job")
 
     condition = str(job.get("if", ""))
-    for marker in (
-        "github.ref == 'refs/heads/main'",
-        "inputs.confirm == 'ACTIVATE_STAGING_TEST'",
-    ):
-        if marker not in condition:
-            fail(f"acceptance job is missing fail-closed condition: {marker}")
+    if condition != "${{ false }}":
+        fail("acceptance job must be unconditionally disabled")
+    if "RUNTIME_MUTATION_DISABLED=true" not in WORKFLOW.read_text(encoding="utf-8"):
+        fail("acceptance job is missing the runtime-mutation disable marker")
 
     runners = sequence(job.get("runs-on"), "acceptance.runs-on")
     if runners != ["self-hosted", "linux", "x64", "codestra-staging"]:
@@ -170,6 +168,7 @@ def main() -> int:
     print("PASSWORD_RESET_E2E_GATES=11")
     print("PASSWORD_RESET_E2E_TRIGGER=WORKFLOW_DISPATCH_ONLY")
     print("PASSWORD_RESET_E2E_RUNNER=CODESTRA_STAGING_ONLY")
+    print("PASSWORD_RESET_E2E_EXECUTION=DISABLED")
     return 0
 
 

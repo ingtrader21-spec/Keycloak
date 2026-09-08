@@ -330,7 +330,7 @@ def validate_repository_gates(
     expected_app_id = contract.get("required_check_app_id")
     if not isinstance(expected_app_id, int) or expected_app_id <= 0:
         raise PolicyError("required check app ID is invalid")
-    branch_checks, bindings = required_check_bindings(
+    _, bindings = required_check_bindings(
         branch,
         api_pages(
             f"repos/{repository}/rules/branches/{branch_name}?per_page=100",
@@ -338,7 +338,10 @@ def validate_repository_gates(
         ),
         expected_app_id,
     )
-    required_checks = sorted(set(contract_checks) | set(branch_checks))
+    # Branch protection may also contain PR-only checks that cannot exist on a
+    # protected-branch head. The contract names the exact head-applicable set;
+    # every one must still be app-bound by the authoritative branch policy.
+    required_checks = sorted(set(contract_checks))
     unbound = sorted(set(required_checks) - set(bindings))
     require(not unbound, f"contract checks are not app-bound by branch protection: {unbound}")
     latest = latest_check_conclusions(api_pages(f"repos/{repository}/commits/{source_sha}/check-runs?per_page=100"))
@@ -436,7 +439,8 @@ def download_and_validate_candidate(
         "controller protected head is invalid",
     )
     controller_commit = api_json(
-        f"repos/{CONTROLLER_REPOSITORY}/commits/{controller_head}"
+        f"repos/{CONTROLLER_REPOSITORY}/commits/{controller_head}",
+        administration=True,
     )
     require(
         controller_commit.get("commit", {}).get("verification", {}).get("verified") is True,
@@ -452,7 +456,8 @@ def download_and_validate_candidate(
     )
     controller_latest = latest_check_conclusions(
         api_pages(
-            f"repos/{CONTROLLER_REPOSITORY}/commits/{controller_head}/check-runs?per_page=100"
+            f"repos/{CONTROLLER_REPOSITORY}/commits/{controller_head}/check-runs?per_page=100",
+            administration=True,
         )
     )
     controller_missing = [

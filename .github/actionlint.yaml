@@ -1,0 +1,6 @@
+paths:
+  .github/workflows/password-reset-staging-e2e.yml:
+    ignore:
+      # This live password-reset acceptance job is intentionally disabled
+      # during repository-only release preparation.
+      - 'constant expression "false" in condition'
