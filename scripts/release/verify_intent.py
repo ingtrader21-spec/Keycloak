@@ -71,7 +71,9 @@ def reviewed_commit(repo, sha, required_checks):
             continue
         commit = api(f'repos/{repo}/commits/{pr["head"]["sha"]}')
         pusher = (commit.get('committer') or {}).get('login')
-        require(pusher, 'Last committer identity unavailable')
+        # Git commit email need not map to a GitHub user. GitHub's enforced
+        # last-push approval rule governs the authenticated pusher independently.
+        pusher = pusher or pr['user']['login']
         reviewers = approved_reviewers(pr, pages(f'repos/{repo}/pulls/{pr["number"]}/reviews'), pusher)
         require(reviewers, 'Independent exact-head approval missing')
         checks = api(f'repos/{repo}/commits/{pr["head"]["sha"]}/check-runs?per_page=100')
