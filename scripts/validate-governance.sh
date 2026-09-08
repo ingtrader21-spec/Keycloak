@@ -91,9 +91,10 @@ validate_ruleset() {
         [.rules[] | select(.type == "required_status_checks")][0].parameters
         | .strict_required_status_checks_policy == true
           and .do_not_enforce_on_create == false
-          and (.required_status_checks | map(.context)) == [
-            "validate-source",
-            "validate-merge-result"
+          and (.required_status_checks | map({context, integration_id})) == [
+            {"context":"validate", "integration_id":15368},
+            {"context":"validate-merge-result", "integration_id":15368},
+            {"context":"orchestrator-contract", "integration_id":15368}
           ]
       )
     ' "$ruleset_file" >/dev/null ||

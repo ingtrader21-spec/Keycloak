@@ -17,7 +17,6 @@ on:
         default: check
         options:
           - check
-          - apply
       confirm_sha:
         description: Paste the exact 40-character main-branch SHA being authorized
         required: true
@@ -99,22 +98,9 @@ jobs:
               }
               ;;
             apply)
-              [[ "$PLAN_RUN_ID" =~ ^[0-9]+$ ]] || {
-                echo 'ERROR=apply_requires_numeric_plan_run_id' >&2
-                exit 1
-              }
-              [[ "$APPROVED_PLAN_SHA256" =~ ^[0-9a-f]{64}$ ]] || {
-                echo 'ERROR=apply_requires_reviewed_plan_sha256' >&2
-                exit 1
-              }
-              [[ "$REVIEW_RUN_ID" =~ ^[0-9]+$ ]] || {
-                echo 'ERROR=apply_requires_numeric_review_run_id' >&2
-                exit 1
-              }
-              [[ "$APPROVED_REVIEW_SHA256" =~ ^[0-9a-f]{64}$ ]] || {
-                echo 'ERROR=apply_requires_reviewed_review_sha256' >&2
-                exit 1
-              }
+              # RUNTIME_MUTATION_DISABLED=true
+              echo 'ERROR=apply_is_owned_by_infrastructure_runtime_authority' >&2
+              exit 1
               ;;
             *)
               echo 'ERROR=unsupported_mode' >&2

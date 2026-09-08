@@ -301,7 +301,9 @@ def validate_release_contract() -> None:
         "role",
         "release_intent_workflow",
         "deployment_authority",
+        "runtime_mutation_authority",
         "require_verified_commit",
+        "required_check_app_id",
         "required_checks",
         "supported_phases",
         "artifact_policy",
@@ -321,7 +323,9 @@ def validate_release_contract() -> None:
         "role": "identity",
         "release_intent_workflow": ".github/workflows/manual-release-intent.yml",
         "deployment_authority": True,
+        "runtime_mutation_authority": False,
         "require_verified_commit": True,
+        "required_check_app_id": 15368,
     }
     for key, expected in expected_scalars.items():
         if contract.get(key) != expected:
@@ -334,6 +338,7 @@ def validate_release_contract() -> None:
     if contract.get("artifact_policy") != {
         "minimum_images": 0,
         "maximum_images": 0,
+        "image_repositories": [],
         "require_digest": True,
         "allow_rebuild_after_staging": False,
         "allow_retag_after_staging": False,
@@ -386,6 +391,7 @@ def validate_manual_release_intent(path: Path, workflow: dict[str, Any]) -> None
         "images_json",
         "previous_images_json",
         "prior_evidence_sha256",
+        "prior_evidence_run_id",
         "confirmation",
     }
     if set(inputs) != expected_inputs:
@@ -407,7 +413,13 @@ def validate_manual_release_intent(path: Path, workflow: dict[str, Any]) -> None
     CORE.validate_permissions(
         workflow.get("permissions"),
         f"{path}.permissions",
-        {"actions": "read", "checks": "read", "contents": "read"},
+        {
+            "actions": "read",
+            "attestations": "read",
+            "checks": "read",
+            "contents": "read",
+            "packages": "read",
+        },
     )
     jobs = CORE.as_mapping(workflow.get("jobs"), f"{path}.jobs")
     if set(jobs) != {"verify", "plan-intent", "protected-intent"}:
@@ -435,7 +447,9 @@ def validate_manual_release_intent(path: Path, workflow: dict[str, Any]) -> None
     ):
         fail(f"{path}: protected intent must use the selected protected Environment")
 
-    text = workflow_text(workflow)
+    text = workflow_text(workflow) + "\n" + (
+        ROOT / ".codestra/validate-release-intent.py"
+    ).read_text(encoding="utf-8")
     for required in (
         "refs/heads/",
         '["git", "rev-parse", "HEAD"]',
@@ -447,6 +461,8 @@ def validate_manual_release_intent(path: Path, workflow: dict[str, Any]) -> None
         "staging-readonly",
         "production-readonly-canary",
         "protected_environment_approved",
+        "protected_environment_job_completed",
+        "prior evidence hash mismatch",
         "runtime_contacted",
         "production_changed",
         "external_effects_enabled",

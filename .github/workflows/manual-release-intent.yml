@@ -36,6 +36,10 @@ on:
         description: Exact prior-phase evidence SHA-256, or 64 zeroes for plan
         required: true
         type: string
+      prior_evidence_run_id:
+        description: Exact prior-phase workflow run ID, or 0 for plan
+        required: true
+        type: string
       confirmation:
         description: Exact phase-specific confirmation
         required: true
@@ -43,8 +47,10 @@ on:
 
 permissions:
   actions: read
+  attestations: read
   checks: read
   contents: read
+  packages: read
 
 concurrency:
   group: manual-release-intent-${{ inputs.phase }}-${{ inputs.release_id }}
@@ -72,7 +78,13 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Verify contract, exact branch head, checks, and immutable artifacts
+      - name: Install pinned cosign for the canonical middleware verifier
+        if: ${{ github.repository == 'appolon1908-hue/Middleware-' }}
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: v3.0.6
+
+      - name: Verify contract, exact branch head, checks, evidence chain, and artifacts
         id: policy
         env:
           GH_TOKEN: ${{ github.token }}
@@ -83,261 +95,9 @@ jobs:
           IMAGES_JSON: ${{ inputs.images_json }}
           PREVIOUS_IMAGES_JSON: ${{ inputs.previous_images_json }}
           PRIOR_EVIDENCE_SHA256: ${{ inputs.prior_evidence_sha256 }}
+          PRIOR_EVIDENCE_RUN_ID: ${{ inputs.prior_evidence_run_id }}
           CONFIRMATION: ${{ inputs.confirmation }}
-        run: |
-          set -Eeuo pipefail
-          python3 - <<'PY'
-          from __future__ import annotations
-
-          import base64
-          import hashlib
-          import json
-          import os
-          import re
-          import subprocess
-          from pathlib import Path
-
-          CONTRACT_PATH = Path(".codestra/production-orchestrator-contract.v1.json")
-          SCHEMA = "codestra.production-orchestrator-contract.v1"
-          WORKFLOW = ".github/workflows/manual-release-intent.yml"
-          SHA = re.compile(r"^[0-9a-f]{40}$")
-          DIGEST = re.compile(r"^[0-9a-f]{64}$")
-          RELEASE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{5,127}$")
-          IMAGE = re.compile(
-              r"^ghcr\.io/[a-z0-9_.-]+/[a-z0-9_.-]+@sha256:[0-9a-f]{64}$"
-          )
-          CONFIRMATIONS = {
-              "plan": "PLAN_RELEASE_INTENT",
-              "staging": "APPROVE_STAGING_INTENT",
-              "canary": "APPROVE_CANARY_INTENT",
-              "production": "APPROVE_PRODUCTION_INTENT",
-          }
-          SAFETY_KEYS = {
-              "external_effects_default",
-              "live_email_delivery",
-              "live_sms_delivery",
-              "live_pstn_dialing",
-              "odoo_write",
-              "n8n_external_delivery",
-              "live_trading",
-              "payment_execution",
-          }
-
-          def fail(message: str) -> None:
-              raise SystemExit(message)
-
-          def require(condition: bool, message: str) -> None:
-              if not condition:
-                  fail(message)
-
-          phase = os.environ["PHASE"]
-          source_sha = os.environ["SOURCE_SHA"]
-          release_id = os.environ["RELEASE_ID"]
-          candidate_sha256 = os.environ["CANDIDATE_SHA256"]
-          prior_evidence_sha256 = os.environ["PRIOR_EVIDENCE_SHA256"]
-
-          require(phase in CONFIRMATIONS, "unsupported release phase")
-          require(os.environ["CONFIRMATION"] == CONFIRMATIONS[phase], "confirmation mismatch")
-          require(SHA.fullmatch(source_sha) is not None, "source_sha must be lowercase 40-hex")
-          require(source_sha != "0" * 40, "source_sha must not be zero")
-          checkout_sha = subprocess.check_output(
-              ["git", "rev-parse", "HEAD"], text=True
-          ).strip()
-          require(checkout_sha == source_sha, "checkout does not match source_sha")
-          require(DIGEST.fullmatch(candidate_sha256) is not None, "candidate_sha256 must be lowercase 64-hex")
-          require(candidate_sha256 != "0" * 64, "candidate_sha256 must not be zero")
-          require(DIGEST.fullmatch(prior_evidence_sha256) is not None, "prior evidence must be lowercase 64-hex")
-          require(RELEASE.fullmatch(release_id) is not None, "invalid release_id")
-          if phase == "plan":
-              require(prior_evidence_sha256 == "0" * 64, "plan must use a zero prior-evidence digest")
-          else:
-              require(prior_evidence_sha256 != "0" * 64, f"{phase} requires prior-phase evidence")
-
-          require(CONTRACT_PATH.is_file() and not CONTRACT_PATH.is_symlink(), "release contract is missing or unsafe")
-          contract_bytes = CONTRACT_PATH.read_bytes()
-          contract = json.loads(contract_bytes)
-          require(isinstance(contract, dict), "release contract must be an object")
-          require(contract.get("schema_version") == SCHEMA, "unexpected release contract schema")
-          require(contract.get("repository") == os.environ["GITHUB_REPOSITORY"], "contract repository mismatch")
-          require(contract.get("release_intent_workflow") == WORKFLOW, "contract workflow mismatch")
-          require(contract.get("default_branch") == os.environ["GITHUB_REF_NAME"], "workflow must run from contract default branch")
-          require(os.environ["GITHUB_REF"] == f"refs/heads/{contract['default_branch']}", "workflow dispatch ref mismatch")
-          require(subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip() == source_sha, "checkout SHA mismatch")
-          require(not subprocess.check_output(["git", "status", "--porcelain"], text=True).strip(), "workspace is dirty")
-
-          repository = json.loads(
-              subprocess.check_output(
-                  ["gh", "api", f"repos/{os.environ['GITHUB_REPOSITORY']}"],
-                  text=True,
-              )
-          )
-          require(repository.get("id") == contract.get("repository_id"), "stable repository ID mismatch")
-          require(repository.get("default_branch") == contract.get("default_branch"), "default branch drift")
-          require(repository.get("archived") is False and repository.get("disabled") is False, "repository unavailable")
-
-          branch = json.loads(
-              subprocess.check_output(
-                  [
-                      "gh",
-                      "api",
-                      f"repos/{os.environ['GITHUB_REPOSITORY']}/branches/{contract['default_branch']}",
-                  ],
-                  text=True,
-              )
-          )
-          require(branch.get("protected") is True, "default branch must be protected")
-          require(branch.get("commit", {}).get("sha") == source_sha, "source SHA is not current protected branch head")
-
-          supported = contract.get("supported_phases")
-          require(isinstance(supported, list) and phase in supported, f"phase {phase} is not supported")
-          deployment_authority = contract.get("deployment_authority") is True
-          if phase != "plan":
-              require(deployment_authority, "repository is not a deployment authority")
-
-          required_checks = contract.get("required_checks")
-          require(isinstance(required_checks, list) and all(isinstance(item, str) and item for item in required_checks), "invalid required_checks")
-          branch_contexts = (
-              branch.get("protection", {})
-              .get("required_status_checks", {})
-              .get("contexts", [])
-          )
-          require(isinstance(branch_contexts, list), "invalid branch required checks")
-          required_checks = sorted(set(required_checks) | set(branch_contexts))
-          require(required_checks, "at least one exact-head check is required")
-
-          check_runs = json.loads(
-              subprocess.check_output(
-                  [
-                      "gh",
-                      "api",
-                      f"repos/{os.environ['GITHUB_REPOSITORY']}/commits/{source_sha}/check-runs?per_page=100",
-                  ],
-                  text=True,
-              )
-          ).get("check_runs", [])
-          latest_checks = {}
-          for item in sorted(
-              check_runs,
-              key=lambda row: row.get("completed_at") or row.get("started_at") or "",
-          ):
-              name = item.get("name")
-              if isinstance(name, str):
-                  latest_checks[name] = item.get("conclusion")
-          statuses = json.loads(
-              subprocess.check_output(
-                  [
-                      "gh",
-                      "api",
-                      f"repos/{os.environ['GITHUB_REPOSITORY']}/commits/{source_sha}/status",
-                  ],
-                  text=True,
-              )
-          ).get("statuses", [])
-          latest_statuses = {}
-          for item in statuses:
-              name = item.get("context")
-              if isinstance(name, str) and name not in latest_statuses:
-                  latest_statuses[name] = item.get("state")
-          missing = [
-              name
-              for name in required_checks
-              if latest_checks.get(name) != "success"
-              and latest_statuses.get(name) != "success"
-          ]
-          require(not missing, f"required exact-head checks are not successful: {missing}")
-
-          if contract.get("require_verified_commit") is True:
-              commit = json.loads(
-                  subprocess.check_output(
-                      [
-                          "gh",
-                          "api",
-                          f"repos/{os.environ['GITHUB_REPOSITORY']}/commits/{source_sha}",
-                      ],
-                      text=True,
-                  )
-              )
-              require(
-                  commit.get("commit", {}).get("verification", {}).get("verified") is True,
-                  "exact source commit is not GitHub-verified",
-              )
-
-          try:
-              images = json.loads(os.environ["IMAGES_JSON"])
-              previous_images = json.loads(os.environ["PREVIOUS_IMAGES_JSON"])
-          except json.JSONDecodeError as error:
-              fail(f"image input is not valid JSON: {error}")
-          require(isinstance(images, list) and isinstance(previous_images, list), "image inputs must be arrays")
-          require(all(isinstance(item, str) and IMAGE.fullmatch(item) for item in images), "candidate images must be exact GHCR digests")
-          require(all(isinstance(item, str) and IMAGE.fullmatch(item) for item in previous_images), "rollback images must be exact GHCR digests")
-          require(len(images) == len(set(images)), "candidate image list contains duplicates")
-          require(len(previous_images) == len(set(previous_images)), "rollback image list contains duplicates")
-
-          artifact_policy = contract.get("artifact_policy")
-          require(isinstance(artifact_policy, dict), "artifact_policy must be an object")
-          minimum = artifact_policy.get("minimum_images")
-          maximum = artifact_policy.get("maximum_images")
-          require(isinstance(minimum, int) and isinstance(maximum, int) and 0 <= minimum <= maximum, "invalid image bounds")
-          require(minimum <= len(images) <= maximum, "candidate image count violates contract")
-          require(len(previous_images) == len(images), "rollback image count differs from candidate")
-          if images:
-              require(images != previous_images, "rollback image set must differ from candidate image set")
-          require(artifact_policy.get("require_digest") is True, "digest-only artifacts are required")
-          require(artifact_policy.get("allow_rebuild_after_staging") is False, "rebuild after staging must remain forbidden")
-          require(artifact_policy.get("allow_retag_after_staging") is False, "retag after staging must remain forbidden")
-
-          safety = contract.get("safety")
-          require(isinstance(safety, dict), "safety contract must be an object")
-          require(SAFETY_KEYS <= set(safety), "safety contract is incomplete")
-          for key in SAFETY_KEYS:
-              require(safety.get(key) is False, f"{key} must remain false")
-
-          environments = contract.get("environments")
-          require(isinstance(environments, dict), "environments must be an object")
-          environment = ""
-          if phase != "plan":
-              environment = {
-                  "staging": environments.get("staging"),
-                  "canary": environments.get("canary"),
-                  "production": environments.get("production"),
-              }[phase]
-              expected_environment = {
-                  "staging": "staging-readonly",
-                  "canary": "production-readonly-canary",
-                  "production": "production",
-              }[phase]
-              require(environment == expected_environment, f"{phase} protected environment mismatch")
-
-          evidence = {
-              "schema_version": "codestra.normalized-release-intent.v1",
-              "repository": os.environ["GITHUB_REPOSITORY"],
-              "repository_id": contract["repository_id"],
-              "role": contract["role"],
-              "phase": phase,
-              "release_id": release_id,
-              "source_sha": source_sha,
-              "candidate_sha256": candidate_sha256,
-              "prior_evidence_sha256": prior_evidence_sha256,
-              "contract_sha256": hashlib.sha256(contract_bytes).hexdigest(),
-              "required_checks": required_checks,
-              "candidate_images": images,
-              "previous_images": previous_images,
-              "deployment_authority": deployment_authority,
-              "protected_environment": environment or None,
-              "protected_environment_approved": False,
-              "runtime_contacted": False,
-              "production_changed": False,
-              "external_effects_enabled": False,
-              "status": "PASS",
-          }
-          encoded = json.dumps(evidence, sort_keys=True, separators=(",", ":")).encode()
-          output = Path(os.environ["GITHUB_OUTPUT"])
-          with output.open("a", encoding="utf-8") as stream:
-              stream.write(f"environment={environment}\n")
-              stream.write(f"deployment_authority={str(deployment_authority).lower()}\n")
-              stream.write(f"evidence_b64={base64.b64encode(encoded).decode()}\n")
-              stream.write(f"evidence_sha256={hashlib.sha256(encoded).hexdigest()}\n")
-          PY
+        run: python3 .codestra/validate-release-intent.py
 
   plan-intent:
     name: release-intent / plan
@@ -356,7 +116,7 @@ jobs:
           umask 077
           printf '%s' "$EVIDENCE_B64" | base64 --decode > "$RUNNER_TEMP/release-intent.json"
           test "$(sha256sum "$RUNNER_TEMP/release-intent.json" | cut -d' ' -f1)" = "$EXPECTED_SHA256"
-          jq -e '.phase == "plan" and .protected_environment == null and .production_changed == false and .external_effects_enabled == false and .status == "PASS"' "$RUNNER_TEMP/release-intent.json" >/dev/null
+          jq -e '.phase == "plan" and .prior_evidence_run_id == 0 and .protected_environment == null and .protected_environment_approved == false and .protected_environment_job_completed == false and .runtime_contacted == false and .production_changed == false and .external_effects_enabled == false and .status == "PASS"' "$RUNNER_TEMP/release-intent.json" >/dev/null
 
       - name: Upload normalized release intent
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.6.2
@@ -377,7 +137,7 @@ jobs:
     environment:
       name: ${{ needs.verify.outputs.environment }}
     steps:
-      - name: Re-verify exact protected branch head after approval
+      - name: Re-verify exact protected branch head in the environment-gated job
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE_SHA: ${{ inputs.source_sha }}
@@ -387,7 +147,7 @@ jobs:
           head="$(gh api "repos/${GITHUB_REPOSITORY}/branches/${branch}" --jq .commit.sha)"
           test "$head" = "$SOURCE_SHA"
 
-      - name: Materialize environment-approved intent
+      - name: Materialize environment-gated intent
         env:
           EVIDENCE_B64: ${{ needs.verify.outputs.evidence_b64 }}
           EXPECTED_SHA256: ${{ needs.verify.outputs.evidence_sha256 }}
@@ -395,18 +155,21 @@ jobs:
         run: |
           set -Eeuo pipefail
           umask 077
-          printf '%s' "$EVIDENCE_B64" | base64 --decode > "$RUNNER_TEMP/release-intent.unapproved.json"
-          test "$(sha256sum "$RUNNER_TEMP/release-intent.unapproved.json" | cut -d' ' -f1)" = "$EXPECTED_SHA256"
+          printf '%s' "$EVIDENCE_B64" | base64 --decode > "$RUNNER_TEMP/release-intent.pending.json"
+          test "$(sha256sum "$RUNNER_TEMP/release-intent.pending.json" | cut -d' ' -f1)" = "$EXPECTED_SHA256"
           jq --arg environment "$EXPECTED_ENVIRONMENT" '
             if .protected_environment != $environment
+               or .protected_environment_approved != false
+               or .protected_environment_job_completed != false
+               or .runtime_contacted != false
                or .production_changed != false
                or .external_effects_enabled != false
                or .status != "PASS"
             then error("release intent evidence mismatch")
-            else .protected_environment_approved = true
+            else .protected_environment_job_completed = true
             end
-          ' "$RUNNER_TEMP/release-intent.unapproved.json" > "$RUNNER_TEMP/release-intent.json"
-          jq -e '.protected_environment_approved == true and .runtime_contacted == false and .production_changed == false and .external_effects_enabled == false' "$RUNNER_TEMP/release-intent.json" >/dev/null
+          ' "$RUNNER_TEMP/release-intent.pending.json" > "$RUNNER_TEMP/release-intent.json"
+          jq -e '.protected_environment_approved == false and .protected_environment_job_completed == true and .runtime_contacted == false and .production_changed == false and .external_effects_enabled == false' "$RUNNER_TEMP/release-intent.json" >/dev/null
 
       - name: Upload normalized protected release intent
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.6.2

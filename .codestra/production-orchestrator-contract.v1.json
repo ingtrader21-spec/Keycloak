@@ -6,7 +6,9 @@
   "role": "identity",
   "release_intent_workflow": ".github/workflows/manual-release-intent.yml",
   "deployment_authority": true,
+  "runtime_mutation_authority": false,
   "require_verified_commit": true,
+  "required_check_app_id": 15368,
   "required_checks": [
     "orchestrator-contract",
     "validate"
@@ -20,6 +22,7 @@
   "artifact_policy": {
     "minimum_images": 0,
     "maximum_images": 0,
+    "image_repositories": [],
     "require_digest": true,
     "allow_rebuild_after_staging": false,
     "allow_retag_after_staging": false,

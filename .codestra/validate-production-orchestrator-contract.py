@@ -15,6 +15,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_PATH = ROOT / ".codestra/production-orchestrator-contract.v1.json"
 INTENT_PATH = ROOT / ".github/workflows/manual-release-intent.yml"
+RELEASE_VALIDATOR_PATH = ROOT / ".codestra/validate-release-intent.py"
 SCHEMA = "codestra.production-orchestrator-contract.v1"
 PHASES = ["plan", "staging", "canary", "production"]
 SAFETY_KEYS = {
@@ -27,7 +28,20 @@ SAFETY_KEYS = {
     "live_trading",
     "payment_execution",
 }
-RUNTIME_COMMAND = re.compile(r"(?m)^\s*(?:ssh|scp|kubectl|docker|podman)\b")
+RUNTIME_COMMAND = re.compile(
+    r"(?mi)^\s*(?:-\s*)?(?:run:\s*)?(?:sudo\s+)?(?:ssh|scp|kubectl|podman|docker)\b"
+)
+ACTION_USE = re.compile(r"(?m)^\s*(?:-\s*)?uses:\s*([^\s#]+)")
+ALLOWED_ACTIONS = {
+    "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+    "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+    "sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6",
+}
+MUTATION_COMMAND = re.compile(
+    r"(?mi)^\s*(?:scp\b|kubectl\s+(?:apply|delete|patch|replace|set)\b|"
+    r"helm\s+(?:install|upgrade|uninstall)\b|.*docker\s+compose\b.*\bup\b|"
+    r".*deploy_immutable|.*apply-plan\.sh)"
+)
 
 
 class ContractError(ValueError):
@@ -45,6 +59,22 @@ def reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
         require(key not in result, f"duplicate JSON key: {key}")
         result[key] = value
     return result
+
+
+def require_mapping(value: object, message: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise ContractError(message)
+    return value
+
+
+def require_string_list(value: object, message: str, *, nonempty: bool = False) -> list[str]:
+    if not isinstance(value, list):
+        raise ContractError(message)
+    if nonempty and not value:
+        raise ContractError(message)
+    if not all(isinstance(item, str) and item for item in value):
+        raise ContractError(message)
+    return [item for item in value if isinstance(item, str)]
 
 
 def load_contract() -> dict[str, Any]:
@@ -70,34 +100,80 @@ def validate(contract: dict[str, Any]) -> None:
     require(contract.get("default_branch") == "main", "default branch must be main")
     require(contract.get("release_intent_workflow") == ".github/workflows/manual-release-intent.yml", "intent workflow mismatch")
     require(contract.get("require_verified_commit") is True, "verified commits must be required")
+    require(contract.get("required_check_app_id") == 15368, "required checks must be bound to GitHub Actions")
     require(isinstance(contract.get("role"), str) and contract["role"], "role is missing")
 
-    checks = contract.get("required_checks")
-    require(isinstance(checks, list) and checks, "at least one exact-head check is required")
-    require(all(isinstance(item, str) and item for item in checks), "required check is invalid")
+    checks = require_string_list(
+        contract.get("required_checks"),
+        "at least one exact-head check is required",
+        nonempty=True,
+    )
     require(len(checks) == len(set(checks)), "required checks contain duplicates")
 
     deployment_authority = contract.get("deployment_authority") is True
+    runtime_mutation_authority = contract.get("runtime_mutation_authority")
+    if not isinstance(runtime_mutation_authority, bool):
+        raise ContractError("runtime mutation authority must be boolean")
+    require(
+        runtime_mutation_authority is (contract.get("role") == "infrastructure"),
+        "only the infrastructure repository may hold runtime mutation authority",
+    )
     supported = contract.get("supported_phases")
     if deployment_authority:
         require(supported == PHASES, "deployment authority must support the normalized phase sequence")
     else:
         require(supported == ["plan"], "non-deployment authority must be plan-only")
 
-    artifacts = contract.get("artifact_policy")
-    require(isinstance(artifacts, dict), "artifact policy is missing")
+    artifacts = require_mapping(contract.get("artifact_policy"), "artifact policy is missing")
     minimum = artifacts.get("minimum_images")
     maximum = artifacts.get("maximum_images")
-    require(isinstance(minimum, int) and isinstance(maximum, int), "image bounds must be integers")
+    if not isinstance(minimum, int) or not isinstance(maximum, int):
+        raise ContractError("image bounds must be integers")
     require(0 <= minimum <= maximum, "image bounds are invalid")
+    require(minimum == maximum, "contract must declare an exact image count")
+    repositories = require_string_list(
+        artifacts.get("image_repositories"),
+        "image repositories must match the exact image count",
+    )
+    require(len(repositories) == maximum, "image repositories must match the exact image count")
+    require(len(repositories) == len(set(repositories)), "image repositories contain duplicates")
+    require(
+        all(
+            isinstance(item, str)
+            and re.fullmatch(r"ghcr\.io/[a-z0-9_.-]+/[a-z0-9_.-]+", item)
+            for item in repositories
+        ),
+        "image repository is invalid",
+    )
     require(artifacts.get("require_digest") is True, "digest-only images are mandatory")
     require(artifacts.get("allow_rebuild_after_staging") is False, "rebuild after staging is forbidden")
     require(artifacts.get("allow_retag_after_staging") is False, "retag after staging is forbidden")
     for field in ("require_sbom", "require_provenance", "require_signature"):
         require(type(artifacts.get(field)) is bool, f"{field} must be boolean")
+    supply_chain_required = any(
+        artifacts[field]
+        for field in ("require_sbom", "require_provenance", "require_signature")
+    )
+    if supply_chain_required:
+        require(artifacts.get("attestation_verifier") in {"github", "cosign"}, "attestation verifier is missing")
+        signer_workflow = artifacts.get("signer_workflow")
+        require(
+            isinstance(signer_workflow, str)
+            and signer_workflow.startswith(".github/workflows/")
+            and signer_workflow.endswith((".yml", ".yaml"))
+            and (ROOT / signer_workflow).is_file(),
+            "signer workflow is missing or invalid",
+        )
+    if contract.get("role") == "canonical-middleware":
+        require(
+            artifacts.get("require_sbom") is True
+            and artifacts.get("require_provenance") is True
+            and artifacts.get("require_signature") is True
+            and artifacts.get("attestation_verifier") == "cosign",
+            "canonical middleware supply-chain requirements cannot be downgraded",
+        )
 
-    environments = contract.get("environments")
-    require(isinstance(environments, dict), "environment policy is missing")
+    environments = require_mapping(contract.get("environments"), "environment policy is missing")
     expected_environments = {
         "staging": "staging-readonly",
         "canary": "production-readonly-canary",
@@ -108,31 +184,48 @@ def validate(contract: dict[str, Any]) -> None:
         "protected environment policy mismatch",
     )
 
-    safety = contract.get("safety")
-    require(isinstance(safety, dict) and set(safety) == SAFETY_KEYS, "safety controls are incomplete or unexpected")
+    safety = require_mapping(contract.get("safety"), "safety controls are missing")
+    require(set(safety) == SAFETY_KEYS, "safety controls are incomplete or unexpected")
     require(all(value is False for value in safety.values()), "every external/live effect must remain disabled")
 
-    native = contract.get("native_workflows")
-    require(isinstance(native, dict), "native workflow policy must be an object")
+    native = require_mapping(contract.get("native_workflows"), "native workflow policy must be an object")
     for value in native.values():
         require(isinstance(value, str) and value.startswith(".github/workflows/") and value.endswith((".yml", ".yaml")), "native workflow path is invalid")
         path = ROOT / value
         require(path.is_file() and not path.is_symlink(), f"native workflow is missing or unsafe: {value}")
+        workflow = path.read_text(encoding="utf-8")
+        if runtime_mutation_authority is False and MUTATION_COMMAND.search(workflow):
+            require(
+                "RUNTIME_MUTATION_DISABLED=true" in workflow,
+                f"non-infrastructure native workflow exposes runtime mutation: {value}",
+            )
 
-    blockers = contract.get("blockers")
-    require(isinstance(blockers, list) and all(isinstance(item, str) and item for item in blockers), "blockers must be non-empty strings")
+    require_string_list(contract.get("blockers"), "blockers must be non-empty strings")
 
     require(INTENT_PATH.is_file() and not INTENT_PATH.is_symlink(), "manual release-intent workflow is missing or unsafe")
+    require(RELEASE_VALIDATOR_PATH.is_file() and not RELEASE_VALIDATOR_PATH.is_symlink(), "release-intent validator is missing or unsafe")
     intent = INTENT_PATH.read_text(encoding="utf-8")
+    release_validator = RELEASE_VALIDATOR_PATH.read_text(encoding="utf-8")
     for marker in (
         "runtime_contacted\": False",
         "production_changed\": False",
         "external_effects_enabled\": False",
-        "persist-credentials: false",
         "[\"git\", \"rev-parse\", \"HEAD\"]",
+        "required checks are not app-bound",
+        "prior evidence hash mismatch",
+        "--source-digest",
     ):
-        require(marker in intent, f"release-intent safety marker is missing: {marker}")
+        require(marker in release_validator, f"release-intent safety marker is missing: {marker}")
+    for marker in (
+        "persist-credentials: false",
+        "prior_evidence_run_id:",
+        "protected_environment_approved == false",
+        "protected_environment_job_completed = true",
+    ):
+        require(marker in intent, f"release-intent workflow marker is missing: {marker}")
     require(RUNTIME_COMMAND.search(intent) is None, "release-intent workflow contains a runtime/deployment command")
+    actions = ACTION_USE.findall(intent)
+    require(bool(actions) and set(actions) <= ALLOWED_ACTIONS, "release-intent workflow uses a non-allowlisted action")
 
 
 def validate_negative_regressions(contract: dict[str, Any]) -> None:
@@ -141,6 +234,10 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
     missing_check = deepcopy(contract)
     missing_check["required_checks"] = []
     mutations.append(("missing required checks", missing_check))
+
+    wrong_check_app = deepcopy(contract)
+    wrong_check_app["required_check_app_id"] = 1
+    mutations.append(("wrong required-check app", wrong_check_app))
 
     mutable_retag = deepcopy(contract)
     mutable_retag["artifact_policy"]["allow_retag_after_staging"] = True
@@ -152,6 +249,12 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
     )
     mutations.append(("invalid image bounds", incomplete_images))
 
+    wrong_repositories = deepcopy(contract)
+    wrong_repositories["artifact_policy"]["image_repositories"] = [
+        "ghcr.io/example/wrong"
+    ] * (wrong_repositories["artifact_policy"]["maximum_images"] + 1)
+    mutations.append(("incorrect image repositories", wrong_repositories))
+
     live_effect = deepcopy(contract)
     live_effect["safety"]["payment_execution"] = True
     mutations.append(("enabled live effect", live_effect))
@@ -161,11 +264,23 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
     phase_escalation["supported_phases"] = PHASES
     mutations.append(("non-authority phase escalation", phase_escalation))
 
+    runtime_escalation = deepcopy(contract)
+    runtime_escalation["runtime_mutation_authority"] = not runtime_escalation["runtime_mutation_authority"]
+    mutations.append(("runtime mutation authority contradiction", runtime_escalation))
+
     missing_native = deepcopy(contract)
     missing_native["native_workflows"] = {
         "invalid": ".github/workflows/does-not-exist.yml"
     }
     mutations.append(("missing native workflow", missing_native))
+
+    if any(
+        contract["artifact_policy"][field]
+        for field in ("require_sbom", "require_provenance", "require_signature")
+    ):
+        supply_chain_downgrade = deepcopy(contract)
+        supply_chain_downgrade["artifact_policy"]["attestation_verifier"] = "none"
+        mutations.append(("supply-chain verifier downgrade", supply_chain_downgrade))
 
     for name, mutation in mutations:
         try:
@@ -179,6 +294,11 @@ def main() -> int:
     contract = load_contract()
     validate(contract)
     validate_negative_regressions(contract)
+    subprocess.run(
+        ["python3", str(RELEASE_VALIDATOR_PATH), "--self-test"],
+        cwd=ROOT,
+        check=True,
+    )
     expected_sha = os.environ.get("EXPECTED_SHA")
     if expected_sha:
         require(re.fullmatch(r"[0-9a-f]{40}", expected_sha) is not None, "expected source SHA is invalid")

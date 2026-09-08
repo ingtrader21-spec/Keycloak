@@ -20,15 +20,26 @@ jobs:
     timeout-minutes: 10
     env:
       EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      COMPARISON_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
       GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
     steps:
       - name: Check out exact contract source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.EXPECTED_SHA }}
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: false
       - name: Validate repository-owned contract and no-runtime intent
         run: python3 .codestra/validate-production-orchestrator-contract.py
       - name: Reject malformed diffs
-        run: git diff --check
+        run: |
+          set -Eeuo pipefail
+          base="$COMPARISON_SHA"
+          if ! [[ "$base" =~ ^[0-9a-f]{40}$ ]] || [[ "$base" == "0000000000000000000000000000000000000000" ]] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            if git rev-parse --verify "$EXPECTED_SHA^" >/dev/null 2>&1; then
+              base="$(git rev-parse "$EXPECTED_SHA^")"
+            else
+              base="$(git hash-object -t tree /dev/null)"
+            fi
+          fi
+          git diff --check "$base" "$EXPECTED_SHA"

@@ -22,6 +22,7 @@ ALLOWED_ACTIONS = {
     "actions/upload-artifact": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
     "actions/download-artifact": "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
     "aquasecurity/setup-trivy": "81e514348e19b6112ce2a7e3ecbafe19c1e1f567",
+    "sigstore/cosign-installer": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
 }
 ACTION_REFERENCE = re.compile(r"^(?P<action>[^@\s]+)@(?P<sha>[0-9a-f]{40})$")
 WRITE_PERMISSION = re.compile(r"^(?:write|write-all)$", re.IGNORECASE)
