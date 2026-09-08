@@ -463,21 +463,24 @@ def validate_image_release_workflow(path: Path, workflow: dict[str, Any]) -> Non
     CORE.validate_permissions(
         workflow.get("permissions"),
         f"{path}.permissions",
-        {"contents": "read", "packages": "write", "attestations": "write", "id-token": "write"},
+        {"contents": "read", "pull-requests": "read", "checks": "read", "packages": "write", "attestations": "write", "id-token": "write"},
         {"packages", "attestations", "id-token"},
     )
     jobs = CORE.as_mapping(workflow.get("jobs"), f"{path}.jobs")
     if set(jobs) != {"release-image"}:
         fail(f"{path}: image release must contain only release-image")
     job = CORE.as_mapping(jobs["release-image"], f"{path}.jobs.release-image")
-    if str(job.get("environment", "")) != "keycloak-image-release":
-        fail(f"{path}: image publication must use the protected release Environment")
+    if "environment" in job:
+        fail(f"{path}: image release must use repository-reviewed intent, not unsupported environment rules")
+    if "scripts/release/verify_intent.py" not in workflow_text(workflow):
+        fail(f"{path}: repository-reviewed publication intent is required")
     if "self-hosted" in CORE.normalize_runs_on(job.get("runs-on")):
         fail(f"{path}: image release must not run on a production runner")
-    CORE.validate_steps(job, f"{path}.jobs.release-image")
+    CORE.validate_steps(job, f"{path}.jobs.release-image", checkout_fetch_depth_overrides={0: "0"})
     text = workflow_text(workflow)
     for fragment in (
-        "refs/heads/main",
+        "inputs.intent_path",
+        "inputs.plan_sha256",
         "inputs.confirm_sha",
         "git rev-parse HEAD",
         "--provenance=mode=max",

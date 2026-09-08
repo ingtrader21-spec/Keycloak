@@ -56,6 +56,9 @@ jobs:
           sudo apt-get install --yes jq shellcheck openssh-client
           python3 -m pip install --disable-pip-version-check --no-input PyYAML==6.0.3
 
+      - name: Test repository publication intent gate
+        run: python3 -m unittest discover -s scripts/release -v
+
       - name: Validate exact source desired state and policy
         run: ./scripts/validate.sh
 
@@ -157,6 +160,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes jq shellcheck openssh-client
           python3 -m pip install --disable-pip-version-check --no-input PyYAML==6.0.3
+
+      - name: Test repository publication intent gate
+        run: python3 -m unittest discover -s scripts/release -v
 
       - name: Validate exact merge result desired state and policy
         run: ./scripts/validate.sh
