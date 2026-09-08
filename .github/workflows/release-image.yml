@@ -7,10 +7,22 @@ on:
         description: Exact 40-character merged main SHA to build once
         required: true
         type: string
+      intent_path:
+        description: Reviewed release/intents JSON path on protected main
+        required: true
+        type: string
+      plan_sha256:
+        description: SHA256 of canonical JSON release intent
+        required: true
+        type: string
 
 permissions:
   contents: read
+  pull-requests: read
+  checks: read
   packages: write
+  attestations: write
+  id-token: write
 
 concurrency:
   group: keycloak-image-release-${{ inputs.confirm_sha }}
@@ -23,7 +35,6 @@ defaults:
 jobs:
   release-image:
     runs-on: ubuntu-24.04
-    environment: keycloak-image-release
     timeout-minutes: 45
     env:
       IMAGE_REPOSITORY: ghcr.io/appolon1908-hue/codestra-keycloak
@@ -33,17 +44,48 @@ jobs:
       - name: Check out exact merged main SHA
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: false
           ref: ${{ github.sha }}
 
-      - name: Require exact protected main release identity
+      - name: Verify separately reviewed source and publication intent
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_SOURCE_SHA: ${{ inputs.confirm_sha }}
+          RELEASE_INTENT_PATH: ${{ inputs.intent_path }}
+          RELEASE_PLAN_SHA256: ${{ inputs.plan_sha256 }}
+        run: python3 scripts/release/verify_intent.py
+
+      - name: Check out verified source for build
         run: |
-          set -Eeuo pipefail
-          [[ "$GITHUB_REF" == 'refs/heads/main' ]]
-          [[ "$CONFIRM_SHA" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$CONFIRM_SHA" == "$GITHUB_SHA" ]]
-          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
+          cp scripts/rehearse-release-pg17.py "$RUNNER_TEMP/rehearse-release-pg17.py"
+          git checkout --detach "$CONFIRM_SHA"
+          test "$(git rev-parse HEAD)" = "$CONFIRM_SHA"
+
+      - name: Use supported validation Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+
+      - name: Install source validation dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes jq shellcheck
+          python3 -m pip install PyYAML==6.0.3
+
+      - name: Validate configuration and unit tests before publication
+        run: |
+          ./scripts/validate.sh
+          python3 -m unittest discover -s tests -v
+
+      - name: Install pinned Trivy before build
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567
+        with:
+          version: v0.74.0
+          cache: true
+
+      - name: Scan source dependencies before publication
+        run: trivy fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 .
 
       - name: Authenticate to GHCR without persisting credentials
         env:
@@ -66,7 +108,7 @@ jobs:
             --proto '=https' --tlsv1.2 \
             --header "Authorization: Bearer $registry_token" \
             --header 'Accept: application/vnd.oci.image.manifest.v1+json' \
-            "https://ghcr.io/v2/appolon1908-hue/codestra-keycloak/manifests/$GITHUB_SHA"; } || true)"
+            "https://ghcr.io/v2/appolon1908-hue/codestra-keycloak/manifests/$CONFIRM_SHA"; } || true)"
           [[ "$status" == "404" ]] || {
             echo "ERROR=image_tag_already_exists_or_registry_check_failed status=$status" >&2
             exit 1
@@ -76,12 +118,15 @@ jobs:
         run: |
           set -Eeuo pipefail
           mkdir -p "$RUNNER_TEMP/keycloak-release"
+          cp "$RUNNER_TEMP/reviewed-publication.json" "$RUNNER_TEMP/keycloak-release/"
           docker buildx build \
             --platform linux/amd64 \
             --provenance=mode=max \
             --sbom=true \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --label "org.opencontainers.image.revision=$CONFIRM_SHA" \
             --push \
-            --tag "$IMAGE_REPOSITORY:$GITHUB_SHA" \
+            --tag "$IMAGE_REPOSITORY:$CONFIRM_SHA" \
             --metadata-file "$RUNNER_TEMP/keycloak-release/build-metadata.json" \
             .
 
@@ -92,7 +137,7 @@ jobs:
           digest="$(jq -er '.["containerimage.digest"]' "$RUNNER_TEMP/keycloak-release/build-metadata.json")"
           [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           printf 'digest=%s\n' "$digest" >>"$GITHUB_OUTPUT"
-          printf '%s:%s@%s\n' "$IMAGE_REPOSITORY" "$GITHUB_SHA" "$digest" >"$RUNNER_TEMP/keycloak-release/image-reference.txt"
+          printf '%s:%s@%s\n' "$IMAGE_REPOSITORY" "$CONFIRM_SHA" "$digest" >"$RUNNER_TEMP/keycloak-release/image-reference.txt"
 
       - name: Install pinned Trivy launcher
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567
@@ -118,6 +163,11 @@ jobs:
             --output "$RUNNER_TEMP/keycloak-release/sbom.cdx.json" \
             "$release_ref"
 
+      - name: Validate exact image with disposable PostgreSQL 17.6
+        env:
+          RELEASE_IMAGE: ghcr.io/appolon1908-hue/codestra-keycloak@${{ steps.digest.outputs.digest }}
+        run: python3 "$RUNNER_TEMP/rehearse-release-pg17.py"
+
       - name: Write immutable release evidence and checksums
         env:
           RELEASE_DIGEST: ${{ steps.digest.outputs.digest }}
@@ -125,20 +175,36 @@ jobs:
           set -Eeuo pipefail
           jq -n \
             --arg repository "$GITHUB_REPOSITORY" \
-            --arg sourceSha "$GITHUB_SHA" \
+            --arg sourceSha "$CONFIRM_SHA" \
+            --arg sourceTree "$(git rev-parse HEAD^{tree})" \
             --arg imageRepository "$IMAGE_REPOSITORY" \
             --arg imageDigest "$RELEASE_DIGEST" \
             --arg workflowRunId "$GITHUB_RUN_ID" \
-            '{schemaVersion: 1, repository: $repository, sourceSha: $sourceSha,
+            '{schemaVersion: 1, repository: $repository, sourceSha: $sourceSha, sourceTree: $sourceTree, productionApproval: "REQUIRED_SEPARATELY",
               imageRepository: $imageRepository, imageDigest: $imageDigest,
               workflowRunId: $workflowRunId, vulnerabilityPolicy: "no HIGH or CRITICAL"}' \
             >"$RUNNER_TEMP/keycloak-release/release-evidence.json"
           (cd "$RUNNER_TEMP/keycloak-release" && sha256sum -- * >checksums.sha256)
 
+      - name: Attest exact image build provenance
+        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661
+        with:
+          subject-name: ghcr.io/appolon1908-hue/codestra-keycloak
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest exact image SBOM
+        uses: actions/attest-sbom@51e74621a501c89df81fc1391c5a8f4cfc9fab2f
+        with:
+          subject-name: ghcr.io/appolon1908-hue/codestra-keycloak
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          sbom-path: ${{ runner.temp }}/keycloak-release/sbom.cdx.json
+          push-to-registry: true
+
       - name: Upload immutable release evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: keycloak-image-release-${{ github.sha }}
+          name: keycloak-image-release-${{ inputs.confirm_sha }}
           path: ${{ runner.temp }}/keycloak-release
           if-no-files-found: error
           retention-days: 90

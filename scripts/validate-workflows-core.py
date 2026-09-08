@@ -17,6 +17,8 @@ STAGE6_BRANCH = "ops/stage6-intake-observability-execution-20260830"
 STAGE6_LOCK = "config/executions/stage6-intake-observability.v1.json"
 
 ALLOWED_ACTIONS = {
+    "actions/attest-build-provenance": "43d14bc2b83dec42d39ecae14e916627a18bb661",
+    "actions/attest-sbom": "51e74621a501c89df81fc1391c5a8f4cfc9fab2f",
     "actions/checkout": "3d3c42e5aac5ba805825da76410c181273ba90b1",
     "actions/setup-python": "5fda3b95a4ea91299a34e894583c3862153e4b97",
     "actions/upload-artifact": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
@@ -181,8 +183,8 @@ def validate_source_workflow(path: Path, workflow: dict[str, Any]) -> None:
         fail(f"{path}: push validation must be limited to main")
     validate_permissions(workflow.get("permissions"), f"{path}.permissions", {"contents": "read"})
     jobs = as_mapping(workflow.get("jobs"), f"{path}.jobs")
-    if set(jobs) != {"validate-source", "validate-merge-result"}:
-        fail(f"{path}: expected validate-source and validate-merge-result jobs")
+    if set(jobs) != {"validate-source", "validate-merge-result", "orchestrator-contract"}:
+        fail(f"{path}: expected source, merge-result and orchestrator-contract jobs")
     for job_name, raw_job in jobs.items():
         job = as_mapping(raw_job, f"{path}.jobs.{job_name}")
         if "permissions" in job or "environment" in job:
@@ -192,6 +194,9 @@ def validate_source_workflow(path: Path, workflow: dict[str, Any]) -> None:
         if any(SECRET_EXPRESSION.search(text) for text in recursive_strings(job)):
             fail(f"{path}.jobs.{job_name}: source validation must not reference secrets")
         validate_steps(job, f"{path}.jobs.{job_name}")
+    contract_text = "\n".join(recursive_strings(jobs["orchestrator-contract"]))
+    if "validate-workflows.py" not in contract_text or "git rev-parse HEAD" not in contract_text:
+        fail(f"{path}: orchestrator-contract must validate exact source contract")
     source_job = as_mapping(jobs["validate-source"], f"{path}.jobs.validate-source")
     merge_job = as_mapping(jobs["validate-merge-result"], f"{path}.jobs.validate-merge-result")
     source_text = "\n".join(recursive_strings(source_job))
