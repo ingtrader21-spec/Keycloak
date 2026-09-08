@@ -97,7 +97,8 @@ jobs:
           retention-days: 30
 
   stage6-intake-observability:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/ops/stage6-intake-observability-execution-20260830'
+    # RUNTIME_MUTATION_DISABLED=true
+    if: ${{ false }}
     runs-on: [self-hosted, linux, x64, codestra-keycloak]
     environment: staging
     timeout-minutes: 60

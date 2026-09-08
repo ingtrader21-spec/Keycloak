@@ -431,12 +431,20 @@ def validate_manual_release_intent(path: Path, workflow: dict[str, Any]) -> None
             fail(f"{path}: release-intent jobs cannot override permissions")
         if "self-hosted" in CORE.normalize_runs_on(job.get("runs-on")):
             fail(f"{path}: release-intent policy cannot use a self-hosted runner")
-        if any(
-            CORE.SECRET_EXPRESSION.search(text)
+        secret_values = [
+            text
             for text in CORE.recursive_strings(job)
+            if CORE.SECRET_EXPRESSION.search(text)
+        ]
+        if any(
+            value != "${{ secrets.CODESTRA_ORCHESTRATOR_TOKEN }}"
+            for value in secret_values
         ):
-            fail(f"{path}: release-intent policy cannot reference secrets")
+            fail(f"{path}: release-intent policy references a non-policy secret")
         CORE.validate_steps(job, f"{path}.jobs.{name}")
+
+    if workflow_text(workflow).count("${{ secrets.CODESTRA_ORCHESTRATOR_TOKEN }}") != 2:
+        fail(f"{path}: release-intent policy token binding must occur exactly twice")
 
     if "environment" in CORE.as_mapping(jobs["verify"], f"{path}.jobs.verify"):
         fail(f"{path}: pre-approval verify job cannot use an Environment")

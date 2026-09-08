@@ -311,7 +311,6 @@ def validate_privileged_workflow(path: Path, workflow: dict[str, Any]) -> None:
             fail(f"{path}: Stage 6 checkout must fetch its exact parent")
         stage6_text = "\n".join(recursive_strings(stage6))
         for fragment in (
-            STAGE6_BRANCH,
             STAGE6_LOCK,
             "codestra-keycloak",
             "environment staging",
@@ -340,8 +339,10 @@ def validate_privileged_workflow(path: Path, workflow: dict[str, Any]) -> None:
             fail(f"{path}: every Docker-consuming Stage 6 step must use ephemeral GHCR credentials")
         if "docker login" in stage6_text or "docker logout" in stage6_text:
             fail(f"{path}: inline persistent Docker authentication is prohibited")
-        if "github.event_name == 'push'" not in str(stage6.get("if", "")):
-            fail(f"{path}: Stage 6 job must be push-only")
+        if str(stage6.get("if", "")) != "${{ false }}":
+            fail(f"{path}: Stage 6 runtime mutation job must remain disabled")
+        if "RUNTIME_MUTATION_DISABLED=true" not in path.read_text(encoding="utf-8"):
+            fail(f"{path}: Stage 6 runtime mutation disable marker is missing")
         if str(stage6.get("environment", "")) != "staging":
             fail(f"{path}: Stage 6 job must use the protected staging Environment")
 

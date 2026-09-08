@@ -24,6 +24,9 @@ from typing import Any
 CONTRACT_PATH = Path(".codestra/production-orchestrator-contract.v1.json")
 SCHEMA = "codestra.production-orchestrator-contract.v1"
 WORKFLOW = ".github/workflows/manual-release-intent.yml"
+CONTROLLER_REPOSITORY = "appolon1908-hue/codestra-production-platform"
+CONTROLLER_BRANCH = "release/production-activation"
+CANDIDATE_SCHEMA = "codestra.manual-production-candidate.v1"
 ZERO64 = "0" * 64
 SHA = re.compile(r"^[0-9a-f]{40}$")
 DIGEST = re.compile(r"^[0-9a-f]{64}$")
@@ -46,6 +49,23 @@ SAFETY_KEYS = {
     "n8n_external_delivery",
     "live_trading",
     "payment_execution",
+}
+CANDIDATE_SAFETY_KEYS = (SAFETY_KEYS - {"external_effects_default"}) | {
+    "external_effects_enabled"
+}
+CATALOG_REPOSITORIES = {
+    "appolon1908-hue/Infustruction-repo",
+    "appolon1908-hue/Keycloak",
+    "appolon1908-hue/Middleware-",
+    "appolon1908-hue/codestra",
+    "appolon1908-hue/beyvra-backend",
+    "appolon1908-hue/backend2",
+    "appolon1908-hue/beyvra-frontend",
+    "appolon1908-hue/scrapper",
+    "appolon1908-hue/Breero.com",
+    "appolon1908-hue/Moneybee-Backend",
+    "appolon1908-hue/Telnexa-web",
+    CONTROLLER_REPOSITORY,
 }
 
 
@@ -74,15 +94,23 @@ class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
 NO_REDIRECT_OPENER: Any = urllib.request.build_opener(NoRedirectHandler())
 
 
-def api_request(endpoint: str, *, accept: str = "application/vnd.github+json") -> tuple[bytes, str | None]:
+def api_request(
+    endpoint: str,
+    *,
+    accept: str = "application/vnd.github+json",
+    administration: bool = False,
+) -> tuple[bytes, str | None]:
     url = endpoint if endpoint.startswith("https://") else f"https://api.github.com/{endpoint.lstrip('/')}"
     parsed = urllib.parse.urlparse(url)
     require(parsed.scheme == "https" and parsed.hostname == "api.github.com", "refusing non-GitHub API URL")
+    token_name = "CODESTRA_ORCHESTRATOR_TOKEN" if administration else "GH_TOKEN"
+    token = os.environ.get(token_name, "")
+    require(bool(token), f"{token_name} is required for repository policy evidence")
     request = urllib.request.Request(
         url,
         headers={
             "Accept": accept,
-            "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+            "Authorization": f"Bearer {token}",
             "X-GitHub-Api-Version": "2022-11-28",
         },
     )
@@ -155,19 +183,19 @@ def next_link(header: str | None) -> str | None:
     return None
 
 
-def api_json(endpoint: str) -> Any:
-    raw, _ = api_request(endpoint)
+def api_json(endpoint: str, *, administration: bool = False) -> Any:
+    raw, _ = api_request(endpoint, administration=administration)
     return json.loads(raw)
 
 
-def api_pages(endpoint: str) -> list[Any]:
+def api_pages(endpoint: str, *, administration: bool = False) -> list[Any]:
     pages: list[Any] = []
     seen: set[str] = set()
     current: str | None = endpoint
     while current is not None:
         require(current not in seen, "GitHub API pagination loop detected")
         seen.add(current)
-        raw, link = api_request(current)
+        raw, link = api_request(current, administration=administration)
         pages.append(json.loads(raw))
         current = next_link(link)
     return pages
@@ -224,6 +252,266 @@ def latest_check_conclusions(check_pages: list[Any]) -> dict[tuple[str, int], st
         if isinstance(name, str) and isinstance(app_id, int):
             latest[(name, app_id)] = item.get("conclusion")
     return latest
+
+
+def validate_environment_document(value: object, environment: str) -> None:
+    if not isinstance(value, dict):
+        raise PolicyError("protected environment is missing")
+    require(value.get("name") == environment, "protected environment is missing")
+    rules = value.get("protection_rules")
+    if not isinstance(rules, list):
+        raise PolicyError("protected environment rules are invalid")
+    reviewer_rules = [
+        item
+        for item in rules
+        if isinstance(item, dict) and item.get("type") == "required_reviewers"
+    ]
+    require(len(reviewer_rules) == 1, "protected environment must have one required-reviewer rule")
+    reviewer_rule = reviewer_rules[0]
+    reviewers = reviewer_rule.get("reviewers")
+    if not isinstance(reviewers, list) or not reviewers:
+        raise PolicyError("protected environment has no required reviewers")
+    require(
+        all(
+            isinstance(item, dict)
+            and item.get("type") in {"User", "Team"}
+            and isinstance(item.get("reviewer"), dict)
+            and isinstance(item["reviewer"].get("id"), int)
+            for item in reviewers
+        ),
+        "protected environment reviewer identity is invalid",
+    )
+    require(reviewer_rule.get("prevent_self_review") is True, "protected environment permits self-review")
+    branch_policy = value.get("deployment_branch_policy")
+    require(
+        isinstance(branch_policy, dict)
+        and branch_policy.get("protected_branches") is True
+        and branch_policy.get("custom_branch_policies") is False,
+        "protected environment is not restricted to protected branches",
+    )
+
+
+def validate_environment_protection(repository: str, environment: str) -> None:
+    encoded = urllib.parse.quote(environment, safe="")
+    value = api_json(
+        f"repos/{repository}/environments/{encoded}",
+        administration=True,
+    )
+    validate_environment_document(value, environment)
+
+
+def validate_repository_gates(
+    contract: dict[str, Any],
+    source_sha: str,
+    phase: str,
+    environment: str,
+) -> tuple[list[str], dict[str, int]]:
+    repository = os.environ["GITHUB_REPOSITORY"]
+    branch_name = contract.get("default_branch")
+    repository_data = api_json(f"repos/{repository}")
+    require(repository_data.get("id") == contract.get("repository_id"), "stable repository ID mismatch")
+    require(repository_data.get("default_branch") == branch_name, "default branch drift")
+    require(repository_data.get("archived") is False and repository_data.get("disabled") is False, "repository unavailable")
+    branch = api_json(f"repos/{repository}/branches/{branch_name}")
+    require(branch.get("protected") is True, "default branch must be protected")
+    require(branch.get("commit", {}).get("sha") == source_sha, "source SHA is not current protected branch head")
+    if contract.get("require_verified_commit") is True:
+        commit = api_json(f"repos/{repository}/commits/{source_sha}")
+        require(commit.get("commit", {}).get("verification", {}).get("verified") is True, "exact source commit is not GitHub-verified")
+    contract_checks = contract.get("required_checks")
+    if not isinstance(contract_checks, list):
+        raise PolicyError("invalid required_checks")
+    require(all(isinstance(item, str) and item for item in contract_checks), "invalid required_checks")
+    expected_app_id = contract.get("required_check_app_id")
+    if not isinstance(expected_app_id, int) or expected_app_id <= 0:
+        raise PolicyError("required check app ID is invalid")
+    branch_checks, bindings = required_check_bindings(
+        branch,
+        api_pages(
+            f"repos/{repository}/rules/branches/{branch_name}?per_page=100",
+            administration=True,
+        ),
+        expected_app_id,
+    )
+    required_checks = sorted(set(contract_checks) | set(branch_checks))
+    unbound = sorted(set(required_checks) - set(bindings))
+    require(not unbound, f"contract checks are not app-bound by branch protection: {unbound}")
+    latest = latest_check_conclusions(api_pages(f"repos/{repository}/commits/{source_sha}/check-runs?per_page=100"))
+    missing = [name for name in required_checks if latest.get((name, bindings[name])) != "success"]
+    require(not missing, f"required exact-head checks are not successful from the bound app: {missing}")
+    if phase != "plan":
+        require(bool(environment), f"{phase} protected environment is missing")
+        validate_environment_protection(repository, environment)
+    return required_checks, bindings
+
+
+def validate_candidate_document(
+    raw: bytes,
+    expected_hash: str,
+    release_id: str,
+    repository: str,
+    source_sha: str,
+    contract_sha256: str,
+    images: list[Any],
+    previous_images: list[Any],
+) -> dict[str, Any]:
+    require(len(raw) <= 1_000_000, "candidate file exceeds size limit")
+    require(hashlib.sha256(raw).hexdigest() == expected_hash, "candidate file SHA-256 mismatch")
+    candidate = json.loads(raw)
+    require(isinstance(candidate, dict), "candidate must be an object")
+    require(candidate.get("schema_version") == CANDIDATE_SCHEMA, "candidate schema mismatch")
+    require(candidate.get("template") is False, "template candidate cannot be admitted")
+    require(candidate.get("release_id") == release_id, "candidate release ID mismatch")
+    for field, pattern, zero in (
+        ("controller_sha", SHA, "0" * 40),
+        ("source_lock_sha", SHA, "0" * 40),
+        ("runtime_candidate_sha256", DIGEST, ZERO64),
+    ):
+        value = candidate.get(field)
+        require(isinstance(value, str) and pattern.fullmatch(value) is not None and value != zero, f"candidate {field} is invalid")
+    safety = candidate.get("safety")
+    require(isinstance(safety, dict) and set(safety) == CANDIDATE_SAFETY_KEYS, "candidate safety controls are incomplete or unexpected")
+    require(all(value is False for value in safety.values()), "candidate enables an external/live effect")
+    components = candidate.get("components")
+    require(isinstance(components, list), "candidate components must be an array")
+    by_repository: dict[str, dict[str, Any]] = {}
+    for item in components:
+        require(isinstance(item, dict), "candidate component must be an object")
+        name = item.get("repository")
+        require(isinstance(name, str) and name in CATALOG_REPOSITORIES, "candidate contains an unexpected repository")
+        require(name not in by_repository, f"candidate contains duplicate repository: {name}")
+        by_repository[name] = item
+    require(set(by_repository) == CATALOG_REPOSITORIES, "candidate does not cover the exact protected catalog")
+    require(
+        by_repository[CONTROLLER_REPOSITORY].get("source_sha") == candidate["controller_sha"],
+        "candidate controller policy-base binding mismatch",
+    )
+    component = by_repository[repository]
+    require(component.get("enabled") is True, "candidate disables a required repository")
+    require(component.get("source_sha") == source_sha, "candidate source SHA mismatch")
+    require(component.get("contract_sha256") == contract_sha256, "candidate contract SHA-256 mismatch")
+    require(component.get("images") == images, "candidate image input mismatch")
+    require(component.get("previous_images") == previous_images, "candidate rollback image input mismatch")
+    return candidate
+
+
+def validate_phase_blockers(blockers: object, phase: str) -> list[str]:
+    if not isinstance(blockers, list):
+        raise PolicyError("contract blockers are invalid")
+    require(all(isinstance(item, str) and item for item in blockers), "contract blockers are invalid")
+    values = [item for item in blockers if isinstance(item, str)]
+    if phase != "plan":
+        require(not values, f"{phase} is blocked by unresolved contract blockers")
+    return values
+
+
+def download_and_validate_candidate(
+    expected_hash: str,
+    release_id: str,
+    repository: str,
+    source_sha: str,
+    contract_sha256: str,
+    images: list[Any],
+    previous_images: list[Any],
+) -> str:
+    controller = api_json(f"repos/{CONTROLLER_REPOSITORY}", administration=True)
+    require(controller.get("id") == 1314230781, "controller stable repository ID mismatch")
+    require(controller.get("default_branch") == CONTROLLER_BRANCH, "controller protected branch drift")
+    branch_name = urllib.parse.quote(CONTROLLER_BRANCH, safe="")
+    branch = api_json(
+        f"repos/{CONTROLLER_REPOSITORY}/branches/{branch_name}",
+        administration=True,
+    )
+    controller_head = branch.get("commit", {}).get("sha")
+    require(branch.get("protected") is True, "controller release branch is not protected")
+    require(
+        isinstance(controller_head, str)
+        and SHA.fullmatch(controller_head) is not None,
+        "controller protected head is invalid",
+    )
+    path = urllib.parse.quote(f"config/releases/{release_id}.json", safe="/")
+    value = api_json(
+        f"repos/{CONTROLLER_REPOSITORY}/contents/{path}?ref={controller_head}",
+        administration=True,
+    )
+    require(
+        isinstance(value, dict)
+        and value.get("type") == "file"
+        and value.get("encoding") == "base64"
+        and isinstance(value.get("content"), str),
+        "reviewed candidate file is missing or invalid",
+    )
+    try:
+        raw = base64.b64decode("".join(value["content"].split()), validate=True)
+    except ValueError as exc:
+        raise PolicyError("reviewed candidate file is not valid base64") from exc
+    validate_candidate_document(
+        raw,
+        expected_hash,
+        release_id,
+        repository,
+        source_sha,
+        contract_sha256,
+        images,
+        previous_images,
+    )
+    controller_sha = json.loads(raw).get("controller_sha")
+    comparison = api_json(
+        f"repos/{CONTROLLER_REPOSITORY}/compare/{controller_sha}...{controller_head}",
+        administration=True,
+    )
+    require(
+        isinstance(comparison, dict) and comparison.get("status") in {"ahead", "identical"},
+        "candidate controller policy base is not an ancestor of its reviewed file",
+    )
+    return controller_head
+
+
+def recheck_protected_gates() -> int:
+    phase = os.environ["PHASE"]
+    source_sha = os.environ["SOURCE_SHA"]
+    release_id = os.environ["RELEASE_ID"]
+    candidate_sha256 = os.environ["CANDIDATE_SHA256"]
+    require(phase in PREVIOUS_PHASE, "post-approval recheck requires a protected phase")
+    require(SHA.fullmatch(source_sha) is not None and source_sha != "0" * 40, "source_sha must be nonzero lowercase 40-hex")
+    require(RELEASE.fullmatch(release_id) is not None, "invalid release_id")
+    require(DIGEST.fullmatch(candidate_sha256) is not None and candidate_sha256 != ZERO64, "candidate_sha256 must be nonzero lowercase 64-hex")
+    require(CONTRACT_PATH.is_file() and not CONTRACT_PATH.is_symlink(), "release contract is missing or unsafe")
+    contract_bytes = CONTRACT_PATH.read_bytes()
+    contract = json.loads(contract_bytes)
+    require(isinstance(contract, dict) and contract.get("schema_version") == SCHEMA, "unexpected release contract schema")
+    repository = os.environ["GITHUB_REPOSITORY"]
+    require(contract.get("repository") == repository, "contract repository mismatch")
+    branch_name = contract.get("default_branch")
+    require(branch_name == os.environ["GITHUB_REF_NAME"] and os.environ["GITHUB_REF"] == f"refs/heads/{branch_name}", "workflow must run from the contract default branch")
+    checkout_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    require(checkout_sha == source_sha, "checkout does not match source_sha")
+    validate_phase_blockers(contract.get("blockers"), phase)
+    environment = contract.get("environments", {}).get(phase, "")
+    expected_environment = {
+        "staging": "staging-readonly",
+        "canary": "production-readonly-canary",
+        "production": "production",
+    }[phase]
+    require(environment == expected_environment, f"{phase} protected environment mismatch")
+    validate_repository_gates(contract, source_sha, phase, environment)
+    try:
+        images = json.loads(os.environ["IMAGES_JSON"])
+        previous_images = json.loads(os.environ["PREVIOUS_IMAGES_JSON"])
+    except json.JSONDecodeError as error:
+        raise PolicyError(f"image input is not valid JSON: {error}") from error
+    require(isinstance(images, list) and isinstance(previous_images, list), "image inputs must be arrays")
+    download_and_validate_candidate(
+        candidate_sha256,
+        release_id,
+        repository,
+        source_sha,
+        hashlib.sha256(contract_bytes).hexdigest(),
+        images,
+        previous_images,
+    )
+    print("PROTECTED_GATES_RECHECK=PASS")
+    return 0
 
 
 def validate_images(images: list[Any], previous_images: list[Any], policy: dict[str, Any]) -> list[str]:
@@ -428,37 +716,23 @@ def main() -> int:
     require(checkout_sha == source_sha, "checkout does not match source_sha")
     require(not subprocess.check_output(["git", "status", "--porcelain"], text=True).strip(), "workspace is dirty")
 
-    repository_data = api_json(f"repos/{repository}")
-    require(repository_data.get("id") == contract.get("repository_id"), "stable repository ID mismatch")
-    require(repository_data.get("default_branch") == branch_name, "default branch drift")
-    require(repository_data.get("archived") is False and repository_data.get("disabled") is False, "repository unavailable")
-    branch = api_json(f"repos/{repository}/branches/{branch_name}")
-    require(branch.get("protected") is True, "default branch must be protected")
-    require(branch.get("commit", {}).get("sha") == source_sha, "source SHA is not current protected branch head")
-    if contract.get("require_verified_commit") is True:
-        commit = api_json(f"repos/{repository}/commits/{source_sha}")
-        require(commit.get("commit", {}).get("verification", {}).get("verified") is True, "exact source commit is not GitHub-verified")
-
     supported = contract.get("supported_phases")
     require(isinstance(supported, list) and phase in supported, f"phase {phase} is not supported")
     deployment_authority = contract.get("deployment_authority") is True
     if phase != "plan":
         require(deployment_authority, "repository is not a deployment authority")
-    contract_checks = contract.get("required_checks")
-    require(isinstance(contract_checks, list) and all(isinstance(item, str) and item for item in contract_checks), "invalid required_checks")
-    expected_app_id = contract.get("required_check_app_id")
-    require(isinstance(expected_app_id, int) and expected_app_id > 0, "required check app ID is invalid")
-    branch_checks, bindings = required_check_bindings(
-        branch,
-        api_pages(f"repos/{repository}/rules/branches/{branch_name}?per_page=100"),
-        expected_app_id,
+    blockers = validate_phase_blockers(contract.get("blockers"), phase)
+    environment = ""
+    if phase != "plan":
+        environment = contract.get("environments", {}).get(phase, "")
+        expected_environment = {"staging": "staging-readonly", "canary": "production-readonly-canary", "production": "production"}[phase]
+        require(environment == expected_environment, f"{phase} protected environment mismatch")
+    required_checks, bindings = validate_repository_gates(
+        contract,
+        source_sha,
+        phase,
+        environment,
     )
-    required_checks = sorted(set(contract_checks) | set(branch_checks))
-    unbound = sorted(set(required_checks) - set(bindings))
-    require(not unbound, f"contract checks are not app-bound by branch protection: {unbound}")
-    latest = latest_check_conclusions(api_pages(f"repos/{repository}/commits/{source_sha}/check-runs?per_page=100"))
-    missing = [name for name in required_checks if latest.get((name, bindings[name])) != "success"]
-    require(not missing, f"required exact-head checks are not successful from the bound app: {missing}")
 
     try:
         images = json.loads(os.environ["IMAGES_JSON"])
@@ -472,18 +746,22 @@ def main() -> int:
     require(policy.get("allow_rebuild_after_staging") is False, "rebuild after staging must remain forbidden")
     require(policy.get("allow_retag_after_staging") is False, "retag after staging must remain forbidden")
     validate_images(images, previous_images, policy)
+    contract_sha256 = hashlib.sha256(contract_bytes).hexdigest()
+    controller_candidate_head = download_and_validate_candidate(
+        candidate_sha256,
+        release_id,
+        repository,
+        source_sha,
+        contract_sha256,
+        images,
+        previous_images,
+    )
     verify_supply_chain(images, policy, repository, branch_name, source_sha, exact_source=True)
     verify_supply_chain(previous_images, policy, repository, branch_name, source_sha, exact_source=False)
 
     safety = contract.get("safety")
     require(isinstance(safety, dict) and SAFETY_KEYS <= set(safety), "safety contract is incomplete")
     require(all(safety.get(key) is False for key in SAFETY_KEYS), "every external/live effect must remain disabled")
-    environment = ""
-    if phase != "plan":
-        environment = contract.get("environments", {}).get(phase, "")
-        expected_environment = {"staging": "staging-readonly", "canary": "production-readonly-canary", "production": "production"}[phase]
-        require(environment == expected_environment, f"{phase} protected environment mismatch")
-
     if phase != "plan":
         previous_phase = PREVIOUS_PHASE[phase]
         prior = download_prior_evidence(repository, prior_run_id, f"codestra-release-intent-{previous_phase}-{source_sha}", prior_hash)
@@ -521,7 +799,9 @@ def main() -> int:
         "candidate_sha256": candidate_sha256,
         "prior_evidence_sha256": prior_hash,
         "prior_evidence_run_id": prior_run_id,
-        "contract_sha256": hashlib.sha256(contract_bytes).hexdigest(),
+        "contract_sha256": contract_sha256,
+        "controller_candidate_head_sha": controller_candidate_head,
+        "contract_blockers": blockers,
         "required_checks": required_checks,
         "required_check_apps": {name: bindings[name] for name in required_checks},
         "candidate_images": images,
@@ -662,12 +942,125 @@ def self_test() -> int:
         pass
     else:
         raise PolicyError("negative wrong-app regression passed")
+    protected_environment: dict[str, Any] = {
+        "name": "production",
+        "protection_rules": [
+            {
+                "type": "required_reviewers",
+                "prevent_self_review": True,
+                "reviewers": [
+                    {"type": "User", "reviewer": {"id": 42, "login": "reviewer"}}
+                ],
+            }
+        ],
+        "deployment_branch_policy": {
+            "protected_branches": True,
+            "custom_branch_policies": False,
+        },
+    }
+    validate_environment_document(protected_environment, "production")
+    for mutation_name, mutation in (
+        (
+            "missing environment reviewers",
+            {
+                **protected_environment,
+                "protection_rules": [],
+            },
+        ),
+        (
+            "environment self-review",
+            {
+                **protected_environment,
+                "protection_rules": [
+                    {
+                        **protected_environment["protection_rules"][0],
+                        "prevent_self_review": False,
+                    }
+                ],
+            },
+        ),
+        (
+            "environment unprotected branch",
+            {
+                **protected_environment,
+                "deployment_branch_policy": {
+                    "protected_branches": False,
+                    "custom_branch_policies": True,
+                },
+            },
+        ),
+    ):
+        try:
+            validate_environment_document(mutation, "production")
+        except PolicyError:
+            pass
+        else:
+            raise PolicyError(f"negative {mutation_name} regression passed")
+    candidate_document = {
+        "schema_version": CANDIDATE_SCHEMA,
+        "template": False,
+        "release_id": "release-test-001",
+        "controller_sha": "1" * 40,
+        "source_lock_sha": "2" * 40,
+        "runtime_candidate_sha256": "3" * 64,
+        "safety": {key: False for key in CANDIDATE_SAFETY_KEYS},
+        "components": [
+            {
+                "repository": repository,
+                "source_sha": "1" * 40 if repository == CONTROLLER_REPOSITORY else "4" * 40,
+                "contract_sha256": "5" * 64,
+                "images": [],
+                "previous_images": [],
+                "enabled": True,
+            }
+            for repository in sorted(CATALOG_REPOSITORIES)
+        ],
+    }
+    candidate_raw = json.dumps(candidate_document, sort_keys=True).encode()
+    candidate_hash = hashlib.sha256(candidate_raw).hexdigest()
+    validate_candidate_document(
+        candidate_raw,
+        candidate_hash,
+        "release-test-001",
+        "appolon1908-hue/Infustruction-repo",
+        "4" * 40,
+        "5" * 64,
+        [],
+        [],
+    )
+    try:
+        validate_candidate_document(
+            candidate_raw,
+            "6" * 64,
+            "release-test-001",
+            "appolon1908-hue/Infustruction-repo",
+            "4" * 40,
+            "5" * 64,
+            [],
+            [],
+        )
+    except PolicyError:
+        pass
+    else:
+        raise PolicyError("negative candidate hash regression passed")
+    validate_phase_blockers(["runtime recovery evidence is missing"], "plan")
+    try:
+        validate_phase_blockers(["runtime recovery evidence is missing"], "staging")
+    except PolicyError:
+        pass
+    else:
+        raise PolicyError("negative unresolved blocker regression passed")
     print("RELEASE_INTENT_SELF_TEST=PASS")
     return 0
 
 
 if __name__ == "__main__":
     try:
-        raise SystemExit(self_test() if sys.argv[1:] == ["--self-test"] else main())
+        if sys.argv[1:] == ["--self-test"]:
+            raise SystemExit(self_test())
+        if sys.argv[1:] == ["--recheck-protected-gates"]:
+            raise SystemExit(recheck_protected_gates())
+        require(not sys.argv[1:], "unsupported arguments")
+        raise SystemExit(main())
     except PolicyError as error:
         raise SystemExit(str(error)) from error

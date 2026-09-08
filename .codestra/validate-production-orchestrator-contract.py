@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import os
 import re
@@ -29,7 +30,6 @@ SAFETY_KEYS = {
     "live_trading",
     "payment_execution",
 }
-ACTION_USE = re.compile(r"(?m)^\s*(?:-\s*)?uses:\s*([^\s#]+)")
 ALLOWED_ACTIONS = {
     "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
     "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
@@ -46,8 +46,112 @@ RUNTIME_TOOLS = {
     "terraform",
     "tofu",
 }
-KUBECTL_MUTATIONS = {"apply", "delete", "patch", "replace", "set"}
-HELM_MUTATIONS = {"install", "upgrade", "uninstall"}
+SHELL_INTERPRETERS = {"bash", "dash", "eval", "ksh", "sh", "zsh"}
+SCRIPT_INTERPRETERS = {"node", "perl", "php", "python", "python3", "ruby"}
+KUBECTL_MUTATIONS = {
+    "annotate",
+    "apply",
+    "autoscale",
+    "cordon",
+    "cp",
+    "create",
+    "delete",
+    "drain",
+    "exec",
+    "expose",
+    "label",
+    "patch",
+    "replace",
+    "rollout",
+    "run",
+    "scale",
+    "set",
+    "taint",
+    "uncordon",
+}
+HELM_MUTATIONS = {"install", "rollback", "uninstall", "upgrade"}
+TERRAFORM_MUTATIONS = {"apply", "destroy", "import", "taint", "untaint"}
+CONTAINER_MUTATIONS = {"down", "kill", "rm", "start", "stop", "restart", "up"}
+MUTATING_ACTION_MARKERS = {
+    "ansible",
+    "cloudformation",
+    "deploy",
+    "helm",
+    "kubectl",
+    "kubernetes",
+    "scp",
+    "ssh",
+    "terraform",
+}
+SAFE_NATIVE_ACTION_PREFIXES = {
+    "actions/attest-build-provenance@",
+    "actions/attest@",
+    "actions/cache@",
+    "actions/checkout@",
+    "actions/download-artifact@",
+    "actions/github-script@",
+    "actions/setup-node@",
+    "actions/setup-python@",
+    "actions/upload-artifact@",
+    "anchore/sbom-action@",
+    "anchore/scan-action@",
+    "aquasecurity/setup-trivy@",
+    "aquasecurity/trivy-action@",
+    "docker/build-push-action@",
+    "docker/login-action@",
+    "docker/setup-buildx-action@",
+    "github/codeql-action/",
+    "gitleaks/gitleaks-action@",
+    "pnpm/action-setup@",
+    "pypa/gh-action-pip-audit@",
+    "sigstore/cosign-installer@",
+}
+EXPECTED_IDENTITIES: dict[str, tuple[int, str, bool, bool]] = {
+    "appolon1908-hue/Infustruction-repo": (1350724865, "infrastructure", True, True),
+    "appolon1908-hue/Keycloak": (1347523366, "identity", True, False),
+    "appolon1908-hue/Middleware-": (1347559071, "canonical-middleware", False, False),
+    "appolon1908-hue/codestra": (1319808791, "application", True, False),
+    "appolon1908-hue/beyvra-backend": (1319831182, "application", True, False),
+    "appolon1908-hue/backend2": (1319903950, "application", True, False),
+    "appolon1908-hue/beyvra-frontend": (1320246591, "application", True, False),
+    "appolon1908-hue/scrapper": (1329513537, "migration-evidence", False, False),
+    "appolon1908-hue/Breero.com": (1331354808, "application", True, False),
+    "appolon1908-hue/Moneybee-Backend": (1343760409, "application", True, False),
+    "appolon1908-hue/Telnexa-web": (1346958528, "application", True, False),
+    "appolon1908-hue/codestra-production-platform": (1314230781, "controller", False, False),
+}
+REQUIRED_NATIVE_WORKFLOWS: dict[str, dict[str, str]] = {
+    "appolon1908-hue/Infustruction-repo": {
+        "runtime_certification": ".github/workflows/staging-readonly-certification.yml",
+    },
+    "appolon1908-hue/Keycloak": {
+        "plan_apply": ".github/workflows/deploy.yml",
+        "drift_review": ".github/workflows/drift-review.yml",
+    },
+    "appolon1908-hue/Middleware-": {
+        "signed_release": ".github/workflows/release.yml",
+        "runtime_certification": ".github/workflows/production-runtime-certification.yml",
+    },
+    "appolon1908-hue/codestra": {
+        "build_deploy": ".github/workflows/deploy.yml",
+    },
+}
+ALLOWED_RELEASE_VALIDATOR_COMMANDS = {
+    ("cosign", "verify"),
+    ("cosign", "verify-attestation"),
+    ("docker", "buildx"),
+    ("docker", "login"),
+    ("gh", "attestation"),
+    ("git", "rev-parse"),
+    ("git", "status"),
+}
+FORBIDDEN_RELEASE_VALIDATOR_IMPORTS = {
+    "fabric",
+    "httpx",
+    "paramiko",
+    "requests",
+    "socket",
+}
 
 
 class ContractError(ValueError):
@@ -96,7 +200,9 @@ def load_contract() -> dict[str, Any]:
 def workflow_jobs(workflow: str, path: str) -> dict[str, str]:
     """Parse the constrained GitHub Actions jobs mapping by indentation."""
     lines = workflow.splitlines()
-    jobs_indexes = [index for index, line in enumerate(lines) if line == "jobs:"]
+    jobs_indexes = [
+        index for index, line in enumerate(lines) if re.fullmatch(r"jobs\s*:\s*", line)
+    ]
     require(len(jobs_indexes) == 1, f"workflow has invalid jobs section: {path}")
     start = jobs_indexes[0] + 1
     headings: list[tuple[int, str]] = []
@@ -104,7 +210,7 @@ def workflow_jobs(workflow: str, path: str) -> dict[str, str]:
         line = lines[index]
         if line and not line.startswith(" ") and not line.lstrip().startswith("#"):
             break
-        match = re.fullmatch(r"  ([A-Za-z0-9_-]+):\s*", line)
+        match = re.fullmatch(r"  ([A-Za-z0-9_-]+)\s*:\s*", line)
         if match:
             headings.append((index, match.group(1)))
     require(bool(headings), f"workflow has no jobs: {path}")
@@ -119,7 +225,11 @@ def workflow_jobs(workflow: str, path: str) -> dict[str, str]:
 def workflow_steps(job: str, path: str) -> list[dict[str, Any]]:
     """Parse executable step properties without accepting marker text in comments."""
     lines = job.splitlines()
-    steps_indexes = [index for index, line in enumerate(lines) if line == "    steps:"]
+    steps_indexes = [
+        index
+        for index, line in enumerate(lines)
+        if re.fullmatch(r"    steps\s*:\s*", line)
+    ]
     if not steps_indexes:
         return []
     require(len(steps_indexes) == 1, f"job has invalid steps section: {path}")
@@ -135,13 +245,13 @@ def workflow_steps(job: str, path: str) -> list[dict[str, Any]]:
         block = lines[index:end]
         step: dict[str, Any] = {"env": {}, "with": {}}
         active_mapping: str | None = None
-        first = re.match(r"^      -\s*([A-Za-z0-9_-]+):\s*(.*?)\s*$", block[0])
+        first = re.match(r"^      -\s*([A-Za-z0-9_-]+)\s*:\s*(.*?)\s*$", block[0])
         if first:
             step[first.group(1)] = first.group(2)
         line_index = 1
         while line_index < len(block):
             line = block[line_index]
-            item = re.match(r"^        ([A-Za-z0-9_-]+):(?:\s*(.*?))?\s*$", line)
+            item = re.match(r"^        ([A-Za-z0-9_-]+)\s*:(?:\s*(.*?))?\s*$", line)
             if item:
                 key, value = item.group(1), item.group(2) or ""
                 active_mapping = key if key in {"env", "with"} and not value else None
@@ -165,7 +275,7 @@ def workflow_steps(job: str, path: str) -> list[dict[str, Any]]:
                     continue
                 step[key] = value.split(" #", 1)[0].rstrip()
             else:
-                child = re.match(r"^          ([A-Za-z0-9_-]+):\s*(.*?)\s*$", line)
+                child = re.match(r"^          ([A-Za-z0-9_-]+)\s*:\s*(.*?)\s*$", line)
                 if child and active_mapping:
                     step[active_mapping][child.group(1)] = (
                         child.group(2).split(" #", 1)[0].rstrip()
@@ -181,44 +291,98 @@ def shell_tokens(script: str) -> list[str]:
         lexer.whitespace_split = True
         lexer.commenters = "#"
         return list(lexer)
-    except ValueError as exc:
-        raise ContractError("workflow contains an invalid shell command") from exc
+    except ValueError:
+        # Bash command substitutions and heredocs are richer than POSIX shlex.
+        # A conservative token fallback keeps known runtime tools visible rather
+        # than treating an unsupported shell construct as safe.
+        return re.findall(r"[A-Za-z0-9_./@${}:+-]+", script)
 
 
 def executable_name(token: str) -> str:
     return token.strip("(){}[]").rsplit("/", 1)[-1]
 
 
+def interpreter_payload(tokens: list[str], index: int) -> str | None:
+    name = executable_name(tokens[index])
+    if name == "eval":
+        return tokens[index + 1] if index + 1 < len(tokens) else ""
+    if name not in SHELL_INTERPRETERS | SCRIPT_INTERPRETERS:
+        return None
+    for option_index in range(index + 1, min(index + 4, len(tokens))):
+        if tokens[option_index] == "-c":
+            return tokens[option_index + 1] if option_index + 1 < len(tokens) else ""
+    return None
+
+
 def contains_runtime_command(script: str) -> bool:
-    names = [executable_name(token) for token in shell_tokens(script)]
-    return any(
-        name in RUNTIME_TOOLS
-        or name.endswith("deploy_immutable")
-        or name.endswith("apply-plan.sh")
-        for name in names
-    )
+    tokens = shell_tokens(script)
+    names = [executable_name(token) for token in tokens]
+    for index, name in enumerate(names):
+        if name in RUNTIME_TOOLS or name.endswith("deploy_immutable") or name.endswith("apply-plan.sh"):
+            return True
+        payload = interpreter_payload(tokens, index)
+        if payload is not None:
+            if "$" in payload or contains_runtime_command(payload):
+                return True
+    return False
 
 
 def contains_runtime_mutation(script: str) -> bool:
-    names = [executable_name(token) for token in shell_tokens(script)]
+    tokens = shell_tokens(script)
+    names = [executable_name(token) for token in tokens]
     for index, name in enumerate(names):
         tail = names[index + 1 : index + 12]
-        if name == "scp":
+        lower_name = name.lower()
+        payload = interpreter_payload(tokens, index)
+        if payload is not None:
+            if "$" in payload or contains_runtime_mutation(payload):
+                return True
+        if name in {"ansible-playbook", "scp", "ssh"}:
             return True
         if name == "kubectl" and any(item in KUBECTL_MUTATIONS for item in tail):
             return True
         if name == "helm" and any(item in HELM_MUTATIONS for item in tail):
             return True
-        if name == "docker" and "compose" in tail and "up" in tail:
+        if name in {"terraform", "tofu"} and (
+            any(item in TERRAFORM_MUTATIONS for item in tail)
+            or "state" in tail and any(item in {"mv", "push", "rm"} for item in tail)
+        ):
             return True
-        if name.endswith("deploy_immutable") or name.endswith("apply-plan.sh"):
+        if name in {"docker", "podman"} and "compose" in tail and any(
+            item in CONTAINER_MUTATIONS for item in tail
+        ):
+            return True
+        if (
+            name.endswith("deploy_immutable")
+            or name.endswith("apply-plan.sh")
+            or lower_name.startswith("deploy_")
+            and lower_name.endswith((".py", ".sh"))
+            and any(item in {"apply", "apply-and-issue", "deploy", "rollback"} for item in tail)
+            or "reconcile" in lower_name
+            and any(item in {"apply", "apply-and-issue", "deploy"} for item in tail)
+        ):
             return True
     return False
 
 
+def contains_runtime_action(step: dict[str, Any]) -> bool:
+    value = step.get("uses")
+    if not isinstance(value, str):
+        return False
+    normalized = value.split(" #", 1)[0].strip().lower()
+    return (
+        normalized.startswith("./")
+        or "${{" in normalized
+        or any(marker in normalized for marker in MUTATING_ACTION_MARKERS)
+        or not any(
+            normalized.startswith(prefix) for prefix in SAFE_NATIVE_ACTION_PREFIXES
+        )
+    )
+
+
 def job_condition(job: str) -> str | None:
     for line in job.splitlines()[1:]:
-        match = re.match(r"^    ([A-Za-z0-9_-]+):\s*(.*?)\s*$", line)
+        match = re.match(r"^    ([A-Za-z0-9_-]+)\s*:\s*(.*?)\s*$", line)
         if not match:
             continue
         key, value = match.groups()
@@ -240,9 +404,19 @@ def workflow_has_runtime_command(workflow: str, path: str) -> bool:
 def workflow_has_runtime_mutation(workflow: str, path: str) -> bool:
     return any(
         contains_runtime_mutation(str(step.get("run", "")))
+        or contains_runtime_action(step)
         for job in workflow_jobs(workflow, path).values()
         for step in workflow_steps(job, path)
     )
+
+
+def workflow_actions(workflow: str, path: str) -> list[str]:
+    return [
+        str(step["uses"]).split(" #", 1)[0].strip()
+        for job in workflow_jobs(workflow, path).values()
+        for step in workflow_steps(job, path)
+        if isinstance(step.get("uses"), str) and step["uses"]
+    ]
 
 
 def validate_intent_source_binding(intent: str) -> None:
@@ -304,21 +478,183 @@ def validate_intent_source_binding(intent: str) -> None:
     )
 
 
+def validate_protected_job_recheck(intent: str) -> None:
+    jobs = workflow_jobs(intent, ".github/workflows/manual-release-intent.yml")
+    require("protected-intent" in jobs, "release-intent protected job is missing")
+    job = jobs["protected-intent"]
+    steps = workflow_steps(job, ".github/workflows/manual-release-intent.yml")
+    checkout_indexes = [
+        index
+        for index, step in enumerate(steps)
+        if step.get("uses")
+        == "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+        and step.get("with", {}).get("ref") == "${{ github.sha }}"
+        and step.get("with", {}).get("persist-credentials") == "false"
+    ]
+    recheck_indexes = [
+        index
+        for index, step in enumerate(steps)
+        if step.get("run")
+        == "python3 .codestra/validate-release-intent.py --recheck-protected-gates"
+    ]
+    require(len(checkout_indexes) == 1, "protected job exact checkout is missing")
+    require(len(recheck_indexes) == 1, "protected job policy recheck is missing")
+    require(checkout_indexes[0] < recheck_indexes[0], "protected job rechecks before exact checkout")
+    recheck = steps[recheck_indexes[0]]
+    expected_env = {
+        "GH_TOKEN": "${{ github.token }}",
+        "CODESTRA_ORCHESTRATOR_TOKEN": "${{ secrets.CODESTRA_ORCHESTRATOR_TOKEN }}",
+        "PHASE": "${{ inputs.phase }}",
+        "SOURCE_SHA": "${{ inputs.source_sha }}",
+        "RELEASE_ID": "${{ inputs.release_id }}",
+        "CANDIDATE_SHA256": "${{ inputs.candidate_sha256 }}",
+        "IMAGES_JSON": "${{ inputs.images_json }}",
+        "PREVIOUS_IMAGES_JSON": "${{ inputs.previous_images_json }}",
+    }
+    require(recheck.get("env") == expected_env, "protected job policy recheck inputs are incomplete")
+
+
+def validate_release_validator_operations(source: str) -> None:
+    """Allow evidence clients only; reject runtime-capable execution paths."""
+
+    try:
+        tree = ast.parse(source, filename=str(RELEASE_VALIDATOR_PATH))
+    except SyntaxError as exc:
+        raise ContractError("release-intent validator is not valid Python") from exc
+
+    imports: set[str] = set()
+    command_bindings: dict[str, set[tuple[str, str]]] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imports.update(alias.name.split(".", 1)[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imports.add(node.module.split(".", 1)[0])
+        elif (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and isinstance(node.value, (ast.List, ast.Tuple))
+            and len(node.value.elts) >= 2
+            and isinstance(node.value.elts[0], ast.Constant)
+            and isinstance(node.value.elts[0].value, str)
+            and isinstance(node.value.elts[1], ast.Constant)
+            and isinstance(node.value.elts[1].value, str)
+        ):
+            command_bindings.setdefault(node.targets[0].id, set()).add(
+                (
+                    executable_name(node.value.elts[0].value),
+                    node.value.elts[1].value,
+                )
+            )
+    require(
+        not (imports & FORBIDDEN_RELEASE_VALIDATOR_IMPORTS),
+        "release-intent validator imports a runtime/network client",
+    )
+
+    allowed_subprocess_calls = {"check_output", "run"}
+
+    def bound_commands(argument: ast.expr) -> set[tuple[str, str]]:
+        if isinstance(argument, (ast.List, ast.Tuple)) and len(argument.elts) >= 2:
+            first = argument.elts[0]
+            second = argument.elts[1]
+            if (
+                isinstance(first, ast.Constant)
+                and isinstance(first.value, str)
+                and isinstance(second, ast.Constant)
+                and isinstance(second.value, str)
+            ):
+                return {(executable_name(first.value), second.value)}
+            if isinstance(first, ast.Starred) and isinstance(first.value, ast.Name):
+                return command_bindings.get(first.value.id, set())
+        if isinstance(argument, ast.Name):
+            return command_bindings.get(argument.id, set())
+        return set()
+
+    function_stack: list[str] = []
+
+    def qualified_name(node: ast.expr) -> str:
+        if isinstance(node, ast.Name):
+            return node.id
+        if isinstance(node, ast.Attribute):
+            parent = qualified_name(node.value)
+            return f"{parent}.{node.attr}" if parent else node.attr
+        return ""
+
+    class OperationsVisitor(ast.NodeVisitor):
+        def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+            function_stack.append(node.name)
+            self.generic_visit(node)
+            function_stack.pop()
+
+        def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+            function_stack.append(node.name)
+            self.generic_visit(node)
+            function_stack.pop()
+
+        def visit_Call(self, node: ast.Call) -> None:
+            qualified = qualified_name(node.func)
+            require(
+                qualified not in {"eval", "exec", "compile", "os.system", "os.popen"},
+                "release-intent validator contains dynamic command execution",
+            )
+            if qualified.startswith("subprocess."):
+                method = qualified.split(".", 1)[1]
+                require(
+                    method in allowed_subprocess_calls and bool(node.args),
+                    "release-intent validator uses a non-allowlisted subprocess API",
+                )
+                commands = bound_commands(node.args[0])
+                require(
+                    bool(commands)
+                    and commands <= ALLOWED_RELEASE_VALIDATOR_COMMANDS,
+                    "release-intent validator executes a non-evidence command",
+                )
+                require(
+                    not any(
+                        keyword.arg == "shell"
+                        and not (
+                            isinstance(keyword.value, ast.Constant)
+                            and keyword.value.value is False
+                        )
+                        for keyword in node.keywords
+                    ),
+                    "release-intent validator enables a subprocess shell",
+                )
+            if qualified in {"urllib.request.Request", "NO_REDIRECT_OPENER.open"}:
+                require(
+                    bool(function_stack)
+                    and function_stack[-1] in {"api_request", "download_artifact_archive"},
+                    "release-intent validator opens a URL outside the evidence clients",
+                )
+            self.generic_visit(node)
+
+    OperationsVisitor().visit(tree)
+
+
 def validate(contract: dict[str, Any]) -> None:
     repository = os.environ.get("GITHUB_REPOSITORY", contract.get("repository", ""))
     repository_id_text = os.environ.get("GITHUB_REPOSITORY_ID")
     require(contract.get("schema_version") == SCHEMA, "contract schema mismatch")
+    require(repository in EXPECTED_IDENTITIES, "repository is outside the protected catalog identity map")
     require(contract.get("repository") == repository, "repository identity mismatch")
+    expected_id, expected_role, expected_deployment, expected_runtime = EXPECTED_IDENTITIES[repository]
+    require(contract.get("repository_id") == expected_id, "stable repository ID mismatch")
+    require(contract.get("role") == expected_role, "repository role contradicts the protected catalog")
+    require(
+        contract.get("deployment_authority") is expected_deployment,
+        "deployment authority contradicts the protected catalog",
+    )
+    require(
+        contract.get("runtime_mutation_authority") is expected_runtime,
+        "runtime mutation authority contradicts the protected catalog",
+    )
     if repository_id_text:
         require(repository_id_text.isdigit(), "GITHUB_REPOSITORY_ID is invalid")
         require(contract.get("repository_id") == int(repository_id_text), "stable repository ID mismatch")
-    else:
-        require(isinstance(contract.get("repository_id"), int), "stable repository ID is missing")
     require(contract.get("default_branch") == "main", "default branch must be main")
     require(contract.get("release_intent_workflow") == ".github/workflows/manual-release-intent.yml", "intent workflow mismatch")
     require(contract.get("require_verified_commit") is True, "verified commits must be required")
     require(contract.get("required_check_app_id") == 15368, "required checks must be bound to GitHub Actions")
-    require(isinstance(contract.get("role"), str) and contract["role"], "role is missing")
 
     checks = require_string_list(
         contract.get("required_checks"),
@@ -411,6 +747,17 @@ def validate(contract: dict[str, Any]) -> None:
     require(all(value is False for value in safety.values()), "every external/live effect must remain disabled")
 
     native = require_mapping(contract.get("native_workflows"), "native workflow policy must be an object")
+    required_native = REQUIRED_NATIVE_WORKFLOWS.get(repository, {})
+    require(
+        all(native.get(name) == path for name, path in required_native.items()),
+        "native workflow scope contradicts the protected repository mapping",
+    )
+    signer_workflow = artifacts.get("signer_workflow")
+    if supply_chain_required:
+        require(
+            signer_workflow in native.values(),
+            "signer workflow is outside the enforced native workflow scope",
+        )
     for value in native.values():
         require(isinstance(value, str) and value.startswith(".github/workflows/") and value.endswith((".yml", ".yaml")), "native workflow path is invalid")
         path = ROOT / value
@@ -418,6 +765,18 @@ def validate(contract: dict[str, Any]) -> None:
         workflow = path.read_text(encoding="utf-8")
         if runtime_mutation_authority is False and workflow_has_runtime_mutation(workflow, value):
             require_mutating_jobs_disabled(workflow, value)
+    if runtime_mutation_authority is False:
+        workflow_paths = sorted(
+            path
+            for pattern in ("*.yml", "*.yaml")
+            for path in (ROOT / ".github/workflows").glob(pattern)
+        )
+        require(bool(workflow_paths), "repository has no workflows to enforce")
+        for path in workflow_paths:
+            relative = path.relative_to(ROOT).as_posix()
+            workflow = path.read_text(encoding="utf-8")
+            if workflow_has_runtime_mutation(workflow, relative):
+                require_mutating_jobs_disabled(workflow, relative)
 
     require_string_list(contract.get("blockers"), "blockers must be non-empty strings")
 
@@ -425,6 +784,7 @@ def validate(contract: dict[str, Any]) -> None:
     require(RELEASE_VALIDATOR_PATH.is_file() and not RELEASE_VALIDATOR_PATH.is_symlink(), "release-intent validator is missing or unsafe")
     intent = INTENT_PATH.read_text(encoding="utf-8")
     release_validator = RELEASE_VALIDATOR_PATH.read_text(encoding="utf-8")
+    validate_release_validator_operations(release_validator)
     for marker in (
         "runtime_contacted\": False",
         "production_changed\": False",
@@ -443,11 +803,12 @@ def validate(contract: dict[str, Any]) -> None:
     ):
         require(marker in intent, f"release-intent workflow marker is missing: {marker}")
     validate_intent_source_binding(intent)
+    validate_protected_job_recheck(intent)
     require(
         not workflow_has_runtime_command(intent, ".github/workflows/manual-release-intent.yml"),
         "release-intent workflow contains a runtime/deployment command",
     )
-    actions = ACTION_USE.findall(intent)
+    actions = workflow_actions(intent, ".github/workflows/manual-release-intent.yml")
     require(bool(actions) and set(actions) <= ALLOWED_ACTIONS, "release-intent workflow uses a non-allowlisted action")
 
 
@@ -490,6 +851,15 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
     runtime_escalation = deepcopy(contract)
     runtime_escalation["runtime_mutation_authority"] = not runtime_escalation["runtime_mutation_authority"]
     mutations.append(("runtime mutation authority contradiction", runtime_escalation))
+
+    role_escalation = deepcopy(contract)
+    role_escalation["role"] = (
+        "application" if contract.get("role") == "infrastructure" else "infrastructure"
+    )
+    role_escalation["runtime_mutation_authority"] = (
+        role_escalation["role"] == "infrastructure"
+    )
+    mutations.append(("self-declared infrastructure authority", role_escalation))
 
     missing_native = deepcopy(contract)
     missing_native["native_workflows"] = {
@@ -547,9 +917,15 @@ def validate_intent_negative_regressions() -> None:
         "helm upgrade release chart",
         "kubectl apply -f runtime.yml",
         "terraform apply",
+        "tofu destroy",
+        "ssh runtime.example true",
+        "ansible-playbook production.yml",
         "./apply-plan.sh",
         "command docker pull example.invalid/image",
         'echo "$TOKEN" | docker login ghcr.io',
+        "bash -c 'kubectl apply -f runtime.yml'",
+        "sh -c 'terraform apply'",
+        "eval 'helm upgrade release chart'",
     ):
         require(
             contains_runtime_command(command),
@@ -573,6 +949,37 @@ jobs:
         pass
     else:
         raise ContractError("negative regression unexpectedly passed: enabled mutating job")
+    enabled_action_mutation = """name: synthetic
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses : vendor/kubernetes-deploy@0123456789012345678901234567890123456789
+"""
+    try:
+        require_mutating_jobs_disabled(enabled_action_mutation, "synthetic-action.yml")
+    except ContractError:
+        pass
+    else:
+        raise ContractError("negative regression unexpectedly passed: action mutating job")
+    unsafe_validator = """import subprocess
+subprocess.run([\"kubectl\", \"apply\", \"-f\", \"runtime.yml\"], check=True)
+"""
+    try:
+        validate_release_validator_operations(unsafe_validator)
+    except ContractError:
+        pass
+    else:
+        raise ContractError("negative regression unexpectedly passed: runtime validator operation")
+    unsafe_status_writer = """import subprocess
+subprocess.run([\"gh\", \"api\", \"--method\", \"POST\"], check=True)
+"""
+    try:
+        validate_release_validator_operations(unsafe_status_writer)
+    except ContractError:
+        pass
+    else:
+        raise ContractError("negative regression unexpectedly passed: validator status writer")
 
 
 def require_mutating_jobs_disabled(workflow: str, path: str) -> None:
@@ -580,6 +987,7 @@ def require_mutating_jobs_disabled(workflow: str, path: str) -> None:
     for job in workflow_jobs(workflow, path).values():
         if any(
             contains_runtime_mutation(str(step.get("run", "")))
+            or contains_runtime_action(step)
             for step in workflow_steps(job, path)
         ):
             mutating_jobs += 1

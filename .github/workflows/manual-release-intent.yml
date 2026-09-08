@@ -102,6 +102,7 @@ jobs:
         id: policy
         env:
           GH_TOKEN: ${{ github.token }}
+          CODESTRA_ORCHESTRATOR_TOKEN: ${{ secrets.CODESTRA_ORCHESTRATOR_TOKEN }}
           PHASE: ${{ inputs.phase }}
           SOURCE_SHA: ${{ inputs.source_sha }}
           RELEASE_ID: ${{ inputs.release_id }}
@@ -151,15 +152,24 @@ jobs:
     environment:
       name: ${{ needs.verify.outputs.environment }}
     steps:
-      - name: Re-verify exact protected branch head in the environment-gated job
+      - name: Check out exact source after environment approval
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Re-verify protected gates and candidate after environment approval
         env:
           GH_TOKEN: ${{ github.token }}
+          CODESTRA_ORCHESTRATOR_TOKEN: ${{ secrets.CODESTRA_ORCHESTRATOR_TOKEN }}
+          PHASE: ${{ inputs.phase }}
           SOURCE_SHA: ${{ inputs.source_sha }}
-        run: |
-          set -Eeuo pipefail
-          branch="$(gh api "repos/${GITHUB_REPOSITORY}" --jq .default_branch)"
-          head="$(gh api "repos/${GITHUB_REPOSITORY}/branches/${branch}" --jq .commit.sha)"
-          test "$head" = "$SOURCE_SHA"
+          RELEASE_ID: ${{ inputs.release_id }}
+          CANDIDATE_SHA256: ${{ inputs.candidate_sha256 }}
+          IMAGES_JSON: ${{ inputs.images_json }}
+          PREVIOUS_IMAGES_JSON: ${{ inputs.previous_images_json }}
+        run: python3 .codestra/validate-release-intent.py --recheck-protected-gates
 
       - name: Materialize environment-gated intent
         env:
