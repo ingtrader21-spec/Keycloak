@@ -87,6 +87,16 @@ def load_contract() -> dict[str, Any]:
     return value
 
 
+def validate_intent_source_binding(intent: str) -> None:
+    for marker in (
+        "Verify dispatched source is current protected head before checkout",
+        "ref: ${{ github.sha }}",
+        'test "$EVENT_SHA" = "$REQUESTED_SOURCE_SHA"',
+    ):
+        require(marker in intent, f"release-intent source binding is missing: {marker}")
+    require("ref: ${{ inputs.source_sha }}" not in intent, "untrusted source input controls checkout ref")
+
+
 def validate(contract: dict[str, Any]) -> None:
     repository = os.environ.get("GITHUB_REPOSITORY", contract.get("repository", ""))
     repository_id_text = os.environ.get("GITHUB_REPOSITORY_ID")
@@ -223,6 +233,7 @@ def validate(contract: dict[str, Any]) -> None:
         "protected_environment_job_completed = true",
     ):
         require(marker in intent, f"release-intent workflow marker is missing: {marker}")
+    validate_intent_source_binding(intent)
     require(RUNTIME_COMMAND.search(intent) is None, "release-intent workflow contains a runtime/deployment command")
     actions = ACTION_USE.findall(intent)
     require(bool(actions) and set(actions) <= ALLOWED_ACTIONS, "release-intent workflow uses a non-allowlisted action")
@@ -290,10 +301,25 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
         raise ContractError(f"negative regression unexpectedly passed: {name}")
 
 
+def validate_intent_negative_regressions() -> None:
+    intent = INTENT_PATH.read_text(encoding="utf-8")
+    unsafe = intent.replace(
+        "ref: ${{ github.sha }}",
+        "ref: ${{ inputs.source_sha }}",
+        1,
+    )
+    try:
+        validate_intent_source_binding(unsafe)
+    except ContractError:
+        return
+    raise ContractError("negative regression unexpectedly passed: untrusted checkout ref")
+
+
 def main() -> int:
     contract = load_contract()
     validate(contract)
     validate_negative_regressions(contract)
+    validate_intent_negative_regressions()
     subprocess.run(
         ["python3", str(RELEASE_VALIDATOR_PATH), "--self-test"],
         cwd=ROOT,
