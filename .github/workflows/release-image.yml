@@ -11,6 +11,8 @@ on:
 permissions:
   contents: read
   packages: write
+  attestations: write
+  id-token: write
 
 concurrency:
   group: keycloak-image-release-${{ inputs.confirm_sha }}
@@ -30,6 +32,14 @@ jobs:
       CONFIRM_SHA: ${{ inputs.confirm_sha }}
 
     steps:
+      - name: Require independent release environment review
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/environments/keycloak-image-release" > "$RUNNER_TEMP/release-environment.json"
+          jq -e '[.protection_rules[] | select(.type == "required_reviewers") | select(.prevent_self_review == true) | select((.reviewers | length) > 0)] | length > 0' "$RUNNER_TEMP/release-environment.json" >/dev/null
+
       - name: Check out exact merged main SHA
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -44,6 +54,31 @@ jobs:
           [[ "$CONFIRM_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$CONFIRM_SHA" == "$GITHUB_SHA" ]]
           [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
+
+      - name: Use supported validation Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+
+      - name: Install source validation dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes jq shellcheck
+          python3 -m pip install PyYAML==6.0.3
+
+      - name: Validate configuration and unit tests before publication
+        run: |
+          ./scripts/validate.sh
+          python3 -m unittest discover -s tests -v
+
+      - name: Install pinned Trivy before build
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567
+        with:
+          version: v0.74.0
+          cache: true
+
+      - name: Scan source dependencies before publication
+        run: trivy fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 .
 
       - name: Authenticate to GHCR without persisting credentials
         env:
@@ -80,6 +115,8 @@ jobs:
             --platform linux/amd64 \
             --provenance=mode=max \
             --sbom=true \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
             --push \
             --tag "$IMAGE_REPOSITORY:$GITHUB_SHA" \
             --metadata-file "$RUNNER_TEMP/keycloak-release/build-metadata.json" \
@@ -118,6 +155,11 @@ jobs:
             --output "$RUNNER_TEMP/keycloak-release/sbom.cdx.json" \
             "$release_ref"
 
+      - name: Validate exact image with disposable PostgreSQL 17.6
+        env:
+          RELEASE_IMAGE: ghcr.io/appolon1908-hue/codestra-keycloak@${{ steps.digest.outputs.digest }}
+        run: python3 scripts/rehearse-release-pg17.py
+
       - name: Write immutable release evidence and checksums
         env:
           RELEASE_DIGEST: ${{ steps.digest.outputs.digest }}
@@ -126,14 +168,30 @@ jobs:
           jq -n \
             --arg repository "$GITHUB_REPOSITORY" \
             --arg sourceSha "$GITHUB_SHA" \
+            --arg sourceTree "$(git rev-parse HEAD^{tree})" \
             --arg imageRepository "$IMAGE_REPOSITORY" \
             --arg imageDigest "$RELEASE_DIGEST" \
             --arg workflowRunId "$GITHUB_RUN_ID" \
-            '{schemaVersion: 1, repository: $repository, sourceSha: $sourceSha,
+            '{schemaVersion: 1, repository: $repository, sourceSha: $sourceSha, sourceTree: $sourceTree, productionApproval: "REQUIRED_SEPARATELY",
               imageRepository: $imageRepository, imageDigest: $imageDigest,
               workflowRunId: $workflowRunId, vulnerabilityPolicy: "no HIGH or CRITICAL"}' \
             >"$RUNNER_TEMP/keycloak-release/release-evidence.json"
           (cd "$RUNNER_TEMP/keycloak-release" && sha256sum -- * >checksums.sha256)
+
+      - name: Attest exact image build provenance
+        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661
+        with:
+          subject-name: ghcr.io/appolon1908-hue/codestra-keycloak
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest exact image SBOM
+        uses: actions/attest-sbom@51e74621a501c89df81fc1391c5a8f4cfc9fab2f
+        with:
+          subject-name: ghcr.io/appolon1908-hue/codestra-keycloak
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          sbom-path: ${{ runner.temp }}/keycloak-release/sbom.cdx.json
+          push-to-registry: true
 
       - name: Upload immutable release evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

@@ -463,8 +463,8 @@ def validate_image_release_workflow(path: Path, workflow: dict[str, Any]) -> Non
     CORE.validate_permissions(
         workflow.get("permissions"),
         f"{path}.permissions",
-        {"contents": "read", "packages": "write"},
-        {"packages"},
+        {"contents": "read", "packages": "write", "attestations": "write", "id-token": "write"},
+        {"packages", "attestations", "id-token"},
     )
     jobs = CORE.as_mapping(workflow.get("jobs"), f"{path}.jobs")
     if set(jobs) != {"release-image"}:
