@@ -113,6 +113,9 @@ jobs:
 
   reconcile:
     needs: guard
+    # RUNTIME_MUTATION_DISABLED=true
+    # Runtime reconciliation is exclusively owned by Infustruction-repo.
+    if: ${{ false }}
     runs-on: [self-hosted, linux, x64, codestra-keycloak]
     environment: ${{ inputs.environment }}
     timeout-minutes: 20

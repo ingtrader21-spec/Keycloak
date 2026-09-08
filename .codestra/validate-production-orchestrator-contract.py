@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import subprocess
 from copy import deepcopy
 from pathlib import Path
@@ -28,20 +29,25 @@ SAFETY_KEYS = {
     "live_trading",
     "payment_execution",
 }
-RUNTIME_COMMAND = re.compile(
-    r"(?mi)^\s*(?:-\s*)?(?:run:\s*)?(?:sudo\s+)?(?:ssh|scp|kubectl|podman|docker)\b"
-)
 ACTION_USE = re.compile(r"(?m)^\s*(?:-\s*)?uses:\s*([^\s#]+)")
 ALLOWED_ACTIONS = {
     "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
     "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
     "sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6",
 }
-MUTATION_COMMAND = re.compile(
-    r"(?mi)^\s*(?:scp\b|kubectl\s+(?:apply|delete|patch|replace|set)\b|"
-    r"helm\s+(?:install|upgrade|uninstall)\b|.*docker\s+compose\b.*\bup\b|"
-    r".*deploy_immutable|.*apply-plan\.sh)"
-)
+RUNTIME_TOOLS = {
+    "ansible-playbook",
+    "docker",
+    "helm",
+    "kubectl",
+    "podman",
+    "scp",
+    "ssh",
+    "terraform",
+    "tofu",
+}
+KUBECTL_MUTATIONS = {"apply", "delete", "patch", "replace", "set"}
+HELM_MUTATIONS = {"install", "upgrade", "uninstall"}
 
 
 class ContractError(ValueError):
@@ -87,14 +93,215 @@ def load_contract() -> dict[str, Any]:
     return value
 
 
+def workflow_jobs(workflow: str, path: str) -> dict[str, str]:
+    """Parse the constrained GitHub Actions jobs mapping by indentation."""
+    lines = workflow.splitlines()
+    jobs_indexes = [index for index, line in enumerate(lines) if line == "jobs:"]
+    require(len(jobs_indexes) == 1, f"workflow has invalid jobs section: {path}")
+    start = jobs_indexes[0] + 1
+    headings: list[tuple[int, str]] = []
+    for index in range(start, len(lines)):
+        line = lines[index]
+        if line and not line.startswith(" ") and not line.lstrip().startswith("#"):
+            break
+        match = re.fullmatch(r"  ([A-Za-z0-9_-]+):\s*", line)
+        if match:
+            headings.append((index, match.group(1)))
+    require(bool(headings), f"workflow has no jobs: {path}")
+    jobs: dict[str, str] = {}
+    for position, (index, name) in enumerate(headings):
+        end = headings[position + 1][0] if position + 1 < len(headings) else len(lines)
+        require(name not in jobs, f"workflow contains duplicate job: {path}")
+        jobs[name] = "\n".join(lines[index:end]) + "\n"
+    return jobs
+
+
+def workflow_steps(job: str, path: str) -> list[dict[str, Any]]:
+    """Parse executable step properties without accepting marker text in comments."""
+    lines = job.splitlines()
+    steps_indexes = [index for index, line in enumerate(lines) if line == "    steps:"]
+    if not steps_indexes:
+        return []
+    require(len(steps_indexes) == 1, f"job has invalid steps section: {path}")
+    start = steps_indexes[0] + 1
+    indexes = [
+        index
+        for index in range(start, len(lines))
+        if re.match(r"^      -(?:\s|$)", lines[index])
+    ]
+    steps: list[dict[str, Any]] = []
+    for position, index in enumerate(indexes):
+        end = indexes[position + 1] if position + 1 < len(indexes) else len(lines)
+        block = lines[index:end]
+        step: dict[str, Any] = {"env": {}, "with": {}}
+        active_mapping: str | None = None
+        first = re.match(r"^      -\s*([A-Za-z0-9_-]+):\s*(.*?)\s*$", block[0])
+        if first:
+            step[first.group(1)] = first.group(2)
+        line_index = 1
+        while line_index < len(block):
+            line = block[line_index]
+            item = re.match(r"^        ([A-Za-z0-9_-]+):(?:\s*(.*?))?\s*$", line)
+            if item:
+                key, value = item.group(1), item.group(2) or ""
+                active_mapping = key if key in {"env", "with"} and not value else None
+                if active_mapping:
+                    line_index += 1
+                    continue
+                if key == "run" and value in {"|", "|-", ">", ">-"}:
+                    script: list[str] = []
+                    line_index += 1
+                    while line_index < len(block):
+                        script_line = block[line_index]
+                        if script_line and len(script_line) - len(script_line.lstrip()) <= 8:
+                            break
+                        script.append(
+                            script_line[10:]
+                            if script_line.startswith("          ")
+                            else script_line.lstrip()
+                        )
+                        line_index += 1
+                    step[key] = "\n".join(script)
+                    continue
+                step[key] = value.split(" #", 1)[0].rstrip()
+            else:
+                child = re.match(r"^          ([A-Za-z0-9_-]+):\s*(.*?)\s*$", line)
+                if child and active_mapping:
+                    step[active_mapping][child.group(1)] = (
+                        child.group(2).split(" #", 1)[0].rstrip()
+                    )
+            line_index += 1
+        steps.append(step)
+    return steps
+
+
+def shell_tokens(script: str) -> list[str]:
+    try:
+        lexer = shlex.shlex(script, posix=True, punctuation_chars="|&;()")
+        lexer.whitespace_split = True
+        lexer.commenters = "#"
+        return list(lexer)
+    except ValueError as exc:
+        raise ContractError("workflow contains an invalid shell command") from exc
+
+
+def executable_name(token: str) -> str:
+    return token.strip("(){}[]").rsplit("/", 1)[-1]
+
+
+def contains_runtime_command(script: str) -> bool:
+    names = [executable_name(token) for token in shell_tokens(script)]
+    return any(
+        name in RUNTIME_TOOLS
+        or name.endswith("deploy_immutable")
+        or name.endswith("apply-plan.sh")
+        for name in names
+    )
+
+
+def contains_runtime_mutation(script: str) -> bool:
+    names = [executable_name(token) for token in shell_tokens(script)]
+    for index, name in enumerate(names):
+        tail = names[index + 1 : index + 12]
+        if name == "scp":
+            return True
+        if name == "kubectl" and any(item in KUBECTL_MUTATIONS for item in tail):
+            return True
+        if name == "helm" and any(item in HELM_MUTATIONS for item in tail):
+            return True
+        if name == "docker" and "compose" in tail and "up" in tail:
+            return True
+        if name.endswith("deploy_immutable") or name.endswith("apply-plan.sh"):
+            return True
+    return False
+
+
+def job_condition(job: str) -> str | None:
+    for line in job.splitlines()[1:]:
+        match = re.match(r"^    ([A-Za-z0-9_-]+):\s*(.*?)\s*$", line)
+        if not match:
+            continue
+        key, value = match.groups()
+        if key == "if":
+            return value
+        if key == "steps":
+            break
+    return None
+
+
+def workflow_has_runtime_command(workflow: str, path: str) -> bool:
+    return any(
+        contains_runtime_command(str(step.get("run", "")))
+        for job in workflow_jobs(workflow, path).values()
+        for step in workflow_steps(job, path)
+    )
+
+
+def workflow_has_runtime_mutation(workflow: str, path: str) -> bool:
+    return any(
+        contains_runtime_mutation(str(step.get("run", "")))
+        for job in workflow_jobs(workflow, path).values()
+        for step in workflow_steps(job, path)
+    )
+
+
 def validate_intent_source_binding(intent: str) -> None:
-    for marker in (
-        "Verify dispatched source is current protected head before checkout",
-        "ref: ${{ github.sha }}",
+    jobs = workflow_jobs(intent, ".github/workflows/manual-release-intent.yml")
+    require("verify" in jobs, "release-intent verify job is missing")
+    steps = workflow_steps(jobs["verify"], ".github/workflows/manual-release-intent.yml")
+    checkout_indexes = [
+        index
+        for index, step in enumerate(steps)
+        if isinstance(step.get("uses"), str)
+        and step["uses"].startswith("actions/checkout@")
+    ]
+    require(len(checkout_indexes) == 1, "release-intent must have one exact checkout step")
+    checkout_index = checkout_indexes[0]
+    checkout = steps[checkout_index]
+    require(
+        checkout["uses"] == "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "release-intent checkout action is not pinned",
+    )
+    require(
+        checkout["with"].get("ref") == "${{ github.sha }}",
+        "release-intent checkout is not bound to the workflow commit",
+    )
+    require(
+        checkout["with"].get("persist-credentials") == "false",
+        "release-intent checkout persists credentials",
+    )
+    precheck_indexes = [
+        index
+        for index, step in enumerate(steps)
+        if step.get("name")
+        == "Verify dispatched source is current protected head before checkout"
+    ]
+    require(len(precheck_indexes) == 1, "release-intent protected-head precheck is missing")
+    require(precheck_indexes[0] < checkout_index, "release-intent checks out before validating the protected head")
+    precheck = steps[precheck_indexes[0]]
+    require(
+        precheck["env"].get("GH_TOKEN") == "${{ github.token }}"
+        and precheck["env"].get("EVENT_SHA") == "${{ github.sha }}"
+        and precheck["env"].get("REQUESTED_SOURCE_SHA") == "${{ inputs.source_sha }}",
+        "release-intent protected-head precheck environment is not exact",
+    )
+    commands = {
+        line.strip()
+        for line in str(precheck.get("run", "")).splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    }
+    required_commands = {
+        'test "$GITHUB_REF" = "refs/heads/main"',
         'test "$EVENT_SHA" = "$REQUESTED_SOURCE_SHA"',
-    ):
-        require(marker in intent, f"release-intent source binding is missing: {marker}")
-    require("ref: ${{ inputs.source_sha }}" not in intent, "untrusted source input controls checkout ref")
+        'branch="$(gh api "repos/${GITHUB_REPOSITORY}" --jq .default_branch)"',
+        'test "$branch" = "main"',
+        'head="$(gh api "repos/${GITHUB_REPOSITORY}/branches/${branch}" --jq .commit.sha)"',
+        'test "$head" = "$EVENT_SHA"',
+    }
+    require(
+        required_commands <= commands,
+        "release-intent protected-head precheck is incomplete",
+    )
 
 
 def validate(contract: dict[str, Any]) -> None:
@@ -166,6 +373,11 @@ def validate(contract: dict[str, Any]) -> None:
     )
     if supply_chain_required:
         require(artifacts.get("attestation_verifier") in {"github", "cosign"}, "attestation verifier is missing")
+        require(artifacts.get("attestation_storage") in {"github", "oci"}, "attestation storage is missing")
+        require(
+            artifacts.get("attestation_verifier") != "cosign" or artifacts.get("attestation_storage") == "oci",
+            "Cosign attestations must use OCI storage",
+        )
         signer_workflow = artifacts.get("signer_workflow")
         require(
             isinstance(signer_workflow, str)
@@ -204,11 +416,8 @@ def validate(contract: dict[str, Any]) -> None:
         path = ROOT / value
         require(path.is_file() and not path.is_symlink(), f"native workflow is missing or unsafe: {value}")
         workflow = path.read_text(encoding="utf-8")
-        if runtime_mutation_authority is False and MUTATION_COMMAND.search(workflow):
-            require(
-                "RUNTIME_MUTATION_DISABLED=true" in workflow,
-                f"non-infrastructure native workflow exposes runtime mutation: {value}",
-            )
+        if runtime_mutation_authority is False and workflow_has_runtime_mutation(workflow, value):
+            require_mutating_jobs_disabled(workflow, value)
 
     require_string_list(contract.get("blockers"), "blockers must be non-empty strings")
 
@@ -234,7 +443,10 @@ def validate(contract: dict[str, Any]) -> None:
     ):
         require(marker in intent, f"release-intent workflow marker is missing: {marker}")
     validate_intent_source_binding(intent)
-    require(RUNTIME_COMMAND.search(intent) is None, "release-intent workflow contains a runtime/deployment command")
+    require(
+        not workflow_has_runtime_command(intent, ".github/workflows/manual-release-intent.yml"),
+        "release-intent workflow contains a runtime/deployment command",
+    )
     actions = ACTION_USE.findall(intent)
     require(bool(actions) and set(actions) <= ALLOWED_ACTIONS, "release-intent workflow uses a non-allowlisted action")
 
@@ -303,16 +515,80 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
 
 def validate_intent_negative_regressions() -> None:
     intent = INTENT_PATH.read_text(encoding="utf-8")
-    unsafe = intent.replace(
-        "ref: ${{ github.sha }}",
-        "ref: ${{ inputs.source_sha }}",
-        1,
+    unsafe_intents = (
+        intent.replace(
+            "ref: ${{ github.sha }}",
+            "ref: ${{ inputs.source_sha }}",
+            1,
+        ),
+        intent.replace(
+            "ref: ${{ github.sha }}",
+            "ref: ${{ inputs['source_sha'] }}",
+            1,
+        ),
+        intent.replace(
+            "          ref: ${{ github.sha }}",
+            "          # ref: ${{ github.sha }}\n          ref: ${{ inputs.source_sha }}",
+            1,
+        ),
+        intent.replace(
+            '          test "$EVENT_SHA" = "$REQUESTED_SOURCE_SHA"',
+            '          # test "$EVENT_SHA" = "$REQUESTED_SOURCE_SHA"',
+            1,
+        ),
     )
+    for unsafe in unsafe_intents:
+        try:
+            validate_intent_source_binding(unsafe)
+        except ContractError:
+            continue
+        raise ContractError("negative regression unexpectedly passed: unsafe source binding")
+    for command in (
+        "helm upgrade release chart",
+        "kubectl apply -f runtime.yml",
+        "terraform apply",
+        "./apply-plan.sh",
+        "command docker pull example.invalid/image",
+        'echo "$TOKEN" | docker login ghcr.io',
+    ):
+        require(
+            contains_runtime_command(command),
+            f"negative runtime command regression passed: {command}",
+        )
+    require(
+        not contains_runtime_command("# docker pull example.invalid/image"),
+        "comment-only runtime command was treated as executable",
+    )
+    enabled_mutation = """name: synthetic
+jobs:
+  deploy:
+    # RUNTIME_MUTATION_DISABLED=true
+    runs-on: ubuntu-24.04
+    steps:
+      - run: kubectl apply -f runtime.yml
+"""
     try:
-        validate_intent_source_binding(unsafe)
+        require_mutating_jobs_disabled(enabled_mutation, "synthetic.yml")
     except ContractError:
-        return
-    raise ContractError("negative regression unexpectedly passed: untrusted checkout ref")
+        pass
+    else:
+        raise ContractError("negative regression unexpectedly passed: enabled mutating job")
+
+
+def require_mutating_jobs_disabled(workflow: str, path: str) -> None:
+    mutating_jobs = 0
+    for job in workflow_jobs(workflow, path).values():
+        if any(
+            contains_runtime_mutation(str(step.get("run", "")))
+            for step in workflow_steps(job, path)
+        ):
+            mutating_jobs += 1
+            require("RUNTIME_MUTATION_DISABLED=true" in job, f"mutating job lacks disable marker: {path}")
+            require(
+                job_condition(job) == "${{ false }}",
+                f"mutating job is not unconditionally disabled: {path}",
+            )
+    require(mutating_jobs > 0, f"native mutation classification drift: {path}")
 
 
 def main() -> int:

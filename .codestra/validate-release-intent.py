@@ -12,9 +12,11 @@ import re
 import subprocess
 import sys
 import urllib.parse
+import urllib.error
 import urllib.request
 import zipfile
 from copy import deepcopy
+from email.message import Message
 from pathlib import Path
 from typing import Any
 
@@ -56,6 +58,22 @@ def require(condition: bool, message: str) -> None:
         raise PolicyError(message)
 
 
+class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(
+        self,
+        request: urllib.request.Request,
+        file_pointer: Any,
+        code: int,
+        message: str,
+        headers: Any,
+        new_url: str,
+    ) -> None:
+        return None
+
+
+NO_REDIRECT_OPENER: Any = urllib.request.build_opener(NoRedirectHandler())
+
+
 def api_request(endpoint: str, *, accept: str = "application/vnd.github+json") -> tuple[bytes, str | None]:
     url = endpoint if endpoint.startswith("https://") else f"https://api.github.com/{endpoint.lstrip('/')}"
     parsed = urllib.parse.urlparse(url)
@@ -68,8 +86,62 @@ def api_request(endpoint: str, *, accept: str = "application/vnd.github+json") -
             "X-GitHub-Api-Version": "2022-11-28",
         },
     )
-    with urllib.request.urlopen(request, timeout=30) as response:
-        return response.read(), response.headers.get("Link")
+    try:
+        with NO_REDIRECT_OPENER.open(request, timeout=30) as response:
+            return response.read(), response.headers.get("Link")
+    except urllib.error.HTTPError as error:
+        if 300 <= error.code < 400:
+            raise PolicyError("unexpected redirect from GitHub API") from error
+        raise
+
+
+def validate_artifact_storage_url(location: str) -> str:
+    parsed = urllib.parse.urlparse(location)
+    hostname = parsed.hostname or ""
+    allowed_host = (
+        hostname.endswith(".blob.core.windows.net")
+        or hostname.endswith(".actions.githubusercontent.com")
+        or hostname in {"objects.githubusercontent.com", "github-releases.githubusercontent.com"}
+    )
+    require(
+        parsed.scheme == "https"
+        and allowed_host
+        and parsed.username is None
+        and parsed.password is None
+        and parsed.port in (None, 443)
+        and bool(parsed.path)
+        and not parsed.fragment,
+        "artifact redirect target is not an approved HTTPS storage URL",
+    )
+    return location
+
+
+def download_artifact_archive(endpoint: str) -> bytes:
+    url = endpoint if endpoint.startswith("https://") else f"https://api.github.com/{endpoint.lstrip('/')}"
+    parsed = urllib.parse.urlparse(url)
+    require(parsed.scheme == "https" and parsed.hostname == "api.github.com", "refusing non-GitHub artifact API URL")
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+    )
+    try:
+        with NO_REDIRECT_OPENER.open(request, timeout=30):
+            raise PolicyError("artifact API did not redirect to signed storage")
+    except urllib.error.HTTPError as error:
+        if error.code not in {301, 302, 303, 307, 308}:
+            raise
+        location = error.headers.get("Location", "")
+        error.close()
+    storage_url = validate_artifact_storage_url(location)
+    storage_request = urllib.request.Request(storage_url, headers={"Accept": "application/zip"})
+    with NO_REDIRECT_OPENER.open(storage_request, timeout=30) as response:
+        archive = response.read(10_000_001)
+    require(len(archive) <= 10_000_000, "prior artifact archive exceeds size limit")
+    return archive
 
 
 def next_link(header: str | None) -> str | None:
@@ -167,7 +239,7 @@ def validate_images(images: list[Any], previous_images: list[Any], policy: dict[
     require(len(images) == maximum, "candidate image count violates contract")
     require(len(previous_images) == len(images), "rollback image count differs from candidate")
     if images:
-        require(images != previous_images, "rollback image set must differ from candidate image set")
+        require(set(images) != set(previous_images), "rollback image set must differ from candidate image set")
     repository_value = policy.get("image_repositories")
     if not isinstance(repository_value, list):
         raise PolicyError("image repository policy must be an array")
@@ -219,7 +291,7 @@ def download_prior_evidence(repository: str, run_id: int, expected_name: str, ex
     require(len(matches) == 1, "prior release-intent artifact is missing, ambiguous, or expired")
     artifact = matches[0]
     require(artifact.get("workflow_run", {}).get("id") in (None, run_id), "prior artifact run binding mismatch")
-    archive, _ = api_request(f"repos/{repository}/actions/artifacts/{artifact['id']}/zip", accept="application/vnd.github+json")
+    archive = download_artifact_archive(f"repos/{repository}/actions/artifacts/{artifact['id']}/zip")
     with zipfile.ZipFile(io.BytesIO(archive)) as bundle:
         require(bundle.namelist() == ["release-intent.json"], "prior artifact archive has unexpected contents")
         info = bundle.getinfo("release-intent.json")
@@ -229,7 +301,15 @@ def download_prior_evidence(repository: str, run_id: int, expected_name: str, ex
     return json.loads(prior_bytes)
 
 
-def verify_supply_chain(images: list[str], policy: dict[str, Any], repository: str, branch: str, source_sha: str) -> None:
+def verify_supply_chain(
+    images: list[str],
+    policy: dict[str, Any],
+    repository: str,
+    branch: str,
+    source_sha: str,
+    *,
+    exact_source: bool,
+) -> None:
     require_sbom = policy.get("require_sbom")
     require_provenance = policy.get("require_provenance")
     require_signature = policy.get("require_signature")
@@ -237,9 +317,12 @@ def verify_supply_chain(images: list[str], policy: dict[str, Any], repository: s
     if not (require_sbom or require_provenance or require_signature):
         return
     verifier = policy.get("attestation_verifier")
+    storage = policy.get("attestation_storage")
     workflow = policy.get("signer_workflow")
     predicate_type = policy.get("provenance_predicate_type", "https://slsa.dev/provenance/v1")
     require(verifier in {"github", "cosign"}, "attestation verifier is missing")
+    require(storage in {"github", "oci"}, "attestation storage is missing")
+    require(verifier != "cosign" or storage == "oci", "Cosign attestations must use OCI storage")
     require(isinstance(workflow, str) and workflow.startswith(".github/workflows/") and workflow.endswith((".yml", ".yaml")), "signer workflow is invalid")
     require(isinstance(predicate_type, str) and predicate_type.startswith("https://"), "provenance predicate type is invalid")
     subprocess.run(
@@ -260,12 +343,17 @@ def verify_supply_chain(images: list[str], policy: dict[str, Any], repository: s
                     "gh", "attestation", "verify", f"oci://{image}",
                     "--repo", repository,
                     "--signer-workflow", signer,
-                    "--source-digest", source_sha,
                     "--source-ref", f"refs/heads/{branch}",
                     "--predicate-type", predicate_type,
                     "--deny-self-hosted-runners",
+                    "--format", "json",
                 ]
-                subprocess.run(command, check=True)
+                if exact_source:
+                    command.extend(["--source-digest", source_sha])
+                if storage == "oci":
+                    command.append("--bundle-from-oci")
+                raw = subprocess.check_output(command, text=True)
+                require(bool(json.loads(raw)), f"provenance attestation is missing for {image}")
             if require_sbom:
                 raw = subprocess.check_output(
                     ["docker", "buildx", "imagetools", "inspect", image, "--format", "{{ json .SBOM }}"],
@@ -274,11 +362,10 @@ def verify_supply_chain(images: list[str], policy: dict[str, Any], repository: s
                 require(bool(json.loads(raw)), f"SBOM attestation is missing for {image}")
         else:
             if require_signature:
-                subprocess.run(
-                    ["cosign", "verify", *common, "--annotations", f"codestra.source_sha={source_sha}", image],
-                    check=True,
-                    stdout=subprocess.DEVNULL,
-                )
+                command = ["cosign", "verify", *common]
+                if exact_source:
+                    command.extend(["--annotations", f"codestra.source_sha={source_sha}"])
+                subprocess.run([*command, image], check=True, stdout=subprocess.DEVNULL)
             if require_sbom:
                 subprocess.run(["cosign", "verify-attestation", "--type", "spdxjson", *common, image], check=True, stdout=subprocess.DEVNULL)
             if require_provenance:
@@ -287,15 +374,24 @@ def verify_supply_chain(images: list[str], policy: dict[str, Any], repository: s
                     text=True,
                 )
                 statements = cosign_statements(provenance)
-                require(
-                    any(
-                        dependency.get("digest", {}).get("gitCommit") == source_sha
-                        for statement in statements
-                        for dependency in statement.get("predicate", {}).get("buildDefinition", {}).get("resolvedDependencies", [])
-                        if isinstance(dependency, dict)
-                    ),
-                    f"signed provenance does not bind source SHA for {image}",
-                )
+                source_commits = {
+                    commit
+                    for statement in statements
+                    for dependency in statement.get("predicate", {}).get("buildDefinition", {}).get("resolvedDependencies", [])
+                    if isinstance(dependency, dict)
+                    for commit in [dependency.get("digest", {}).get("gitCommit")]
+                    if isinstance(commit, str) and SHA.fullmatch(commit)
+                }
+                if exact_source:
+                    require(
+                        source_sha in source_commits,
+                        f"signed provenance does not bind source SHA for {image}",
+                    )
+                else:
+                    require(
+                        bool(source_commits),
+                        f"rollback provenance does not bind a source SHA for {image}",
+                    )
 
 
 def main() -> int:
@@ -376,7 +472,8 @@ def main() -> int:
     require(policy.get("allow_rebuild_after_staging") is False, "rebuild after staging must remain forbidden")
     require(policy.get("allow_retag_after_staging") is False, "retag after staging must remain forbidden")
     validate_images(images, previous_images, policy)
-    verify_supply_chain(images, policy, repository, branch_name, source_sha)
+    verify_supply_chain(images, policy, repository, branch_name, source_sha, exact_source=True)
+    verify_supply_chain(previous_images, policy, repository, branch_name, source_sha, exact_source=False)
 
     safety = contract.get("safety")
     require(isinstance(safety, dict) and SAFETY_KEYS <= set(safety), "safety contract is incomplete")
@@ -448,6 +545,8 @@ def main() -> int:
 
 
 def self_test() -> int:
+    global NO_REDIRECT_OPENER
+
     digest_a = "ghcr.io/example/app@sha256:" + "a" * 64
     digest_b = "ghcr.io/example/app@sha256:" + "b" * 64
     policy = {"minimum_images": 1, "maximum_images": 1, "image_repositories": ["ghcr.io/example/app"]}
@@ -463,6 +562,75 @@ def self_test() -> int:
             pass
         else:
             raise PolicyError(f"negative regression passed: {message}")
+    reordered_policy = {
+        "minimum_images": 2,
+        "maximum_images": 2,
+        "image_repositories": ["ghcr.io/example/app", "ghcr.io/example/worker"],
+    }
+    app_a = "ghcr.io/example/app@sha256:" + "a" * 64
+    worker_b = "ghcr.io/example/worker@sha256:" + "b" * 64
+    try:
+        validate_images([app_a, worker_b], [worker_b, app_a], reordered_policy)
+    except PolicyError:
+        pass
+    else:
+        raise PolicyError("negative reordered rollback regression passed")
+    validate_artifact_storage_url("https://productionresultssa0.blob.core.windows.net/actions/results.zip?sig=test")
+    for location in (
+        "http://productionresultssa0.blob.core.windows.net/results.zip",
+        "https://api.github.com/repos/example/archive.zip",
+        "https://evil.example/results.zip",
+    ):
+        try:
+            validate_artifact_storage_url(location)
+        except PolicyError:
+            pass
+        else:
+            raise PolicyError("negative artifact redirect regression passed")
+    original_opener = NO_REDIRECT_OPENER
+
+    class RedirectTestOpener:
+        def __init__(self) -> None:
+            self.requests: list[urllib.request.Request] = []
+
+        def open(self, request: urllib.request.Request, timeout: int) -> io.BytesIO:
+            del timeout
+            self.requests.append(request)
+            if request.full_url.startswith("https://api.github.com/"):
+                require(
+                    request.headers.get("Authorization") == "Bearer test-token",
+                    "artifact API request omitted authorization",
+                )
+                headers = Message()
+                headers["Location"] = (
+                    "https://productionresultssa0.blob.core.windows.net/"
+                    "actions/results.zip?sig=test"
+                )
+                raise urllib.error.HTTPError(
+                    request.full_url,
+                    302,
+                    "Found",
+                    headers,
+                    None,
+                )
+            require(
+                request.headers.get("Authorization") is None,
+                "GitHub authorization leaked to artifact storage",
+            )
+            return io.BytesIO(b"test-archive")
+
+    redirect_opener = RedirectTestOpener()
+    NO_REDIRECT_OPENER = redirect_opener
+    os.environ.setdefault("GH_TOKEN", "test-token")
+    try:
+        require(
+            download_artifact_archive("repos/example/actions/artifacts/1/zip")
+            == b"test-archive",
+            "artifact redirect regression returned unexpected content",
+        )
+        require(len(redirect_opener.requests) == 2, "artifact redirect did not use two explicit requests")
+    finally:
+        NO_REDIRECT_OPENER = original_opener
     expected = {"phase": "plan", "candidate_sha256": "c" * 64, "production_changed": False}
     validate_prior(deepcopy(expected), expected)
     for key, value in (("phase", "staging"), ("candidate_sha256", "d" * 64), ("production_changed", True)):
