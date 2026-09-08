@@ -1,0 +1,34 @@
+name: Production orchestrator contract
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-orchestrator-contract-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: orchestrator-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
+    steps:
+      - name: Check out exact contract source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Validate repository-owned contract and no-runtime intent
+        run: python3 .codestra/validate-production-orchestrator-contract.py
+      - name: Reject malformed diffs
+        run: git diff --check

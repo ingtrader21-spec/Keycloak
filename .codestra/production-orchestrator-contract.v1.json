@@ -8,6 +8,7 @@
   "deployment_authority": true,
   "require_verified_commit": true,
   "required_checks": [
+    "orchestrator-contract",
     "validate"
   ],
   "supported_phases": [
