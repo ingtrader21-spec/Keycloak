@@ -23,6 +23,44 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_PATH = ROOT / ".codestra/production-orchestrator-contract.v1.json"
 INTENT_PATH = ROOT / ".github/workflows/manual-release-intent.yml"
 RELEASE_VALIDATOR_PATH = ROOT / ".codestra/validate-release-intent.py"
+RELEASE_VALIDATOR_NON_SELF_REFERENTIAL_BINDINGS = frozenset(
+    {
+        "SHARED_PRODUCTION_VALIDATOR_SHA256",
+        "KEYCLOAK_PRODUCTION_VALIDATOR_SHA256",
+        "MIDDLEWARE_PRODUCTION_VALIDATOR_SHA256",
+        "BACKEND_PRODUCTION_VALIDATOR_SHA256",
+        "EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256",
+    }
+)
+STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256 = (
+    "bf0853bcea3569013b0cce82a610d32e"
+    "8cde58822dcc5b54f2202bfcf03f1884"
+)
+MIDDLEWARE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
+    "9fe8398662e18e2b2f245413c82ce847"
+    "df782865db54ee49f9a1a018687ba45c"
+)
+BACKEND_RELEASE_VALIDATOR_SECURITY_SHA256 = (
+    "6c64259fb4d1e61d644dfd0d172ccf8"
+    "86b809169029e8f0ecc20423c7e59d92d"
+)
+MONEYBEE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
+    "ee06970b285ce2d130bd586b151d26168"
+    "7e5af8ea830c84a1eafdcad11d7c96c"
+)
+EXPECTED_RELEASE_VALIDATOR_SECURITY_SHA256 = {
+    "appolon1908-hue/Infustruction-repo": STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256,
+    "appolon1908-hue/Keycloak": STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256,
+    "appolon1908-hue/Middleware-": MIDDLEWARE_RELEASE_VALIDATOR_SECURITY_SHA256,
+    "appolon1908-hue/codestra": STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256,
+    "appolon1908-hue/beyvra-backend": BACKEND_RELEASE_VALIDATOR_SECURITY_SHA256,
+    "appolon1908-hue/backend2": STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256,
+    "appolon1908-hue/beyvra-frontend": STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256,
+    "appolon1908-hue/scrapper": STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256,
+    "appolon1908-hue/Breero.com": STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256,
+    "appolon1908-hue/Moneybee-Backend": MONEYBEE_RELEASE_VALIDATOR_SECURITY_SHA256,
+    "appolon1908-hue/Telnexa-web": STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256,
+}
 SCHEMA = "codestra.production-orchestrator-contract.v1"
 PHASES = ["plan", "staging", "canary", "production"]
 SAFETY_KEYS = {
@@ -598,6 +636,121 @@ class ContractError(ValueError):
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise ContractError(message)
+
+
+def release_validator_security_fingerprint(source: str) -> str:
+    """Bind release policy bytes without introducing a digest cycle.
+
+    The normalized assignments contain contract-validator hashes or source-tree
+    hashes that themselves include this validator. Their names, uniqueness, and
+    presence remain bound; only their assigned values are normalized. Every
+    other byte of the release validator is covered by this fingerprint.
+    """
+
+    try:
+        tree = ast.parse(source, filename=str(RELEASE_VALIDATOR_PATH))
+    except SyntaxError as error:
+        raise ContractError("release-intent validator is not valid Python") from error
+    replacements: list[tuple[int, int, str]] = []
+    seen: set[str] = set()
+    for node in tree.body:
+        names: list[str] = []
+        binding_value: ast.expr | None = None
+        if isinstance(node, ast.Assign):
+            names = [target.id for target in node.targets if isinstance(target, ast.Name)]
+            binding_value = node.value
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            names = [node.target.id]
+            binding_value = node.value
+        matched = set(names) & RELEASE_VALIDATOR_NON_SELF_REFERENTIAL_BINDINGS
+        if not matched:
+            continue
+        require(
+            len(names) == 1 and len(matched) == 1,
+            "release-validator trust binding assignment is ambiguous",
+        )
+        name = names[0]
+        require(name not in seen, "release-validator trust binding is assigned more than once")
+        if binding_value is None:
+            raise ContractError("release-validator trust binding has no value")
+        if name == "EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256":
+            if not isinstance(binding_value, ast.Dict):
+                raise ContractError("release-validator source closure binding is invalid")
+            literal_bindings: dict[str, str] = {}
+            for key_node, value_node in zip(binding_value.keys, binding_value.values):
+                if isinstance(key_node, ast.Constant) and isinstance(key_node.value, str):
+                    bound_repository = key_node.value
+                elif isinstance(key_node, ast.Name) and key_node.id == "CONTROLLER_REPOSITORY":
+                    bound_repository = "appolon1908-hue/codestra-production-platform"
+                else:
+                    raise ContractError("release-validator source closure key is not static")
+                try:
+                    bound_digest = ast.literal_eval(value_node)
+                except (TypeError, ValueError) as error:
+                    raise ContractError(
+                        "release-validator source closure digest is not static"
+                    ) from error
+                require(
+                    isinstance(bound_digest, str)
+                    and re.fullmatch(r"[0-9a-f]{64}", bound_digest) is not None,
+                    "release-validator source closure binding is invalid",
+                )
+                require(
+                    bound_repository not in literal_bindings,
+                    "release-validator source closure binding contains duplicates",
+                )
+                literal_bindings[bound_repository] = bound_digest
+            require(
+                set(literal_bindings)
+                == set(EXPECTED_RELEASE_VALIDATOR_SECURITY_SHA256)
+                | {"appolon1908-hue/codestra-production-platform"},
+                "release-validator source closure catalog is incomplete",
+            )
+        else:
+            try:
+                literal_value = ast.literal_eval(binding_value)
+            except (TypeError, ValueError) as error:
+                raise ContractError(
+                    "release-validator trust binding is not a static literal"
+                ) from error
+            require(
+                isinstance(literal_value, str)
+                and re.fullmatch(r"[0-9a-f]{64}", literal_value) is not None,
+                "release-validator contract hash binding is invalid",
+            )
+        end_lineno = node.end_lineno
+        if not isinstance(end_lineno, int):
+            raise ContractError("release-validator trust binding location is unavailable")
+        replacements.append(
+            (
+                node.lineno - 1,
+                end_lineno,
+                f'{name} = "<normalized-independent-trust-binding>"\n',
+            )
+        )
+        seen.add(name)
+    require(
+        seen == RELEASE_VALIDATOR_NON_SELF_REFERENTIAL_BINDINGS,
+        "release-validator non-self-referential trust bindings are incomplete",
+    )
+    lines = source.splitlines(keepends=True)
+    for start, end, replacement in sorted(replacements, reverse=True):
+        lines[start:end] = [replacement]
+    return hashlib.sha256("".join(lines).encode()).hexdigest()
+
+
+def validate_release_validator_trust_root(source: str, repository: object) -> None:
+    if not isinstance(repository, str):
+        raise ContractError("release-validator repository identity is invalid")
+    expected = EXPECTED_RELEASE_VALIDATOR_SECURITY_SHA256.get(repository)
+    require(
+        isinstance(expected, str) and re.fullmatch(r"[0-9a-f]{64}", expected) is not None,
+        "release-validator independent trust root is missing",
+    )
+    require(
+        release_validator_security_fingerprint(source) == expected,
+        "release-validator independent trust root mismatch",
+    )
 
 
 def reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -4468,6 +4621,7 @@ def validate(contract: dict[str, Any]) -> None:
     require(RELEASE_VALIDATOR_PATH.is_file() and not RELEASE_VALIDATOR_PATH.is_symlink(), "release-intent validator is missing or unsafe")
     intent = INTENT_PATH.read_text(encoding="utf-8")
     release_validator = RELEASE_VALIDATOR_PATH.read_text(encoding="utf-8")
+    validate_release_validator_trust_root(release_validator, repository)
     validate_release_validator_operations(release_validator)
     validate_release_validator_gate_rechecks(release_validator)
     for marker in (
@@ -4584,9 +4738,44 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
         raise ContractError(f"negative regression unexpectedly passed: {name}")
 
 
-def validate_intent_negative_regressions() -> None:
+def validate_intent_negative_regressions(contract: dict[str, Any]) -> None:
     intent = INTENT_PATH.read_text(encoding="utf-8")
     release_validator = RELEASE_VALIDATOR_PATH.read_text(encoding="utf-8")
+    executable_binding = re.sub(
+        r'SHARED_PRODUCTION_VALIDATOR_SHA256 = \(\n(?:    "[0-9a-f]{32}"\n){2}\)',
+        "SHARED_PRODUCTION_VALIDATOR_SHA256 = compute_untrusted_hash()",
+        release_validator,
+        count=1,
+    )
+    require(executable_binding != release_validator, "executable trust-binding fixture is missing")
+    try:
+        validate_release_validator_trust_root(
+            executable_binding,
+            contract.get("repository"),
+        )
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: executable release-validator trust binding"
+        )
+    supply_chain_bypass = release_validator.replace(
+        ") -> None:\n    require_sbom = policy.get(\"require_sbom\")",
+        ") -> None:\n    return\n    require_sbom = policy.get(\"require_sbom\")",
+        1,
+    )
+    require(supply_chain_bypass != release_validator, "supply-chain bypass fixture is missing")
+    try:
+        validate_release_validator_trust_root(
+            supply_chain_bypass,
+            contract.get("repository"),
+        )
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: release-validator supply-chain bypass"
+        )
     unreachable_recheck = release_validator.replace(
         "\n    final_controller_candidate_head = download_and_validate_candidate(",
         "\n    if False:\n        final_controller_candidate_head = download_and_validate_candidate(",
@@ -5949,7 +6138,7 @@ def main() -> int:
     contract = load_contract()
     validate(contract)
     validate_negative_regressions(contract)
-    validate_intent_negative_regressions()
+    validate_intent_negative_regressions(contract)
     subprocess.run(
         ["python3", str(RELEASE_VALIDATOR_PATH), "--self-test"],
         cwd=ROOT,
