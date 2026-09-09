@@ -7,3 +7,10 @@ condition = "AND"
 paths = ['''^\.codestra/validate-production-orchestrator-contract\.py$''']
 regexTarget = "line"
 regexes = ['''917ab06febf30f0d81146fc147794dace9510f7bb0a6fb903dd69b2244d4e1d0''']
+
+[[allowlists]]
+description = "Reviewed SHA-256 of the read-only OpenAPI validator; not credential material"
+condition = "AND"
+paths = ['''^\.codestra/validate-production-orchestrator-contract\.py$''']
+regexTarget = "line"
+regexes = ['''^\s*"scripts/verify_openapi_contract\.py":\s*"b4dd40045e2781a6a741787b0c1a51d30b96248027a0e058f0123a9853a784a0",\s*$''']
