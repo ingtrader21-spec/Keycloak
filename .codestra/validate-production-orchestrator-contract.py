@@ -33,20 +33,20 @@ RELEASE_VALIDATOR_NON_SELF_REFERENTIAL_BINDINGS = frozenset(
     }
 )
 STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "eedd2d8f985ebc5d8a7381946a0a532e"
-    "c9470d519c78667f567f8cb9b6ffba0a"
+    "bfba115661b64740c525492171599036"
+    "c3ed2adc9d5fa9a6e0cfaefa1e0b2c92"
 )
 MIDDLEWARE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "dc82cab6204271d236a558e29556b1eec"
-    "ca1b536e2085695a0ee4229584b4630"
+    "8abee4eb254b40fb56125d4cc07b6ce2"
+    "e45063a0379f37ae2fa0e02bee34edf8"
 )
 BACKEND_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "1b01e26adee8863b4f8e26e4531bcf51"
-    "2b21bf5456478e0ae14fde4016b8ba4c"
+    "ecf3d5b2669c14a62b9ca472d6236196"
+    "8c483ed95f76664a0aa02cb9888f13b2"
 )
 MONEYBEE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "38c581b0f00b087bbef5992145696d5c"
-    "04ecce6ebd1d7a9caedb14565dc47baa"
+    "9d56380afce80d98b41e1c0d0eef11c3"
+    "50d6e5a4ac9e008e1c2733107d07098c"
 )
 EXPECTED_RELEASE_VALIDATOR_SECURITY_SHA256 = {
     "appolon1908-hue/Infustruction-repo": STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256,
@@ -361,7 +361,7 @@ APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
             "06b7f5eec4e36d51d9575decf70ce0a2"
             "12767b563bc0fbdb1b61fa46ae7fc321"
         ),
-        "scripts/validate.sh": "770f873d978b072dc86d5b8bec1c958f3a02d67b69bdda27f8cc77a3da6ee3d8",
+        "scripts/validate.sh": "0c2924af94d4f0b494cd287e3fe6a52fcc6e20f9e0e80d47671584306b859c95",
     },
     "appolon1908-hue/Middleware-": {
         "scripts/apply_portfolio_release_reviewer_access.py": (
@@ -491,7 +491,7 @@ APPROVED_CONTROL_PLANE_WORKFLOW_SHA256: dict[str, dict[str, str]] = {
         ),
     },
     "appolon1908-hue/beyvra-backend": {
-        ".github/workflows/ci.yml": "1c2e654ffd1011f662985d261411502c392789b882b6d089ba18e182e53248d1",
+        ".github/workflows/ci.yml": "fffbdd8b7aad8b2679bcc608f0b487bf976c033a07786a0af5262d893867211a",
     },
     "appolon1908-hue/beyvra-frontend": {
         ".github/workflows/ci.yml": "7459a31c6b005e9345661b10ee8df45a570ac652280a2eacbcdfd4673fb115da",
@@ -657,7 +657,12 @@ def release_validator_security_fingerprint(source: str) -> str:
         tree = ast.parse(source, filename=str(RELEASE_VALIDATOR_PATH))
     except SyntaxError as error:
         raise ContractError("release-intent validator is not valid Python") from error
-    replacements: list[tuple[int, int, str]] = []
+    source_bytes = source.encode("utf-8")
+    line_starts = [0]
+    for line in source_bytes.splitlines(keepends=True):
+        line_starts.append(line_starts[-1] + len(line))
+
+    replacements: list[tuple[int, int, bytes]] = []
     seen: set[str] = set()
     for node in tree.body:
         names: list[str] = []
@@ -724,14 +729,20 @@ def release_validator_security_fingerprint(source: str) -> str:
                 and re.fullmatch(r"[0-9a-f]{64}", literal_value) is not None,
                 "release-validator contract hash binding is invalid",
             )
-        end_lineno = node.end_lineno
-        if not isinstance(end_lineno, int):
+        end_lineno = binding_value.end_lineno
+        end_col_offset = binding_value.end_col_offset
+        if not isinstance(end_lineno, int) or not isinstance(end_col_offset, int):
             raise ContractError("release-validator trust binding location is unavailable")
+        require(
+            1 <= binding_value.lineno <= len(line_starts)
+            and 1 <= end_lineno <= len(line_starts),
+            "release-validator trust binding location is invalid",
+        )
         replacements.append(
             (
-                node.lineno - 1,
-                end_lineno,
-                f'{name} = "<normalized-independent-trust-binding>"\n',
+                line_starts[binding_value.lineno - 1] + binding_value.col_offset,
+                line_starts[end_lineno - 1] + end_col_offset,
+                b'"<normalized-independent-trust-binding>"',
             )
         )
         seen.add(name)
@@ -739,10 +750,13 @@ def release_validator_security_fingerprint(source: str) -> str:
         seen == RELEASE_VALIDATOR_NON_SELF_REFERENTIAL_BINDINGS,
         "release-validator non-self-referential trust bindings are incomplete",
     )
-    lines = source.splitlines(keepends=True)
     for start, end, replacement in sorted(replacements, reverse=True):
-        lines[start:end] = [replacement]
-    return hashlib.sha256("".join(lines).encode()).hexdigest()
+        require(
+            0 <= start < end <= len(source_bytes),
+            "release-validator trust binding byte range is invalid",
+        )
+        source_bytes = source_bytes[:start] + replacement + source_bytes[end:]
+    return hashlib.sha256(source_bytes).hexdigest()
 
 
 def validate_release_validator_trust_root(source: str, repository: object) -> None:
@@ -1508,6 +1522,7 @@ def python_source_has_runtime_mutation(source: str) -> bool:
     aliases: dict[str, str] = {}
     command_bindings: dict[str, list[ast.expr | None]] = {}
     destructured_targets: set[str] = set()
+    attribute_targets: list[ast.expr] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -1518,11 +1533,16 @@ def python_source_has_runtime_mutation(source: str) -> bool:
                 aliases[alias.asname or alias.name] = f"{node.module}.{alias.name}"
         elif isinstance(node, ast.Assign):
             for target in node.targets:
+                attribute_targets.extend(child for child in ast.walk(target)
+                                         if isinstance(child, (ast.Attribute, ast.Subscript))
+                                         and isinstance(child.ctx, ast.Store))
                 if isinstance(target, (ast.Tuple, ast.List)):
                     destructured_targets.update(child.id for child in ast.walk(target)
                                                 if isinstance(child, ast.Name))
                 for name, value in assignment_value_pairs(target, node.value):
                     command_bindings.setdefault(name, []).append(value)
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, (ast.Attribute, ast.Subscript)):
+            attribute_targets.append(node.target)
         elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
             if node.value is not None:
                 command_bindings.setdefault(node.target.id, []).append(node.value)
@@ -1609,7 +1629,7 @@ def python_source_has_runtime_mutation(source: str) -> bool:
                 and bool(receiver_hints & NETWORK_CLIENT_HINTS)
             )
             or (
-                method in DATABASE_MUTATION_METHODS
+                method in DATABASE_MUTATION_METHODS | {"execute"}
                 and bool(receiver_hints & DATABASE_CLIENT_HINTS)
             )
             or (
@@ -1635,6 +1655,25 @@ def python_source_has_runtime_mutation(source: str) -> bool:
             and restricted_callable_name(qualified_name(child))
             for child in ast.walk(value)
         )
+
+    def attribute_storage_keys(node: ast.expr, seen: frozenset[str] = frozenset()) -> set[str]:
+        if isinstance(node, ast.Name):
+            if node.id in seen:
+                return {"__ambiguous_attribute_storage__"}
+            keys = {node.id}
+            for value in command_bindings.get(node.id, []):
+                if isinstance(value, (ast.Name, ast.Attribute, ast.Subscript)):
+                    keys.update(attribute_storage_keys(value, seen | {node.id}))
+            return keys
+        if isinstance(node, ast.Attribute):
+            return {f"{key}.{node.attr}" for key in attribute_storage_keys(node.value, seen)}
+        if isinstance(node, ast.Subscript):
+            # Index equivalence is not proven. Treat every element of this
+            # receiver as possibly containing the assigned callable.
+            return {f"{key}[*]" for key in attribute_storage_keys(node.value, seen)}
+        return {ast.unparse(node)}
+
+    attribute_bound_names = set().union(*(attribute_storage_keys(target) for target in attribute_targets))
 
     runtime_modules = {
         "aiosmtplib",
@@ -1691,10 +1730,10 @@ def python_source_has_runtime_mutation(source: str) -> bool:
         if isinstance(node.func, ast.Call):
             return True
         qualified = qualified_name(node.func)
-        if qualified == "__unresolved_callable__" or (
-            isinstance(node.func, ast.Name)
-            and qualified.startswith("__unresolved_callable__.")
-        ):
+        if (qualified == "__unresolved_callable__"
+                or (isinstance(node.func, ast.Name)
+                    and qualified.startswith("__unresolved_callable__."))
+                or bool(attribute_storage_keys(node.func) & attribute_bound_names)):
             return True
         if qualified in {
             "__import__",
@@ -1723,6 +1762,9 @@ def python_source_has_runtime_mutation(source: str) -> bool:
         receiver_hints = set(re.split(r"[^a-z0-9_]+", receiver))
         network_receiver = bool(receiver_hints & NETWORK_CLIENT_HINTS)
         database_receiver = bool(receiver_hints & DATABASE_CLIENT_HINTS)
+        if receiver in {"http.client.httpconnection", "http.client.httpsconnection"}:
+            if method not in {"request", "getresponse", "close"}:
+                return True
         if method in NETWORK_MUTATION_METHODS and network_receiver:
             return True
         if method in DATABASE_MUTATION_METHODS and database_receiver:
@@ -1738,7 +1780,12 @@ def python_source_has_runtime_mutation(source: str) -> bool:
                     value = keyword.value.value
                     if isinstance(value, str):
                         http_method = value.lower()
-            if http_method is None or http_method in HTTP_MUTATION_METHODS:
+            if http_method not in {"get", "head"}:
+                return True
+            if len(node.args) > 2 or any(isinstance(arg, ast.Starred) for arg in node.args):
+                return True
+            if any(keyword.arg is None or keyword.arg in {"body", "data", "json", "files"}
+                   for keyword in node.keywords):
                 return True
         if method == "execute" and database_receiver:
             if not node.args:
@@ -1905,10 +1952,10 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
             while open_index < len(lower) and lower[open_index].isspace():
                 open_index += 1
             if lower.startswith("//", open_index):
-                newline = lower.find("\n", open_index + 2)
-                if newline < 0:
+                newline = re.search(r"[\r\n\u2028\u2029]", lower[open_index + 2:])
+                if newline is None:
                     return True
-                open_index = newline + 1
+                open_index += 2 + newline.end()
                 continue
             if not lower.startswith("/*", open_index):
                 break
@@ -1919,14 +1966,51 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
                 return True
             open_index = comment_end + 2
         if open_index >= len(lower) or lower[open_index] != "(":
+            # A loader value can escape through an alias. It is not a proven
+            # static read-only import, even if its eventual call is renamed.
+            if match.group() == "require":
+                suffix = lower[match.end():]
+                prefix = lower[:match.start()]
+                if re.match(r"\s*\.(?:apply|bind|call)\s*\(", suffix):
+                    return True
+                if (
+                    re.search(r"(?<![=!<>])=(?!=)\s*$", prefix)
+                    or re.search(r"(?:=>|\breturn)\s*$", prefix)
+                ) and re.match(
+                    r"(?:[ \t]*(?:;|,|\)|\]|\}|\r?\n|//|/\*)|[ \t]*$)",
+                    suffix,
+                ):
+                    return True
             continue
         arguments = call_arguments(open_index)
-        if arguments is None or re.fullmatch(
-            r"""\s*(['"])[^'"\r\n]+\1\s*""",
+        literal = None if arguments is None else re.fullmatch(
+            r"""\s*(['"])([^'"\r\n]+)\1\s*""",
             arguments,
-        ) is None:
+        )
+        if literal is None:
             # Computed module specifiers can conceal networking or process
             # modules behind an otherwise arbitrary binding.
+            return True
+        module = literal.group(2).lower()
+        if "\\" in module:
+            # JavaScript escape sequences are resolved before module lookup.
+            # Reject them rather than comparing an encoded spelling to the
+            # runtime-module denylist.
+            return True
+        if re.fullmatch(
+            r"(?:axios|got|superagent|undici|node-fetch|cross-fetch|"
+            r"(?:node:)?(?:child_process|http|https|http2|net|tls)|"
+            r"socket\.io-client)(?:/.*)?",
+            module,
+        ):
+            # This parsed path is comment-aware, unlike a source regex, so a
+            # renamed binding cannot conceal a mutating transport or launcher.
+            return True
+        if module.removeprefix("node:") in {
+            "cluster",
+            "vm",
+            "worker_threads",
+        }:
             return True
 
     # Unknown loader callables can evaluate executable built-in modules even
@@ -3561,6 +3645,26 @@ def strip_condition_parentheses(expression: str) -> str:
     return expression
 
 
+def condition_constant_value(expression: str) -> tuple[bool, object]:
+    value = strip_condition_parentheses(expression.strip())
+    if value == "true":
+        return True, True
+    if value == "false":
+        return True, False
+    if value == "null":
+        return True, None
+    if re.fullmatch(r"-?\d+", value):
+        return True, int(value)
+    if re.fullmatch(r"""'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"$""", value):
+        try:
+            parsed = ast.literal_eval(value)
+        except (SyntaxError, ValueError):
+            return False, None
+        if isinstance(parsed, str):
+            return True, parsed
+    return False, None
+
+
 def condition_is_statically_false(value: object) -> bool:
     if value is False or type(value) is int and value == 0:
         return True
@@ -3579,10 +3683,18 @@ def condition_is_statically_false(value: object) -> bool:
     compact = re.sub(r"\s+", "", expression)
     if compact in {"false", "!true", "nottrue", "0", "null", "''", '""'}:
         return True
-    comparison = re.fullmatch(r"(-?\d+)\s*(==|!=)\s*(-?\d+)", expression)
+    comparison = re.fullmatch(r"(.+?)\s*(==|!=)\s*(.+)", expression)
     if comparison is not None:
         left, operator, right = comparison.groups()
-        equal = int(left) == int(right)
+        left_is_constant, left_value = condition_constant_value(left)
+        right_is_constant, right_value = condition_constant_value(right)
+        if not (
+            left_is_constant
+            and right_is_constant
+            and type(left_value) is type(right_value)
+        ):
+            return False
+        equal = left_value == right_value
         return equal if operator == "!=" else not equal
     return False
 
@@ -3833,12 +3945,97 @@ def require_immutable_action_references(workflow: str, path: str) -> None:
         )
 
 
+def step_has_reachable_attestation(step: dict[str, Any]) -> bool:
+    if condition_is_statically_false(step.get("if")):
+        return False
+    if step.get("continue-on-error", False) is not False:
+        return False
+    uses = step.get("uses")
+    if isinstance(uses, str) and uses.startswith(
+        ("actions/attest@", "actions/attest-build-provenance@")
+    ):
+        return True
+    run = str(step.get("run", ""))
+    shell = step.get("shell")
+    if shell is not None and (
+        not isinstance(shell, str)
+        or re.match(r"^(?:bash|sh)(?:\s|$)", shell) is None
+    ):
+        return False
+    shell_source = shell_without_heredoc_bodies(run)
+    raw_tokens = shell_tokens(shell_source)
+    ambiguous_control = {
+        "(",
+        ")",
+        "&&",
+        "||",
+        "case",
+        "do",
+        "done",
+        "elif",
+        "else",
+        "esac",
+        "fi",
+        "for",
+        "function",
+        "if",
+        "select",
+        "then",
+        "until",
+        "while",
+        "{",
+        "}",
+    }
+    if any(token.lower() in ambiguous_control for token in raw_tokens):
+        # A syntactic cosign command inside shell control flow is not proof
+        # that an attestation is executable on a successful publication path.
+        return False
+    for command_index in command_indexes(raw_tokens):
+        if executable_name(raw_tokens[command_index]).lower() in {
+            "break",
+            "continue",
+            "exit",
+            "return",
+        }:
+            return False
+    for index in command_indexes(raw_tokens):
+        if executable_name(raw_tokens[index]).lower() != "cosign":
+            continue
+        arguments = raw_command_arguments(raw_tokens, index)
+        if arguments and arguments[0].lower() == "attest":
+            return True
+    return False
+
+
+def attestation_covers_publication(attestation: dict[str, Any], publication: dict[str, Any]) -> bool:
+    if attestation.get("continue-on-error", False) is not False:
+        return False
+    def condition(step: dict[str, Any]) -> str:
+        value = step.get("if")
+        if value is None or value is True:
+            return "success()"
+        if not isinstance(value, str):
+            return "__unproved__"
+        expression = value.strip()
+        if expression.startswith("${{") and expression.endswith("}}"):
+            expression = expression[3:-2].strip()
+        return strip_condition_parentheses(expression)
+    attestation_condition = condition(attestation)
+    return (attestation_condition in {"success()", "true", "always()"}
+            or (attestation_condition != "__unproved__"
+                and attestation_condition == condition(publication)))
+
+
 def require_reachable_signer_workflow(workflow: str, path: str) -> None:
     jobs = workflow_jobs(workflow, path)
     publication_jobs = [
         job
         for job in jobs.values()
-        if any(contains_image_publication(step) for step in workflow_steps(job, path))
+        if any(
+            not condition_is_statically_false(step.get("if"))
+            and contains_image_publication(step)
+            for step in workflow_steps(job, path)
+        )
     ]
     require(bool(publication_jobs), f"signer workflow has no image publication job: {path}")
     require(
@@ -3850,20 +4047,14 @@ def require_reachable_signer_workflow(workflow: str, path: str) -> None:
     )
     for publication_job in publication_jobs:
         steps = workflow_steps(publication_job, path)
-        require(
-            any(
-                not condition_is_statically_false(step.get("if"))
-                and (
-                    isinstance(step.get("uses"), str)
-                    and str(step["uses"]).startswith(
-                        ("actions/attest@", "actions/attest-build-provenance@")
-                    )
-                    or "cosign attest" in str(step.get("run", ""))
-                )
-                for step in steps
-            ),
-            f"signer publication job has no reachable attestation step: {path}",
-        )
+        for publication in steps:
+            if condition_is_statically_false(publication.get("if")) or not contains_image_publication(publication):
+                continue
+            require(
+                any(step_has_reachable_attestation(step)
+                    and attestation_covers_publication(step, publication) for step in steps),
+                f"signer publication path has no guaranteed attestation step: {path}",
+            )
 
 
 def validate_intent_source_binding(intent: str) -> None:
@@ -4914,7 +5105,76 @@ def validate(contract: dict[str, Any]) -> None:
     require(bool(actions) and set(actions) <= ALLOWED_ACTIONS, "release-intent workflow uses a non-allowlisted action")
 
 
+def validate_release_trust_alias_regressions() -> None:
+    # These strings are parsed only; no process, HTTP or database call executes.
+    for method in ("post", "put", "patch", "delete"):
+        for target in ("holder.writer", "holder.nested.writer", "holder['writer']"):
+            require(python_source_has_runtime_mutation(
+                f"import requests\nwriter = requests.{method}\n{target} = writer\n{target}(url)\n"
+            ), "network writer alias was accepted")
+    for origin in ("database.execute", "database.commit", "unknown_writer", "factory()"):
+        for target in ("holder.writer", "holder.nested.writer", "holder['writer']"):
+            require(python_source_has_runtime_mutation(
+                f"{target} = {origin}\n{target}(argument)\n"
+            ), "database or unknown writer alias was accepted")
+    require(python_source_has_runtime_mutation(
+        "holder.writer, unused = unknown_writer, None\nholder.writer(argument)\n"
+    ), "destructured unknown attribute callable was accepted")
+    require(python_source_has_runtime_mutation(
+        "holder.writer = unknown_writer\nother = holder\nother.writer(argument)\n"
+    ), "writer callable escaped through a receiver alias")
+    require(python_source_has_runtime_mutation(
+        "holder.child.writer = unknown_writer\nother = holder.child\nother.writer(argument)\n"
+    ), "writer callable escaped through a nested receiver alias")
+    require(python_source_has_runtime_mutation(
+        "holder[index] = unknown_writer\nother = holder\nwriter = other[key]\nwriter(argument)\n"
+    ), "unknown subscript callable escaped through nested aliases")
+    require(not python_source_has_runtime_mutation(
+        "holder.label = 'report'\nholder.nested.count = 3\nprint(holder.label)\n"
+    ), "ordinary non-callable attribute data was rejected")
+    for call in (
+        "connection.putrequest('POST', path)", "connection.endheaders(body)",
+        "connection.send(body)", "connection.sendall(body)",
+        "connection.request('PATCH', path)", "connection.request('UNKNOWN', path)",
+        "connection.unknown_method(body)", "connection.request('GET', path, body)",
+    ):
+        require(python_source_has_runtime_mutation(
+            "import http.client\nconnection = http.client.HTTPConnection(host)\n" + call
+        ), "low-level HTTP write or unresolved method was accepted")
+    for method in ("GET", "HEAD"):
+        require(not python_source_has_runtime_mutation(
+            "import http.client\nconnection = http.client.HTTPConnection(host)\n"
+            f"connection.request('{method}', path)\nconnection.getresponse()\nconnection.close()\n"
+        ), "body-free low-level HTTP read was rejected")
+    for source in (
+        "const cp = require // comment\n('child_process');",
+        "const cp = require /* comment */ ('child_process');",
+        "const cp = require // comment\n('child_' + 'process');",
+        "const cp = require /* comment */ ('child_' + 'process');",
+        "const cp = require('child_' + 'process');",
+        "const cp = require(moduleName);",
+        "const loader = require; const cp = loader(moduleName);",
+        "const cp = require.call(null, 'child_' + 'process');",
+        "const cp = require.apply(null, ['child_' + 'process']);",
+        "const cp = import // comment\n(moduleName);",
+        "const cp = import /* comment */ (moduleName);",
+    ):
+        require(javascript_source_has_runtime_mutation(source),
+                "unresolved JavaScript runtime loader was accepted")
+    require(not javascript_source_has_runtime_mutation("const path = require('path');"),
+            "static read-only JavaScript import was rejected")
+    print("HTTP_WRITER_ATTRIBUTE_ALIAS=REJECTED")
+    print("NETWORK_WRITER_ALIAS_REGRESSION=PASS")
+    print("LOW_LEVEL_HTTP_WRITE=REJECTED")
+    print("HTTP_CLIENT_REGRESSION=PASS")
+    print("JS_REQUIRE_LINE_COMMENT_CHILD_PROCESS=REJECTED")
+    print("JS_REQUIRE_BLOCK_COMMENT_CHILD_PROCESS=REJECTED")
+    print("JS_CONCAT_CHILD_PROCESS=REJECTED")
+    print("JS_UNKNOWN_RUNTIME_LOADER=FAIL_CLOSED")
+
+
 def validate_negative_regressions(contract: dict[str, Any]) -> None:
+    validate_release_trust_alias_regressions()
     require_immutable_action_references(
         "jobs:\n  test:\n    uses: owner/repository/.github/workflows/check.yml@"
         "0123456789012345678901234567890123456789\n",
@@ -4951,6 +5211,11 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
         "0",
         "${{ false && true }}",
         "${{ 1 == 2 }}",
+        "${{ false == true }}",
+        "${{ true != true }}",
+        "${{ 'a' == 'b' }}",
+        "${{ (false) == true }}",
+        "${{ 'a' == ('b') }}",
         "${{ false && github.ref == 'refs/heads/main' }}",
     ):
         try:
@@ -4967,6 +5232,99 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
             raise ContractError(
                 "negative regression unexpectedly passed: unreachable signer workflow"
             )
+    disabled_publication_step = reachable_signer.replace(
+        "      - uses: docker/build-push-action@",
+        "      - if: false\n        uses: docker/build-push-action@",
+        1,
+    )
+    try:
+        require_reachable_signer_workflow(
+            disabled_publication_step,
+            "synthetic-disabled-publication-step.yml",
+        )
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: disabled publication step"
+        )
+    comment_only_attestation = reachable_signer.replace(
+        "      - uses: actions/attest@0123456789012345678901234567890123456789",
+        "      - run: echo done # cosign attest",
+        1,
+    )
+    try:
+        require_reachable_signer_workflow(
+            comment_only_attestation,
+            "synthetic-comment-only-attestation.yml",
+        )
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: comment-only attestation"
+        )
+    for command in (
+        "if false; then cosign attest --yes image@example; fi",
+        "false && cosign attest --yes image@example",
+        "true || cosign attest --yes image@example",
+        "echo cosign attest --yes image@example",
+    ):
+        require(not step_has_reachable_attestation({"run": command}),
+                "unreachable shell attestation was accepted")
+    require(not attestation_covers_publication(
+        {"if": "${{ !inputs.publish }}"}, {"if": "inputs.publish"}
+    ), "complementary attestation condition was accepted")
+    require(attestation_covers_publication(
+        {"if": "${{ inputs.publish }}"}, {"if": "inputs.publish"}
+    ), "identical publication/attestation conditions were rejected")
+    require(attestation_covers_publication({}, {"if": "inputs.publish"}),
+            "unconditional attestation was rejected")
+    complementary_signer = reachable_signer.replace(
+        "      - uses: docker/build-push-action@",
+        "      - if: inputs.publish\n        uses: docker/build-push-action@",
+    ).replace(
+        "      - uses: actions/attest@",
+        "      - if: ${{ !inputs.publish }}\n        uses: actions/attest@",
+    )
+    for invalid_signer in (
+        complementary_signer,
+        reachable_signer.replace(
+            "      - uses: actions/attest@0123456789012345678901234567890123456789",
+            "      - run: if false; then cosign attest --yes image@example; fi",
+        ),
+    ):
+        try:
+            require_reachable_signer_workflow(invalid_signer, "synthetic-unattested-path.yml")
+        except ContractError:
+            pass
+        else:
+            raise ContractError("publication without executable attestation was accepted")
+    cosign_signer = reachable_signer.replace(
+        "      - uses: actions/attest@0123456789012345678901234567890123456789",
+        "      - run: cosign attest --yes image@example",
+        1,
+    )
+    require_reachable_signer_workflow(
+        cosign_signer,
+        "synthetic-cosign-signer.yml",
+    )
+    unreachable_cosign = cosign_signer.replace(
+        "      - run: cosign attest --yes image@example",
+        "      - run: if false; then cosign attest --yes image@example; fi",
+        1,
+    )
+    try:
+        require_reachable_signer_workflow(
+            unreachable_cosign,
+            "synthetic-unreachable-cosign-signer.yml",
+        )
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: unreachable cosign attestation"
+        )
     split_attestation = """jobs:
   publish:
     runs-on: ubuntu-latest
@@ -5097,6 +5455,27 @@ def validate_intent_negative_regressions(contract: dict[str, Any]) -> None:
     else:
         raise ContractError(
             "negative regression unexpectedly passed: executable release-validator trust binding"
+        )
+    shared_line_injection = re.sub(
+        r'(SHARED_PRODUCTION_VALIDATOR_SHA256 = \(\n(?:    "[0-9a-f]{32}"\n){2}\))',
+        r"\1; INDEPENDENT_REVIEWER_ID = 1",
+        release_validator,
+        count=1,
+    )
+    require(
+        shared_line_injection != release_validator,
+        "shared-line trust-binding fixture is missing",
+    )
+    try:
+        validate_release_validator_trust_root(
+            shared_line_injection,
+            contract.get("repository"),
+        )
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: shared-line trust-binding injection"
         )
     supply_chain_bypass = release_validator.replace(
         ") -> None:\n    require_sbom = policy.get(\"require_sbom\")",
@@ -5976,6 +6355,12 @@ PY
         "https.request({method: 'POST'}, callback).end()\n",
         "const transport = await import/*comment*/('node:' + 'https'); "
         "transport.request(url, {method: 'POST'}).end(data)\n",
+        "const transport = await import // line comment\n"
+        "('node:' + 'https'); "
+        "transport.request(url, {method: 'POST'}).end(data)\n",
+        "const transport = await import // line comment\n"
+        "('node:https'); "
+        "transport.request({method: 'POST'}).end(data)\n",
         "const transport = await import"
         + "/* adjacent loader comment */" * 128
         + "('node:' + 'https'); "
@@ -5984,6 +6369,8 @@ PY
         "ws.addEventListener('open', () => ws.send(payload))\n",
         'const {exec: run} = require("node:child_process"); '
         'run("kubectl apply -f runtime.yml")\n',
+        "const cp = require('\\x63hild_process'); "
+        "cp.execSync('kubectl apply -f runtime.yml')\n",
         "fetch(...args)\n",
         "process.getBuiltinModule('child_process').exec('kubectl apply')\n",
     ):

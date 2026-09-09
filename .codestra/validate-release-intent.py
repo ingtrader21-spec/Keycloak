@@ -210,20 +210,20 @@ EXPECTED_CHECK_WORKFLOW_SHA256 = {
     },
 }
 SHARED_PRODUCTION_VALIDATOR_SHA256 = (
-    "d7acc8d6ef1689cacdde567f698ecff2"
-    "1ac1c222b3bc78e16f3e3e41212760aa"
+    "1cb72cd06e0fac4c29a35a941c1b794e"
+    "9eac65207c0818b5ee13eb1d7c1df910"
 )
 KEYCLOAK_PRODUCTION_VALIDATOR_SHA256 = (
-    "e90b7cef9902d2803007a8f399afc9e0"
-    "872b5412f364a67c8e57a772d656aca1"
+    "51cddcaa6c08982e474c83c5fb6727a6"
+    "d80a2db1b79706cced6151137d420636"
 )
 MIDDLEWARE_PRODUCTION_VALIDATOR_SHA256 = (
-    "0833ed7f50f728ecea7c6801887275ce"
-    "a66201af0c951963dc7a32e04e71448b"
+    "d441a4ec1f20b762f72db6757dd733af"
+    "a77aedfd45302cf5a2f2bc768e39721f"
 )
 BACKEND_PRODUCTION_VALIDATOR_SHA256 = (
-    "1211d2b5f83adf783a0989d11040269b"
-    "0a5351733a75f4eae364d58057d5d638"
+    "d70ad8d1cd22597fb9ef9e7b4190c60f"
+    "4d0be744eb7bc33be85f95d1d77da0f0"
 )
 EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
     "appolon1908-hue/Infustruction-repo": {
@@ -374,48 +374,48 @@ EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
 RELEASE_VALIDATOR_SOURCE_PATH = ".codestra/validate-release-intent.py"
 EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256 = {
     "appolon1908-hue/Infustruction-repo": (
-        "d9b2dbd572f01c26f00a17526f9ba3ff"
-        "0bee8733bdf75978a27072371b63e658"
+        "4b30aba05aa83bbe8157713c9b864983"
+        "a5772e9afbce85c6953d6a7202d53081"
     ),
     "appolon1908-hue/Keycloak": (
-        "8389d1dafdde8bd81a26f48c26997fbb"
-        "55045cbb44f904706e4008fa771151a9"
+        "07fcd13e9ef2a9987f45aa2e3f471526"
+        "d0dc3da97437a7a418294ce5c6209527"
     ),
     "appolon1908-hue/Middleware-": (
-        "48eeb207074a80126bd4cf0712563e1ef"
-        "ef25ef6c8580c78874c6c9097a2c0ed"
+        "da143a3e31264d02ec6125dd588b97ad"
+        "b486d470d466fefcf8c9fb825e17ca5c"
     ),
     "appolon1908-hue/codestra": (
-        "48cec4a379e791a464f37289eb59135f6"
-        "da529f10aec16329876ac2b580044c5"
+        "23cfb4af87b85b8d47bb87920250cdce"
+        "fed0462970b1ad2510e2661e9c101a29"
     ),
     "appolon1908-hue/beyvra-backend": (
-        "eee0e2799d918d5d45ec937a40118e5c"
-        "f65134b79eb2a6ed66d7db715c8f5392"
+        "cf9e40a50761fa9037d18d6f9bd8b092"
+        "41e216bbff49aabaca441c64c27ab595"
     ),
     "appolon1908-hue/backend2": (
-        "cb6e339a8ce867c21c80549a1cb5d4bb"
-        "d91671a9b0c6d7c22968f3d79458b99b"
+        "1fe426c5c920c7a100f38f1a392b5785"
+        "05cb4bba01a339377cf901007d9ff470"
     ),
     "appolon1908-hue/beyvra-frontend": (
-        "7b982d9de25fce0ecce167dd3bb8bb833"
-        "4fbd51c05de2ee62e644e9a5b18e7d4"
+        "ca1cbcff163909dfce8278314f773c0a"
+        "597d540e32d618362b3661e15ca1b156"
     ),
     "appolon1908-hue/scrapper": (
-        "ea13b5b98041b4db7e9c139eb9fc8d16"
-        "9892bde27944c5dd6c9a15d44f1d5916"
+        "c0827457bb6e045aa3deedfabee59452"
+        "352ec162a302dd4dac76f1242f92f677"
     ),
     "appolon1908-hue/Breero.com": (
-        "1d70543d338c4ba0817ef1dd8964bcba"
-        "6aac847438b10e2a5567d51635e165d2"
+        "618d177e5d584630c652adf9c390bc24"
+        "8af372fc6605c96d163920d181dea2aa"
     ),
     "appolon1908-hue/Moneybee-Backend": (
-        "eed2ec10b3d87dbb56cc014bbcb3c7a0"
-        "c6ce3b45f81c36d8e331e36b8aa9a5cd"
+        "1bbf4eaed488eaf6ed81b51940966ed3"
+        "4f551f401eadb7ce442c6464fdd36e80"
     ),
     "appolon1908-hue/Telnexa-web": (
-        "760a303c3ccebd232884b73e084347ec"
-        "1c8e81fcc478339c01463e3bf799e64c"
+        "90cf0ba893cbde6a0813ca7225c4d330"
+        "82ec9368b9e52dc96989d58e98f04942"
     ),
     CONTROLLER_REPOSITORY: (
         "4c7b54aa7cd59ac09703d235a264b830"
@@ -974,13 +974,15 @@ def source_closure_fingerprint(
     entries: list[dict[str, Any]],
     repository: str,
 ) -> str:
-    """Fingerprint only explicitly hashed required-check workflows and inputs.
+    """Fingerprint the complete exact-source tree used by required checks.
 
-    Candidate and evidence files are intentionally outside this closure so
-    their review cannot change application SHAs or create a digest cycle.
+    The release validator excludes itself to avoid a literal hash cycle. The
+    controller's reviewed candidate JSON is also excluded because its
+    controller source binding is an already-reviewed policy-base ancestor.
+    Every other blob/commit is included, so an omitted direct or transitive
+    check executable cannot leave the closure unchanged.
     """
 
-    required_paths = required_check_source_paths(repository)
     records: dict[str, bytes] = {}
     for entry in entries:
         require(isinstance(entry, dict), "required source tree entry is invalid")
@@ -1001,14 +1003,15 @@ def source_closure_fingerprint(
             "required source tree entry is invalid",
         )
         validated_path = cast(str, path)
-        if validated_path not in required_paths:
+        if validated_path == RELEASE_VALIDATOR_SOURCE_PATH or (
+            repository == CONTROLLER_REPOSITORY
+            and validated_path.startswith("config/releases/")
+            and validated_path.endswith(".json")
+        ):
             continue
         require(validated_path not in records, "required source tree contains duplicate paths")
         records[validated_path] = f"{mode}\0{kind}\0{validated_path}\0{sha}\n".encode()
-    require(
-        set(records) == required_paths,
-        f"required source tree inputs are incomplete: {sorted(required_paths - set(records))}",
-    )
+    require(bool(records), "required source tree is empty")
     return hashlib.sha256(b"".join(records[path] for path in sorted(records))).hexdigest()
 
 
@@ -1984,7 +1987,7 @@ def self_test() -> int:
             pass
         else:
             raise PolicyError("negative mutable required-check action regression passed")
-    source_fixture_repository = "appolon1908-hue/Infustruction-repo"
+    source_fixture_repository = CONTROLLER_REPOSITORY
     source_fixture = [
         {
             "mode": "100644",
@@ -1994,6 +1997,14 @@ def self_test() -> int:
         }
         for path in sorted(required_check_source_paths(source_fixture_repository))
     ]
+    source_fixture.append(
+        {
+            "mode": "100644",
+            "type": "blob",
+            "path": "tools/transitive-required-check-input.py",
+            "sha": "5" * 40,
+        }
+    )
     source_fixture.extend(
         [
             {
@@ -2038,6 +2049,16 @@ def self_test() -> int:
             source_fixture_repository,
         ),
         "required-check executable drift did not change the source closure",
+    )
+    require(
+        source_fingerprint
+        != source_closure_fingerprint(
+            source_fixture[:-3]
+            + [{**source_fixture[-3], "sha": "4" * 40}]
+            + source_fixture[-2:],
+            source_fixture_repository,
+        ),
+        "unlisted transitive executable drift did not change the source closure",
     )
     breero_quality_closure = {
         ".github/workflows/backend-production.yml",
