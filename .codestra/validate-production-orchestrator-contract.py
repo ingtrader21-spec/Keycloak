@@ -3095,6 +3095,24 @@ def validate_release_validator_operations(source: str) -> None:
 
     for node in ast.walk(tree):
         for target_name, value in named_assignments(node):
+            if not isinstance(value, (ast.Name, ast.Attribute)):
+                invoked_callables = {
+                    id(child.func)
+                    for child in ast.walk(value)
+                    if isinstance(child, ast.Call)
+                }
+                embedded_restricted = any(
+                    id(child) not in invoked_callables
+                    and isinstance(child, (ast.Name, ast.Attribute))
+                    and restricted_callable_name(qualified_name(child))
+                    for child in ast.walk(value)
+                )
+                require(
+                    not embedded_restricted,
+                    "release-intent validator stores a restricted callable "
+                    f"in an unresolved expression at line {value.lineno}: "
+                    f"{target_name}",
+                )
             if isinstance(value, (ast.Name, ast.Attribute)):
                 callable_name = qualified_name(value)
                 if restricted_callable_name(callable_name):
@@ -4299,6 +4317,8 @@ runner(["kubectl", "apply", "-f", "runtime.yml"], check=True)
         "runner(['kubectl', 'apply'])\n",
         "import subprocess\ndef launcher():\n    return subprocess.run\n"
         "runner = launcher()\nrunner(['kubectl', 'apply'])\n",
+        "import subprocess\nrunner = {'go': subprocess.run}['go']\n"
+        "runner(['kubectl', 'apply'])\n",
     ):
         try:
             validate_release_validator_operations(indirect_callable_validator)
