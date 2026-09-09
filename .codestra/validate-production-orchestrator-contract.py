@@ -3907,12 +3907,20 @@ def require_immutable_action_references(workflow: str, path: str) -> None:
 def step_has_reachable_attestation(step: dict[str, Any]) -> bool:
     if condition_is_statically_false(step.get("if")):
         return False
+    if step.get("continue-on-error", False) is not False:
+        return False
     uses = step.get("uses")
     if isinstance(uses, str) and uses.startswith(
         ("actions/attest@", "actions/attest-build-provenance@")
     ):
         return True
     run = str(step.get("run", ""))
+    shell = step.get("shell")
+    if shell is not None and (
+        not isinstance(shell, str)
+        or re.match(r"^(?:bash|sh)(?:\s|$)", shell) is None
+    ):
+        return False
     shell_source = shell_without_heredoc_bodies(run)
     raw_tokens = shell_tokens(shell_source)
     ambiguous_control = {
@@ -3958,6 +3966,25 @@ def step_has_reachable_attestation(step: dict[str, Any]) -> bool:
     return False
 
 
+def attestation_covers_publication(attestation: dict[str, Any], publication: dict[str, Any]) -> bool:
+    if attestation.get("continue-on-error", False) is not False:
+        return False
+    def condition(step: dict[str, Any]) -> str:
+        value = step.get("if")
+        if value is None or value is True:
+            return "success()"
+        if not isinstance(value, str):
+            return "__unproved__"
+        expression = value.strip()
+        if expression.startswith("${{") and expression.endswith("}}"):
+            expression = expression[3:-2].strip()
+        return strip_condition_parentheses(expression)
+    attestation_condition = condition(attestation)
+    return (attestation_condition in {"success()", "true", "always()"}
+            or (attestation_condition != "__unproved__"
+                and attestation_condition == condition(publication)))
+
+
 def require_reachable_signer_workflow(workflow: str, path: str) -> None:
     jobs = workflow_jobs(workflow, path)
     publication_jobs = [
@@ -3979,10 +4006,14 @@ def require_reachable_signer_workflow(workflow: str, path: str) -> None:
     )
     for publication_job in publication_jobs:
         steps = workflow_steps(publication_job, path)
-        require(
-            any(step_has_reachable_attestation(step) for step in steps),
-            f"signer publication job has no reachable attestation step: {path}",
-        )
+        for publication in steps:
+            if condition_is_statically_false(publication.get("if")) or not contains_image_publication(publication):
+                continue
+            require(
+                any(step_has_reachable_attestation(step)
+                    and attestation_covers_publication(step, publication) for step in steps),
+                f"signer publication path has no guaranteed attestation step: {path}",
+            )
 
 
 def validate_intent_source_binding(intent: str) -> None:
@@ -5082,6 +5113,8 @@ def validate_release_trust_alias_regressions() -> None:
         "const cp = require('child_' + 'process');",
         "const cp = require(moduleName);",
         "const loader = require; const cp = loader(moduleName);",
+        "const cp = require.call(null, 'child_' + 'process');",
+        "const cp = require.apply(null, ['child_' + 'process']);",
         "const cp = import // comment\n(moduleName);",
         "const cp = import /* comment */ (moduleName);",
     ):
@@ -5190,6 +5223,42 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
         raise ContractError(
             "negative regression unexpectedly passed: comment-only attestation"
         )
+    for command in (
+        "if false; then cosign attest --yes image@example; fi",
+        "false && cosign attest --yes image@example",
+        "true || cosign attest --yes image@example",
+        "echo cosign attest --yes image@example",
+    ):
+        require(not step_has_reachable_attestation({"run": command}),
+                "unreachable shell attestation was accepted")
+    require(not attestation_covers_publication(
+        {"if": "${{ !inputs.publish }}"}, {"if": "inputs.publish"}
+    ), "complementary attestation condition was accepted")
+    require(attestation_covers_publication(
+        {"if": "${{ inputs.publish }}"}, {"if": "inputs.publish"}
+    ), "identical publication/attestation conditions were rejected")
+    require(attestation_covers_publication({}, {"if": "inputs.publish"}),
+            "unconditional attestation was rejected")
+    complementary_signer = reachable_signer.replace(
+        "      - uses: docker/build-push-action@",
+        "      - if: inputs.publish\n        uses: docker/build-push-action@",
+    ).replace(
+        "      - uses: actions/attest@",
+        "      - if: ${{ !inputs.publish }}\n        uses: actions/attest@",
+    )
+    for invalid_signer in (
+        complementary_signer,
+        reachable_signer.replace(
+            "      - uses: actions/attest@0123456789012345678901234567890123456789",
+            "      - run: if false; then cosign attest --yes image@example; fi",
+        ),
+    ):
+        try:
+            require_reachable_signer_workflow(invalid_signer, "synthetic-unattested-path.yml")
+        except ContractError:
+            pass
+        else:
+            raise ContractError("publication without executable attestation was accepted")
     cosign_signer = reachable_signer.replace(
         "      - uses: actions/attest@0123456789012345678901234567890123456789",
         "      - run: cosign attest --yes image@example",
