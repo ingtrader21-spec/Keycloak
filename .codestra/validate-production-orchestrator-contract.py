@@ -1954,7 +1954,18 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
             # A loader value can escape through an alias. It is not a proven
             # static read-only import, even if its eventual call is renamed.
             if match.group() == "require":
-                return True
+                suffix = lower[match.end():]
+                prefix = lower[:match.start()]
+                if re.match(r"\s*\.(?:apply|bind|call)\s*\(", suffix):
+                    return True
+                if (
+                    re.search(r"(?<![=!<>])=(?!=)\s*$", prefix)
+                    or re.search(r"(?:=>|\breturn)\s*$", prefix)
+                ) and re.match(
+                    r"(?:[ \t]*(?:;|,|\)|\]|\}|\r?\n|//|/\*)|[ \t]*$)",
+                    suffix,
+                ):
+                    return True
             continue
         arguments = call_arguments(open_index)
         literal = None if arguments is None else re.fullmatch(
