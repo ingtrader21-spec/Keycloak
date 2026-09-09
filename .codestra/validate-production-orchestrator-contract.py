@@ -1576,6 +1576,10 @@ def python_source_has_runtime_mutation(source: str) -> bool:
             ):
                 return True
         if qualified == "urllib.request.Request":
+            if any(isinstance(argument, ast.Starred) for argument in node.args) or any(
+                keyword.arg is None for keyword in node.keywords
+            ):
+                return True
             if len(node.args) >= 2:
                 return True
             for keyword in node.keywords:
@@ -1589,6 +1593,10 @@ def python_source_has_runtime_mutation(source: str) -> bool:
                     ):
                         return True
         if qualified == "urllib.request.urlopen":
+            if any(isinstance(argument, ast.Starred) for argument in node.args) or any(
+                keyword.arg is None for keyword in node.keywords
+            ):
+                return True
             if len(node.args) >= 2:
                 return True
             for keyword in node.keywords:
@@ -2617,6 +2625,10 @@ def contains_runtime_command(script: str) -> bool:
                 return True
         if name == "trap" and raw_arguments and contains_runtime_command(raw_arguments[0]):
             return True
+        if name in {"nc", "ncat", "netcat", "socat"} or (
+            name == "openssl" and "s_client" in arguments
+        ):
+            return True
         if name == "git" and (
             any(key.upper().startswith("GIT_") for key in bindings)
             or any("ext::" in token.lower() for token in raw_arguments)
@@ -2823,6 +2835,14 @@ def contains_runtime_mutation(
             seen_scripts,
             script_aliases,
             working_directory,
+        ):
+            return True
+        if (
+            name in {"nc", "ncat", "netcat", "socat"}
+            or name == "openssl" and "s_client" in tail
+        ) and (
+            command_consumes_pipeline(tokens, index)
+            or any(re.match(r"^(?:\\d+)?<", token) for token in raw_tail)
         ):
             return True
         if name == "git" and (
@@ -5156,6 +5176,15 @@ PY
     )
     require(
         python_source_has_runtime_mutation(
+            "import urllib.request\n"
+            "send = lambda *args, **kwargs: "
+            "urllib.request.urlopen(*args, **kwargs)\n"
+            "send(url, data=b'x')\n"
+        ),
+        "negative forwarded Python urlopen regression passed",
+    )
+    require(
+        python_source_has_runtime_mutation(
             "import os, urllib.request\n"
             "urllib.request.Request('https://runtime.example/mutate', "
             "method=os.environ['METHOD'])\n"
@@ -5771,6 +5800,8 @@ subprocess.run(["docker", "buildx", "build", "--push", "."], check=True)
         "sudo --unknown-option harmless-command",
         "systemd-run --wait kubectl apply -f runtime.yml",
         "printf x > /dev/tcp/service/80",
+        "printf 'POST /mutate' | nc runtime.example 80",
+        "printf 'POST /mutate' | openssl s_client -connect runtime.example:443",
         "cat <(printf x)\nkubectl apply -f runtime.yml",
         "kubectl auth reconcile -f runtime-role.yml",
         "docker stack deploy -c compose.yml app",
