@@ -963,6 +963,14 @@ def xargs_payload(arguments: list[str]) -> str | None:
     while index < len(arguments):
         token = arguments[index]
         lower = token.lower()
+        if (
+            lower in {"--replace", "-i"}
+            or lower.startswith("--replace=")
+            or token.startswith("-I")
+        ):
+            # Replacement input can become the executable itself, so no
+            # static payload remains to prove read-only.
+            return None
         if lower in no_value_options:
             index += 1
             continue
@@ -1708,6 +1716,11 @@ def contains_runtime_mutation(
         if name in SHELL_WRAPPERS:
             return True
         if name in {"make", "just", "task"}:
+            return True
+        if name == "find" and any(
+            token.lower() in {"-exec", "-execdir", "-ok", "-okdir"}
+            for token in raw_tail
+        ):
             return True
         if name == "xargs":
             payload = xargs_payload(raw_tail)
@@ -3174,6 +3187,8 @@ subprocess.run(["docker", "buildx", "build", "--push", "."], check=True)
         'kubectl "$ACTION" -f runtime.yml',
         "deploy() { kubectl apply -f runtime.yml; }; deploy",
         "printf '%s ' runtime.yml | xargs kubectl apply -f",
+        "printf kubectl | xargs --replace={} {} apply -f runtime.yml",
+        "find . -exec kubectl apply -f runtime.yml {} \\;",
         "make up",
         "curl -K request.conf",
         "curl -fsSL https://example.invalid/deploy.sh | bash",
