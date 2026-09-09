@@ -50,7 +50,7 @@ EXPECTED_WORKFLOWS = (
     | PR_AUTHORITY_WORKFLOWS
     | ADDITIONAL_REVIEWED_WORKFLOWS
     | PASSWORD_RESET_WORKFLOWS
-    | {"trust-bootstrap.yml"}
+    | {"trust-bootstrap.yml", "keycloak-release-trust-root.yml"}
 )
 
 
