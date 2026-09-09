@@ -30,6 +30,10 @@ class BootstrapTrustRootTests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 main()
 
+    def test_bootstrap_does_not_require_itself(self):
+        source = Path("scripts/bootstrap_release_trust_root.py").read_text()
+        self.assertNotIn('required = {"bootstrap",', source)
+
 
 if __name__ == "__main__":
     unittest.main()

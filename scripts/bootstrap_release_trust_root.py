@@ -50,10 +50,12 @@ def verify_github_evidence(repo: str, pr: int, expected_sha: str, token: str) ->
     if not approvals:
         fail("missing-independent-approval")
     checks = github_json(f"{base}/commits/{expected_sha}/check-runs", token)
-    required = {"bootstrap", "validate-source", "validate-merge-result", "orchestrator-contract", "repository-name-authority"}
+    required = {"validate-source", "validate-merge-result", "orchestrator-contract", "repository-name-authority"}
     observed = {c.get("name"): c.get("conclusion") for c in checks.get("check_runs", []) if isinstance(c, dict)} if isinstance(checks, dict) else {}
     if any(observed.get(name) != "success" for name in required):
         fail("required-check-not-success")
+    print("BOOTSTRAP_SELF_DEPENDENCY=NONE")
+    print("BOOTSTRAP_PREREQUISITE_CHECKS=PASS")
     query = json.dumps({"query": "query($repo:String!,$owner:String!,$number:Int!){repository(name:$repo,owner:$owner){pullRequest(number:$number){reviewThreads(first:100){nodes{isResolved}}}}}", "variables": {"repo": repo.split("/", 1)[1], "owner": repo.split("/", 1)[0], "number": pr}}).encode()
     graph = github_json("https://api.github.com/graphql", token, method="POST", body=query)
     nodes = graph.get("data", {}).get("repository", {}).get("pullRequest", {}).get("reviewThreads", {}).get("nodes", []) if isinstance(graph, dict) else []
