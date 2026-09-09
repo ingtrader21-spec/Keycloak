@@ -37,16 +37,35 @@ def github_json(url: str, token: str, *, method: str = "GET", body: bytes | None
         fail(f"github-api:{type(exc).__name__}")
 
 
+def github_reviews(base: str, pr: int, token: str) -> list[dict]:
+    reviews = []
+    # Construct same-origin pages rather than following untrusted Link URLs.
+    for page in range(1, 101):
+        batch = github_json(f"{base}/pulls/{pr}/reviews?per_page=100&page={page}", token)
+        if not isinstance(batch, list) or any(not isinstance(item, dict) for item in batch):
+            fail("reviews-invalid")
+        reviews.extend(batch)
+        if len(batch) < 100:
+            return reviews
+    fail("reviews-pagination-limit")
+
+
 def verify_github_evidence(repo: str, pr: int, expected_sha: str, token: str) -> None:
     base = f"https://api.github.com/repos/{repo}"
     pull = github_json(f"{base}/pulls/{pr}", token)
     if not isinstance(pull, dict) or pull.get("head", {}).get("sha") != expected_sha:
         fail("pr-head-mismatch")
     author = pull.get("user", {}).get("login")
-    reviews = github_json(f"{base}/pulls/{pr}/reviews", token)
-    if not isinstance(reviews, list):
-        fail("reviews-invalid")
-    approvals = [r for r in reviews if isinstance(r, dict) and r.get("state") == "APPROVED" and r.get("commit_id") == expected_sha and r.get("user", {}).get("login") != author]
+    reviews = github_reviews(base, pr, token)
+    latest = {}
+    for review in reviews:
+        user = review.get("user")
+        login = user.get("login") if isinstance(user, dict) else None
+        if not isinstance(login, str) or not login:
+            fail("reviewer-invalid")
+        if review.get("state") in {"APPROVED", "CHANGES_REQUESTED", "DISMISSED"}:
+            latest[login] = review
+    approvals = [r for login, r in latest.items() if r.get("state") == "APPROVED" and r.get("commit_id") == expected_sha and login != author]
     if not approvals:
         fail("missing-independent-approval")
     checks = github_json(f"{base}/commits/{expected_sha}/check-runs", token)
