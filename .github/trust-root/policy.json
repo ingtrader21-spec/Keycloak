@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "repository": "appolon1908-hue/Keycloak",
+  "protected_branch": "main",
+  "required_check_context": "keycloak-independent-source-authority",
+  "required_check_app_id": null,
+  "approved_manifest_sha256": null
+}

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import re
@@ -49,6 +50,7 @@ EXPECTED_WORKFLOWS = (
     | PR_AUTHORITY_WORKFLOWS
     | ADDITIONAL_REVIEWED_WORKFLOWS
     | PASSWORD_RESET_WORKFLOWS
+    | {"trust-bootstrap.yml"}
 )
 
 
@@ -494,6 +496,16 @@ def validate_image_release_workflow(path: Path, workflow: dict[str, Any]) -> Non
             fail(f"{path}: immutable image release gate is incomplete; missing {fragment}")
 
 
+def validate_trust_bootstrap_workflow() -> None:
+    # Local CI compatibility check only; independent authority comes from the
+    # separately administered App, never from this PR-editable digest.
+    path = WORKFLOW_DIR / "trust-bootstrap.yml"
+    CORE.load_workflow(path)
+    expected = "fb2d3591dbf8843333e5f1e2d53813b978ef3e48a6179796a2ea2f6cba761568"
+    if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+        fail("trust bootstrap workflow differs from reviewed read-only definition")
+
+
 def validate() -> None:
     if not WORKFLOW_DIR.is_dir():
         fail(f"Workflow directory does not exist: {WORKFLOW_DIR}")
@@ -507,6 +519,7 @@ def validate() -> None:
             f"found {sorted(actual_names)}"
         )
 
+    validate_trust_bootstrap_workflow()
     validate_legacy_workflows()
     validate_additional_reviewed_workflows()
     validate_repository_name_authority(
