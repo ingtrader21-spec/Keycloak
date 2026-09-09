@@ -3295,10 +3295,15 @@ def pytest_configured_targets(working_directory: Path) -> list[str] | None:
             )
             if setting is None:
                 return None
-            values = re.findall(r"(['\"])([^'\"\r\n]+)\1", setting.group(1))
-            if not values:
+            targets = [
+                match.group(2)
+                for match in re.finditer(
+                    r"(['\"])([^'\"\r\n]+)\1",
+                    setting.group(1),
+                )
+            ]
+            if not targets:
                 return None
-            targets = [value for _, value in values]
             if any(
                 "$" in value
                 or Path(value).is_absolute()
@@ -3366,7 +3371,7 @@ def test_runner_targets_have_runtime_mutation(
         "--rootdir",
         "-k",
     }
-    discovery_directories = frozenset()
+    discovery_directories: frozenset[str] = frozenset()
     discovery_pattern = "test*.py"
     if module == "unittest":
         option_values |= {"--top-level-directory", "-t"}
