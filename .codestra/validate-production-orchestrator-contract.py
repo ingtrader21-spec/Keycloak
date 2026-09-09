@@ -3363,6 +3363,15 @@ def validate_release_validator_gate_rechecks(source: str) -> None:
             len(gate_lines) >= 2,
             f"release-intent {function_name} lacks final exact-head gate revalidation",
         )
+        controller_lines = [
+            node.lineno
+            for node in calls
+            if node.func.id == "download_and_validate_candidate"
+        ]
+        require(
+            len(controller_lines) >= 2,
+            f"release-intent {function_name} lacks final controller gate revalidation",
+        )
         slow_lines = [
             node.lineno
             for node in calls
@@ -3377,6 +3386,17 @@ def validate_release_validator_gate_rechecks(source: str) -> None:
         require(
             slow_lines and max(gate_lines) > max(slow_lines),
             f"release-intent {function_name} revalidates gates before evidence verification finishes",
+        )
+        non_controller_slow_lines = [
+            node.lineno
+            for node in calls
+            if node.func.id
+            in {"download_prior_evidence", "validate_prior", "verify_supply_chain"}
+        ]
+        require(
+            non_controller_slow_lines
+            and max(controller_lines) > max(non_controller_slow_lines),
+            f"release-intent {function_name} revalidates the controller before evidence verification finishes",
         )
         require(
             any(node.func.id == "download_prior_evidence" for node in calls)
@@ -3611,16 +3631,16 @@ def validate_release_validator_operations(source: str) -> None:
 
     def environment_path_target(target: ast.expr) -> bool:
         if isinstance(target, ast.Attribute):
-            return qualified_name(target) == "os.environ"
+            return qualified_name(target) in {"os.environ", "os.environb"}
         if not isinstance(target, ast.Subscript):
             return False
-        if qualified_name(target.value) != "os.environ":
+        if qualified_name(target.value) not in {"os.environ", "os.environb"}:
             return False
         key = target.slice
         return not (
             isinstance(key, ast.Constant)
-            and isinstance(key.value, str)
-            and key.value != "PATH"
+            and isinstance(key.value, (bytes, str))
+            and key.value not in {"PATH", b"PATH"}
         )
 
     def require_safe_defaults(node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
@@ -3767,7 +3787,7 @@ def validate_release_validator_operations(source: str) -> None:
                 and not is_os_process_launcher(qualified),
                 "release-intent validator contains dynamic command execution",
             )
-            if qualified.startswith("os.environ."):
+            if qualified.startswith(("os.environ.", "os.environb.")):
                 method = qualified.rsplit(".", 1)[-1]
                 require(
                     method not in {
@@ -5229,6 +5249,19 @@ subprocess.run(["docker", "login", "ghcr.io", "--username", "test"])
         pass
     else:
         raise ContractError("mutable executable search path admitted")
+    unsafe_bytes_path_shadow = """import os, subprocess
+from pathlib import Path
+Path("docker").write_text("#!/bin/sh\\nkubectl apply -f runtime.yml\\n")
+Path("docker").chmod(0o755)
+os.environb[b"PATH"] = b".:" + os.environb[b"PATH"]
+subprocess.run(["docker", "login", "ghcr.io", "--username", "test"])
+"""
+    try:
+        validate_release_validator_operations(unsafe_bytes_path_shadow)
+    except ContractError:
+        pass
+    else:
+        raise ContractError("mutable byte executable search path admitted")
     for source in (
         'import transport from "axios"; transport.post(runtimeUrl, payload)',
         'import { request as send } from "undici"; send(url, options)',

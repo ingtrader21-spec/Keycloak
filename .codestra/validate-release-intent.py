@@ -208,6 +208,63 @@ EXPECTED_CHECK_WORKFLOW_SHA256 = {
         ".github/workflows/production-merge-gate.yml": "921eb777b8e6beb77a038b88edcc9a0b1ccba34d4e4cf8b68ce94768c4d5e47e",
     },
 }
+EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
+    "appolon1908-hue/Infustruction-repo": {
+        ".github/workflows/production-orchestrator-contract.yml": {
+            ".codestra/validate-production-orchestrator-contract.py": "8e1e253505988c6c2de211cf64d822a73ddbe69e214ccb990c85ab22b55a2dea",
+        },
+    },
+    "appolon1908-hue/Keycloak": {
+        ".github/workflows/production-orchestrator-contract.yml": {
+            ".codestra/validate-production-orchestrator-contract.py": "3eb1f9ffbdf38785d51fd6109c21e3624bbfd9fd5460ec33590571a09a77b808",
+        },
+    },
+    "appolon1908-hue/Middleware-": {
+        ".github/workflows/production-orchestrator-contract.yml": {
+            ".codestra/validate-production-orchestrator-contract.py": "6f49be243f0dacd7d1ea926dfe58f9a02676daf80bcb4ab7e045a63d1af2cebc",
+        },
+    },
+    "appolon1908-hue/codestra": {
+        ".github/workflows/production-orchestrator-contract.yml": {
+            ".codestra/validate-production-orchestrator-contract.py": "8e1e253505988c6c2de211cf64d822a73ddbe69e214ccb990c85ab22b55a2dea",
+        },
+    },
+    "appolon1908-hue/beyvra-backend": {
+        ".github/workflows/production-orchestrator-contract.yml": {
+            ".codestra/validate-production-orchestrator-contract.py": "aac2f818b650bc7061e5ba8afb903fe46ea2f4f9f7143339438d45e01279a089",
+        },
+    },
+    "appolon1908-hue/backend2": {
+        ".github/workflows/production-orchestrator-contract.yml": {
+            ".codestra/validate-production-orchestrator-contract.py": "8e1e253505988c6c2de211cf64d822a73ddbe69e214ccb990c85ab22b55a2dea",
+        },
+    },
+    "appolon1908-hue/beyvra-frontend": {
+        ".github/workflows/production-orchestrator-contract.yml": {
+            ".codestra/validate-production-orchestrator-contract.py": "8e1e253505988c6c2de211cf64d822a73ddbe69e214ccb990c85ab22b55a2dea",
+        },
+    },
+    "appolon1908-hue/scrapper": {
+        ".github/workflows/production-orchestrator-contract.yml": {
+            ".codestra/validate-production-orchestrator-contract.py": "8e1e253505988c6c2de211cf64d822a73ddbe69e214ccb990c85ab22b55a2dea",
+        },
+    },
+    "appolon1908-hue/Breero.com": {
+        ".github/workflows/production-orchestrator-contract.yml": {
+            ".codestra/validate-production-orchestrator-contract.py": "8e1e253505988c6c2de211cf64d822a73ddbe69e214ccb990c85ab22b55a2dea",
+        },
+    },
+    "appolon1908-hue/Moneybee-Backend": {
+        ".github/workflows/production-orchestrator-contract.yml": {
+            ".codestra/validate-production-orchestrator-contract.py": "8e1e253505988c6c2de211cf64d822a73ddbe69e214ccb990c85ab22b55a2dea",
+        },
+    },
+    "appolon1908-hue/Telnexa-web": {
+        ".github/workflows/production-orchestrator-contract.yml": {
+            ".codestra/validate-production-orchestrator-contract.py": "8e1e253505988c6c2de211cf64d822a73ddbe69e214ccb990c85ab22b55a2dea",
+        },
+    },
+}
 
 
 class PolicyError(ValueError):
@@ -583,6 +640,93 @@ def validate_workflow_definition_bytes(
     )
 
 
+def validate_workflow_executable_bytes(
+    repository: str,
+    workflow_path: str,
+    executable_path: str,
+    raw: bytes,
+) -> None:
+    expected = EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256.get(repository, {}).get(
+        workflow_path,
+        {},
+    ).get(executable_path)
+    require(
+        isinstance(expected, str) and DIGEST.fullmatch(expected) is not None,
+        f"required check executable digest policy is missing: {repository}:{executable_path}",
+    )
+    require(
+        hashlib.sha256(raw).hexdigest() == expected,
+        f"required check executable drift: {repository}:{executable_path}",
+    )
+
+
+def is_exact_local_repository_source(
+    repository: str,
+    source_sha: str,
+    local_repository: str | None,
+    checkout_sha: str,
+) -> bool:
+    return repository == local_repository and source_sha == checkout_sha
+
+
+def exact_local_repository_file_bytes(
+    repository: str,
+    source_sha: str,
+    path: str,
+) -> bytes | None:
+    local_repository = os.environ.get("GITHUB_REPOSITORY")
+    if repository != local_repository:
+        return None
+    checkout_sha = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"],
+        text=True,
+    ).strip()
+    if not is_exact_local_repository_source(
+        repository,
+        source_sha,
+        local_repository,
+        checkout_sha,
+    ):
+        return None
+    local_path = Path(path)
+    require(
+        local_path.is_file() and not local_path.is_symlink(),
+        f"required source file is missing or unsafe: {path}",
+    )
+    return local_path.read_bytes()
+
+
+def repository_file_bytes(
+    repository: str,
+    source_sha: str,
+    path: str,
+    *,
+    administration: bool = False,
+) -> bytes:
+    require(SHA.fullmatch(source_sha) is not None, "repository file source SHA is invalid")
+    local_bytes = exact_local_repository_file_bytes(repository, source_sha, path)
+    if local_bytes is not None:
+        return local_bytes
+    encoded_path = urllib.parse.quote(path, safe="/")
+    value = api_json(
+        f"repos/{repository}/contents/{encoded_path}?ref={source_sha}",
+        administration=administration,
+    )
+    require(
+        isinstance(value, dict)
+        and value.get("type") == "file"
+        and value.get("encoding") == "base64"
+        and isinstance(value.get("content"), str),
+        f"required source file evidence is invalid: {repository}:{path}",
+    )
+    try:
+        return base64.b64decode("".join(value["content"].split()), validate=True)
+    except ValueError as error:
+        raise PolicyError(
+            f"required source file encoding is invalid: {repository}:{path}"
+        ) from error
+
+
 def validate_required_check_workflow_definitions(
     repository: str,
     source_sha: str,
@@ -598,34 +742,39 @@ def validate_required_check_workflow_definitions(
         "required check workflow policy is incomplete",
     )
     for path in sorted(required_paths):
-        if repository == os.environ.get("GITHUB_REPOSITORY"):
-            local_path = Path(path)
+        raw = repository_file_bytes(
+            repository,
+            source_sha,
+            path,
+            administration=administration,
+        )
+        validate_workflow_definition_bytes(repository, path, raw)
+        executable_policy = EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256.get(
+            repository,
+            {},
+        ).get(path, {})
+        if path == ".github/workflows/production-orchestrator-contract.yml":
             require(
-                local_path.is_file() and not local_path.is_symlink(),
-                f"required check workflow is missing or unsafe: {path}",
+                bool(executable_policy),
+                f"required check executable digest policy is missing: {repository}:{path}",
             )
-            raw = local_path.read_bytes()
-        else:
-            encoded_path = urllib.parse.quote(path, safe="/")
-            value = api_json(
-                f"repos/{repository}/contents/{encoded_path}?ref={source_sha}",
+        for executable_path, expected_hash in executable_policy.items():
+            require(
+                DIGEST.fullmatch(expected_hash) is not None,
+                f"required check executable digest is invalid: {repository}:{executable_path}",
+            )
+            executable = repository_file_bytes(
+                repository,
+                source_sha,
+                executable_path,
                 administration=administration,
             )
-            require(
-                isinstance(value, dict)
-                and value.get("type") == "file"
-                and value.get("encoding") == "base64"
-                and isinstance(value.get("content"), str),
-                f"required check workflow evidence is invalid: {repository}:{path}",
+            validate_workflow_executable_bytes(
+                repository,
+                path,
+                executable_path,
+                executable,
             )
-            try:
-                encoded = "".join(value["content"].split())
-                raw = base64.b64decode(encoded, validate=True)
-            except ValueError as error:
-                raise PolicyError(
-                    f"required check workflow encoding is invalid: {repository}:{path}"
-                ) from error
-        validate_workflow_definition_bytes(repository, path, raw)
 
 
 def validate_environment_document(value: object, environment: str) -> None:
@@ -936,7 +1085,7 @@ def recheck_protected_gates() -> int:
     policy = contract.get("artifact_policy")
     require(isinstance(policy, dict), "artifact_policy must be an object")
     validate_images(images, previous_images, policy)
-    download_and_validate_candidate(
+    controller_candidate_head = download_and_validate_candidate(
         candidate_sha256,
         release_id,
         repository,
@@ -975,6 +1124,19 @@ def recheck_protected_gates() -> int:
             "protected_environment_job_completed": previous_phase != "plan",
             "status": "PASS",
         },
+    )
+    final_controller_candidate_head = download_and_validate_candidate(
+        candidate_sha256,
+        release_id,
+        repository,
+        source_sha,
+        hashlib.sha256(contract_bytes).hexdigest(),
+        images,
+        previous_images,
+    )
+    require(
+        final_controller_candidate_head == controller_candidate_head,
+        "controller protected head changed during protected gate recheck",
     )
     validate_repository_gates(contract, source_sha, phase, environment)
     print("PROTECTED_GATES_RECHECK=PASS")
@@ -1255,6 +1417,19 @@ def main() -> int:
             },
         )
 
+    final_controller_candidate_head = download_and_validate_candidate(
+        candidate_sha256,
+        release_id,
+        repository,
+        source_sha,
+        contract_sha256,
+        images,
+        previous_images,
+    )
+    require(
+        final_controller_candidate_head == controller_candidate_head,
+        "controller protected head changed during release-intent validation",
+    )
     required_checks, bindings = validate_repository_gates(
         contract,
         source_sha,
@@ -1304,6 +1479,26 @@ def self_test() -> int:
     local_repository = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))["repository"]
     workflow_path = ".github/workflows/production-orchestrator-contract.yml"
     workflow_bytes = Path(workflow_path).read_bytes()
+    checkout_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    require(
+        is_exact_local_repository_source(
+            local_repository,
+            checkout_sha,
+            local_repository,
+            checkout_sha,
+        ),
+        "exact local source-file binding regression failed",
+    )
+    stale_sha = ("0" if checkout_sha[0] != "0" else "1") + checkout_sha[1:]
+    require(
+        not is_exact_local_repository_source(
+            local_repository,
+            stale_sha,
+            local_repository,
+            checkout_sha,
+        ),
+        "stale source SHA incorrectly used local workflow bytes",
+    )
     validate_workflow_definition_bytes(
         local_repository,
         workflow_path,
@@ -1319,6 +1514,25 @@ def self_test() -> int:
         pass
     else:
         raise PolicyError("negative required-check workflow digest regression passed")
+    executable_path = ".codestra/validate-production-orchestrator-contract.py"
+    executable_bytes = Path(executable_path).read_bytes()
+    validate_workflow_executable_bytes(
+        local_repository,
+        workflow_path,
+        executable_path,
+        executable_bytes,
+    )
+    try:
+        validate_workflow_executable_bytes(
+            local_repository,
+            workflow_path,
+            executable_path,
+            executable_bytes + b"\n",
+        )
+    except PolicyError:
+        pass
+    else:
+        raise PolicyError("negative required-check executable digest regression passed")
     require(
         head_applicable_required_checks(
             "appolon1908-hue/Infustruction-repo",
