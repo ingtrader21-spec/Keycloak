@@ -59,7 +59,9 @@ SHELL_WRAPPERS = {
     "command",
     "env",
     "exec",
+    "nice",
     "nohup",
+    "setsid",
     "sudo",
     "time",
     "timeout",
@@ -535,12 +537,22 @@ ALLOWED_RELEASE_VALIDATOR_COMMAND_PREFIXES = {
     ("git", "rev-parse"),
     ("git", "status"),
 }
-FORBIDDEN_RELEASE_VALIDATOR_IMPORTS = {
-    "fabric",
-    "httpx",
-    "paramiko",
-    "requests",
-    "socket",
+ALLOWED_RELEASE_VALIDATOR_IMPORTS = {
+    "__future__",
+    "base64",
+    "copy",
+    "email",
+    "hashlib",
+    "io",
+    "json",
+    "os",
+    "pathlib",
+    "re",
+    "subprocess",
+    "sys",
+    "typing",
+    "urllib",
+    "zipfile",
 }
 
 
@@ -1577,10 +1589,14 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
                 return True
             if re.search(r"\bbody\s*:", lowered_options):
                 return True
-            method = re.search(r"\bmethod\s*:", lowered_options)
-            if method is not None and re.match(
-                r"\s*['\"](?:get|head)['\"]",
-                lowered_options[method.end() :],
+            methods = list(
+                re.finditer(r"(?:\bmethod|['\"]method['\"])\s*:", lowered_options)
+            )
+            if len(methods) > 1:
+                return True
+            if methods and re.match(
+                r"\s*['\"](?:get|head)['\"]\s*(?:,|})",
+                lowered_options[methods[0].end() :],
             ) is None:
                 return True
     # Module imports can rename or construct clients in arbitrary ways. Until
@@ -2290,6 +2306,7 @@ def contains_runtime_command(script: str) -> bool:
         command_token = resolved_command_token(tokens[index], bindings)
         name = executable_name(command_token)
         arguments = command_arguments(tokens, index)
+        raw_arguments = raw_command_arguments(tokens, index)
         if command_token_has_dynamic_executable(command_token):
             return True
         if absolute_executable_is_unproved(command_token):
@@ -2300,6 +2317,15 @@ def contains_runtime_command(script: str) -> bool:
             or name.endswith("deploy_immutable")
             or name.endswith("apply-plan.sh")
             or api_client_has_mutating_operation(name, arguments)
+        ):
+            return True
+        if (
+            name in (SHELL_INTERPRETERS | SCRIPT_INTERPRETERS)
+            and interpreter_payload(tokens, index) is None
+            and any(
+                token == "<<<" or token.startswith("<<<")
+                for token in raw_arguments
+            )
         ):
             return True
         payload = interpreter_payload(tokens, index)
@@ -2416,9 +2442,11 @@ def contains_runtime_mutation(
             return True
         if absolute_executable_is_unproved(command_token):
             return True
-        if command_consumes_pipeline(tokens, index) and name in (
-            SHELL_INTERPRETERS | SCRIPT_INTERPRETERS
-        ):
+        unproved_stdin = (
+            command_consumes_pipeline(tokens, index)
+            or any(token == "<<<" or token.startswith("<<<") for token in raw_tail)
+        ) and payload is None and target is None and module_target is None
+        if unproved_stdin and name in (SHELL_INTERPRETERS | SCRIPT_INTERPRETERS):
             return True
         if name in SHELL_WRAPPERS:
             return True
@@ -2674,7 +2702,26 @@ def contains_image_publication(step: dict[str, Any]) -> bool:
     if isinstance(uses, str) and isinstance(inputs, dict):
         normalized = uses.split(" #", 1)[0].strip().lower()
         if normalized.startswith("docker/build-push-action@"):
-            return inputs.get("push", False) not in {False, "false"}
+            if inputs.get("push", False) not in {False, "false"}:
+                return True
+            outputs = inputs.get("outputs")
+            if outputs is None:
+                return False
+            if not isinstance(outputs, str) or "${{" in outputs:
+                return True
+            for output in outputs.splitlines():
+                fields = {
+                    key.strip().lower(): value.strip().lower()
+                    for field in output.split(",")
+                    if "=" in field
+                    for key, value in [field.split("=", 1)]
+                }
+                if fields.get("type") == "registry" or (
+                    fields.get("type") == "image"
+                    and fields.get("push") not in {None, "false"}
+                ):
+                    return True
+            return False
         if normalized.startswith("actions/attest-build-provenance@"):
             return inputs.get("push-to-registry", False) not in {False, "false"}
     raw_tokens = shell_tokens(str(step.get("run", "")))
@@ -3074,6 +3121,7 @@ def validate_release_validator_operations(source: str) -> None:
         return (
             name.startswith("subprocess.")
             or is_os_process_launcher(name)
+            or name in {"os.popen", "os.system"}
             or name in prohibited_url_calls
             or name == "urllib.request.Request"
         )
@@ -3154,8 +3202,9 @@ def validate_release_validator_operations(source: str) -> None:
             ):
                 opener_bindings.add(target_name)
     require(
-        not (imports & FORBIDDEN_RELEASE_VALIDATOR_IMPORTS),
-        "release-intent validator imports a runtime/network client",
+        imports <= ALLOWED_RELEASE_VALIDATOR_IMPORTS,
+        "release-intent validator imports an unapproved module: "
+        f"{sorted(imports - ALLOWED_RELEASE_VALIDATOR_IMPORTS)}",
     )
 
     allowed_subprocess_calls = {"check_output", "run"}
@@ -3181,9 +3230,15 @@ def validate_release_validator_operations(source: str) -> None:
         return set()
 
     def allowed_evidence_command(command: tuple[str, ...]) -> bool:
+        if command in {("git", "rev-parse", "HEAD"), ("git", "status", "--porcelain")}:
+            return True
+        if command[:4] == ("docker", "login", "ghcr.io", "--username"):
+            # The sole registry endpoint is fixed before the dynamic username.
+            return True
         return any(
             len(command) >= len(prefix) and command[: len(prefix)] == prefix
             for prefix in ALLOWED_RELEASE_VALIDATOR_COMMAND_PREFIXES
+            if prefix not in {("docker", "login"), ("git", "rev-parse"), ("git", "status")}
         )
 
     function_stack: list[str] = []
@@ -3226,7 +3281,11 @@ def validate_release_validator_operations(source: str) -> None:
         def visit_Return(self, node: ast.Return) -> None:
             if node.value is not None:
                 require(
-                    not restricted_callable_name(qualified_name(node.value)),
+                    not any(
+                        isinstance(value, ast.expr)
+                        and restricted_callable_name(qualified_name(value))
+                        for value in ast.walk(node.value)
+                    ),
                     "release-intent validator returns a restricted callable",
                 )
             self.generic_visit(node)
@@ -3267,12 +3326,14 @@ def validate_release_validator_operations(source: str) -> None:
                     "builtins.exec",
                     "builtins.getattr",
                     "builtins.setattr",
+                    "builtins.vars",
                     "compile",
                     "eval",
                     "exec",
                     "getattr",
                     "importlib.import_module",
                     "setattr",
+                    "vars",
                 }
                 and qualified not in {"os.popen", "os.system"}
                 and not is_os_process_launcher(qualified),
@@ -3309,6 +3370,21 @@ def validate_release_validator_operations(source: str) -> None:
             approved_url_call = qualified == "urllib.request.Request" or any(
                 qualified == f"{name}.open" for name in opener_bindings
             )
+            approved_local_open = (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr == "open"
+                and isinstance(node.func.value, ast.Call)
+                and qualified_name(node.func.value.func) == "pathlib.Path"
+            )
+            require(
+                not (
+                    isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "open"
+                    and not approved_url_call
+                    and not approved_local_open
+                ),
+                "release-intent validator uses an unresolved opener",
+            )
             if approved_url_call:
                 require(
                     bool(function_stack)
@@ -3343,9 +3419,8 @@ def validate_release_validator_operations(source: str) -> None:
         def visit_Attribute(self, node: ast.Attribute) -> None:
             require(
                 not (
-                    function_stack
-                    and function_stack[-1] in {"api_request", "download_artifact_archive"}
-                    and isinstance(node.ctx, (ast.Store, ast.Del))
+                    node.attr == "__dict__"
+                    or isinstance(node.ctx, (ast.Store, ast.Del))
                     and node.attr in {"method", "data", "get_method"}
                 ),
                 "evidence client mutates request method or body after construction",
@@ -3706,6 +3781,9 @@ def validate_intent_negative_regressions() -> None:
         "bash -c 'kubectl apply -f runtime.yml'",
         "sh -c 'terraform apply'",
         "eval 'helm upgrade release chart'",
+        "nice kubectl apply -f runtime.yml",
+        "setsid kubectl apply -f runtime.yml",
+        "sh -s <<< 'kubectl apply -f runtime.yml'",
     ):
         require(
             contains_runtime_command(command),
@@ -3893,6 +3971,26 @@ jobs:
     else:
         raise ContractError(
             "negative regression unexpectedly passed: dynamic image publication"
+        )
+    registry_export_publication = """name: synthetic
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: docker/build-push-action@0123456789012345678901234567890123456789
+        with:
+          outputs: type=registry,name=ghcr.io/example/image
+"""
+    try:
+        require_image_publishing_jobs_disabled(
+            registry_export_publication,
+            "synthetic-registry-export-publication.yml",
+        )
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: registry exporter publication"
         )
     python_shell_mutation = """name: synthetic
 jobs:
@@ -4372,6 +4470,8 @@ runner(["kubectl", "apply", "-f", "runtime.yml"], check=True)
         "(runner := subprocess.run)(['kubectl', 'apply'])\n",
         "import asyncio\nasyncio.run(asyncio.create_subprocess_exec("
         "'kubectl', 'apply'))\n",
+        "import os, multiprocessing\n"
+        "multiprocessing.Process(target=os.system, args=('kubectl apply',)).start()\n",
     ):
         try:
             validate_release_validator_operations(unresolved_callable_validator)
@@ -4466,6 +4566,20 @@ open_url("https://runtime.example/mutate")
         raise ContractError(
             "negative regression unexpectedly passed: aliased URL opener"
         )
+    for unsafe_opener in (
+        "import urllib.request\n"
+        "urllib.request.build_opener().open(url, b'payload')\n",
+        "import http.client\n"
+        "http.client.HTTPSConnection(host).request('POST', path, body=data)\n",
+    ):
+        try:
+            validate_release_validator_operations(unsafe_opener)
+        except ContractError:
+            pass
+        else:
+            raise ContractError(
+                "negative regression unexpectedly passed: unresolved network client"
+            )
     for function_name in ("api_request", "download_artifact_archive"):
         for request_arguments in (
             "url, method='POST'", "url, data=b'payload'",
@@ -4495,6 +4609,7 @@ open_url("https://runtime.example/mutate")
             "NO_REDIRECT_OPENER.open(request, **options)",
             "request.method = 'POST'", "request.data = b'payload'",
             "request.method: str = 'POST'",
+            "request.__dict__['method'] = 'POST'",
         ):
             unsafe = (
                 "import urllib.request\n"
@@ -4509,6 +4624,34 @@ open_url("https://runtime.example/mutate")
                 pass
             else:
                 raise ContractError(f"mutating evidence opener admitted: {statement}")
+        unsafe_helper = (
+            "import urllib.request\n"
+            "NO_REDIRECT_OPENER = urllib.request.build_opener()\n"
+            "def mutate(request):\n"
+            "    request.method = 'POST'\n"
+            f"def {function_name}():\n"
+            "    request = urllib.request.Request(url)\n"
+            "    mutate(request)\n"
+            "    NO_REDIRECT_OPENER.open(request)\n"
+        )
+        try:
+            validate_release_validator_operations(unsafe_helper)
+        except ContractError:
+            pass
+        else:
+            raise ContractError("helper-based request mutation admitted")
+    unsafe_dynamic_registry = """import os, subprocess
+subprocess.run(
+    ["docker", "login", os.environ["RUNTIME_HOST"]],
+    input=os.environ["GH_TOKEN"],
+)
+"""
+    try:
+        validate_release_validator_operations(unsafe_dynamic_registry)
+    except ContractError:
+        pass
+    else:
+        raise ContractError("dynamic evidence registry endpoint admitted")
     for source in (
         'import transport from "axios"; transport.post(runtimeUrl, payload)',
         'import { request as send } from "undici"; send(url, options)',

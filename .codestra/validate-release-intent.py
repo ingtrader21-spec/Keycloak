@@ -147,7 +147,65 @@ EXPECTED_CHECK_WORKFLOWS = {
         "docker-build": ".github/workflows/ci.yml",
     },
     CONTROLLER_REPOSITORY: {
+        "checks-only-policy": ".github/workflows/production-merge-gate.yml",
+        "diagnose": ".github/workflows/gitleaks-pr-diagnostics.yml",
+        "production-gate": ".github/workflows/production-merge-gate.yml",
         "validate": ".github/workflows/platform-source-gate.yml",
+    },
+}
+ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256 = (
+    "5d5f118c8089a7298cc7439327689f862bf669bad46ec9160a0b5763fa11e869"
+)
+EXPECTED_CHECK_WORKFLOW_SHA256 = {
+    "appolon1908-hue/Infustruction-repo": {
+        ".github/workflows/production-orchestrator-contract.yml": ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256,
+        ".github/workflows/source-authority-matrix.yml": "1c036a0327b075a00dc57052d6a755ea5af478e1cf9a4c168268b324e4490cd5",
+    },
+    "appolon1908-hue/Keycloak": {
+        ".github/workflows/production-orchestrator-contract.yml": ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256,
+        ".github/workflows/validate.yml": "34e8692d93f3a30949e1e3de0543d4db93c508ce026538f6b5a8442d1a800f1a",
+    },
+    "appolon1908-hue/Middleware-": {
+        ".github/workflows/production-orchestrator-contract.yml": ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256,
+        ".github/workflows/middleware-ci.yml": "385d1f652556de076cb26a480351ab6bb2c5f1d6200b9e7beae06add8ee75d42",
+    },
+    "appolon1908-hue/codestra": {
+        ".github/workflows/production-orchestrator-contract.yml": ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256,
+        ".github/workflows/ci.yml": "8ceb79b754b209b88b4052fc3c237c76829f021cd34e0532e17383d64d94b262",
+    },
+    "appolon1908-hue/beyvra-backend": {
+        ".github/workflows/production-orchestrator-contract.yml": ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256,
+        ".github/workflows/ci.yml": "f10b269e0faf54b23582ca1ee9700de6f2ec9f5481f6b2be20e40b9f6d428945",
+    },
+    "appolon1908-hue/backend2": {
+        ".github/workflows/production-orchestrator-contract.yml": ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256,
+        ".github/workflows/ci.yml": "b84ea18e422c3aed1b4020d66bd077048045fbb87d7d027d3c9e85f6494329b9",
+    },
+    "appolon1908-hue/beyvra-frontend": {
+        ".github/workflows/production-orchestrator-contract.yml": ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256,
+        ".github/workflows/ci.yml": "8dfd828f1c50f774d34d22008cc8e5eb3ce4961165b388e058fd3cab6130e2e5",
+    },
+    "appolon1908-hue/scrapper": {
+        ".github/workflows/production-orchestrator-contract.yml": ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256,
+        ".github/workflows/ci.yml": "31d81c5be094a1510bc821ef4359bba591630d2273662f5de0683205d908c60d",
+    },
+    "appolon1908-hue/Breero.com": {
+        ".github/workflows/production-orchestrator-contract.yml": ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256,
+        ".github/workflows/quality.yml": "68f066200e3f656c63ecabc1dcb9551d9c669eb5b3f6e5d70ab4f1960bc67043",
+    },
+    "appolon1908-hue/Moneybee-Backend": {
+        ".github/workflows/production-orchestrator-contract.yml": ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256,
+        ".github/workflows/ci.yml": "0bed241476483a0ac38e0fc8bb2b06a23b076645a6b0b355cf0420fcf4d2f451",
+        ".github/workflows/secure-ci.yml": "6ab4ebf30e47aee65ba3e1d7106ddd0c6feea546a57ebd289cf4fcfed9106e00",
+    },
+    "appolon1908-hue/Telnexa-web": {
+        ".github/workflows/production-orchestrator-contract.yml": ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256,
+        ".github/workflows/ci.yml": "1b8db51b1d607a04b9d1f578802c4f58d1eb824638cc5a9ac1bd114a9869a462",
+    },
+    CONTROLLER_REPOSITORY: {
+        ".github/workflows/gitleaks-pr-diagnostics.yml": "2edfc97221b0fc0b8668075056b6205494eb77e37d037017fcfb2fa6d04ba732",
+        ".github/workflows/platform-source-gate.yml": "e1de711a014a5056083aba8755289916b4a7fd6eadaf3ec2aa77077821c925ff",
+        ".github/workflows/production-merge-gate.yml": "921eb777b8e6beb77a038b88edcc9a0b1ccba34d4e4cf8b68ce94768c4d5e47e",
     },
 }
 
@@ -509,6 +567,67 @@ def load_workflow_bound_check_conclusions(
     )
 
 
+def validate_workflow_definition_bytes(
+    repository: str,
+    path: str,
+    raw: bytes,
+) -> None:
+    expected = EXPECTED_CHECK_WORKFLOW_SHA256.get(repository, {}).get(path)
+    require(
+        isinstance(expected, str) and DIGEST.fullmatch(expected) is not None,
+        f"required check workflow digest policy is missing: {repository}:{path}",
+    )
+    require(
+        hashlib.sha256(raw).hexdigest() == expected,
+        f"required check workflow definition drift: {repository}:{path}",
+    )
+
+
+def validate_required_check_workflow_definitions(
+    repository: str,
+    source_sha: str,
+    required_checks: list[str],
+    *,
+    administration: bool = False,
+) -> None:
+    paths = EXPECTED_CHECK_WORKFLOWS.get(repository)
+    require(isinstance(paths, dict), "required check workflow policy is missing")
+    required_paths = {paths.get(name) for name in required_checks}
+    require(
+        None not in required_paths and all(isinstance(path, str) for path in required_paths),
+        "required check workflow policy is incomplete",
+    )
+    for path in sorted(required_paths):
+        if repository == os.environ.get("GITHUB_REPOSITORY"):
+            local_path = Path(path)
+            require(
+                local_path.is_file() and not local_path.is_symlink(),
+                f"required check workflow is missing or unsafe: {path}",
+            )
+            raw = local_path.read_bytes()
+        else:
+            encoded_path = urllib.parse.quote(path, safe="/")
+            value = api_json(
+                f"repos/{repository}/contents/{encoded_path}?ref={source_sha}",
+                administration=administration,
+            )
+            require(
+                isinstance(value, dict)
+                and value.get("type") == "file"
+                and value.get("encoding") == "base64"
+                and isinstance(value.get("content"), str),
+                f"required check workflow evidence is invalid: {repository}:{path}",
+            )
+            try:
+                encoded = "".join(value["content"].split())
+                raw = base64.b64decode(encoded, validate=True)
+            except ValueError as error:
+                raise PolicyError(
+                    f"required check workflow encoding is invalid: {repository}:{path}"
+                ) from error
+        validate_workflow_definition_bytes(repository, path, raw)
+
+
 def validate_environment_document(value: object, environment: str) -> None:
     if not isinstance(value, dict):
         raise PolicyError("protected environment is missing")
@@ -593,6 +712,11 @@ def validate_repository_gates(
         repository,
         branch_checks,
         contract_checks,
+    )
+    validate_required_check_workflow_definitions(
+        repository,
+        source_sha,
+        required_checks,
     )
     latest = load_workflow_bound_check_conclusions(
         repository,
@@ -708,6 +832,12 @@ def download_and_validate_candidate(
             administration=True,
         ),
         15368,
+    )
+    validate_required_check_workflow_definitions(
+        CONTROLLER_REPOSITORY,
+        controller_head,
+        controller_checks,
+        administration=True,
     )
     controller_latest = load_workflow_bound_check_conclusions(
         CONTROLLER_REPOSITORY,
@@ -1128,6 +1258,24 @@ def main() -> int:
 def self_test() -> int:
     global NO_REDIRECT_OPENER
 
+    local_repository = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))["repository"]
+    workflow_path = ".github/workflows/production-orchestrator-contract.yml"
+    workflow_bytes = Path(workflow_path).read_bytes()
+    validate_workflow_definition_bytes(
+        local_repository,
+        workflow_path,
+        workflow_bytes,
+    )
+    try:
+        validate_workflow_definition_bytes(
+            local_repository,
+            workflow_path,
+            workflow_bytes + b"\n",
+        )
+    except PolicyError:
+        pass
+    else:
+        raise PolicyError("negative required-check workflow digest regression passed")
     require(
         head_applicable_required_checks(
             "appolon1908-hue/Infustruction-repo",
