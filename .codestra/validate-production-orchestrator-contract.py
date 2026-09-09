@@ -4652,7 +4652,12 @@ def attestation_covers_publication(
     )
 
 
-def normalized_image_subject(value: object) -> str | None:
+def normalized_image_subject(
+    value: object,
+    environment: dict[str, object] | None = None,
+    *,
+    resolving: frozenset[str] = frozenset(),
+) -> str | None:
     if not isinstance(value, str):
         return None
     subject = value.strip()
@@ -4662,12 +4667,22 @@ def normalized_image_subject(value: object) -> str | None:
         and subject[0] in {"'", '"'}
     ):
         subject = subject[1:-1].strip()
-    if (
-        not subject
-        or any(character in subject for character in "\r\n\0")
-        or "$" in subject
-        or "`" in subject
-    ):
+    if not subject or any(character in subject for character in "`\r\n\0"):
+        return None
+    variable = re.fullmatch(
+        r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))",
+        subject,
+    )
+    if variable is not None:
+        name = variable.group(1) or variable.group(2)
+        if environment is None or name in resolving or name not in environment:
+            return None
+        return normalized_image_subject(
+            environment[name],
+            environment,
+            resolving=resolving | {name},
+        )
+    if "$" in subject:
         return None
     return subject
 
@@ -4743,7 +4758,25 @@ def bound_image_repository(value: object) -> str | None:
     return result
 
 
-def publication_subjects(step: dict[str, Any]) -> set[str]:
+def step_environment(
+    job: WorkflowJob,
+    step: dict[str, Any],
+) -> dict[str, object] | None:
+    environment: dict[str, object] = {}
+    for source in (job.data.get("env", {}), step.get("env", {})):
+        if not isinstance(source, dict) or not all(
+            isinstance(name, str) and bool(name)
+            for name in source
+        ):
+            return None
+        environment.update(source)
+    return environment
+
+
+def publication_subjects(
+    step: dict[str, Any],
+    environment: dict[str, object] | None = None,
+) -> set[str]:
     subjects: set[str] = set()
     uses = step.get("uses")
     inputs = step.get("with")
@@ -4758,6 +4791,8 @@ def publication_subjects(step: dict[str, Any]) -> set[str]:
             ) is None:
                 return set()
             for raw_tag in re.split(r"[\r\n,]+", tags):
+                if not raw_tag.strip():
+                    continue
                 repository = bound_image_repository(raw_tag)
                 if repository is None:
                     return set()
@@ -4784,7 +4819,7 @@ def publication_subjects(step: dict[str, Any]) -> set[str]:
                 if not argument.startswith("-")
             ]
             if candidates:
-                subject = normalized_image_subject(candidates[-1])
+                subject = normalized_image_subject(candidates[-1], environment)
                 if subject is not None and re.fullmatch(
                     r"[^@\s]+@sha256:[0-9a-f]{64}",
                     subject,
@@ -4792,11 +4827,15 @@ def publication_subjects(step: dict[str, Any]) -> set[str]:
                     subjects.add(subject)
         for argument_index, argument in enumerate(arguments):
             if argument in {"--tag", "-t"} and argument_index + 1 < len(arguments):
-                subject = normalized_image_subject(arguments[argument_index + 1])
+                subject = normalized_image_subject(
+                    arguments[argument_index + 1], environment
+                )
             elif argument.startswith("--tag="):
-                subject = normalized_image_subject(argument.split("=", 1)[1])
+                subject = normalized_image_subject(
+                    argument.split("=", 1)[1], environment
+                )
             elif argument.startswith("-t") and len(argument) > 2:
-                subject = normalized_image_subject(argument[2:])
+                subject = normalized_image_subject(argument[2:], environment)
             else:
                 continue
             if subject is not None:
@@ -4804,7 +4843,10 @@ def publication_subjects(step: dict[str, Any]) -> set[str]:
     return subjects
 
 
-def attestation_subjects(step: dict[str, Any]) -> set[str]:
+def attestation_subjects(
+    step: dict[str, Any],
+    environment: dict[str, object] | None = None,
+) -> set[str]:
     uses = step.get("uses")
     inputs = step.get("with")
     if isinstance(uses, str) and uses.startswith(
@@ -4828,6 +4870,7 @@ def attestation_subjects(step: dict[str, Any]) -> set[str]:
         return {subject}
 
     raw_tokens = shell_tokens(str(step.get("run", "")))
+    subjects: set[str] = set()
     for index in command_indexes(raw_tokens):
         if executable_name(raw_tokens[index]).lower() != "cosign":
             continue
@@ -4844,23 +4887,33 @@ def attestation_subjects(step: dict[str, Any]) -> set[str]:
             and raw_subject[0] in {"'", '"'}
         ):
             raw_subject = raw_subject[1:-1].strip()
+        resolved_subject = normalized_image_subject(raw_subject, environment)
+        if resolved_subject is not None and re.fullmatch(
+            r"[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+@sha256:[0-9a-f]{64}",
+            resolved_subject,
+        ) is not None:
+            subjects.add(resolved_subject)
+            continue
         if re.fullmatch(
             r"[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+@(?:sha256:[0-9a-f]{64}|"
             r"\$\{\{\s*steps\.[A-Za-z_][A-Za-z0-9_-]*\.outputs\.digest\s*\}\})",
             raw_subject,
         ) is None:
             return set()
-        return {raw_subject}
-    return set()
+        subjects.add(raw_subject)
+    return subjects
 
 
 def attestation_targets_publication(
     attestation: dict[str, Any],
     publication: dict[str, Any],
+    *,
+    attestation_environment: dict[str, object] | None = None,
+    publication_environment: dict[str, object] | None = None,
 ) -> bool:
-    published = publication_subjects(publication)
-    attested = attestation_subjects(attestation)
-    if not published or not attested or not published <= attested:
+    published = publication_subjects(publication, publication_environment)
+    attested = attestation_subjects(attestation, attestation_environment)
+    if not published or not attested or published.isdisjoint(attested):
         return False
     return True
 
@@ -4915,32 +4968,58 @@ def require_reachable_signer_workflow(workflow: str, path: str) -> None:
     for _, publication_job in publication_jobs:
         steps = workflow_steps(publication_job, path)
         publications = [
-            (index, step)
+            (index, step, step_environment(publication_job, step))
             for index, step in enumerate(steps)
             if not condition_is_statically_false(step.get("if"))
             and contains_image_publication(step)
             and not step_has_reachable_attestation(step)
         ]
-        for publication_index, publication in publications:
+        for publication_index, publication, publication_environment in publications:
+            published = publication_subjects(publication, publication_environment)
+            covered: set[str] = set()
+            for attestation in steps[publication_index + 1 :]:
+                attestation_environment = step_environment(
+                    publication_job, attestation
+                )
+                if (
+                    step_has_reachable_attestation(attestation)
+                    and attestation_covers_publication(attestation, publication)
+                    and attestation_targets_publication(
+                        attestation,
+                        publication,
+                        attestation_environment=attestation_environment,
+                        publication_environment=publication_environment,
+                    )
+                ):
+                    covered.update(
+                        attestation_subjects(attestation, attestation_environment)
+                    )
             require(
-                any(
-                    step_has_reachable_attestation(step)
-                    and attestation_covers_publication(step, publication)
-                    and attestation_targets_publication(step, publication)
-                    for step in steps[publication_index + 1 :]
-                ),
-                f"signer publication path has no guaranteed attestation step: {path}",
+                bool(published) and published <= covered,
+                f"signer publication subjects lack guaranteed attestations: {path}",
             )
         for attestation_index, attestation in enumerate(steps):
             if not step_has_reachable_attestation(attestation):
                 continue
-            require(
-                any(
+            attestation_environment = step_environment(publication_job, attestation)
+            attested = attestation_subjects(attestation, attestation_environment)
+            eligible_publications: set[str] = set()
+            for publication_index, publication, publication_environment in publications:
+                if (
                     publication_index < attestation_index
                     and attestation_covers_publication(attestation, publication)
-                    and attestation_targets_publication(attestation, publication)
-                    for publication_index, publication in publications
-                ),
+                    and attestation_targets_publication(
+                        attestation,
+                        publication,
+                        attestation_environment=attestation_environment,
+                        publication_environment=publication_environment,
+                    )
+                ):
+                    eligible_publications.update(
+                        publication_subjects(publication, publication_environment)
+                    )
+            require(
+                bool(attested) and attested <= eligible_publications,
                 f"signer attestation is not bound to a preceding publication: {path}",
             )
 
@@ -6224,6 +6303,67 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
     else:
         raise ContractError(
             "negative regression unexpectedly passed: extra unbound attestation"
+        )
+    partial_multi_subject = reachable_signer.replace(
+        "          tags: ghcr.io/example/repository:sha-0123456",
+        "          tags: |\n"
+        "            ghcr.io/example/repository:sha-0123456\n"
+        "            ghcr.io/example/secondary:sha-0123456",
+        1,
+    )
+    try:
+        require_reachable_signer_workflow(
+            partial_multi_subject,
+            "synthetic-partial-multi-subject.yml",
+        )
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: partially attested publication"
+        )
+    complete_multi_subject = partial_multi_subject.replace(
+        "      - run: cosign attest --yes 'ghcr.io/example/repository@${{ steps.build.outputs.digest }}'",
+        "      - run: cosign attest --yes 'ghcr.io/example/repository@${{ steps.build.outputs.digest }}'\n"
+        "      - run: cosign attest --yes 'ghcr.io/example/secondary@${{ steps.build.outputs.digest }}'",
+        1,
+    )
+    require_reachable_signer_workflow(
+        complete_multi_subject,
+        "synthetic-complete-multi-subject.yml",
+    )
+    immutable_subject = "ghcr.io/example/repository@sha256:" + "a" * 64
+    environment_signer = f"""jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          IMAGE: {immutable_subject}
+        run: docker push "$IMAGE"
+      - env:
+          IMAGE: {immutable_subject}
+        run: cosign attest --yes "$IMAGE"
+"""
+    require_reachable_signer_workflow(
+        environment_signer,
+        "synthetic-matching-step-environment.yml",
+    )
+    try:
+        require_reachable_signer_workflow(
+            environment_signer.replace(
+                f"          IMAGE: {immutable_subject}\n        run: cosign",
+                "          IMAGE: ghcr.io/example/other@sha256:"
+                + "b" * 64
+                + "\n        run: cosign",
+                1,
+            ),
+            "synthetic-conflicting-step-environment.yml",
+        )
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: conflicting subject environment"
         )
     premature_attestation = """jobs:
   publish:
