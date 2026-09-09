@@ -2,9 +2,10 @@ import hashlib
 import json
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
-from scripts.bootstrap_release_trust_root import load_manifest
+from scripts.bootstrap_release_trust_root import load_manifest, main
 
 
 class BootstrapTrustRootTests(unittest.TestCase):
@@ -23,6 +24,11 @@ class BootstrapTrustRootTests(unittest.TestCase):
             path.write_text(json.dumps({"schema": "keycloak.bootstrap-closure.v1", "files": [{"path": "a.py", "sha256": "0" * 64}], "manifest_sha256": "0" * 64}))
             with self.assertRaises(SystemExit):
                 load_manifest(path)
+
+    def test_rejects_mismatched_expected_head(self):
+        with mock.patch("sys.argv", ["bootstrap", "--candidate-sha", "a" * 40, "--expected-candidate-sha", "b" * 40]):
+            with self.assertRaises(SystemExit):
+                main()
 
 
 if __name__ == "__main__":

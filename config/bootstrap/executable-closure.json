@@ -1,15 +1,15 @@
 {
   "schema": "keycloak.bootstrap-closure.v1",
   "files": [
-    {"path": ".github/workflows/keycloak-release-trust-root.yml", "sha256": "c66b7fa61b5de14d637881beb220320e5414b6306a0dcf417510c6b39c347e97"},
+    {"path": ".github/workflows/keycloak-release-trust-root.yml", "sha256": "58106ceaa80aef2fb8db4eece05f382403e572c25444c0c7b30575388d4f565f"},
     {"path": ".github/workflows/manual-release-intent.yml", "sha256": "7f6b88e0a4a6ded29919d15ef19b4ead8e2269f2794e51fec6cffbce415fb4c9"},
     {"path": ".github/workflows/validate.yml", "sha256": "c208c34950199693bfbbc9db85dc091abd3bdbaedf0b2544ff8b7da4fa63ad70"},
-    {"path": "scripts/bootstrap_release_trust_root.py", "sha256": "724f924aef10c2e277369d9b69883a11e82555b5c6e562ca440d29a57ebc1cf0"},
+    {"path": "scripts/bootstrap_release_trust_root.py", "sha256": "ee31335f6916162755c43282f374171c63efa21eedf8196932d68816d23a9535"},
     {"path": "scripts/validate-kong-oidc-contract.py", "sha256": "a86d956b56ff50fcd726f39db68d3e533eb9a0e90a6de24f358a814adee1d835"},
     {"path": "scripts/validate-password-reset-contract.py", "sha256": "241402d098d64d90c4b9abedab9396e8efc08cb660b9cc41d5bdaafb52396b6b"},
     {"path": "scripts/validate-repository-name-authority.py", "sha256": "d56d85a41734dc468efecb99d590d0d33267dcd1c84f4ff4dd3fa93c2076bd96"},
     {"path": "scripts/validate-workflows.py", "sha256": "fddf958c7c56cbbe8a5aa30acfad9e4a4c9ec7b637a2e9708139ea74302ccc6c"},
     {"path": "scripts/validate.sh", "sha256": "55e04d4b8796d3b2cd81ff32a47e7bcf742b1faaecd52d1756489ca83b0f25df"}
   ],
-  "manifest_sha256": "f07d2db8a1126e5285ca2fd02c3d324adeb93446d75aaca59d015463638eb753"
+  "manifest_sha256": "6aec599e52b3fae7b30f85a2e07b07e52cb20089e07779cb2db931ddfd899311"
 }

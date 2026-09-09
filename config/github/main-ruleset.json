@@ -42,6 +42,10 @@
           },
           {
             "context": "validate-merge-result"
+          },
+          {
+            "context": "bootstrap",
+            "integration_id": 15368
           }
         ]
       }
