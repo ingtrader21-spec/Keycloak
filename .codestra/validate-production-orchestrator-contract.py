@@ -33,8 +33,8 @@ RELEASE_VALIDATOR_NON_SELF_REFERENTIAL_BINDINGS = frozenset(
     }
 )
 STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "ecf3d5b2669c14a62b9ca472d6236196"
-    "8c483ed95f76664a0aa02cb9888f13b2"
+    "c112e9bf31d39e57002c27cd51eb7d34"
+    "3e80b9e5e1c9b6574ed5b5b1294dfb61"
 )
 MIDDLEWARE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
     "8abee4eb254b40fb56125d4cc07b6ce2"
@@ -171,6 +171,7 @@ NETWORK_CLIENT_HINTS = {
     "api",
     "api_client",
     "client",
+    "conn",
     "connection",
     "http",
     "http_client",
@@ -344,8 +345,9 @@ EXPECTED_ARTIFACT_POLICIES: dict[
 }
 APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
     "appolon1908-hue/Keycloak": {
+        # Protected-main bootstrap performs GitHub evidence reads only.
+        "scripts/bootstrap_release_trust_root.py": ("265c4d1b9bd365d0cb14d933ec4fa22a" "269295952874781413befd87a241a294"),
         "scripts/ci/audit_keycloak_pull_requests.py": "fa0c559a3dccfd4ced2a73ebcb2e1858724dcdba654fe84198045a6abbfc358b",
-        "scripts/bootstrap_release_trust_root.py": "265c4d1b9bd365d0cb14d933ec4fa22a269295952874781413befd87a241a294",
         "scripts/review-plan.sh": "65fe10f82d6fdb51ebca45e0453d5288baf05fa78ddce8754946e702432b50c4",
         "scripts/runtime-preflight.sh": "67bff10567f1c9763794f17d378f1dc3785e18569bda7432d0003d872239a052",
         "scripts/runner-systemd-preflight.sh": "d49eec2b037067dbede30aac8b49328025189e6a8883b0b4314ce613a7bd37be",
@@ -356,12 +358,9 @@ APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
         ),
         "scripts/test-plan-gate.sh": "a1998a4a92a2535aea09f35c5de369f0675ab4276e86ab92a42f908590c0ca6d",
         "scripts/test-runtime-preflight.sh": "e4fae06b294f0385d6006d35107463eaa65ec1099fae45ef032dffa1d3f65471",
-        "scripts/validate-governance.sh": "d445e3e1b91d945ac7c6d75df3608eb985772c6fae283c161037de50d5da70b2",
-        "scripts/validate-workflows.py": (
-            "0f2cdde118ebe2e2c97186fa1ae26fb6"
-            "642ba7c14777b5b16796660b74b6ca9c"
-        ),
-        "scripts/validate.sh": "cf5769f45f154c69f75ee53013efd847c24c1ef57687c84b842009e70f0bb613",
+        "scripts/validate-governance.sh": ("8e2fb48c36e849f61c838699726e29a6" "a57ba5d73e6c6e8048737b1627ec5823"),
+        "scripts/validate-workflows.py": ("0f2cdde118ebe2e2c97186fa1ae26fb6" "642ba7c14777b5b16796660b74b6ca9c"),
+        "scripts/validate.sh": ("3783706062b23eb83b6323aae3be9d5b" "568de57eac81e3d557cca8c13bba2ace"),
     },
     "appolon1908-hue/Middleware-": {
         "scripts/apply_portfolio_release_reviewer_access.py": (
@@ -2013,6 +2012,15 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
         }:
             return True
 
+    # Unknown loader callables can evaluate executable built-in modules even
+    # when the loader name is not literally `require` or `import`.
+    if re.search(
+        r"\b[a-z_$][a-z0-9_$]*\s*\(\s*(['\"])[^'\"]*"
+        r"(?:child[_-]?process|(?:node:)?(?:http|https|net|tls))[^'\"]*\1",
+        lower,
+    ):
+        return True
+
     if any(
         marker in lower
         for marker in (
@@ -2025,6 +2033,12 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
     ):
         # Destructuring and ordinary assignments can rename every launcher;
         # without a JavaScript AST, child-process access is not provably safe.
+        return True
+    if re.search(
+        r"\brequire\s*(?:/\*.*?\*/\s*)?\(\s*['\"]child_process['\"]",
+        lower,
+        re.DOTALL,
+    ):
         return True
     if "getbuiltinmodule" in lower:
         # Dynamic built-in access can recover child_process without an import.

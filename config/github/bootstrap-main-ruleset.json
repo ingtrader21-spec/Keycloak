@@ -38,6 +38,14 @@
         "do_not_enforce_on_create": false,
         "required_status_checks": [
           {
+            "context": "validate",
+            "integration_id": 15368
+          },
+          {
+            "context": "orchestrator-contract",
+            "integration_id": 15368
+          },
+          {
             "context": "validate-source",
             "integration_id": 15368
           },
@@ -47,14 +55,6 @@
           },
           {
             "context": "bootstrap",
-            "integration_id": 15368
-          },
-          {
-            "context": "validate",
-            "integration_id": 15368
-          },
-          {
-            "context": "orchestrator-contract",
             "integration_id": 15368
           }
         ]

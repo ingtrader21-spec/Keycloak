@@ -214,8 +214,8 @@ SHARED_PRODUCTION_VALIDATOR_SHA256 = (
     "a2514d469b267bc04156b07a0fa14849"
 )
 KEYCLOAK_PRODUCTION_VALIDATOR_SHA256 = (
-    "7fe842eeb254191387cdcbc615ba8993f"
-    "a32ab5b09fa6cebc8b76529347df20d"
+    "5349183d10bf98d13326044411a0f407"
+    "f121f67549af1715e8b1bfb681bda95e"
 )
 MIDDLEWARE_PRODUCTION_VALIDATOR_SHA256 = (
     "47d7ad5679c32dd121a730c706e6fc8"
@@ -249,17 +249,20 @@ EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
                 "0675ab4276e86ab92a42f908590c0ca6d"
             ),
             "scripts/validate-governance.sh": (
-                "cefd59aaba1446e9aa0d8b0fc5370eab"
-                "90f1d629422a0be25fad675515440c80"
+                "8e2fb48c36e849f61c838699726e29a6"
+                "a57ba5d73e6c6e8048737b1627ec5823"
             ),
             "scripts/validate-service-integrations.py": (
                 "8063ee5e69b6dd3da7682f56e76a8b9"
                 "e92c1b0dab785a961b4e05372d9f9d132"
             ),
             "scripts/validate.sh": (
-                "770f873d978b072dc86d5b8bec1c958f"
-                "3a02d67b69bdda27f8cc77a3da6ee3d8"
+                "3783706062b23eb83b6323aae3be9d5b"
+                "568de57eac81e3d557cca8c13bba2ace"
             ),
+            "scripts/validate-repository-name-authority.py": "d56d85a41734dc468efecb99d590d0d33267dcd1c84f4ff4dd3fa93c2076bd96",
+            "scripts/validate-kong-oidc-contract.py": "a86d956b56ff50fcd726f39db68d3e533eb9a0e90a6de24f358a814adee1d835",
+            "scripts/validate-password-reset-contract.py": "241402d098d64d90c4b9abedab9396e8efc08cb660b9cc41d5bdaafb52396b6b",
         },
     },
     "appolon1908-hue/Middleware-": {
@@ -375,8 +378,8 @@ EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256 = {
         "f1b423679732b91fa9d2d9ecffcb7cbcf"
     ),
     "appolon1908-hue/Keycloak": (
-        "562c2c8aa9d472405b8efeddfb49da33"
-        "778153017724f5dd7cf54019fd9124a8"
+        "8213518487a6c512b4a124eed6723877"
+        "532f7200ee05fbfac4bcc568f48caddb"
     ),
     "appolon1908-hue/Middleware-": (
         "13997b8f42c5926c725d0f76d95a9c41"
