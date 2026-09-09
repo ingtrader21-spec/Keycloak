@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from scripts.bootstrap_manifest import GitSource, ManifestError, POLICY_PATH, main, propose, seal, validate_manifest
 
@@ -42,6 +43,23 @@ class BootstrapManifestTests(unittest.TestCase):
         self.assertEqual(len(one["changes"]), 1)
         self.assertEqual(one["manifest"]["files"][0]["sha256"], hashlib.sha256(b"changed\n").hexdigest())
         validate_manifest(one["manifest"])
+
+    def test_all_proposal_object_reads_disable_replacements(self):
+        execute = subprocess.check_output
+        commands = []
+
+        def checked_read(command, **kwargs):
+            self.assertEqual(command[:2], ["git", "--no-replace-objects"])
+            commands.append(command)
+            return execute(command, **kwargs)
+
+        with patch("scripts.bootstrap_manifest.subprocess.check_output", side_effect=checked_read):
+            proposal = propose(self.source, self.policy_sha, self.source_sha)
+        self.assertTrue(any("ls-tree" in command for command in commands))
+        self.assertTrue(any("cat-file" in command for command in commands))
+        self.assertEqual(proposal["reviewed_source_sha"], self.source_sha)
+        self.assertEqual(proposal["manifest"]["files"][0]["sha256"],
+                         hashlib.sha256(b"changed\n").hexdigest())
 
     def test_unchanged_source_has_no_changes(self):
         self.assertEqual(propose(self.source, self.policy_sha, self.policy_sha)["changes"], [])

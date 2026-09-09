@@ -70,7 +70,7 @@ class GitSource:
     def git(self, *arguments: str) -> bytes:
         try:
             return subprocess.check_output(
-                ["git", "-C", str(self.repository), *arguments], stderr=subprocess.DEVNULL
+                ["git", "--no-replace-objects", "-C", str(self.repository), *arguments], stderr=subprocess.DEVNULL
             )
         except subprocess.CalledProcessError:
             raise ManifestError("unable to read the requested Git object") from None
