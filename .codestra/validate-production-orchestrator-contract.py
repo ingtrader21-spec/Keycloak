@@ -1305,6 +1305,7 @@ def python_source_has_runtime_mutation(source: str) -> bool:
         return True
     aliases: dict[str, str] = {}
     command_bindings: dict[str, list[ast.expr | None]] = {}
+    destructured_targets: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -1315,6 +1316,9 @@ def python_source_has_runtime_mutation(source: str) -> bool:
                 aliases[alias.asname or alias.name] = f"{node.module}.{alias.name}"
         elif isinstance(node, ast.Assign):
             for target in node.targets:
+                if isinstance(target, (ast.Tuple, ast.List)):
+                    destructured_targets.update(child.id for child in ast.walk(target)
+                                                if isinstance(child, ast.Name))
                 for name, value in assignment_value_pairs(target, node.value):
                     command_bindings.setdefault(name, []).append(value)
         elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
@@ -1366,7 +1370,7 @@ def python_source_has_runtime_mutation(source: str) -> bool:
             if hints & (NETWORK_CLIENT_HINTS | DATABASE_CLIENT_HINTS):
                 return constructor
             return "__unresolved_callable__"
-        return ""
+        return "__unresolved_callable__" if seen & destructured_targets else ""
 
     runtime_modules = {
         "aiosmtplib",
@@ -4305,6 +4309,9 @@ PY
             raise ContractError("release destructured callable regression passed unexpectedly")
     for uncertain in (
         "runner, unused = factory(), None",
+        "runner, unused = choices[0], None",
+        "runner, unused = (first if condition else second), None",
+        "runner, unused = (alias := external_callable), None",
         "runner, unused = external_callable, None",
         "runner, unused = external_client.write, None",
         "runner, unused = other, None; other = runner",
