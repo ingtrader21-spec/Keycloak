@@ -211,57 +211,65 @@ EXPECTED_CHECK_WORKFLOW_SHA256 = {
 EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
     "appolon1908-hue/Infustruction-repo": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "b6e44e6e9d4a5d5015873d02b292a1c57d8ea50175643328ac6ea32b87dad3a9",
+            ".codestra/validate-production-orchestrator-contract.py": "85ae254c253501eaf4c96f4b3c2b4b6275a3fae8a1a4f2851a79fe23e23ff998",
         },
     },
     "appolon1908-hue/Keycloak": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "fd5721a89ed25a4060f3d521149aa87b32af50705e0846ed5dd86b124fb0683e",
+            ".codestra/validate-production-orchestrator-contract.py": "3bd226b8bd4010790579681f1bb9639af6cb695d7eab6904eb247e0e988d3e04",
         },
     },
     "appolon1908-hue/Middleware-": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "230fea356c904a67ec3e24935614f3ef4d6050c33853e2f19ec5e22bf1a68fd1",
+            ".codestra/validate-production-orchestrator-contract.py": "bfe7338eed5b0f98a5bf16d751df5ca0e2351a29b391d7ba7208207ea665f10d",
         },
     },
     "appolon1908-hue/codestra": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "b6e44e6e9d4a5d5015873d02b292a1c57d8ea50175643328ac6ea32b87dad3a9",
+            ".codestra/validate-production-orchestrator-contract.py": "85ae254c253501eaf4c96f4b3c2b4b6275a3fae8a1a4f2851a79fe23e23ff998",
         },
     },
     "appolon1908-hue/beyvra-backend": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "6ef99b8889c00b308f1c5a9252129758f942647e20670734ec4b8eb024c43e0c",
+            ".codestra/validate-production-orchestrator-contract.py": "6db66478c77fba0d1575338d712f1502807c39586c3ebc2baa3c775978f554f3",
         },
     },
     "appolon1908-hue/backend2": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "b6e44e6e9d4a5d5015873d02b292a1c57d8ea50175643328ac6ea32b87dad3a9",
+            ".codestra/validate-production-orchestrator-contract.py": "85ae254c253501eaf4c96f4b3c2b4b6275a3fae8a1a4f2851a79fe23e23ff998",
         },
     },
     "appolon1908-hue/beyvra-frontend": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "b6e44e6e9d4a5d5015873d02b292a1c57d8ea50175643328ac6ea32b87dad3a9",
+            ".codestra/validate-production-orchestrator-contract.py": "85ae254c253501eaf4c96f4b3c2b4b6275a3fae8a1a4f2851a79fe23e23ff998",
         },
     },
     "appolon1908-hue/scrapper": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "b6e44e6e9d4a5d5015873d02b292a1c57d8ea50175643328ac6ea32b87dad3a9",
+            ".codestra/validate-production-orchestrator-contract.py": "85ae254c253501eaf4c96f4b3c2b4b6275a3fae8a1a4f2851a79fe23e23ff998",
         },
     },
     "appolon1908-hue/Breero.com": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "b6e44e6e9d4a5d5015873d02b292a1c57d8ea50175643328ac6ea32b87dad3a9",
+            ".codestra/validate-production-orchestrator-contract.py": "85ae254c253501eaf4c96f4b3c2b4b6275a3fae8a1a4f2851a79fe23e23ff998",
+        },
+        ".github/workflows/quality.yml": {
+            ".github/workflows/backend-production.yml": "6451590fa0b6a6dff14a4b8682396f270545e1f4788a7c44b1b8ba16408cdf24",
+            ".github/workflows/frontend-production.yml": "31cfc938e7b4b9b6ce60c5c410044c0931a02947dffaa498f5bf550c347ee372",
+            "scripts/ci/classify-quality-scope.sh": "7cc6cc7d213e4c962a8cda4ce052bbcfa51decc1af78ac663b1170c1b8c210c2",
+            "scripts/ci/test-classify-quality-scope.sh": "0365cd71d85e00facf1a64c2f11734e413430af75e4cf39e0e52971d13d5c473",
+            "scripts/ci/test-validate-breero-scope.sh": "ea29de36868e28ff82e3ec151f896aed388d2421f5907151c4c13480dae20bf8",
+            "scripts/ci/validate-breero-scope.sh": "f8ffb8a3953c56d7d6722938825bfb33fced802ba162f4cefd3d12be8ffb9a1e",
         },
     },
     "appolon1908-hue/Moneybee-Backend": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "b6e44e6e9d4a5d5015873d02b292a1c57d8ea50175643328ac6ea32b87dad3a9",
+            ".codestra/validate-production-orchestrator-contract.py": "85ae254c253501eaf4c96f4b3c2b4b6275a3fae8a1a4f2851a79fe23e23ff998",
         },
     },
     "appolon1908-hue/Telnexa-web": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "b6e44e6e9d4a5d5015873d02b292a1c57d8ea50175643328ac6ea32b87dad3a9",
+            ".codestra/validate-production-orchestrator-contract.py": "85ae254c253501eaf4c96f4b3c2b4b6275a3fae8a1a4f2851a79fe23e23ff998",
         },
     },
 }
@@ -1051,6 +1059,7 @@ def recheck_protected_gates() -> int:
     candidate_sha256 = os.environ["CANDIDATE_SHA256"]
     prior_hash = os.environ["PRIOR_EVIDENCE_SHA256"]
     prior_run_text = os.environ["PRIOR_EVIDENCE_RUN_ID"]
+    preapproval_text = os.environ["PREAPPROVAL_EVIDENCE_B64"]
     require(phase in PREVIOUS_PHASE, "post-approval recheck requires a protected phase")
     require(SHA.fullmatch(source_sha) is not None and source_sha != "0" * 40, "source_sha must be nonzero lowercase 40-hex")
     require(RELEASE.fullmatch(release_id) is not None, "invalid release_id")
@@ -1059,6 +1068,12 @@ def recheck_protected_gates() -> int:
     require(prior_run_text.isdigit() and int(prior_run_text) > 0, "protected recheck requires a positive prior evidence run ID")
     require(prior_run_text != os.environ["GITHUB_RUN_ID"], "prior evidence cannot come from the current run")
     prior_run_id = int(prior_run_text)
+    require(len(preapproval_text) <= 2_000_000, "pre-approval evidence is too large")
+    try:
+        preapproval = json.loads(base64.b64decode(preapproval_text, validate=True))
+    except (ValueError, json.JSONDecodeError) as error:
+        raise PolicyError("pre-approval evidence is invalid") from error
+    require(isinstance(preapproval, dict), "pre-approval evidence must be an object")
     require(CONTRACT_PATH.is_file() and not CONTRACT_PATH.is_symlink(), "release contract is missing or unsafe")
     contract_bytes = CONTRACT_PATH.read_bytes()
     contract = json.loads(contract_bytes)
@@ -1069,7 +1084,8 @@ def recheck_protected_gates() -> int:
     require(branch_name == os.environ["GITHUB_REF_NAME"] and os.environ["GITHUB_REF"] == f"refs/heads/{branch_name}", "workflow must run from the contract default branch")
     checkout_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
     require(checkout_sha == source_sha, "checkout does not match source_sha")
-    validate_phase_blockers(contract.get("blockers"), phase)
+    blockers = validate_phase_blockers(contract.get("blockers"), phase)
+    require(contract.get("deployment_authority") is True, "protected recheck requires deployment authority")
     environment = contract.get("environments", {}).get(phase, "")
     expected_environment = {
         "staging": "staging-readonly",
@@ -1077,7 +1093,12 @@ def recheck_protected_gates() -> int:
         "production": "production",
     }[phase]
     require(environment == expected_environment, f"{phase} protected environment mismatch")
-    validate_repository_gates(contract, source_sha, phase, environment)
+    required_checks, bindings = validate_repository_gates(
+        contract,
+        source_sha,
+        phase,
+        environment,
+    )
     try:
         images = json.loads(os.environ["IMAGES_JSON"])
         previous_images = json.loads(os.environ["PREVIOUS_IMAGES_JSON"])
@@ -1087,12 +1108,13 @@ def recheck_protected_gates() -> int:
     policy = contract.get("artifact_policy")
     require(isinstance(policy, dict), "artifact_policy must be an object")
     validate_images(images, previous_images, policy)
+    contract_sha256 = hashlib.sha256(contract_bytes).hexdigest()
     controller_candidate_head = download_and_validate_candidate(
         candidate_sha256,
         release_id,
         repository,
         source_sha,
-        hashlib.sha256(contract_bytes).hexdigest(),
+        contract_sha256,
         images,
         previous_images,
     )
@@ -1127,12 +1149,42 @@ def recheck_protected_gates() -> int:
             "status": "PASS",
         },
     )
+    validate_prior(
+        preapproval,
+        {
+            "schema_version": "codestra.normalized-release-intent.v1",
+            "repository": repository,
+            "repository_id": contract["repository_id"],
+            "role": contract["role"],
+            "phase": phase,
+            "release_id": release_id,
+            "source_sha": source_sha,
+            "candidate_sha256": candidate_sha256,
+            "prior_evidence_sha256": prior_hash,
+            "prior_evidence_run_id": prior_run_id,
+            "contract_sha256": contract_sha256,
+            "controller_candidate_head_sha": controller_candidate_head,
+            "contract_blockers": blockers,
+            "required_checks": required_checks,
+            "required_check_apps": {name: bindings[name] for name in required_checks},
+            "candidate_images": images,
+            "previous_images": previous_images,
+            "deployment_authority": True,
+            "protected_environment": environment,
+            "protected_environment_approved": False,
+            "protected_environment_job_completed": False,
+            "runtime_contacted": False,
+            "production_changed": False,
+            "external_effects_enabled": False,
+            "status": "PASS",
+        },
+    )
     final_controller_candidate_head = download_and_validate_candidate(
         candidate_sha256,
         release_id,
         repository,
         source_sha,
-        hashlib.sha256(contract_bytes).hexdigest(),
+        contract_sha256,
         images,
         previous_images,
     )
@@ -1140,7 +1192,29 @@ def recheck_protected_gates() -> int:
         final_controller_candidate_head == controller_candidate_head,
         "controller protected head changed during protected gate recheck",
     )
-    validate_repository_gates(contract, source_sha, phase, environment)
+    final_required_checks, final_bindings = validate_repository_gates(
+        contract,
+        source_sha,
+        phase,
+        environment,
+    )
+    require(
+        final_required_checks == required_checks and final_bindings == bindings,
+        "required source-check policy changed during protected gate recheck",
+    )
+    post_gate_controller_candidate_head = download_and_validate_candidate(
+        candidate_sha256,
+        release_id,
+        repository,
+        source_sha,
+        contract_sha256,
+        images,
+        previous_images,
+    )
+    require(
+        post_gate_controller_candidate_head == controller_candidate_head,
+        "controller protected head changed during final source-gate validation",
+    )
     print("PROTECTED_GATES_RECHECK=PASS")
     return 0
 
@@ -1438,6 +1512,19 @@ def main() -> int:
         phase,
         environment,
     )
+    post_gate_controller_candidate_head = download_and_validate_candidate(
+        candidate_sha256,
+        release_id,
+        repository,
+        source_sha,
+        contract_sha256,
+        images,
+        previous_images,
+    )
+    require(
+        post_gate_controller_candidate_head == controller_candidate_head,
+        "controller protected head changed during final source-gate validation",
+    )
 
     evidence = {
         "schema_version": "codestra.normalized-release-intent.v1",
@@ -1451,7 +1538,7 @@ def main() -> int:
         "prior_evidence_sha256": prior_hash,
         "prior_evidence_run_id": prior_run_id,
         "contract_sha256": contract_sha256,
-        "controller_candidate_head_sha": controller_candidate_head,
+        "controller_candidate_head_sha": post_gate_controller_candidate_head,
         "contract_blockers": blockers,
         "required_checks": required_checks,
         "required_check_apps": {name: bindings[name] for name in required_checks},
@@ -1478,6 +1565,23 @@ def main() -> int:
 def self_test() -> int:
     global NO_REDIRECT_OPENER
 
+    breero_quality_closure = {
+        ".github/workflows/backend-production.yml",
+        ".github/workflows/frontend-production.yml",
+        "scripts/ci/classify-quality-scope.sh",
+        "scripts/ci/test-classify-quality-scope.sh",
+        "scripts/ci/test-validate-breero-scope.sh",
+        "scripts/ci/validate-breero-scope.sh",
+    }
+    require(
+        breero_quality_closure
+        <= set(
+            EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256["appolon1908-hue/Breero.com"][
+                ".github/workflows/quality.yml"
+            ]
+        ),
+        "Breero quality workflow executable closure is incomplete",
+    )
     local_repository = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))["repository"]
     workflow_path = ".github/workflows/production-orchestrator-contract.yml"
     workflow_bytes = Path(workflow_path).read_bytes()

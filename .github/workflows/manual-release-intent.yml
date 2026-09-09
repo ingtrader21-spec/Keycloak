@@ -171,6 +171,7 @@ jobs:
           PREVIOUS_IMAGES_JSON: ${{ inputs.previous_images_json }}
           PRIOR_EVIDENCE_SHA256: ${{ inputs.prior_evidence_sha256 }}
           PRIOR_EVIDENCE_RUN_ID: ${{ inputs.prior_evidence_run_id }}
+          PREAPPROVAL_EVIDENCE_B64: ${{ needs.verify.outputs.evidence_b64 }}
         run: python3 .codestra/validate-release-intent.py --recheck-protected-gates
 
       - name: Materialize environment-gated intent
