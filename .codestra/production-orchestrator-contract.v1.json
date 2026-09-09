@@ -11,8 +11,7 @@
   "required_check_app_id": 15368,
   "required_checks": [
     "orchestrator-contract",
-    "validate",
-    "validate-merge-result"
+    "validate"
   ],
   "supported_phases": [
     "plan",

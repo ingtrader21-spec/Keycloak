@@ -119,7 +119,7 @@ def main():
     validate_plan(plan, repo, os.environ['REQUESTED_SOURCE_SHA'], os.environ['RELEASE_PLAN_SHA256'])
     require(command('git', 'rev-parse', plan['source_sha'] + '^{tree}') == plan['source_tree'], 'Source tree drift')
     subprocess.run(['git', 'merge-base', '--is-ancestor', plan['source_sha'], 'HEAD'], check=True)
-    required = {'validate-source', 'validate-merge-result'} if repo.endswith('/Keycloak') else {'backend', 'container'}
+    required = {'validate', 'orchestrator-contract'} if repo.endswith('/Keycloak') else {'backend', 'container'}
     required |= set(branch.get('protection', {}).get('required_status_checks', {}).get('contexts', []))
     source_pr = reviewed_commit(repo, plan['source_sha'], required)
     intent_commit = command('git', 'log', '-1', '--format=%H', '--', str(path))

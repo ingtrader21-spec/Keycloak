@@ -19,9 +19,7 @@ defaults:
 
 jobs:
   validate-source:
-    # The substantive source gate is named `validate` so the repository-owned
-    # contract and the protected-branch app binding refer to the same check.
-    name: validate
+    name: validate-source
     runs-on: ubuntu-22.04
     timeout-minutes: 25
     env:

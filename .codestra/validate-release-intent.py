@@ -75,6 +75,81 @@ PR_ONLY_REQUIRED_CHECKS = {
         }
     ),
 }
+EXPECTED_CHECK_WORKFLOWS = {
+    "appolon1908-hue/Infustruction-repo": {
+        "orchestrator-contract": ".github/workflows/production-orchestrator-contract.yml",
+        "validate": ".github/workflows/source-authority-matrix.yml",
+        "validate-source": ".github/workflows/source-authority-matrix.yml",
+        "validate-merge-result": ".github/workflows/source-authority-matrix.yml",
+    },
+    "appolon1908-hue/Keycloak": {
+        "orchestrator-contract": ".github/workflows/production-orchestrator-contract.yml",
+        "validate": ".github/workflows/validate.yml",
+        "validate-merge-result": ".github/workflows/validate.yml",
+    },
+    "appolon1908-hue/Middleware-": {
+        "orchestrator-contract": ".github/workflows/production-orchestrator-contract.yml",
+        "validate": ".github/workflows/middleware-ci.yml",
+        "connector-runtime-build": ".github/workflows/middleware-ci.yml",
+        "docker-test-build": ".github/workflows/middleware-ci.yml",
+        "docker-runtime-build": ".github/workflows/middleware-ci.yml",
+        "container-security": ".github/workflows/middleware-ci.yml",
+        "Disposable PostgreSQL Redis integration": ".github/workflows/middleware-ci.yml",
+        "Disposable NATS JetStream integration": ".github/workflows/middleware-ci.yml",
+        "Temporal critical workflow integration": ".github/workflows/middleware-ci.yml",
+        "Synthetic no-effect acceptance E2E": ".github/workflows/middleware-ci.yml",
+    },
+    "appolon1908-hue/codestra": {
+        "orchestrator-contract": ".github/workflows/production-orchestrator-contract.yml",
+        "verify": ".github/workflows/ci.yml",
+        "container": ".github/workflows/ci.yml",
+    },
+    "appolon1908-hue/beyvra-backend": {
+        "orchestrator-contract": ".github/workflows/production-orchestrator-contract.yml",
+        "container": ".github/workflows/ci.yml",
+        "exact-head-base-ci": ".github/workflows/ci.yml",
+        "secrets": ".github/workflows/ci.yml",
+        "validate": ".github/workflows/ci.yml",
+    },
+    "appolon1908-hue/backend2": {
+        "orchestrator-contract": ".github/workflows/production-orchestrator-contract.yml",
+        "validate": ".github/workflows/ci.yml",
+        "container": ".github/workflows/ci.yml",
+    },
+    "appolon1908-hue/beyvra-frontend": {
+        "orchestrator-contract": ".github/workflows/production-orchestrator-contract.yml",
+        "exact-head-base-ci": ".github/workflows/ci.yml",
+        "secrets": ".github/workflows/ci.yml",
+        "validate": ".github/workflows/ci.yml",
+    },
+    "appolon1908-hue/scrapper": {
+        "orchestrator-contract": ".github/workflows/production-orchestrator-contract.yml",
+        "deployment-policy": ".github/workflows/ci.yml",
+        "validate": ".github/workflows/ci.yml",
+    },
+    "appolon1908-hue/Breero.com": {
+        "orchestrator-contract": ".github/workflows/production-orchestrator-contract.yml",
+        "quality": ".github/workflows/quality.yml",
+    },
+    "appolon1908-hue/Moneybee-Backend": {
+        "orchestrator-contract": ".github/workflows/production-orchestrator-contract.yml",
+        "verify": ".github/workflows/ci.yml",
+        "postgres-identity-tenancy": ".github/workflows/ci.yml",
+        "containers (api)": ".github/workflows/ci.yml",
+        "containers (worker)": ".github/workflows/ci.yml",
+        "containers (migrate)": ".github/workflows/ci.yml",
+        "application": ".github/workflows/secure-ci.yml",
+        "deployment-policy": ".github/workflows/secure-ci.yml",
+    },
+    "appolon1908-hue/Telnexa-web": {
+        "orchestrator-contract": ".github/workflows/production-orchestrator-contract.yml",
+        "validate-build-smoke": ".github/workflows/ci.yml",
+        "docker-build": ".github/workflows/ci.yml",
+    },
+    CONTROLLER_REPOSITORY: {
+        "validate": ".github/workflows/platform-source-gate.yml",
+    },
+}
 
 
 class PolicyError(ValueError):
@@ -288,6 +363,152 @@ def latest_check_conclusions(check_pages: list[Any]) -> dict[tuple[str, int], st
     return latest
 
 
+def action_run_and_job_ids(details_url: object, repository: str) -> tuple[int, int] | None:
+    if not isinstance(details_url, str):
+        return None
+    match = re.fullmatch(
+        rf"https://github\.com/{re.escape(repository)}/actions/runs/(\d+)/job/(\d+)",
+        details_url,
+    )
+    if match is None:
+        return None
+    return int(match.group(1)), int(match.group(2))
+
+
+def workflow_bound_check_conclusions(
+    check_pages: list[Any],
+    repository: str,
+    source_sha: str,
+    required_checks: list[str],
+    bindings: dict[str, int],
+    workflow_runs: dict[int, dict[str, Any]],
+    jobs: dict[int, dict[str, Any]],
+) -> dict[tuple[str, int], str | None]:
+    expected = EXPECTED_CHECK_WORKFLOWS.get(repository)
+    require(isinstance(expected, dict), "required check workflow policy is missing")
+    require(
+        set(expected) >= set(required_checks),
+        "required check workflow policy is incomplete",
+    )
+    candidates: dict[str, list[tuple[int, int, int, str | None]]] = {
+        name: [] for name in required_checks
+    }
+    runs: list[dict[str, Any]] = []
+    for page in check_pages:
+        require(
+            isinstance(page, dict) and isinstance(page.get("check_runs"), list),
+            "check-runs page is invalid",
+        )
+        runs.extend(page["check_runs"])
+    for item in runs:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("name")
+        app_id = item.get("app", {}).get("id")
+        if name not in candidates or app_id != bindings.get(str(name)):
+            continue
+        identities = action_run_and_job_ids(item.get("details_url"), repository)
+        if identities is None:
+            continue
+        run_id, job_id = identities
+        run = workflow_runs.get(run_id)
+        job = jobs.get(job_id)
+        if not isinstance(run, dict) or not isinstance(job, dict):
+            continue
+        if run.get("path") != expected[name]:
+            # A same-name job from a different Actions workflow is not an
+            # authoritative instance of the required check.
+            continue
+        require(
+            run.get("head_sha") == source_sha
+            and job.get("head_sha") == source_sha
+            and job.get("run_id") == run_id
+            and job.get("id") == job_id
+            and job.get("name") == name,
+            f"required check workflow identity is invalid: {name}",
+        )
+        attempt = job.get("run_attempt")
+        check_id = item.get("id")
+        require(
+            isinstance(attempt, int)
+            and not isinstance(attempt, bool)
+            and attempt > 0
+            and isinstance(check_id, int),
+            f"required check job identity is invalid: {name}",
+        )
+        candidates[name].append(
+            (run_id, attempt, check_id, item.get("conclusion"))
+        )
+    latest: dict[tuple[str, int], str | None] = {}
+    for name, values in candidates.items():
+        if not values:
+            continue
+        latest_run = max(item[0] for item in values)
+        latest_attempt = max(
+            item[1] for item in values if item[0] == latest_run
+        )
+        current = [
+            item
+            for item in values
+            if item[0] == latest_run and item[1] == latest_attempt
+        ]
+        require(
+            len(current) == 1,
+            f"required check has duplicate jobs in its authoritative workflow: {name}",
+        )
+        latest[(name, bindings[name])] = current[0][3]
+    return latest
+
+
+def load_workflow_bound_check_conclusions(
+    repository: str,
+    source_sha: str,
+    required_checks: list[str],
+    bindings: dict[str, int],
+    *,
+    administration: bool = False,
+) -> dict[tuple[str, int], str | None]:
+    pages = api_pages(
+        f"repos/{repository}/commits/{source_sha}/check-runs?per_page=100",
+        administration=administration,
+    )
+    workflow_runs: dict[int, dict[str, Any]] = {}
+    jobs: dict[int, dict[str, Any]] = {}
+    for page in pages:
+        if not isinstance(page, dict) or not isinstance(page.get("check_runs"), list):
+            continue
+        for item in page["check_runs"]:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("name")
+            app_id = item.get("app", {}).get("id")
+            if name not in required_checks or app_id != bindings.get(str(name)):
+                continue
+            identities = action_run_and_job_ids(item.get("details_url"), repository)
+            if identities is None:
+                continue
+            run_id, job_id = identities
+            if run_id not in workflow_runs:
+                workflow_runs[run_id] = api_json(
+                    f"repos/{repository}/actions/runs/{run_id}",
+                    administration=administration,
+                )
+            if job_id not in jobs:
+                jobs[job_id] = api_json(
+                    f"repos/{repository}/actions/jobs/{job_id}",
+                    administration=administration,
+                )
+    return workflow_bound_check_conclusions(
+        pages,
+        repository,
+        source_sha,
+        required_checks,
+        bindings,
+        workflow_runs,
+        jobs,
+    )
+
+
 def validate_environment_document(value: object, environment: str) -> None:
     if not isinstance(value, dict):
         raise PolicyError("protected environment is missing")
@@ -373,7 +594,12 @@ def validate_repository_gates(
         branch_checks,
         contract_checks,
     )
-    latest = latest_check_conclusions(api_pages(f"repos/{repository}/commits/{source_sha}/check-runs?per_page=100"))
+    latest = load_workflow_bound_check_conclusions(
+        repository,
+        source_sha,
+        required_checks,
+        bindings,
+    )
     missing = [name for name in required_checks if latest.get((name, bindings[name])) != "success"]
     require(not missing, f"required exact-head checks are not successful from the bound app: {missing}")
     if phase != "plan":
@@ -483,11 +709,12 @@ def download_and_validate_candidate(
         ),
         15368,
     )
-    controller_latest = latest_check_conclusions(
-        api_pages(
-            f"repos/{CONTROLLER_REPOSITORY}/commits/{controller_head}/check-runs?per_page=100",
-            administration=True,
-        )
+    controller_latest = load_workflow_bound_check_conclusions(
+        CONTROLLER_REPOSITORY,
+        controller_head,
+        controller_checks,
+        controller_bindings,
+        administration=True,
     )
     controller_missing = [
         name
@@ -1081,6 +1308,87 @@ def self_test() -> int:
         latest[("validate", 15368)] is None,
         "newest pending check-run regression failed",
     )
+    workflow_repository = "appolon1908-hue/Moneybee-Backend"
+    workflow_sha = "a" * 40
+    workflow_checks = [
+        {
+            "id": 20,
+            "name": "orchestrator-contract",
+            "app": {"id": 15368},
+            "conclusion": "success",
+            "details_url": (
+                f"https://github.com/{workflow_repository}/actions/runs/200/job/2000"
+            ),
+        },
+        {
+            "id": 21,
+            "name": "orchestrator-contract",
+            "app": {"id": 15368},
+            "conclusion": "success",
+            "details_url": (
+                f"https://github.com/{workflow_repository}/actions/runs/201/job/2010"
+            ),
+        },
+    ]
+    workflow_runs = {
+        200: {
+            "path": ".github/workflows/production-orchestrator-contract.yml",
+            "head_sha": workflow_sha,
+        },
+        201: {"path": ".github/workflows/spoof.yml", "head_sha": workflow_sha},
+    }
+    jobs = {
+        2000: {
+            "id": 2000,
+            "run_id": 200,
+            "run_attempt": 1,
+            "name": "orchestrator-contract",
+            "head_sha": workflow_sha,
+        },
+        2010: {
+            "id": 2010,
+            "run_id": 201,
+            "run_attempt": 1,
+            "name": "orchestrator-contract",
+            "head_sha": workflow_sha,
+        },
+    }
+    workflow_latest = workflow_bound_check_conclusions(
+        [{"check_runs": workflow_checks}],
+        workflow_repository,
+        workflow_sha,
+        ["orchestrator-contract"],
+        {"orchestrator-contract": 15368},
+        workflow_runs,
+        jobs,
+    )
+    require(
+        workflow_latest[("orchestrator-contract", 15368)] == "success",
+        "workflow-bound check regression failed",
+    )
+    duplicate = deepcopy(workflow_checks[0])
+    duplicate["id"] = 22
+    duplicate["details_url"] = (
+        f"https://github.com/{workflow_repository}/actions/runs/200/job/2001"
+    )
+    duplicate_jobs = {
+        **jobs,
+        2001: {**jobs[2000], "id": 2001},
+    }
+    try:
+        workflow_bound_check_conclusions(
+            [{"check_runs": [workflow_checks[0], duplicate]}],
+            workflow_repository,
+            workflow_sha,
+            ["orchestrator-contract"],
+            {"orchestrator-contract": 15368},
+            workflow_runs,
+            duplicate_jobs,
+        )
+    except PolicyError:
+        pass
+    else:
+        raise PolicyError("negative duplicate required-check job regression passed")
     protected_environment: dict[str, Any] = {
         "name": "production",
         "can_admins_bypass": False,
