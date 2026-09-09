@@ -533,6 +533,33 @@ def validate_image_release_workflow(path: Path, workflow: dict[str, Any]) -> Non
             fail(f"{path}: immutable image release gate is incomplete; missing {fragment}")
 
 
+def validate_orchestrator_contract_check_uniqueness(
+    workflow_files: list[Path],
+) -> None:
+    emitters: list[tuple[str, str]] = []
+    for path in workflow_files:
+        workflow = CORE.load_workflow(path)
+        jobs = CORE.as_mapping(workflow.get("jobs"), f"{path}.jobs")
+        for job_name, raw_job in jobs.items():
+            job = CORE.as_mapping(raw_job, f"{path}.jobs.{job_name}")
+            check_name = str(job.get("name", job_name))
+            if check_name == "orchestrator-contract":
+                emitters.append((path.name, str(job_name)))
+    if emitters != [(ORCHESTRATOR_CONTRACT_WORKFLOW, "validate")]:
+        fail(
+            "orchestrator-contract must uniquely identify the full contract gate: "
+            f"{emitters}"
+        )
+    contract_workflow = CORE.load_workflow(
+        WORKFLOW_DIR / ORCHESTRATOR_CONTRACT_WORKFLOW
+    )
+    if (
+        "python3 .codestra/validate-production-orchestrator-contract.py"
+        not in workflow_text(contract_workflow)
+    ):
+        fail("orchestrator-contract does not run the full contract validator")
+
+
 def validate() -> None:
     if not WORKFLOW_DIR.is_dir():
         fail(f"Workflow directory does not exist: {WORKFLOW_DIR}")
@@ -558,6 +585,7 @@ def validate() -> None:
     )
     validate_pr_authority_workflows()
     validate_password_reset_workflows()
+    validate_orchestrator_contract_check_uniqueness(workflow_files)
     validate_manual_release_intent(
         WORKFLOW_DIR / MANUAL_RELEASE_WORKFLOW,
         CORE.load_workflow(WORKFLOW_DIR / MANUAL_RELEASE_WORKFLOW),

@@ -229,8 +229,8 @@ jobs:
             --tag "codestra-keycloak:merge-${EXPECTED_SHA}" \
             .
 
-  orchestrator-contract:
-    name: orchestrator-contract
+  release-contract-fixtures:
+    name: release-contract-fixtures
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:

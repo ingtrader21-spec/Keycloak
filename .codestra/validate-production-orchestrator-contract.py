@@ -282,8 +282,8 @@ APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
         "scripts/test-runtime-preflight.sh": "e4fae06b294f0385d6006d35107463eaa65ec1099fae45ef032dffa1d3f65471",
         "scripts/validate-governance.sh": "5e3b7accddaf255104dd41a02da1c94dc3660a9fac4d0fdd2d1e1f04b6e330e7",
         "scripts/validate-workflows.py": (
-            "655f66d31da6bcfec4636470c9f87873"
-            "3b92c42067ad41006104121d414687c1"
+            "32dd3e93aca10125fcbda13b6a733ee"
+            "029a9c4c67c2bdbb4980b5d27e4429d9a"
         ),
         "scripts/validate.sh": "e86900aa5ea91795abe0c93fa14b9733f9f8277e78b7667111d211216849645b",
     },
@@ -300,7 +300,7 @@ APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
         "scripts/run_ci.sh": "64d7c92279dd442144c7e1f74c3e48f0ab5d5db105238a534dcf8ccd99e93138",
         "scripts/synthetic_acceptance_ci.sh": "087dac2c5371f2013fa0a8dd22ed4024409ab5015231fb8801c75cf3203e3a8a",
         "scripts/temporal_integration_ci.sh": "76a682cc1f5b15a0a3eb15a029d87206238dfe4a262eaf5fa2c79403f147d4d6",
-        "services/connector-runtime/scripts/test_postgres.sh": "519526b21c390b640bd551ac909377ed02461c0222c6865111124cb540c02f7f",
+        "services/connector-runtime/scripts/test_postgres.sh": "b9b31391d7a04aa8b3362e182a43f880e46f9e85b4d2f5c3c66cb9a9fe88f867",
         "tests/integration/campaign_extension_concurrency.py": "252b945c5779a0a8519d3dc2225b1cf495d4995cd42089d3c24c401297475377",
         "tests/integration/campaign_identity_concurrency.py": "234d97cf48cf29f0ec26bd4cfd48f61d031f46e1250cee477088abb7a190be76",
     },
@@ -342,7 +342,9 @@ APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
     },
     "appolon1908-hue/Telnexa-web": {
         "deployment/scripts/validate-compliance.sh": "a29fa2c3586332016ec468a710487bca7e5362244c6feec63ae1bde47f4f0f75",
+        "scripts/smoke-local.mjs": "13d7f9fcd9bdcc1ac598018a0ca2aab3b3478c08d845b3d0f366b533e4142313",
         "scripts/validate-compliance.mjs": "cd174eebb976c8995545ceb07cd761e53ff1a54ac30c2a4b015bbd92a0768306",
+        "tests/contracts/compliance.test.mjs": "1278421b46f690974e087af11fc989eecef21ad605f9707d8da81180391b0478",
     },
 }
 APPROVED_COMPLEX_SCRIPT_DEPENDENCY_SCAN: dict[str, frozenset[str]] = {
@@ -370,6 +372,22 @@ APPROVED_UNRESOLVED_SCRIPT_TARGETS: dict[str, frozenset[str]] = {
     # Repository-owned and working-directory-relative scripts are resolved and
     # inspected below; no deployment script belongs in this exception list.
     "appolon1908-hue/Telnexa-web": frozenset({".output/server/index.mjs"}),
+}
+APPROVED_READ_ONLY_SCRIPT_INVOCATIONS: dict[
+    str, dict[str, tuple[str, frozenset[tuple[str, ...]]]]
+] = {
+    "appolon1908-hue/Middleware-": {
+        "scripts/apply_integration_main_release_authorities.py": (
+            "95b9c27abd309b1efe579672fdb8b89feaed55e8e9334c50913b2e422ad771a7",
+            frozenset({("--mode", "validate")}),
+        ),
+    },
+    "appolon1908-hue/beyvra-backend": {
+        "operations/one_click_readonly_release.py": (
+            "66f853c64b440615179cddb3a67ad027017fec0d17d5ed56178ec5b2ce9173ba",
+            frozenset({("--self-test",)}),
+        ),
+    },
 }
 REQUIRED_NATIVE_WORKFLOWS: dict[str, dict[str, str]] = {
     "appolon1908-hue/Infustruction-repo": {
@@ -476,6 +494,7 @@ class WorkflowJob:
     data: dict[str, Any]
     raw: str
     working_directory: str | None
+    shell: str | None
 
 
 def default_working_directory(value: dict[str, Any], path: str) -> str | None:
@@ -497,6 +516,23 @@ def default_working_directory(value: dict[str, Any], path: str) -> str | None:
     return working_directory
 
 
+def default_shell(value: dict[str, Any], path: str) -> str | None:
+    defaults = value.get("defaults")
+    if defaults is None:
+        return None
+    require(isinstance(defaults, dict), f"workflow defaults are invalid: {path}")
+    run = defaults.get("run")
+    if run is None:
+        return None
+    require(isinstance(run, dict), f"workflow run defaults are invalid: {path}")
+    shell = run.get("shell")
+    require(
+        shell is None or isinstance(shell, str) and bool(shell),
+        f"workflow shell is invalid: {path}",
+    )
+    return shell
+
+
 def workflow_jobs(workflow: str, path: str) -> dict[str, WorkflowJob]:
     """Parse GitHub Actions jobs with YAML semantics and source spans."""
 
@@ -507,6 +543,7 @@ def workflow_jobs(workflow: str, path: str) -> dict[str, WorkflowJob]:
         raise ContractError(f"workflow is not valid YAML: {path}") from exc
     require(isinstance(document, dict), f"workflow is not a mapping: {path}")
     workflow_working_directory = default_working_directory(document, path)
+    workflow_shell = default_shell(document, path)
     jobs_value = document.get("jobs")
     require(isinstance(jobs_value, dict) and bool(jobs_value), f"workflow has no jobs: {path}")
     require(isinstance(root, yaml.nodes.MappingNode), f"workflow root is invalid: {path}")
@@ -527,10 +564,12 @@ def workflow_jobs(workflow: str, path: str) -> dict[str, WorkflowJob]:
         require(isinstance(data, dict), f"workflow job is not a mapping: {path}:{name}")
         raw = "\n".join(lines[key_node.start_mark.line : value_node.end_mark.line]) + "\n"
         job_working_directory = default_working_directory(data, path)
+        job_shell = default_shell(data, path)
         result[name] = WorkflowJob(
             data=data,
             raw=raw,
             working_directory=job_working_directory or workflow_working_directory,
+            shell=job_shell or workflow_shell,
         )
     require(set(result) == set(jobs_value), f"workflow job source mismatch: {path}")
     return result
@@ -611,12 +650,54 @@ def command_token_has_dynamic_executable(token: str) -> bool:
     return "$" in token.rsplit("/", 1)[-1]
 
 
-def shell_command_bindings(tokens: list[str]) -> dict[str, str]:
+def absolute_executable_is_unproved(token: str) -> bool:
+    if not Path(token).is_absolute() or token.startswith(("/bin/", "/usr/bin/")):
+        return False
+    # Hash-locked CI commonly creates isolated tool environments under /tmp.
+    # Admit their non-runtime tooling by executable leaf only; an unknown
+    # generated path (for example /tmp/run) still fails closed.
+    return executable_name(token) not in {
+        "mypy",
+        "pip",
+        "pip3",
+        "pytest",
+        "python",
+        "python3",
+        "ruff",
+    }
+
+
+def shell_command_bindings(
+    tokens: list[str],
+    before_index: int | None = None,
+) -> dict[str, str]:
+    """Return assignments that are effective before a command token.
+
+    Only assignment words in command position establish bindings. Arguments
+    such as ``echo tool=echo`` are not assignments, and later assignments must
+    not retroactively change an earlier variable executable.
+    """
+
     bindings: dict[str, str] = {}
-    for token in tokens:
+    expect_command = True
+    control = {"coproc", "do", "elif", "else", "if", "then", "until", "while"}
+    separators = {"\n", "&", "&&", "(", ")", ";", "|", "||", "{", "}"}
+    for index, token in enumerate(tokens):
+        if before_index is not None and index >= before_index:
+            break
+        if token in separators:
+            expect_command = True
+            continue
+        if token in control:
+            expect_command = True
+            continue
+        if not expect_command:
+            continue
         match = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_]*)=(.+)", token, re.DOTALL)
         if match is not None:
             bindings[match.group(1)] = match.group(2)
+            continue
+        expect_command = False
     return bindings
 
 
@@ -753,7 +834,7 @@ def shell_command_substitutions(script: str) -> tuple[list[str], str] | None:
 def command_indexes(tokens: list[str]) -> list[int]:
     indexes: list[int] = []
     expect_command = True
-    control = {"do", "elif", "else", "if", "then", "until", "while"}
+    control = {"coproc", "do", "elif", "else", "if", "then", "until", "while"}
     separators = {"\n", "&", "&&", "(", ")", ";", "|", "||", "{", "}"}
     skip_through = -1
     for index, token in enumerate(tokens):
@@ -988,7 +1069,15 @@ def xargs_payload(arguments: list[str]) -> str | None:
             continue
         if token.startswith("-"):
             return None
-        return " ".join(arguments[index:])
+        payload_tokens = arguments[index:]
+        payload_name = executable_name(payload_tokens[0])
+        if payload_name in SHELL_INTERPRETERS | SCRIPT_INTERPRETERS:
+            inline = interpreter_payload(payload_tokens, 0)
+            if inline == "":
+                # xargs appends stdin items after the fixed arguments. For
+                # ``sh -c`` and its peers that input becomes executable code.
+                return None
+        return " ".join(payload_tokens)
     # With no explicit command, xargs invokes echo and cannot launch a hidden
     # repository/runtime executable.
     return ""
@@ -1008,7 +1097,9 @@ def interpreter_payload(tokens: list[str], index: int) -> str | None:
         "python3": {"-c"},
         "ruby": {"-e"},
     }.get(name, {"-c"})
-    for option_index in range(index + 1, min(index + 4, len(tokens))):
+    for option_index in range(index + 1, len(tokens)):
+        if tokens[option_index] in {"|", "||", "&&", ";", "&", "{", "}"}:
+            break
         if tokens[option_index] in payload_options:
             return tokens[option_index + 1] if option_index + 1 < len(tokens) else ""
     return None
@@ -1058,7 +1149,7 @@ def python_source_has_runtime_mutation(source: str) -> bool:
     except SyntaxError:
         return True
     aliases: dict[str, str] = {}
-    command_bindings: dict[str, ast.expr] = {}
+    command_bindings: dict[str, list[ast.expr]] = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -1067,24 +1158,43 @@ def python_source_has_runtime_mutation(source: str) -> bool:
         elif isinstance(node, ast.ImportFrom) and node.module:
             for alias in node.names:
                 aliases[alias.asname or alias.name] = f"{node.module}.{alias.name}"
-        elif (
-            isinstance(node, ast.Assign)
-            and len(node.targets) == 1
-            and isinstance(node.targets[0], ast.Name)
-        ):
-            command_bindings[node.targets[0].id] = node.value
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    command_bindings.setdefault(target.id, []).append(node.value)
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            if node.value is not None:
+                command_bindings.setdefault(node.target.id, []).append(node.value)
 
     def qualified_name(node: ast.expr, seen: frozenset[str] = frozenset()) -> str:
         if isinstance(node, ast.Name):
             if node.id in command_bindings and node.id not in seen:
-                return qualified_name(
-                    command_bindings[node.id],
-                    seen | {node.id},
+                resolved = {
+                    qualified_name(value, seen | {node.id})
+                    for value in command_bindings[node.id]
+                }
+                resolved.discard("")
+                if not resolved:
+                    return ""
+                risky = sorted(
+                    value
+                    for value in resolved
+                    if value == "getattr"
+                    or value.startswith(("os.", "subprocess."))
+                    or set(re.split(r"[^a-z0-9_]+", value.lower()))
+                    & (NETWORK_CLIENT_HINTS | DATABASE_CLIENT_HINTS)
                 )
+                return risky[0] if risky else sorted(resolved)[0]
             return aliases.get(node.id, node.id)
         if isinstance(node, ast.Attribute):
             parent = qualified_name(node.value, seen)
             return f"{parent}.{node.attr}" if parent else node.attr
+        if isinstance(node, ast.Call):
+            constructor = qualified_name(node.func, seen)
+            hints = set(re.split(r"[^a-z0-9_]+", constructor.lower()))
+            if hints & (NETWORK_CLIENT_HINTS | DATABASE_CLIENT_HINTS):
+                return constructor
+            return ""
         return ""
 
     runtime_modules = {
@@ -1108,7 +1218,20 @@ def python_source_has_runtime_mutation(source: str) -> bool:
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
+        if isinstance(node.func, ast.Call):
+            return True
         qualified = qualified_name(node.func)
+        if qualified == "getattr":
+            if not node.args:
+                return True
+            receiver = qualified_name(node.args[0]).lower()
+            receiver_hints = set(re.split(r"[^a-z0-9_]+", receiver))
+            if (
+                receiver.startswith(("os", "subprocess", "urllib.request"))
+                or receiver_hints
+                & (NETWORK_CLIENT_HINTS | DATABASE_CLIENT_HINTS)
+            ):
+                return True
         method = qualified.rsplit(".", 1)[-1].lower()
         receiver = qualified.rsplit(".", 1)[0].lower()
         receiver_hints = set(re.split(r"[^a-z0-9_]+", receiver))
@@ -1179,7 +1302,10 @@ def python_source_has_runtime_mutation(source: str) -> bool:
                 return True
             argument = node.args[0]
             if isinstance(argument, ast.Name) and argument.id in command_bindings:
-                argument = command_bindings[argument.id]
+                bindings = command_bindings[argument.id]
+                if len(bindings) != 1:
+                    return True
+                argument = bindings[0]
             command = ""
             if isinstance(argument, ast.Constant) and isinstance(argument.value, str):
                 command = argument.value
@@ -1263,7 +1389,7 @@ def heredoc_programs(script: str) -> list[tuple[str, str]]:
     index = 0
     marker_pattern = re.compile(
         r"<<(?P<strip>-?)\s*(?P<quote>['\"]?)(?P<marker>[A-Za-z_][A-Za-z0-9_]*)"
-        r"(?P=quote)\s*$"
+        r"(?P=quote)(?=\s|$)"
     )
     while index < len(lines):
         match = marker_pattern.search(lines[index])
@@ -1299,7 +1425,7 @@ def shell_without_heredoc_bodies(script: str) -> str:
     output: list[str] = []
     marker_pattern = re.compile(
         r"<<(?P<strip>-?)\s*(?P<quote>['\"]?)(?P<marker>[A-Za-z_][A-Za-z0-9_]*)"
-        r"(?P=quote)\s*$"
+        r"(?P=quote)(?=\s|$)"
     )
     index = 0
     while index < len(lines):
@@ -1408,6 +1534,43 @@ def repository_script_has_runtime_mutation(
         seen_scripts,
         script_aliases,
         working_directory,
+    )
+
+
+def approved_read_only_script_invocation(
+    target: str,
+    arguments: list[str],
+    working_directory: Path,
+) -> bool:
+    repository = os.environ.get("GITHUB_REPOSITORY")
+    if not repository:
+        repository = json.loads(CONTRACT_PATH.read_text(encoding="utf-8")).get(
+            "repository",
+            "",
+        )
+    normalized = target.removeprefix("./")
+    policy = APPROVED_READ_ONLY_SCRIPT_INVOCATIONS.get(repository, {}).get(
+        normalized
+    )
+    if policy is None:
+        return False
+    expected_hash, allowed_arguments = policy
+    candidate = working_directory / normalized
+    try:
+        resolved = candidate.resolve(strict=True)
+        resolved.relative_to(ROOT.resolve())
+    except (OSError, ValueError):
+        return False
+    if not resolved.is_file() or resolved.is_symlink():
+        return False
+    segment: list[str] = []
+    for token in arguments:
+        if token in {"|", "||", "&&", ";", "&", "{", "}"}:
+            break
+        segment.append(token)
+    return (
+        tuple(segment) in allowed_arguments
+        and hashlib.sha256(resolved.read_bytes()).hexdigest() == expected_hash
     )
 
 
@@ -1593,6 +1756,125 @@ def inline_interpreter_payload_has_runtime_mutation(
     return True
 
 
+def package_manager_payloads(
+    name: str,
+    arguments: list[str],
+    seen_scripts: set[Path],
+    working_directory: Path,
+) -> list[str] | None:
+    """Resolve repository-owned package scripts, or fail closed with None."""
+
+    command: str | None = None
+    for token in arguments:
+        if token in {"|", "||", "&&", ";", "&", "{", "}"}:
+            break
+        if token.startswith("-"):
+            continue
+        command = token
+        break
+    if command is None:
+        return []
+    lower = command.lower()
+    if lower in {
+        "access",
+        "adduser",
+        "deprecate",
+        "dist-tag",
+        "dlx",
+        "exec",
+        "hook",
+        "login",
+        "logout",
+        "owner",
+        "publish",
+        "star",
+        "team",
+        "token",
+        "unpublish",
+        "unstar",
+        "version",
+    }:
+        return None
+    package_path = working_directory / "package.json"
+    if not package_path.is_file() or package_path.is_symlink():
+        return None
+    try:
+        document = json.loads(package_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    scripts = document.get("scripts", {}) if isinstance(document, dict) else {}
+    if not isinstance(scripts, dict) or not all(
+        isinstance(key, str) and isinstance(value, str)
+        for key, value in scripts.items()
+    ):
+        return None
+    if name in {"npx", "bunx"}:
+        dependencies: set[str] = set()
+        for field in ("dependencies", "devDependencies", "optionalDependencies"):
+            values = document.get(field, {})
+            if isinstance(values, dict):
+                dependencies.update(
+                    key for key in values if isinstance(key, str)
+                )
+        safe_executables = {"eslint", "playwright", "tsc", "vite", "vitest"}
+        declared_names = {
+            "playwright": {"@playwright/test", "playwright"},
+        }.get(lower, {lower})
+        return (
+            []
+            if lower in safe_executables and bool(declared_names & dependencies)
+            else None
+        )
+    script_name: str | None = None
+    if lower in {"run", "run-script"}:
+        try:
+            command_index = arguments.index(command)
+        except ValueError:
+            return None
+        for token in arguments[command_index + 1 :]:
+            if token in {"|", "||", "&&", ";", "&", "{", "}"}:
+                break
+            if not token.startswith("-"):
+                script_name = token
+                break
+        if script_name is None:
+            return None
+    elif name == "yarn" and lower not in {
+        "add",
+        "config",
+        "install",
+        "remove",
+        "set",
+        "upgrade",
+    }:
+        script_name = command
+    elif lower in {"restart", "start", "stop", "test"}:
+        script_name = lower
+    if script_name is not None:
+        selected = [f"pre{script_name}", script_name, f"post{script_name}"]
+        if script_name not in scripts:
+            return None
+    elif lower in {"ci", "install"}:
+        if "--ignore-scripts" in arguments:
+            return []
+        selected = ["preinstall", "install", "postinstall", "prepublish", "prepare"]
+    else:
+        return []
+    payloads: list[str] = []
+    for selected_name in selected:
+        payload = scripts.get(selected_name)
+        if payload is None:
+            continue
+        sentinel = package_path.with_name(
+            f"{package_path.name}.codestra-script-{selected_name}"
+        )
+        if sentinel in seen_scripts:
+            return None
+        seen_scripts.add(sentinel)
+        payloads.append(payload)
+    return payloads
+
+
 def contains_runtime_command(script: str) -> bool:
     if heredoc_has_runtime_mutation(script, set(), None, ROOT):
         return True
@@ -1604,12 +1886,14 @@ def contains_runtime_command(script: str) -> bool:
     if any(contains_runtime_command(payload) for payload in substitutions):
         return True
     tokens = shell_tokens(shell_script)
-    bindings = shell_command_bindings(tokens)
     for index in command_indexes(tokens):
+        bindings = shell_command_bindings(tokens, index)
         command_token = resolved_command_token(tokens[index], bindings)
         name = executable_name(command_token)
         arguments = command_arguments(tokens, index)
         if command_token_has_dynamic_executable(command_token):
+            return True
+        if absolute_executable_is_unproved(command_token):
             return True
         if (
             name in RUNTIME_TOOLS
@@ -1659,8 +1943,8 @@ def contains_runtime_mutation(
     ):
         return True
     tokens = shell_tokens(shell_script)
-    bindings = shell_command_bindings(tokens)
     for index in command_indexes(tokens):
+        bindings = shell_command_bindings(tokens, index)
         command_token = resolved_command_token(tokens[index], bindings)
         name = executable_name(command_token)
         raw_tail = raw_command_arguments(tokens, index)
@@ -1676,13 +1960,23 @@ def contains_runtime_mutation(
         ):
             return True
         target = interpreter_script_target(tokens, index)
-        if target is not None and repository_script_has_runtime_mutation(
-            target,
-            seen_scripts,
-            script_aliases,
-            working_directory,
-        ):
-            return True
+        if target is not None:
+            invocation_arguments: list[str] = []
+            for target_index, token in enumerate(raw_tail):
+                if token.removeprefix("./") == target.removeprefix("./"):
+                    invocation_arguments = raw_tail[target_index + 1 :]
+                    break
+            if not approved_read_only_script_invocation(
+                target,
+                invocation_arguments,
+                working_directory,
+            ) and repository_script_has_runtime_mutation(
+                target,
+                seen_scripts,
+                script_aliases,
+                working_directory,
+            ):
+                return True
         module_target = interpreter_module_target(tokens, index, working_directory)
         if module_target is not None and repository_script_has_runtime_mutation(
             module_target,
@@ -1705,9 +1999,15 @@ def contains_runtime_mutation(
             seen_scripts,
             script_aliases,
             working_directory,
+        ) and not approved_read_only_script_invocation(
+            direct_target,
+            raw_tail,
+            working_directory,
         ):
             return True
         if command_token_has_dynamic_executable(command_token) and direct_target is None:
+            return True
+        if absolute_executable_is_unproved(command_token):
             return True
         if command_consumes_pipeline(tokens, index) and name in (
             SHELL_INTERPRETERS | SCRIPT_INTERPRETERS
@@ -1717,6 +2017,23 @@ def contains_runtime_mutation(
             return True
         if name in {"make", "just", "task"}:
             return True
+        if name in {"bun", "bunx", "npm", "npx", "pnpm", "yarn"}:
+            package_payloads = package_manager_payloads(
+                name,
+                raw_tail,
+                seen_scripts,
+                working_directory,
+            )
+            if package_payloads is None or any(
+                contains_runtime_mutation(
+                    package_payload,
+                    seen_scripts,
+                    script_aliases,
+                    working_directory,
+                )
+                for package_payload in package_payloads
+            ):
+                return True
         if name == "find" and any(
             token.lower() in {"-exec", "-execdir", "-ok", "-okdir"}
             for token in raw_tail
@@ -1891,6 +2208,13 @@ def contains_runtime_action(step: dict[str, Any]) -> bool:
         ):
             return True
         request_calls = list(re.finditer(r"github\.request\s*\(", script))
+        if "github.graphql" in script:
+            # GraphQL documents and interpolated fragments cannot be proved
+            # read-only without a JavaScript/GraphQL parser.
+            return True
+        if "github.request" in script and not request_calls:
+            # Reject callable aliases such as ``const write = github.request``.
+            return True
         return any(
             re.match(r"\s*['\"`]\s*(?:get|head)\s+", script[match.end() :])
             is None
@@ -2028,13 +2352,7 @@ def step_has_runtime_mutation(
     script_aliases: dict[str, str],
 ) -> bool:
     run = str(step.get("run", ""))
-    shell = step.get("shell")
-    if shell is None:
-        defaults = job.data.get("defaults")
-        if isinstance(defaults, dict):
-            run_defaults = defaults.get("run")
-            if isinstance(run_defaults, dict):
-                shell = run_defaults.get("shell")
+    shell = step.get("shell", job.shell)
     if shell is not None:
         if not isinstance(shell, str) or "${{" in shell or "$" in shell:
             return True
@@ -2187,6 +2505,11 @@ def validate_protected_job_recheck(intent: str) -> None:
     jobs = workflow_jobs(intent, ".github/workflows/manual-release-intent.yml")
     require("protected-intent" in jobs, "release-intent protected job is missing")
     job = jobs["protected-intent"]
+    require(
+        job.data.get("environment")
+        == {"name": "${{ needs.verify.outputs.environment }}"},
+        "protected job environment binding is not exact",
+    )
     steps = workflow_steps(job, ".github/workflows/manual-release-intent.yml")
     checkout_indexes = [
         index
@@ -2269,28 +2592,38 @@ def validate_release_validator_operations(source: str) -> None:
     }
     command_bindings: dict[str, set[tuple[str, ...]]] = {}
     opener_bindings: set[str] = set()
-    for node in ast.walk(tree):
+
+    def simple_assignment(node: ast.AST) -> tuple[str, ast.expr] | None:
         if (
             isinstance(node, ast.Assign)
             and len(node.targets) == 1
             and isinstance(node.targets[0], ast.Name)
-            and isinstance(node.value, (ast.Name, ast.Attribute))
         ):
-            callable_name = qualified_name(node.value)
+            return node.targets[0].id, node.value
+        if (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.value is not None
+        ):
+            return node.target.id, node.value
+        return None
+
+    for node in ast.walk(tree):
+        assignment = simple_assignment(node)
+        if assignment is None:
+            continue
+        target_name, value = assignment
+        if isinstance(value, (ast.Name, ast.Attribute)):
+            callable_name = qualified_name(value)
             if (
                 callable_name.startswith("subprocess.")
                 or is_os_process_launcher(callable_name)
                 or callable_name in prohibited_url_calls
             ):
-                aliases[node.targets[0].id] = callable_name
-        if (
-            isinstance(node, ast.Assign)
-            and len(node.targets) == 1
-            and isinstance(node.targets[0], ast.Name)
-            and isinstance(node.value, (ast.List, ast.Tuple))
-        ):
+                aliases[target_name] = callable_name
+        if isinstance(value, (ast.List, ast.Tuple)):
             prefix: list[str] = []
-            for item in node.value.elts:
+            for item in value.elts:
                 if not isinstance(item, ast.Constant) or not isinstance(
                     item.value, str
                 ):
@@ -2298,17 +2631,14 @@ def validate_release_validator_operations(source: str) -> None:
                 prefix.append(item.value)
             if prefix:
                 prefix[0] = executable_name(prefix[0])
-                command_bindings.setdefault(node.targets[0].id, set()).add(
+                command_bindings.setdefault(target_name, set()).add(
                     tuple(prefix)
                 )
         elif (
-            isinstance(node, ast.Assign)
-            and len(node.targets) == 1
-            and isinstance(node.targets[0], ast.Name)
-            and isinstance(node.value, ast.Call)
-            and qualified_name(node.value.func) == "urllib.request.build_opener"
+            isinstance(value, ast.Call)
+            and qualified_name(value.func) == "urllib.request.build_opener"
         ):
-            opener_bindings.add(node.targets[0].id)
+            opener_bindings.add(target_name)
     require(
         not (imports & FORBIDDEN_RELEASE_VALIDATOR_IMPORTS),
         "release-intent validator imports a runtime/network client",
@@ -2355,11 +2685,43 @@ def validate_release_validator_operations(source: str) -> None:
             self.generic_visit(node)
             function_stack.pop()
 
+        @staticmethod
+        def mutated_command_binding(target: ast.expr) -> bool:
+            while isinstance(target, (ast.Attribute, ast.Subscript)):
+                target = target.value
+            return isinstance(target, ast.Name) and target.id in command_bindings
+
+        def visit_Assign(self, node: ast.Assign) -> None:
+            require(
+                not any(
+                    isinstance(target, (ast.Attribute, ast.Subscript))
+                    and self.mutated_command_binding(target)
+                    for target in node.targets
+                ),
+                "release-intent validator mutates an allowlisted command",
+            )
+            self.generic_visit(node)
+
+        def visit_AugAssign(self, node: ast.AugAssign) -> None:
+            require(
+                not self.mutated_command_binding(node.target),
+                "release-intent validator mutates an allowlisted command",
+            )
+            self.generic_visit(node)
+
         def visit_Call(self, node: ast.Call) -> None:
             qualified = qualified_name(node.func)
             require(
                 qualified
-                not in {"eval", "exec", "compile", "os.system", "os.popen"}
+                not in {
+                    "compile",
+                    "eval",
+                    "exec",
+                    "getattr",
+                    "os.popen",
+                    "os.system",
+                    "setattr",
+                }
                 and not is_os_process_launcher(qualified),
                 "release-intent validator contains dynamic command execution",
             )
@@ -2730,6 +3092,19 @@ def validate_intent_negative_regressions() -> None:
         except ContractError:
             continue
         raise ContractError("negative regression unexpectedly passed: unsafe source binding")
+    unsafe_protected_job = intent.replace(
+        "    environment:\n      name: ${{ needs.verify.outputs.environment }}",
+        "    environment: unreviewed-production",
+        1,
+    )
+    try:
+        validate_protected_job_recheck(unsafe_protected_job)
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: protected environment binding"
+        )
     for command in (
         "helm upgrade release chart",
         "kubectl apply -f runtime.yml",
@@ -2842,6 +3217,34 @@ jobs:
         raise ContractError(
             "negative regression unexpectedly passed: GitHub request mutation"
         )
+    for name, script in (
+        (
+            "GitHub GraphQL mutation",
+            "await github.graphql('mutation { createDeployment(input: {}) { id } }')",
+        ),
+        (
+            "aliased GitHub request",
+            "const write = github.request; "
+            "await write('POST /repos/{owner}/{repo}/deployments')",
+        ),
+    ):
+        workflow = f"""name: synthetic
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/github-script@0123456789012345678901234567890123456789
+        with:
+          script: {script}
+"""
+        try:
+            require_mutating_jobs_disabled(workflow, "synthetic-github-writer.yml")
+        except ContractError:
+            pass
+        else:
+            raise ContractError(
+                f"negative regression unexpectedly passed: {name}"
+            )
     dynamic_publication = """name: synthetic
 jobs:
   publish:
@@ -2881,6 +3284,27 @@ jobs:
         pass
     else:
         raise ContractError("negative regression unexpectedly passed: declared Python shell")
+    workflow_python_shell_mutation = """name: synthetic
+defaults:
+  run:
+    shell: python
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: urllib.request.urlopen(url, data=b'x')
+"""
+    try:
+        require_mutating_jobs_disabled(
+            workflow_python_shell_mutation,
+            "synthetic-workflow-python-shell.yml",
+        )
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: workflow-level Python shell"
+        )
     reusable_mutation = """name: synthetic
 jobs:
   deploy:
@@ -2985,6 +3409,31 @@ jobs:
             ),
             "negative Python module regression passed",
         )
+        (working_directory / "package.json").write_text(
+            json.dumps(
+                {
+                    "scripts": {
+                        "deploy": "kubectl apply -f runtime.yml",
+                        "validate": "python3 -m compileall -q .",
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        require(
+            contains_runtime_mutation(
+                "npm run deploy",
+                working_directory=working_directory,
+            ),
+            "negative package script regression passed",
+        )
+        require(
+            not contains_runtime_mutation(
+                "npm run validate",
+                working_directory=working_directory,
+            ),
+            "read-only package script regression failed",
+        )
     require(
         contains_runtime_mutation("bash generated-runtime.sh"),
         "negative unresolved script regression passed",
@@ -2998,6 +3447,16 @@ PY
 """
         ),
         "negative stdin interpreter regression passed",
+    )
+    require(
+        contains_runtime_mutation(
+            """python3 <<'PY' > /tmp/out
+import urllib.request
+urllib.request.urlopen('https://runtime.example/mutate', data=b'x')
+PY
+"""
+        ),
+        "negative redirected heredoc regression passed",
     )
     require(
         python_source_has_runtime_mutation(
@@ -3053,6 +3512,33 @@ PY
             "launch(['kubectl', 'apply', '-f', 'runtime.yml'], check=True)\n"
         ),
         "negative assigned Python launcher regression passed",
+    )
+    require(
+        python_source_has_runtime_mutation(
+            "import subprocess\nlaunch: object = subprocess.run\n"
+            "launch(['kubectl', 'apply', '-f', 'runtime.yml'], check=True)\n"
+        ),
+        "negative annotated Python launcher regression passed",
+    )
+    require(
+        python_source_has_runtime_mutation(
+            "import subprocess\nlaunch = subprocess.run\n"
+            "launch(['kubectl', 'apply'])\nlaunch = print\n"
+        ),
+        "negative reassigned Python launcher regression passed",
+    )
+    require(
+        python_source_has_runtime_mutation(
+            "import requests\nrequests.Session().post('https://runtime.example/mutate')\n"
+        ),
+        "negative constructed Python client regression passed",
+    )
+    require(
+        python_source_has_runtime_mutation(
+            "import requests\nclient = requests.Session()\n"
+            "client.post('https://runtime.example/mutate')\n"
+        ),
+        "negative assigned Python client regression passed",
     )
     require(
         javascript_source_has_runtime_mutation(
@@ -3114,6 +3600,46 @@ runner(["kubectl", "apply", "-f", "runtime.yml"], check=True)
     else:
         raise ContractError(
             "negative regression unexpectedly passed: assigned subprocess callable"
+        )
+    unsafe_annotated_callable_validator = """import subprocess
+runner: object = subprocess.run
+runner(["kubectl", "apply", "-f", "runtime.yml"], check=True)
+"""
+    try:
+        validate_release_validator_operations(unsafe_annotated_callable_validator)
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: annotated subprocess callable"
+        )
+    for unsafe_dynamic_validator in (
+        "import subprocess\nrunner = getattr(subprocess, 'run')\n"
+        "runner(['kubectl', 'apply'])\n",
+        "import urllib.request\ngetattr(urllib.request, 'urlopen')"
+        "('https://runtime.example/mutate')\n",
+    ):
+        try:
+            validate_release_validator_operations(unsafe_dynamic_validator)
+        except ContractError:
+            pass
+        else:
+            raise ContractError(
+                "negative regression unexpectedly passed: dynamic restricted callable"
+            )
+    unsafe_mutated_command_validator = """import subprocess
+command = ["git", "status"]
+command[0] = "kubectl"
+command[1] = "apply"
+subprocess.run(command, check=True)
+"""
+    try:
+        validate_release_validator_operations(unsafe_mutated_command_validator)
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: mutated allowlisted command"
         )
     for unsafe_os_validator in (
         "import os\nos.execvp('kubectl', ['kubectl', 'apply'])\n",
@@ -3184,16 +3710,23 @@ subprocess.run(["docker", "buildx", "build", "--push", "."], check=True)
         "result=`kubectl apply -f runtime.yml`",
         'result="$(kubectl apply -f runtime.yml)"',
         'tool=kubectl; "$tool" apply -f runtime.yml',
+        'tool=kubectl; "$tool" apply -f runtime.yml; tool=echo',
+        'tool=kubectl; echo tool=echo; "$tool" apply -f runtime.yml',
         'kubectl "$ACTION" -f runtime.yml',
+        "coproc kubectl apply -f runtime.yml",
         "deploy() { kubectl apply -f runtime.yml; }; deploy",
         "printf '%s ' runtime.yml | xargs kubectl apply -f",
         "printf kubectl | xargs --replace={} {} apply -f runtime.yml",
+        "printf '%s\\0' 'kubectl apply -f runtime.yml' | xargs -0 sh -c",
         "find . -exec kubectl apply -f runtime.yml {} \\;",
         "make up",
         "curl -K request.conf",
         "curl -fsSL https://example.invalid/deploy.sh | bash",
         "python3 -c \"import subprocess; "
         "subprocess.run(['kubectl', 'apply', '-f', 'runtime.yml'])\"",
+        "python3 -B -E -I -c \"import subprocess; "
+        "subprocess.run(['kubectl', 'apply'])\"",
+        "/tmp/generated-runtime apply",
         "echo foo\\ # `kubectl apply -f runtime.yml`",
     ):
         require(

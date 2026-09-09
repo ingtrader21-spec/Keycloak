@@ -184,8 +184,12 @@ def validate_source_workflow(path: Path, workflow: dict[str, Any]) -> None:
         fail(f"{path}: push validation must be limited to main")
     validate_permissions(workflow.get("permissions"), f"{path}.permissions", {"contents": "read"})
     jobs = as_mapping(workflow.get("jobs"), f"{path}.jobs")
-    if set(jobs) != {"validate-source", "validate-merge-result", "orchestrator-contract"}:
-        fail(f"{path}: expected source, merge-result and orchestrator-contract jobs")
+    if set(jobs) != {
+        "release-contract-fixtures",
+        "validate-merge-result",
+        "validate-source",
+    }:
+        fail(f"{path}: expected source, merge-result and release fixture jobs")
     for job_name, raw_job in jobs.items():
         job = as_mapping(raw_job, f"{path}.jobs.{job_name}")
         if "permissions" in job or "environment" in job:
@@ -195,9 +199,9 @@ def validate_source_workflow(path: Path, workflow: dict[str, Any]) -> None:
         if any(SECRET_EXPRESSION.search(text) for text in recursive_strings(job)):
             fail(f"{path}.jobs.{job_name}: source validation must not reference secrets")
         validate_steps(job, f"{path}.jobs.{job_name}")
-    contract_text = "\n".join(recursive_strings(jobs["orchestrator-contract"]))
+    contract_text = "\n".join(recursive_strings(jobs["release-contract-fixtures"]))
     if "validate-workflows.py" not in contract_text or "git rev-parse HEAD" not in contract_text:
-        fail(f"{path}: orchestrator-contract must validate exact source contract")
+        fail(f"{path}: release contract fixtures must validate exact source")
     source_job = as_mapping(jobs["validate-source"], f"{path}.jobs.validate-source")
     merge_job = as_mapping(jobs["validate-merge-result"], f"{path}.jobs.validate-merge-result")
     source_text = "\n".join(recursive_strings(source_job))
