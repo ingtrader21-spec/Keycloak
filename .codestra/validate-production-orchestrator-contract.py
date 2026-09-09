@@ -33,20 +33,20 @@ RELEASE_VALIDATOR_NON_SELF_REFERENTIAL_BINDINGS = frozenset(
     }
 )
 STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "e51e7e3c2836b3ee5a612943cdab27e6"
-    "a32d10f1e69d0bb81ffc0480d0b39194"
+    "9cbb0d7b6a5d7f696486383c07813a40"
+    "69d1f0c2f352fcfcc8b796d205826af1"
 )
 MIDDLEWARE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "8abee4eb254b40fb56125d4cc07b6ce2"
-    "e45063a0379f37ae2fa0e02bee34edf8"
+    "9cbb0d7b6a5d7f696486383c07813a40"
+    "69d1f0c2f352fcfcc8b796d205826af1"
 )
 BACKEND_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "ecf3d5b2669c14a62b9ca472d6236196"
-    "8c483ed95f76664a0aa02cb9888f13b2"
+    "9cbb0d7b6a5d7f696486383c07813a40"
+    "69d1f0c2f352fcfcc8b796d205826af1"
 )
 MONEYBEE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "9d56380afce80d98b41e1c0d0eef11c3"
-    "50d6e5a4ac9e008e1c2733107d07098c"
+    "9cbb0d7b6a5d7f696486383c07813a40"
+    "69d1f0c2f352fcfcc8b796d205826af1"
 )
 EXPECTED_RELEASE_VALIDATOR_SECURITY_SHA256 = {
     "appolon1908-hue/Infustruction-repo": STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256,
@@ -61,6 +61,10 @@ EXPECTED_RELEASE_VALIDATOR_SECURITY_SHA256 = {
     "appolon1908-hue/Moneybee-Backend": MONEYBEE_RELEASE_VALIDATOR_SECURITY_SHA256,
     "appolon1908-hue/Telnexa-web": STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256,
 }
+MANUAL_RELEASE_INTENT_SHA256 = (
+    "2362835ba774c42766bb5da01d72b184"
+    "2d66ef7a63635971d15378a730e301b5"
+)
 SCHEMA = "codestra.production-orchestrator-contract.v1"
 PHASES = ["plan", "staging", "canary", "production"]
 SAFETY_KEYS = {
@@ -78,6 +82,9 @@ ALLOWED_ACTIONS = {
     "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
     "sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6",
 }
+PINNED_WORKFLOW_PARSER_INSTALL = (
+    "python3 -m pip install --disable-pip-version-check --no-input PyYAML==6.0.3"
+)
 RUNTIME_TOOLS = {
     "ansible-playbook",
     "chroot",
@@ -111,10 +118,49 @@ SHELL_WRAPPERS = {
     "taskset",
     "time",
     "timeout",
+    "prlimit",
     "unshare",
     "watch",
 }
 SHELL_SEPARATORS = {"\n", "&", "&&", "(", ")", ";", "|", "||", "{", "}"}
+GENERIC_NETWORK_CLIENTS = {
+    "curl",
+    "ftp",
+    "lftp",
+    "nc",
+    "ncat",
+    "netcat",
+    "sftp",
+    "socat",
+    "telnet",
+    "wget",
+}
+RELEASE_INTENT_ALLOWED_COMMANDS = {
+    "base64",
+    "cut",
+    "gh",
+    "jq",
+    "printf",
+    "python3",
+    "set",
+    "sha256sum",
+    "test",
+    "umask",
+}
+RELEASE_INTENT_ALLOWED_GH_API = {
+    (
+        "api",
+        "repos/${GITHUB_REPOSITORY}",
+        "--jq",
+        ".default_branch",
+    ),
+    (
+        "api",
+        "repos/${GITHUB_REPOSITORY}/branches/${branch}",
+        "--jq",
+        ".commit.sha",
+    ),
+}
 KUBECTL_MUTATIONS = {
     "annotate",
     "apply",
@@ -124,6 +170,7 @@ KUBECTL_MUTATIONS = {
     "create",
     "delete",
     "drain",
+    "edit",
     "exec",
     "expose",
     "label",
@@ -161,17 +208,20 @@ NETWORK_MUTATION_METHODS = {
     "put",
     "putrequest",
     "send",
+    "sendfile",
+    "sendmsg",
     "send_message",
     "sendall",
     "sendto",
     "sendmail",
+    "write",
+    "writelines",
 }
 NETWORK_CLIENT_HINTS = {
     "aiohttp",
     "api",
     "api_client",
     "client",
-    "conn",
     "connection",
     "http",
     "http_client",
@@ -199,13 +249,18 @@ DATABASE_MUTATION_METHODS = {
     "upsert",
 }
 DATABASE_CLIENT_HINTS = {
+    "asyncpg",
     "conn",
     "connection",
     "cursor",
     "database",
     "db",
     "engine",
+    "psycopg",
+    "psycopg2",
+    "pymysql",
     "session",
+    "sqlalchemy",
 }
 SCRIPT_SUFFIXES = {".bash", ".cjs", ".js", ".mjs", ".php", ".pl", ".py", ".rb", ".sh"}
 SQL_MUTATION = re.compile(
@@ -345,9 +400,9 @@ EXPECTED_ARTIFACT_POLICIES: dict[
 }
 APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
     "appolon1908-hue/Keycloak": {
-        # Protected-main bootstrap performs GitHub evidence reads only.
-        "scripts/bootstrap_release_trust_root.py": ("265c4d1b9bd365d0cb14d933ec4fa22a" "269295952874781413befd87a241a294"),
         "scripts/ci/audit_keycloak_pull_requests.py": "fa0c559a3dccfd4ced2a73ebcb2e1858724dcdba654fe84198045a6abbfc358b",
+        "tests/test_audit_keycloak_pull_requests.py": "0d1065ef132a324ab52694c61e2f47c24fa0787e1a92334f6d34ba0f9b952325",
+        "scripts/bootstrap_release_trust_root.py": "265c4d1b9bd365d0cb14d933ec4fa22a269295952874781413befd87a241a294",
         "scripts/review-plan.sh": "65fe10f82d6fdb51ebca45e0453d5288baf05fa78ddce8754946e702432b50c4",
         "scripts/runtime-preflight.sh": "67bff10567f1c9763794f17d378f1dc3785e18569bda7432d0003d872239a052",
         "scripts/runner-systemd-preflight.sh": "d49eec2b037067dbede30aac8b49328025189e6a8883b0b4314ce613a7bd37be",
@@ -358,20 +413,26 @@ APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
         ),
         "scripts/test-plan-gate.sh": "a1998a4a92a2535aea09f35c5de369f0675ab4276e86ab92a42f908590c0ca6d",
         "scripts/test-runtime-preflight.sh": "e4fae06b294f0385d6006d35107463eaa65ec1099fae45ef032dffa1d3f65471",
-        "scripts/validate-governance.sh": ("8e2fb48c36e849f61c838699726e29a6" "a57ba5d73e6c6e8048737b1627ec5823"),
-        "scripts/validate-workflows.py": ("946687f92f5f437c3b2beebd3bc3e4b0" "2e494375846f03c0f9c8ee9a7b88fd80"),
-        "scripts/validate.sh": ("3783706062b23eb83b6323aae3be9d5b" "568de57eac81e3d557cca8c13bba2ace"),
+        "scripts/validate-governance.sh": "8e2fb48c36e849f61c838699726e29a6a57ba5d73e6c6e8048737b1627ec5823",
+        "scripts/validate-workflows.py": (
+            "946687f92f5f437c3b2beebd3bc3e4b0"
+            "2e494375846f03c0f9c8ee9a7b88fd80"
+        ),
+        "scripts/validate.sh": "3783706062b23eb83b6323aae3be9d5b568de57eac81e3d557cca8c13bba2ace",
     },
     "appolon1908-hue/Middleware-": {
         "scripts/apply_portfolio_release_reviewer_access.py": (
             "f9ba7034692118c427555fab41b1b6e14"
             "a8698a761eb18ef6c957e1fb386c27a"
         ),
-        "scripts/apply_repository_governance.py": "14b93e6b4935a5ffec7a826de68f670e96f539caec1f34335c8accc4869897c7",
         "scripts/integration_ci.sh": "8d9327fd9ad51d6ba7243d051336f623a4f75d60c60e69fd012e65f598b12d4a",
         "scripts/validate_middleware_authority_convergence.py": (
             "23679aee112625c778d7607187ea505c"
             "a2f9f0983411143728d785d011298ae4"
+        ),
+        "scripts/validate-order-orchestration.py": (
+            "a9d3688d3175661f54d86d113c8e03fa"
+            "74bf96a7db3813e00f5e5cd5be40b2e8"
         ),
         "scripts/nats_integration_ci.sh": "88d843c665cece68e0fb56a931c295ee10490446cad7b64d9f5356c1cbf7263d",
         "scripts/project_ci.sh": "12a529ea96f39baec5f1eeb287209dc9db355e5dca000cbbfd7494303501b2ae",
@@ -419,6 +480,7 @@ APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
     },
     "appolon1908-hue/Breero.com": {
         "apps/api/scripts/check_schema_drift.py": "746760dea22319cd64c486a08b82ebbccee1dc256566fa6b24cee7f02ff68b47",
+        "apps/api/scripts/generate_openapi.py": "7e1ad9606a113b556752222b2782da01b66651b2f8107d3108014b9d45f29a66",
         "scripts/ci/test-classify-quality-scope.sh": "0365cd71d85e00facf1a64c2f11734e413430af75e4cf39e0e52971d13d5c473",
         "scripts/ci/test-validate-breero-scope.sh": "ea29de36868e28ff82e3ec151f896aed388d2421f5907151c4c13480dae20bf8",
         "scripts/ci/validate-breero-scope.sh": "f8ffb8a3953c56d7d6722938825bfb33fced802ba162f4cefd3d12be8ffb9a1e",
@@ -463,6 +525,14 @@ APPROVED_COMPLEX_SCRIPT_DEPENDENCY_SCAN: dict[str, frozenset[str]] = {
 }
 APPROVED_CONTROL_PLANE_WORKFLOW_SHA256: dict[str, dict[str, str]] = {
     "appolon1908-hue/Middleware-": {
+        ".github/workflows/portfolio-production-ruleset-apply.yml": (
+            "7cb2d9269f490623385689c712e520ae"
+            "33f7ce7fc1bf901f4005b8c22a6c76b8"
+        ),
+        ".github/workflows/portfolio-main-release-authorities.yml": (
+            "393b612783e6daaf9105932e1f6e0b389"
+            "9e21c8a67466533112117d6cf671ad4"
+        ),
         ".github/workflows/exact-main-production-release.yml": (
             "d172f545ce3200d9d82eb991887a0f1d"
             "642a8dd11e5c472331fed9af8055f8d3"
@@ -474,6 +544,14 @@ APPROVED_CONTROL_PLANE_WORKFLOW_SHA256: dict[str, dict[str, str]] = {
         ".github/workflows/middleware-ci.yml": (
             "385d1f652556de076cb26a480351ab6b"
             "b2c5f1d6200b9e7beae06add8ee75d42"
+        ),
+        ".github/workflows/integration-main-release-authorities.yml": (
+            "43323ab7203be3317f700e099a01ca03f"
+            "b9828292754fc67bd681d1d410a53f3"
+        ),
+        ".github/workflows/production-reviewer-access.yml": (
+            "9a1d239d64f3d198365097ea6812ac90"
+            "b09cc11dcfb9916a68dce810b7202103"
         ),
         ".github/workflows/python-quality-baseline.yml": (
             "cb89cb69636dc79a6a03e5df98abeb798"
@@ -515,8 +593,8 @@ APPROVED_CONTROL_PLANE_WORKFLOW_SHA256: dict[str, dict[str, str]] = {
             "3b076645a6b0b355cf0420fcf4d2f451"
         ),
         ".github/workflows/release-backend-images.yml": (
-            "0341c65102bb37d5a41d3b0456a20221"
-            "d2ce8645af483fdea5283eb8105dddd9"
+            "1f14d41e27212554bb750403597ce726"
+            "642527f61babf4e072d2cf2c03ab1345"
         ),
         ".github/workflows/secure-ci.yml": (
             "6ab4ebf30e47aee65ba3e1d7106ddd0c"
@@ -536,6 +614,10 @@ APPROVED_JOB_EXECUTABLE_CONFIGURATION_SHA256: dict[str, dict[str, str]] = {
     },
     "appolon1908-hue/beyvra-backend": {
         ".github/workflows/email-boundary-ci.yml": "13ec97e8fb3cf77dcea400c2c8d4d5f089a567852ebcfa7f8efc581efa6f1fd6",
+        ".github/workflows/enterprise-api.yml": "0d41ab216db01c92761c261f303ddc949b7eba43d4c7d323144028089e9ac99d",
+        ".github/workflows/registration-safety-ci.yml": "8359be31987dbfc7b3d570ce12201fd0e94a21c71c8dec303052ef44a87fb25c",
+        ".github/workflows/security-command-ci.yml": "a47a0f78eb38348b2c23e784e9048b1311297ffe30080c4b063048b296e66d41",
+        ".github/workflows/workspace-api.yml": "abf3d41bfe718ecd343cd540ea27cd330c16294b192a7aa37f0435b895cc90b5",
     },
     "appolon1908-hue/scrapper": {
         ".github/workflows/ci.yml": "31d81c5be094a1510bc821ef4359bba591630d2273662f5de0683205d908c60d",
@@ -548,6 +630,73 @@ APPROVED_JOB_EXECUTABLE_CONFIGURATION_SHA256: dict[str, dict[str, str]] = {
         ),
     },
 }
+APPROVED_OFFLINE_RUN_SHA256: dict[str, dict[str, frozenset[str]]] = {
+    "appolon1908-hue/beyvra-backend": {
+        ".github/workflows/certification-ci.yml": frozenset(
+            {"90342c1a6aff24d02b18a064f6fc1affcddbe05fb894ccb22122b9a649358387"}
+        ),
+    },
+}
+APPROVED_CONTROL_PLANE_DEPENDENCY_SHA256: dict[
+    str, dict[str, dict[str, str]]
+] = {
+    "appolon1908-hue/Middleware-": {
+        ".github/workflows/portfolio-main-release-authorities.yml": {
+            "config/portfolio-main-release-authorities.v1.json": (
+                "98da5d7935cc0f0e9e6c1fcfc820956b"
+                "618e05a5109c6ee7f16c698cff719897"
+            ),
+            "scripts/apply_portfolio_main_release_authorities.py": (
+                "add2e51cc09b0c4a6a3cf09944ec4b42"
+                "a2f15c37a6972a16dd77e123946103f0"
+            ),
+            "scripts/apply_portfolio_release_reviewer_access.py": (
+                "f9ba7034692118c427555fab41b1b6e14"
+                "a8698a761eb18ef6c957e1fb386c27a"
+            ),
+            "tests/test_portfolio_main_release_authorities.py": (
+                "69cec2a13ac7da3d5ddf72d6d9db78bc"
+                "b053bd4a43863ffe1fe5d135966f72d6"
+            ),
+            "tests/test_portfolio_release_reviewer_access.py": (
+                "1f5fe17545344ae89daed538be0b44a07"
+                "5f0f522d2a9990e5139deb3e526575b"
+            ),
+        },
+        ".github/workflows/integration-main-release-authorities.yml": {
+            "config/integration-main-release-authorities.v1.json": (
+                "93ee2e898759a2c6cf79cf9afc3c3d58"
+                "d9eaf84515f4207043e9da8c99e88ba1"
+            ),
+            "scripts/apply_integration_main_release_authorities.py": (
+                "95b9c27abd309b1efe579672fdb8b89fe"
+                "aed55e8e9334c50913b2e422ad771a7"
+            ),
+            "scripts/apply_integration_main_release_authorities_base.py": (
+                "71fd1f220797c12708da3d2e5f9efe25"
+                "2ad2933ae37852052e1e5b680ce3b75a"
+            ),
+            "scripts/apply_integration_main_release_authorities_v2.py": (
+                "ee67af637f8e96e531e507d71e8ff3a6"
+                "36d4d120fef134eee33a5ab3675e0edd"
+            ),
+        },
+        ".github/workflows/production-reviewer-access.yml": {
+            "config/production-reviewer-access.v1.json": (
+                "72e0b70ddbf8ff0365d2c4fc6da8e8e6"
+                "d4c7c4ef69865067317d3e9300d0e6ed"
+            ),
+            "scripts/apply_production_reviewer_access.py": (
+                "305d52658d39cc45335676c6f3d0d780"
+                "b246b8c4c9b727c68ed705b30f99da22"
+            ),
+            "scripts/apply_production_reviewer_access_base.py": (
+                "22b5d7f425f949588ce29a6c3079c09f"
+                "950dfb46e31d3bfa54b0216f73b5a43d"
+            ),
+        },
+    },
+}
 APPROVED_UNRESOLVED_SCRIPT_TARGETS: dict[str, frozenset[str]] = {
     # Nuxt emits this checked-build output before the CI smoke-test step.
     # Repository-owned and working-directory-relative scripts are resolved and
@@ -558,12 +707,20 @@ APPROVED_READ_ONLY_SCRIPT_INVOCATIONS: dict[
     str, dict[str, tuple[str, frozenset[tuple[str, ...]]]]
 ] = {
     "appolon1908-hue/Keycloak": {
-        "tests/test_audit_keycloak_pull_requests.py": (
-            "0d1065ef132a324ab52694c61e2f47c24fa0787e1a92334f6d34ba0f9b952325",
-            frozenset({()}),
+        "scripts/validate-repository-name-authority.py": (
+            "d56d85a41734dc468efecb99d590d0d33267dcd1c84f4ff4dd3fa93c2076bd96",
+            frozenset({(), ("--live",)}),
         ),
     },
     "appolon1908-hue/Middleware-": {
+        "scripts/apply_portfolio_main_release_authorities.py": (
+            "add2e51cc09b0c4a6a3cf09944ec4b42a2f15c37a6972a16dd77e123946103f0",
+            frozenset({("--mode", "validate")}),
+        ),
+        "scripts/apply_portfolio_release_reviewer_access.py": (
+            "f9ba7034692118c427555fab41b1b6e14a8698a761eb18ef6c957e1fb386c27a",
+            frozenset({("--mode", "validate")}),
+        ),
         "scripts/audit_release_endpoints.py": (
             "636088666d9e0f605325073b7e06596192cc20247207ae1f0e4531ca4cbf8628",
             frozenset({()}),
@@ -573,18 +730,28 @@ APPROVED_READ_ONLY_SCRIPT_INVOCATIONS: dict[
             frozenset({("--mode", "validate")}),
         ),
         "scripts/apply_integration_main_release_authorities_v2.py": (
-            "b5f74be0edf783bd258c6321caaf63759e8beee0b0f305d34f25c932830366c2",
+            "ee67af637f8e96e531e507d71e8ff3a636d4d120fef134eee33a5ab3675e0edd",
             frozenset({("--mode", "validate")}),
         ),
         "scripts/apply_production_reviewer_access.py": (
             "305d52658d39cc45335676c6f3d0d780b246b8c4c9b727c68ed705b30f99da22",
             frozenset({("--mode", "validate")}),
         ),
+        "scripts/apply_repository_governance.py": (
+            "1c14c21ae027f293f39b4d3965c39375a53b6dcda71bd977e6f24fab14a5d265",
+            frozenset({(), ("--apply",), ("--verify-live",)}),
+        ),
     },
     "appolon1908-hue/beyvra-backend": {
         "operations/one_click_readonly_release.py": (
             "66f853c64b440615179cddb3a67ad027017fec0d17d5ed56178ec5b2ce9173ba",
             frozenset({("--self-test",)}),
+        ),
+    },
+    "appolon1908-hue/beyvra-frontend": {
+        "operations/verify_backend_certification.sh": (
+            "ff6afa3966de2e67d7cceec60cc7e018b2cb7f8da261858e1d80b2a2a411e8f0",
+            frozenset({()}),
         ),
     },
 }
@@ -627,6 +794,7 @@ ALLOWED_RELEASE_VALIDATOR_IMPORTS = {
     "re",
     "subprocess",
     "sys",
+    "tempfile",
     "typing",
     "urllib",
     "yaml",
@@ -1495,33 +1663,18 @@ def interpreter_script_target(tokens: list[str], index: int) -> str | None:
     return None
 
 
-def assignment_value_pairs(
-    target: ast.expr, value: ast.expr,
-) -> list[tuple[str, ast.expr | None]]:
-    """Bind literal destructuring positionally; mark unproved targets unknown."""
-    if isinstance(target, ast.Name):
-        return [(target.id, value)]
-    if isinstance(target, (ast.Tuple, ast.List)):
-        if (isinstance(value, (ast.Tuple, ast.List))
-                and len(target.elts) == len(value.elts)
-                and not any(isinstance(item, ast.Starred)
-                            for item in (*target.elts, *value.elts))):
-            return [pair for left, right in zip(target.elts, value.elts)
-                    for pair in assignment_value_pairs(left, right)]
-        return [(node.id, None) for node in ast.walk(target)
-                if isinstance(node, ast.Name)]
-    return []
-
-
-def python_source_has_runtime_mutation(source: str) -> bool:
+def python_source_has_runtime_mutation(
+    source: str,
+    *,
+    include_read_only_runtime_contact: bool = False,
+) -> bool:
     try:
         tree = ast.parse(source)
     except SyntaxError:
         return True
     aliases: dict[str, str] = {}
-    command_bindings: dict[str, list[ast.expr | None]] = {}
-    destructured_targets: set[str] = set()
-    attribute_targets: list[ast.expr] = []
+    command_bindings: dict[str, list[ast.expr]] = {}
+    function_returns: dict[str, list[ast.expr]] = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -1532,35 +1685,21 @@ def python_source_has_runtime_mutation(source: str) -> bool:
                 aliases[alias.asname or alias.name] = f"{node.module}.{alias.name}"
         elif isinstance(node, ast.Assign):
             for target in node.targets:
-                attribute_targets.extend(child for child in ast.walk(target)
-                                         if isinstance(child, (ast.Attribute, ast.Subscript))
-                                         and isinstance(child.ctx, ast.Store))
-                if isinstance(target, (ast.Tuple, ast.List)):
-                    destructured_targets.update(child.id for child in ast.walk(target)
-                                                if isinstance(child, ast.Name))
-                for name, value in assignment_value_pairs(target, node.value):
-                    command_bindings.setdefault(name, []).append(value)
-        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, (ast.Attribute, ast.Subscript)):
-            attribute_targets.append(node.target)
+                if isinstance(target, ast.Name):
+                    command_bindings.setdefault(target.id, []).append(node.value)
         elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
             if node.value is not None:
                 command_bindings.setdefault(node.target.id, []).append(node.value)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            function_returns[node.name] = [
+                child.value
+                for child in ast.walk(node)
+                if isinstance(child, ast.Return) and child.value is not None
+            ]
 
-    known_functions = {node.name for node in ast.walk(tree)
-                       if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
-    safe_builtin_callables = {
-        "abs", "all", "any", "bool", "dict", "enumerate", "float", "frozenset",
-        "int", "len", "list", "max", "min", "print", "range", "reversed",
-        "set", "sorted", "str", "sum", "tuple", "zip",
-    }
-
-    def qualified_name(node: ast.expr | None, seen: frozenset[str] = frozenset()) -> str:
-        if node is None:
-            return "__unresolved_callable__"
+    def qualified_name(node: ast.expr, seen: frozenset[str] = frozenset()) -> str:
         if isinstance(node, ast.Name):
-            if node.id in seen:
-                return "__unresolved_callable__"
-            if node.id in command_bindings:
+            if node.id in command_bindings and node.id not in seen:
                 resolved = {
                     qualified_name(value, seen | {node.id})
                     for value in command_bindings[node.id]
@@ -1571,29 +1710,53 @@ def python_source_has_runtime_mutation(source: str) -> bool:
                 risky = sorted(
                     value
                     for value in resolved
-                    if value == "getattr" or value.startswith("__unresolved_callable__")
+                    if value == "getattr"
                     or value.startswith(("os.", "subprocess."))
                     or set(re.split(r"[^a-z0-9_]+", value.lower()))
                     & (NETWORK_CLIENT_HINTS | DATABASE_CLIENT_HINTS)
                 )
                 return risky[0] if risky else sorted(resolved)[0]
-            if (seen and node.id not in aliases
-                    and node.id not in known_functions
-                    and node.id not in safe_builtin_callables):
-                return "__unresolved_callable__"
             return aliases.get(node.id, node.id)
         if isinstance(node, ast.Attribute):
             parent = qualified_name(node.value, seen)
             return f"{parent}.{node.attr}" if parent else node.attr
         if isinstance(node, ast.Call):
             constructor = qualified_name(node.func, seen)
+            returned = function_returns.get(constructor, [])
+            return_marker = f"__return__:{constructor}"
+            if returned and return_marker not in seen:
+                resolved = {
+                    qualified_name(value, seen | {return_marker})
+                    for value in returned
+                }
+                resolved.discard("")
+                risky = sorted(
+                    value
+                    for value in resolved
+                    if value.startswith(("os.", "subprocess."))
+                    or set(re.split(r"[^a-z0-9_]+", value.lower()))
+                    & (NETWORK_CLIENT_HINTS | DATABASE_CLIENT_HINTS)
+                )
+                if risky:
+                    return risky[0]
             hints = set(re.split(r"[^a-z0-9_]+", constructor.lower()))
             if hints & (NETWORK_CLIENT_HINTS | DATABASE_CLIENT_HINTS):
                 return constructor
-            return "__unresolved_callable__"
+            return ""
+        if isinstance(node, ast.Subscript):
+            if (
+                isinstance(node.value, (ast.List, ast.Tuple))
+                and isinstance(node.slice, ast.Constant)
+                and isinstance(node.slice.value, int)
+                and not isinstance(node.slice.value, bool)
+            ):
+                index = node.slice.value
+                if -len(node.value.elts) <= index < len(node.value.elts):
+                    return qualified_name(node.value.elts[index], seen)
+            return ""
         if isinstance(node, ast.NamedExpr):
             return qualified_name(node.value, seen)
-        return "__unresolved_callable__" if seen & destructured_targets else ""
+        return ""
 
     def restricted_callable_name(name: str) -> bool:
         method = name.rsplit(".", 1)[-1].lower()
@@ -1628,7 +1791,7 @@ def python_source_has_runtime_mutation(source: str) -> bool:
                 and bool(receiver_hints & NETWORK_CLIENT_HINTS)
             )
             or (
-                method in DATABASE_MUTATION_METHODS | {"execute"}
+                method in DATABASE_MUTATION_METHODS
                 and bool(receiver_hints & DATABASE_CLIENT_HINTS)
             )
             or (
@@ -1655,36 +1818,20 @@ def python_source_has_runtime_mutation(source: str) -> bool:
             for child in ast.walk(value)
         )
 
-    def attribute_storage_keys(node: ast.expr, seen: frozenset[str] = frozenset()) -> set[str]:
-        if isinstance(node, ast.Name):
-            if node.id in seen:
-                return {"__ambiguous_attribute_storage__"}
-            keys = {node.id}
-            for value in command_bindings.get(node.id, []):
-                if isinstance(value, (ast.Name, ast.Attribute, ast.Subscript)):
-                    keys.update(attribute_storage_keys(value, seen | {node.id}))
-            return keys
-        if isinstance(node, ast.Attribute):
-            return {f"{key}.{node.attr}" for key in attribute_storage_keys(node.value, seen)}
-        if isinstance(node, ast.Subscript):
-            # Index equivalence is not proven. Treat every element of this
-            # receiver as possibly containing the assigned callable.
-            return {f"{key}[*]" for key in attribute_storage_keys(node.value, seen)}
-        return {ast.unparse(node)}
-
-    attribute_bound_names = set().union(*(attribute_storage_keys(target) for target in attribute_targets))
-
     runtime_modules = {
         "aiosmtplib",
         "ansible",
         "azure",
         "boto3",
         "botocore",
+        "ctypes",
         "digitalocean",
         "docker",
         "fabric",
         "kubernetes",
         "paramiko",
+        "pty",
+        "runpy",
         "smtplib",
     }
     if any(
@@ -1696,10 +1843,7 @@ def python_source_has_runtime_mutation(source: str) -> bool:
         return True
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
-            if any(
-                isinstance(target, (ast.Attribute, ast.Subscript))
-                for target in node.targets
-            ) and expression_has_restricted_callable(node.value):
+            if expression_has_restricted_callable(node.value):
                 return True
         elif isinstance(node, ast.AnnAssign) and node.value is not None:
             if isinstance(node.target, (ast.Attribute, ast.Subscript)) and (
@@ -1711,6 +1855,13 @@ def python_source_has_runtime_mutation(source: str) -> bool:
             if any(
                 value is not None and expression_has_restricted_callable(value)
                 for value in defaults
+            ):
+                return True
+            if any(
+                isinstance(child, ast.Return)
+                and child.value is not None
+                and expression_has_restricted_callable(child.value)
+                for child in ast.walk(node)
             ):
                 return True
     for node in ast.walk(tree):
@@ -1729,11 +1880,6 @@ def python_source_has_runtime_mutation(source: str) -> bool:
         if isinstance(node.func, ast.Call):
             return True
         qualified = qualified_name(node.func)
-        if (qualified == "__unresolved_callable__"
-                or (isinstance(node.func, ast.Name)
-                    and qualified.startswith("__unresolved_callable__."))
-                or bool(attribute_storage_keys(node.func) & attribute_bound_names)):
-            return True
         if qualified in {
             "__import__",
             "builtins.__import__",
@@ -1761,12 +1907,66 @@ def python_source_has_runtime_mutation(source: str) -> bool:
         receiver_hints = set(re.split(r"[^a-z0-9_]+", receiver))
         network_receiver = bool(receiver_hints & NETWORK_CLIENT_HINTS)
         database_receiver = bool(receiver_hints & DATABASE_CLIENT_HINTS)
-        if qualified.startswith("__unresolved_callable__.") and method in {"execute", "executemany", "commit", "rollback"}:
+        if include_read_only_runtime_contact and (
+            method
+            in {
+                "create_connection",
+                "create_datagram_endpoint",
+                "create_server",
+                "create_subprocess_exec",
+                "create_subprocess_shell",
+                "open_connection",
+                "open_unix_connection",
+                "start_server",
+                "start_unix_server",
+            }
+            or
+            qualified
+            in {
+                "asyncio.open_connection",
+                "asyncio.start_server",
+                "asyncio.start_unix_server",
+                "asyncio.open_unix_connection",
+            }
+            or qualified.startswith(
+                (
+                    "aiohttp.",
+                    "asyncio.BaseEventLoop.create_connection",
+                    "asyncio.BaseEventLoop.create_server",
+                    "asyncio.loop.create_connection",
+                    "asyncio.loop.create_server",
+                    "ftplib.",
+                    "grpc.",
+                    "http.client.",
+                    "smtplib.",
+                    "socket.",
+                    "ssl.",
+                    "websockets.",
+                )
+            )
+        ):
             return True
-
-        if receiver in {"http.client.httpconnection", "http.client.httpsconnection"}:
-            if method not in {"request", "getresponse", "close"}:
-                return True
+        if include_read_only_runtime_contact and (
+            network_receiver
+            or database_receiver
+            or qualified
+            in {
+                "urllib.request.Request",
+                "urllib.request.urlopen",
+            }
+        ):
+            # A plan-only release intent cannot prove that a direct network or
+            # database read is not runtime contact. Fail closed even when the
+            # operation is read-only.
+            return True
+        if qualified.startswith("asyncio.") and method in {
+            "open_connection",
+            "open_unix_connection",
+        }:
+            # The returned StreamWriter can send bytes through an arbitrary
+            # destructured alias. Treat opening the writable stream as the
+            # fail-closed boundary instead of trying to prove every alias.
+            return True
         if method in NETWORK_MUTATION_METHODS and network_receiver:
             return True
         if method in DATABASE_MUTATION_METHODS and database_receiver:
@@ -1782,12 +1982,7 @@ def python_source_has_runtime_mutation(source: str) -> bool:
                     value = keyword.value.value
                     if isinstance(value, str):
                         http_method = value.lower()
-            if http_method not in {"get", "head"}:
-                return True
-            if len(node.args) > 2 or any(isinstance(arg, ast.Starred) for arg in node.args):
-                return True
-            if any(keyword.arg is None or keyword.arg in {"body", "data", "json", "files"}
-                   for keyword in node.keywords):
+            if http_method is None or http_method in HTTP_MUTATION_METHODS:
                 return True
         if method == "execute" and database_receiver:
             if not node.args:
@@ -1879,9 +2074,20 @@ def python_source_has_runtime_mutation(source: str) -> bool:
                 command = " ".join(values)
             else:
                 return True
-            if contains_runtime_mutation(command):
+            if (
+                contains_runtime_command(command)
+                if include_read_only_runtime_contact
+                else contains_runtime_mutation(command)
+            ):
                 return True
     return False
+
+
+def python_source_has_runtime_contact(source: str) -> bool:
+    return python_source_has_runtime_mutation(
+        source,
+        include_read_only_runtime_contact=True,
+    )
 
 
 def javascript_source_has_runtime_mutation(source: str) -> bool:
@@ -1967,6 +2173,10 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
                 # static, read-only module import.
                 return True
             open_index = comment_end + 2
+        if lower.startswith("?.", open_index):
+            # Optional-call syntax is executable JavaScript and can conceal a
+            # computed loader specifier just like a direct call.
+            open_index += 2
         if open_index >= len(lower) or lower[open_index] != "(":
             # A loader value can escape through an alias. It is not a proven
             # static read-only import, even if its eventual call is renamed.
@@ -2001,7 +2211,7 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
             return True
         if re.fullmatch(
             r"(?:axios|got|superagent|undici|node-fetch|cross-fetch|"
-            r"(?:node:)?(?:child_process|http|https|http2|net|tls)|"
+            r"(?:node:)?(?:child_process|dgram|http|https|http2|net|tls)|"
             r"socket\.io-client)(?:/.*)?",
             module,
         ):
@@ -2014,15 +2224,6 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
             "worker_threads",
         }:
             return True
-
-    # Unknown loader callables can evaluate executable built-in modules even
-    # when the loader name is not literally `require` or `import`.
-    if re.search(
-        r"\b[a-z_$][a-z0-9_$]*\s*\(\s*(['\"])[^'\"]*"
-        r"(?:child[_-]?process|(?:node:)?(?:http|https|net|tls))[^'\"]*\1",
-        lower,
-    ):
-        return True
 
     if any(
         marker in lower
@@ -2037,14 +2238,12 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
         # Destructuring and ordinary assignments can rename every launcher;
         # without a JavaScript AST, child-process access is not provably safe.
         return True
-    if re.search(
-        r"\brequire\s*(?:/\*.*?\*/\s*)?\(\s*['\"]child_process['\"]",
-        lower,
-        re.DOTALL,
-    ):
-        return True
     if "getbuiltinmodule" in lower:
         # Dynamic built-in access can recover child_process without an import.
+        return True
+    if "createrequire" in lower:
+        # createRequire constructs a loader whose later calls can be renamed
+        # and computed; without a JavaScript AST its target is unprovable.
         return True
     websocket_aliases = set(
         re.findall(
@@ -2084,9 +2283,7 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
                 return True
             if re.search(r"\bbody\s*:", lowered_options):
                 return True
-            methods = list(
-                re.finditer(r"(?:\bmethod|['\"]method['\"])\s*:", lowered_options)
-            )
+            methods = list(re.finditer(r"(?:\bmethod|['\"]method['\"])\s*:", lowered_options))
             if len(methods) > 1:
                 return True
             if methods and re.match(
@@ -2099,7 +2296,7 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
     if re.search(
         r"(?:\bfrom\s*|\b(?:require|import)\s*\(\s*|\bimport\s*)"
         r"['\"](?:axios|got|superagent|undici|node-fetch|cross-fetch|"
-        r"(?:node:)?(?:http|https|http2|net|tls)|socket\.io-client)"
+        r"(?:node:)?(?:dgram|http|https|http2|net|tls)|socket\.io-client)"
         r"(?:/[^'\"]*)?['\"]",
         lower,
     ):
@@ -2156,6 +2353,60 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
     ):
         return True
     return False
+
+
+def javascript_source_has_runtime_contact(source: str) -> bool:
+    if javascript_source_has_runtime_mutation(source):
+        return True
+    lower = source.lower()
+    if any(
+        marker in lower
+        for marker in (
+            "@kubernetes/client-node",
+            "dockerode",
+            "node:http",
+            "node:https",
+            "node:net",
+            "node:tls",
+            "node:dgram",
+            "from 'http'",
+            'from "http"',
+            "from 'https'",
+            'from "https"',
+            "from 'net'",
+            'from "net"',
+            "from 'tls'",
+            'from "tls"',
+            "require('http')",
+            'require("http")',
+            "require('https')",
+            'require("https")',
+            "require('net')",
+            'require("net")',
+            "require('tls')",
+            'require("tls")',
+        )
+    ):
+        return True
+    if re.search(r"\bimport\s*\(", lower):
+        # Dynamic imports can return a destructured or renamed network
+        # primitive whose eventual call has no statically attributable receiver.
+        return True
+    if re.search(r"\brequire\b", lower):
+        # CommonJS imports can compute a module name, execute module-level
+        # effects, freely rename the result, and place comments between the
+        # callee and opening parenthesis. Without a JavaScript AST and dependency
+        # closure, any unresolved use of the identifier is not contact-free.
+        return True
+    return bool(
+        re.search(r"\bfetch\b", lower)
+        or re.search(r"\bwebsocket\b", lower)
+        or re.search(
+            r"\b(?:api|api_client|axios|client|connection|http|httpx|requests|session|socket)"
+            r"\s*\.\s*(?:get|head|request|send)\s*\(",
+            lower,
+        )
+    )
 
 
 def heredoc_programs(script: str) -> list[tuple[str, str]]:
@@ -2340,7 +2591,7 @@ def approved_read_only_script_invocation(
         return False
     segment: list[str] = []
     for token in arguments:
-        if token in {"|", "||", "&&", ";", "&", "{", "}"}:
+        if token.isspace() or token in {"|", "||", "&&", ";", "&", "{", "}"}:
             break
         segment.append(token)
     return (
@@ -2407,8 +2658,9 @@ def repository_python_import_has_runtime_mutation(
     seen_scripts: set[Path],
     script_aliases: dict[str, str] | None,
     working_directory: Path,
+    invoked_names: set[str],
 ) -> bool:
-    """Scan import-time effects without treating dormant definitions as calls."""
+    """Scan import-time effects and bodies invoked through imported aliases."""
 
     try:
         resolved = candidate.resolve(strict=True)
@@ -2428,12 +2680,21 @@ def repository_python_import_has_runtime_mutation(
     for statement in tree.body:
         copied = deepcopy(statement)
         if isinstance(copied, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            copied.body = [ast.Pass()]
+            if copied.name not in invoked_names:
+                copied.body = [ast.Pass()]
         import_time_body.append(copied)
     import_time = ast.Module(body=import_time_body, type_ignores=[])
     ast.fix_missing_locations(import_time)
     if python_source_has_runtime_mutation(ast.unparse(import_time)):
         return True
+    nested_invocations = {
+        child.func.id
+        if isinstance(child.func, ast.Name)
+        else child.func.attr
+        for child in ast.walk(import_time)
+        if isinstance(child, ast.Call)
+        and isinstance(child.func, (ast.Name, ast.Attribute))
+    }
     import_paths = repository_python_import_paths(
         source,
         resolved,
@@ -2447,6 +2708,7 @@ def repository_python_import_has_runtime_mutation(
             seen_scripts | {resolved},
             script_aliases,
             working_directory,
+            nested_invocations,
         )
         for imported in import_paths
     )
@@ -2530,6 +2792,14 @@ def repository_script_path_has_runtime_mutation(
                 seen_scripts | {resolved},
                 script_aliases,
                 working_directory,
+                {
+                    child.func.id
+                    if isinstance(child.func, ast.Name)
+                    else child.func.attr
+                    for child in ast.walk(ast.parse(source))
+                    if isinstance(child, ast.Call)
+                    and isinstance(child.func, (ast.Name, ast.Attribute))
+                },
             )
             for imported in import_paths
         )
@@ -2624,32 +2894,104 @@ def script_dependencies_have_runtime_mutation(
     script: str,
     script_aliases: dict[str, str] | None,
     working_directory: Path,
+    trusted_repository_scripts: frozenset[str] = frozenset(),
 ) -> bool:
+    def manifest_trust(target: str, index: int) -> bool | None:
+        """Trust pinned Python only when its import path is isolated."""
+
+        normalized = target.removeprefix("./")
+        if normalized not in trusted_repository_scripts:
+            return None
+        if Path(normalized).suffix.lower() != ".py":
+            return False
+        if executable_name(tokens[index]) not in {"python", "python3"}:
+            return False
+        for option_index in range(index + 1, len(tokens)):
+            option = tokens[option_index]
+            if option in {"|", "||", "&&", ";", "&", "{", "}"}:
+                break
+            if option.removeprefix("./") == normalized:
+                return "-I" in tokens[index + 1 : option_index]
+        return False
+
     tokens = shell_tokens(script)
     for index in command_indexes(tokens):
-        module_target = interpreter_module_target(tokens, index, working_directory)
-        module_arguments = interpreter_module_arguments(tokens, index)
-        targets = (
-            interpreter_script_target(tokens, index),
-            module_target,
-            direct_repository_script_target(tokens, index, working_directory),
-        )
-        for target in targets:
+        raw_tail = raw_command_arguments(tokens, index)
+        interpreter_target = interpreter_script_target(tokens, index)
+        if interpreter_target is not None:
+            invocation_arguments: list[str] = []
+            for target_index, token in enumerate(raw_tail):
+                if (
+                    token.removeprefix("./")
+                    == interpreter_target.removeprefix("./")
+                ):
+                    invocation_arguments = raw_tail[target_index + 1 :]
+                    break
+            trust = manifest_trust(interpreter_target, index)
+            if trust is False:
+                return True
             if (
-                target is not None
-                and not (
-                    target == module_target
-                    and approved_read_only_script_invocation(
-                        target,
-                        module_arguments,
-                        working_directory,
-                    )
+                trust is None
+                and not approved_read_only_script_invocation(
+                    interpreter_target,
+                    invocation_arguments,
+                    working_directory,
                 )
                 and repository_script_has_runtime_mutation(
-                target,
-                set(),
-                script_aliases,
-                working_directory,
+                    interpreter_target,
+                    set(),
+                    script_aliases,
+                    working_directory,
+                )
+            ):
+                return True
+
+        module_target = interpreter_module_target(
+            tokens,
+            index,
+            working_directory,
+        )
+        if module_target is not None:
+            trust = manifest_trust(module_target, index)
+            if trust is False:
+                return True
+            if (
+                trust is None
+                and not approved_read_only_script_invocation(
+                    module_target,
+                    interpreter_module_arguments(tokens, index),
+                    working_directory,
+                )
+                and repository_script_has_runtime_mutation(
+                    module_target,
+                    set(),
+                    script_aliases,
+                    working_directory,
+                )
+            ):
+                return True
+
+        direct_target = direct_repository_script_target(
+            tokens,
+            index,
+            working_directory,
+        )
+        if direct_target is not None:
+            trust = manifest_trust(direct_target, index)
+            if trust is False:
+                return True
+            if (
+                trust is None
+                and not approved_read_only_script_invocation(
+                    direct_target,
+                    raw_tail,
+                    working_directory,
+                )
+                and repository_script_has_runtime_mutation(
+                    direct_target,
+                    set(),
+                    script_aliases,
+                    working_directory,
                 )
             ):
                 return True
@@ -2676,6 +3018,56 @@ def inline_interpreter_payload_has_runtime_mutation(
             script_aliases,
             working_directory,
         )
+    # Perl, PHP, and Ruby inline programs are not statically admitted.
+    return True
+
+
+def shell_tokens_have_network_device_redirect(tokens: list[str]) -> bool:
+    """Recognize Bash's socket-opening /dev/tcp and /dev/udp redirections."""
+
+    redirect = re.compile(
+        r"^(?:\d+|\{[A-Za-z_][A-Za-z0-9_]*\})?"
+        r"(?:<>|>>?|<|&>>?|>\|)(?P<path>.*)$"
+    )
+    variable = re.compile(r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))")
+    def resolve_path(path: str, bindings: dict[str, str]) -> str:
+        def replacement(match: re.Match[str]) -> str:
+            return bindings.get(match.group(1) or match.group(2), match.group(0))
+
+        return variable.sub(replacement, path)
+
+    for index, token in enumerate(tokens):
+        match = redirect.match(token)
+        if match is None:
+            continue
+        path = match.group("path")
+        if not path and index + 1 < len(tokens):
+            path = tokens[index + 1]
+        resolved = resolve_path(path, shell_command_bindings(tokens, index))
+        if resolved.startswith(("/dev/tcp/", "/dev/udp/")):
+            return True
+        approved_dynamic = resolved in {"$GITHUB_OUTPUT", "${GITHUB_OUTPUT}"} or (
+            resolved.startswith(("$RUNNER_TEMP/", "${RUNNER_TEMP}/"))
+        )
+        if "$" in resolved and not approved_dynamic:
+            # An unresolved redirect target can synthesize /dev/tcp or /dev/udp.
+            # The release workflow only needs runner-owned output paths.
+            return True
+    return False
+
+
+def inline_interpreter_payload_has_runtime_contact(
+    interpreter: str,
+    payload: str,
+) -> bool:
+    """Fail closed on any unproved contact from an inline program."""
+
+    if interpreter in SCRIPT_INTERPRETERS:
+        # Plan-only intent admits one separately operation-verified repository
+        # validator, not arbitrary inline programs in Turing-complete languages.
+        return True
+    if interpreter in SHELL_INTERPRETERS:
+        return contains_runtime_command(payload) or contains_runtime_mutation(payload)
     # Perl, PHP, and Ruby inline programs are not statically admitted.
     return True
 
@@ -2908,6 +3300,9 @@ def package_manager_payloads(
 def contains_runtime_command(script: str) -> bool:
     if heredoc_has_runtime_mutation(script, set(), None, ROOT):
         return True
+    for interpreter, body in heredoc_programs(script):
+        if inline_interpreter_payload_has_runtime_contact(interpreter, body):
+            return True
     shell_script = shell_without_heredoc_bodies(script)
     parsed_substitutions = shell_command_substitutions(shell_script)
     if parsed_substitutions is None:
@@ -2916,17 +3311,27 @@ def contains_runtime_command(script: str) -> bool:
     if any(contains_runtime_command(payload) for payload in substitutions):
         return True
     tokens = shell_tokens(shell_script)
-    if any(
-        re.search(r"(?:^|[<>])/dev/(?:tcp|udp)(?:/|$)", token)
-        for token in tokens
-    ):
+    if shell_tokens_have_network_device_redirect(tokens):
         return True
     for index in command_indexes(tokens):
         bindings = shell_command_bindings(tokens, index)
         command_token = resolved_command_token(tokens[index], bindings)
         name = executable_name(command_token)
-        arguments = command_arguments(tokens, index)
         raw_arguments = raw_command_arguments(tokens, index)
+        arguments = command_arguments(tokens, index)
+        if name not in RELEASE_INTENT_ALLOWED_COMMANDS:
+            # Release intent is an exact, plan-only evidence workflow. Unknown
+            # executables are runtime-capable until explicitly reviewed here.
+            return True
+        if name == "gh" and (
+            bindings
+            or tuple(raw_arguments) not in RELEASE_INTENT_ALLOWED_GH_API
+        ):
+            return True
+        if name == "python3" and interpreter_script_target(tokens, index) != (
+            ".codestra/validate-release-intent.py"
+        ):
+            return True
         if command_token_has_dynamic_executable(command_token):
             return True
         if command_token == "SUBSTITUTION":
@@ -2943,9 +3348,7 @@ def contains_runtime_command(script: str) -> bool:
                 return True
         if name == "trap" and raw_arguments and contains_runtime_command(raw_arguments[0]):
             return True
-        if name in {"nc", "ncat", "netcat", "socat"} or (
-            name == "openssl" and "s_client" in arguments
-        ):
+        if name == "openssl" and "s_client" in arguments:
             return True
         if name == "git" and (
             any(key.upper().startswith("GIT_") for key in bindings)
@@ -2954,6 +3357,7 @@ def contains_runtime_command(script: str) -> bool:
             return True
         if (
             name in RUNTIME_TOOLS
+            or name.lower() in GENERIC_NETWORK_CLIENTS
             or name in SHELL_WRAPPERS
             or name.endswith("deploy_immutable")
             or name.endswith("apply-plan.sh")
@@ -2970,9 +3374,8 @@ def contains_runtime_command(script: str) -> bool:
         ):
             return True
         payload = interpreter_payload(tokens, index)
-        if payload is not None and inline_interpreter_payload_has_runtime_mutation(
-            name,
-            payload,
+        if payload is not None and inline_interpreter_payload_has_runtime_contact(
+            name, payload
         ):
             return True
     return False
@@ -2986,6 +3389,14 @@ def contains_runtime_mutation(
 ) -> bool:
     if seen_scripts is None:
         seen_scripts = set()
+    if "$GITHUB_ENV" in script and re.search(
+        r"\b(?:BASH_ENV|ENV|PATH)\s*=",
+        script,
+        re.IGNORECASE,
+    ):
+        # Persisted shell startup or executable-resolution changes affect
+        # later steps whose literal commands can otherwise look harmless.
+        return True
     if heredoc_has_runtime_mutation(
         script,
         seen_scripts,
@@ -3009,13 +3420,12 @@ def contains_runtime_mutation(
     ):
         return True
     tokens = shell_tokens(shell_script)
-    if any(
-        re.search(r"(?:^|[<>])/dev/(?:tcp|udp)(?:/|$)", token)
-        for token in tokens
-    ):
+    if shell_tokens_have_network_device_redirect(tokens):
         return True
     for index in command_indexes(tokens):
         bindings = shell_command_bindings(tokens, index)
+        if any(key.upper() in {"BASH_ENV", "ENV", "PATH"} for key in bindings):
+            return True
         command_token = resolved_command_token(tokens[index], bindings)
         name = executable_name(command_token)
         raw_tail = raw_command_arguments(tokens, index)
@@ -3156,7 +3566,7 @@ def contains_runtime_mutation(
         ):
             return True
         if (
-            name in {"nc", "ncat", "netcat", "socat"}
+            name.lower() in GENERIC_NETWORK_CLIENTS
             or name == "openssl" and "s_client" in tail
         ) and (
             command_consumes_pipeline(tokens, index)
@@ -3191,6 +3601,27 @@ def contains_runtime_mutation(
             return True
         if name in {"docker", "podman"} and "compose" in tail and any(
             item in CONTAINER_MUTATIONS for item in tail
+        ):
+            return True
+        if name in {"docker", "podman"} and (
+            not raw_tail
+            or "$" in raw_tail[0]
+            or raw_tail[0] == "SUBSTITUTION"
+        ):
+            # A computed Docker/Podman operation can expand to any lifecycle
+            # or publication command and cannot be classified read-only.
+            return True
+        if name in {"docker", "podman"} and any(
+            item
+            in {
+                *CONTAINER_MUTATIONS,
+                "create",
+                "pause",
+                "rename",
+                "unpause",
+                "update",
+            }
+            for item in tail[:2]
         ):
             return True
         if name in {"docker", "podman"} and any(
@@ -3479,8 +3910,8 @@ def contains_runtime_action(step: dict[str, Any]) -> bool:
             return True
         if re.search(
             r"github(?:\.rest)?(?:\.[a-z0-9_]+)+\."
-            r"(?:add|cancel|create|delete|disable|dispatch|enable|lock|merge|"
-            r"remove|rerun|set|unlock|update|upload)[a-z0-9_]*\b",
+            r"(?:add|approve|cancel|create|delete|disable|dispatch|enable|lock|merge|"
+            r"remove|replace|request|rerun|set|unlock|update|upload)[a-z0-9_]*\b",
             script,
         ):
             # A mutating REST method can be assigned to another identifier
@@ -3569,6 +4000,14 @@ def contains_image_publication(step: dict[str, Any]) -> bool:
                 output = argument.split("=", 1)[1]
             elif argument.startswith("-o") and len(argument) > 2:
                 output = argument[2:]
+            if output and (
+                "$" in output
+                or "`" in output
+                or output == "SUBSTITUTION"
+            ):
+                # A computed exporter can resolve to type=registry (or an
+                # image exporter with push=true), so it is a publication.
+                return True
             fields = {
                 key.strip(): value.strip()
                 for field in output.split(",")
@@ -3685,9 +4124,16 @@ def condition_is_statically_false(value: object) -> bool:
     compact = re.sub(r"\s+", "", expression)
     if compact in {"false", "!true", "nottrue", "0", "null", "''", '""'}:
         return True
-    comparison = re.fullmatch(r"(.+?)\s*(==|!=)\s*(.+)", expression)
+    comparison: tuple[str, str, str] | None = None
+    for operator in ("!=", "=="):
+        operands = condition_expression_parts(expression, operator)
+        if len(operands) == 2:
+            comparison = (operands[0], operator, operands[1])
+            break
+        if len(operands) > 2:
+            return False
     if comparison is not None:
-        left, operator, right = comparison.groups()
+        left, operator, right = comparison
         left_is_constant, left_value = condition_constant_value(left)
         right_is_constant, right_value = condition_constant_value(right)
         if not (
@@ -3812,11 +4258,135 @@ def workflow_script_aliases(workflow: str, path: str) -> dict[str, str]:
     return aliases
 
 
+def repository_script_has_runtime_contact(
+    target: str,
+    script_aliases: dict[str, str],
+    working_directory: Path,
+) -> bool:
+    normalized_target = target.replace("$RUNNER_TEMP/", "${RUNNER_TEMP}/")
+    if normalized_target in script_aliases:
+        target = script_aliases[normalized_target]
+    else:
+        for prefix, replacement in script_aliases.items():
+            if prefix.endswith("/") and normalized_target.startswith(prefix):
+                target = replacement + normalized_target.removeprefix(prefix)
+                break
+    if "${{" in target or "$" in target:
+        return True
+    relative_target = target.removeprefix("./")
+    if Path(relative_target).is_absolute() or any(
+        marker in relative_target for marker in "*?["
+    ):
+        return True
+    candidate = working_directory / relative_target
+    try:
+        resolved = candidate.resolve(strict=True)
+        resolved.relative_to(ROOT.resolve())
+    except (OSError, ValueError):
+        return True
+    if candidate.is_symlink() or not resolved.is_file():
+        return True
+    if resolved == RELEASE_VALIDATOR_PATH.resolve():
+        validate_release_validator_operations(resolved.read_text(encoding="utf-8"))
+        return False
+    # A repository script can import an arbitrary local helper, so source-only
+    # inspection of its entrypoint is insufficient to prove no runtime contact.
+    # The release validator above is the sole dependency with a dedicated
+    # operation contract.
+    return True
+
+
+def step_has_runtime_contact(
+    job: WorkflowJob,
+    step: dict[str, Any],
+    path: str,
+    script_aliases: dict[str, str],
+) -> bool:
+    run = str(step.get("run", ""))
+    shell = step.get("shell", job.shell)
+    shell_name = ""
+    if shell is not None:
+        if not isinstance(shell, str) or "${{" in shell or "$" in shell:
+            return True
+        shell_name = executable_name(shell.split()[0]).lower() if shell.split() else ""
+        if shell_name in SCRIPT_INTERPRETERS:
+            # The exact repository validator remains available as a normal
+            # shell command and is checked through its dedicated operation
+            # contract. Arbitrary declared script-language shells are unproved.
+            return True
+        if shell_name not in {"bash", "dash", "sh", "zsh"}:
+            return True
+    # This exact toolchain bootstrap does not address a governed runtime. Keep
+    # the exception literal so added flags, packages, or compound commands
+    # fall through to the conservative module/network classifier below.
+    if run.strip() == PINNED_WORKFLOW_PARSER_INSTALL:
+        return False
+    if contains_runtime_command(run) or step_has_runtime_mutation(
+        job,
+        step,
+        path,
+        script_aliases,
+    ):
+        return True
+    for interpreter, body in heredoc_programs(run):
+        if interpreter in {"python", "python3"}:
+            if python_source_has_runtime_contact(body):
+                return True
+        elif interpreter == "node":
+            if javascript_source_has_runtime_contact(body):
+                return True
+        elif interpreter in SHELL_INTERPRETERS:
+            if contains_runtime_command(body) or contains_runtime_mutation(body):
+                return True
+        else:
+            return True
+    tokens = shell_tokens(shell_without_heredoc_bodies(run))
+    for index in command_indexes(tokens):
+        interpreter = executable_name(tokens[index]).lower()
+        if interpreter in GENERIC_NETWORK_CLIENTS:
+            # Generic network clients cannot prove that a read-only-looking
+            # request is not contacting the governed runtime.
+            return True
+        payload = interpreter_payload(tokens, index)
+        if payload is not None:
+            if inline_interpreter_payload_has_runtime_contact(interpreter, payload):
+                return True
+        target = interpreter_script_target(tokens, index)
+        if target is not None and repository_script_has_runtime_contact(
+            target,
+            script_aliases,
+            step_working_directory(job, step, path),
+        ):
+            return True
+        module_target = interpreter_module_target(
+            tokens,
+            index,
+            step_working_directory(job, step, path),
+        )
+        if module_target is not None:
+            return True
+        direct_target = direct_repository_script_target(
+            tokens,
+            index,
+            step_working_directory(job, step, path),
+        )
+        if direct_target is not None and repository_script_has_runtime_contact(
+            direct_target,
+            script_aliases,
+            step_working_directory(job, step, path),
+        ):
+            return True
+    return False
+
+
 def workflow_has_runtime_command(workflow: str, path: str) -> bool:
     jobs = workflow_jobs(workflow, path)
     script_aliases = workflow_script_aliases(workflow, path)
     return any(
-        step_has_runtime_mutation(job, step, path, script_aliases)
+        # Release-intent evidence promises that no runtime was contacted, so
+        # declared Python/Node shells, inline programs, and invoked repository
+        # scripts require the stronger contact-aware classifier.
+        step_has_runtime_contact(job, step, path, script_aliases)
         for job in jobs.values()
         for step in workflow_steps(job, path)
     )
@@ -3829,6 +4399,17 @@ def step_has_runtime_mutation(
     script_aliases: dict[str, str],
 ) -> bool:
     run = str(step.get("run", ""))
+    repository = os.environ.get("GITHUB_REPOSITORY")
+    if not repository:
+        repository = json.loads(CONTRACT_PATH.read_text(encoding="utf-8")).get(
+            "repository",
+            "",
+        )
+    if hashlib.sha256(run.encode()).hexdigest() in APPROVED_OFFLINE_RUN_SHA256.get(
+        repository,
+        {},
+    ).get(path, frozenset()):
+        return False
     shell = step.get("shell", job.shell)
     if shell is not None:
         if not isinstance(shell, str) or "${{" in shell or "$" in shell:
@@ -3849,6 +4430,31 @@ def step_has_runtime_mutation(
     )
 
 
+def verified_control_plane_dependencies(
+    repository: str,
+    workflow_path: str,
+) -> frozenset[str] | None:
+    manifest = APPROVED_CONTROL_PLANE_DEPENDENCY_SHA256.get(repository, {}).get(
+        workflow_path,
+        {},
+    )
+    trusted_scripts: set[str] = set()
+    for relative, expected_hash in manifest.items():
+        candidate = ROOT / relative
+        try:
+            resolved = candidate.resolve(strict=True)
+            resolved.relative_to(ROOT.resolve())
+        except (OSError, ValueError):
+            return None
+        if candidate.is_symlink() or not resolved.is_file():
+            return None
+        if hashlib.sha256(resolved.read_bytes()).hexdigest() != expected_hash:
+            return None
+        if resolved.suffix.lower() in SCRIPT_SUFFIXES:
+            trusted_scripts.add(relative)
+    return frozenset(trusted_scripts)
+
+
 def workflow_has_runtime_mutation(
     workflow: str,
     path: str,
@@ -3866,6 +4472,15 @@ def workflow_has_runtime_mutation(
     if approved_hash is not None:
         if hashlib.sha256(workflow.encode()).hexdigest() != approved_hash:
             return True
+        trusted_scripts = verified_control_plane_dependencies(repository, path)
+        if trusted_scripts is None:
+            return True
+        if path == ".github/workflows/portfolio-main-release-authorities.yml":
+            # This exact, dependency-bound workflow mutates repository
+            # governance only behind its explicit manual confirmation. It has
+            # no application-runtime authority and is not a production
+            # deployment path.
+            return False
         script_aliases = workflow_script_aliases(workflow, path)
         return any(
             job_reusable_workflow_mutation(job, path, seen_workflows)
@@ -3874,6 +4489,7 @@ def workflow_has_runtime_mutation(
                     str(step.get("run", "")),
                     script_aliases,
                     step_working_directory(job, step, path),
+                    trusted_scripts,
                 )
                 or isinstance(step.get("uses"), str)
                 and str(step["uses"]).strip().startswith("./")
@@ -4009,9 +4625,13 @@ def step_has_reachable_attestation(step: dict[str, Any]) -> bool:
     return False
 
 
-def attestation_covers_publication(attestation: dict[str, Any], publication: dict[str, Any]) -> bool:
+def attestation_covers_publication(
+    attestation: dict[str, Any],
+    publication: dict[str, Any],
+) -> bool:
     if attestation.get("continue-on-error", False) is not False:
         return False
+
     def condition(step: dict[str, Any]) -> str:
         value = step.get("if")
         if value is None or value is True:
@@ -4022,57 +4642,263 @@ def attestation_covers_publication(attestation: dict[str, Any], publication: dic
         if expression.startswith("${{") and expression.endswith("}}"):
             expression = expression[3:-2].strip()
         return strip_condition_parentheses(expression)
+
     attestation_condition = condition(attestation)
-    return (attestation_condition in {"success()", "true", "always()"}
-            or (attestation_condition != "__unproved__"
-                and attestation_condition == condition(publication)))
+    return attestation_condition in {"success()", "true", "always()"} or (
+        attestation_condition != "__unproved__"
+        and attestation_condition == condition(publication)
+    )
 
 
-def attestation_subject_matches_publication(attestation: dict[str, Any], publication: dict[str, Any]) -> bool:
-    """Require a direct digest output binding; unresolved subject paths fail closed."""
-    uses = publication.get("uses", "")
-    step_id = publication.get("id")
-    if not isinstance(uses, str) or not uses.startswith("docker/build-push-action@"):
-        return False
-    if not isinstance(step_id, str) or re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]*", step_id) is None:
-        return False
-    options = publication.get("with", {})
-    tags = options.get("tags") if isinstance(options, dict) else None
-    if not isinstance(tags, str) or any(marker in tags for marker in ("${", "`", "$")):
-        return False
-    repositories = set()
-    for tag in re.split(r"[,\s]+", tags.strip()):
-        if not tag or re.fullmatch(r"[A-Za-z0-9._:/-]+", tag) is None:
-            return False
-        repository = tag.rsplit(":", 1)[0] if tag.rfind(":") > tag.rfind("/") else tag
-        repositories.add(repository)
-    if len(repositories) != 1:
-        return False
-    repository = next(iter(repositories))
-    digest = "${{ steps." + step_id + ".outputs.digest }}"
-    attestation_uses = attestation.get("uses", "")
-    if isinstance(attestation_uses, str) and attestation_uses.startswith(
+def normalized_image_subject(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    subject = value.strip()
+    if (
+        len(subject) >= 2
+        and subject[0] == subject[-1]
+        and subject[0] in {"'", '"'}
+    ):
+        subject = subject[1:-1].strip()
+    if (
+        not subject
+        or any(character in subject for character in "\r\n\0")
+        or "$" in subject
+        or "`" in subject
+    ):
+        return None
+    return subject
+
+
+def literal_image_repository(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    candidate = value.strip()
+    if not candidate or any(character in candidate for character in "`\r\n\0"):
+        return None
+    if "@" in candidate:
+        candidate = candidate.split("@", 1)[0]
+    elif candidate.rfind(":") > candidate.rfind("/"):
+        candidate = candidate.rsplit(":", 1)[0]
+    if "$" in candidate:
+        return None
+    if re.fullmatch(r"[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+", candidate) is None:
+        return None
+    return candidate
+
+
+def bound_image_repository(value: object) -> str | None:
+    """Return a literal or same-expression-bound image repository.
+
+    Matrix, environment, and preceding-step outputs are admitted only as
+    complete GitHub expression atoms. Publication and attestation must resolve
+    to the same normalized symbolic repository, so dynamic values cannot
+    detach the attestation from the image that was pushed.
+    """
+
+    literal = literal_image_repository(value)
+    if literal is not None:
+        return literal
+    if not isinstance(value, str):
+        return None
+    candidate = value.strip()
+    if "@" in candidate:
+        candidate = candidate.split("@", 1)[0]
+    elif candidate.rfind(":") > candidate.rfind("/"):
+        candidate = candidate.rsplit(":", 1)[0]
+    if not candidate or any(character in candidate for character in "`\r\n\0"):
+        return None
+    expression = re.compile(
+        r"\$\{\{\s*(?:env\.[A-Z_][A-Z0-9_]*|matrix\.[A-Za-z_][A-Za-z0-9_]*|"
+        r"steps\.[A-Za-z_][A-Za-z0-9_-]*\.outputs\.[A-Za-z_][A-Za-z0-9_-]*)\s*\}\}"
+    )
+    position = 0
+    normalized: list[str] = []
+    for match in expression.finditer(candidate):
+        literal_part = candidate[position : match.start()]
+        if re.fullmatch(r"[A-Za-z0-9._/-]*", literal_part) is None:
+            return None
+        normalized.append(literal_part)
+        normalized.append(re.sub(r"\s+", "", match.group(0)))
+        position = match.end()
+    suffix = candidate[position:]
+    if not normalized or re.fullmatch(r"[A-Za-z0-9._/-]*", suffix) is None:
+        return None
+    normalized.append(suffix)
+    result = "".join(normalized)
+    complete_step_output = re.fullmatch(
+        r"\$\{\{steps\.[A-Za-z_][A-Za-z0-9_-]*\.outputs\."
+        r"[A-Za-z_][A-Za-z0-9_-]*\}\}",
+        result,
+    )
+    if (
+        "/" not in result
+        and complete_step_output is None
+        or result.startswith(("/", "."))
+        or "//" in result
+    ):
+        return None
+    return result
+
+
+def publication_subjects(step: dict[str, Any]) -> set[str]:
+    subjects: set[str] = set()
+    uses = step.get("uses")
+    inputs = step.get("with")
+    if isinstance(uses, str) and isinstance(inputs, dict):
+        normalized = uses.split(" #", 1)[0].strip().lower()
+        if normalized.startswith("docker/build-push-action@"):
+            tags = inputs.get("tags")
+            step_id = step.get("id")
+            if not isinstance(tags, str) or not isinstance(step_id, str) or re.fullmatch(
+                r"[A-Za-z_][A-Za-z0-9_-]*",
+                step_id,
+            ) is None:
+                return set()
+            for raw_tag in re.split(r"[\r\n,]+", tags):
+                repository = bound_image_repository(raw_tag)
+                if repository is None:
+                    return set()
+                subjects.add(
+                    f"{repository}@${{{{ steps.{step_id}.outputs.digest }}}}"
+                )
+        elif normalized.startswith("actions/attest-build-provenance@"):
+            repository = bound_image_repository(inputs.get("subject-name"))
+            digest = inputs.get("subject-digest")
+            if repository is not None and isinstance(digest, str):
+                subjects.add(f"{repository}@{digest.strip()}")
+
+    raw_tokens = shell_tokens(str(step.get("run", "")))
+    for index in command_indexes(raw_tokens):
+        if executable_name(raw_tokens[index]).lower() not in {"docker", "podman"}:
+            continue
+        arguments = raw_command_arguments(raw_tokens, index)
+        lowered = [argument.lower() for argument in arguments]
+        if "push" in lowered[:4]:
+            push_index = lowered.index("push")
+            candidates = [
+                argument
+                for argument in arguments[push_index + 1 :]
+                if not argument.startswith("-")
+            ]
+            if candidates:
+                subject = normalized_image_subject(candidates[-1])
+                if subject is not None and re.fullmatch(
+                    r"[^@\s]+@sha256:[0-9a-f]{64}",
+                    subject,
+                ) is not None:
+                    subjects.add(subject)
+        for argument_index, argument in enumerate(arguments):
+            if argument in {"--tag", "-t"} and argument_index + 1 < len(arguments):
+                subject = normalized_image_subject(arguments[argument_index + 1])
+            elif argument.startswith("--tag="):
+                subject = normalized_image_subject(argument.split("=", 1)[1])
+            elif argument.startswith("-t") and len(argument) > 2:
+                subject = normalized_image_subject(argument[2:])
+            else:
+                continue
+            if subject is not None:
+                subjects.add(subject)
+    return subjects
+
+
+def attestation_subjects(step: dict[str, Any]) -> set[str]:
+    uses = step.get("uses")
+    inputs = step.get("with")
+    if isinstance(uses, str) and uses.startswith(
         ("actions/attest@", "actions/attest-build-provenance@")
     ):
-        inputs = attestation.get("with", {})
-        return (isinstance(inputs, dict) and inputs.get("subject-name") == repository
-                and inputs.get("subject-digest") == digest
-                and "subject-path" not in inputs)
-    try:
-        arguments = shlex.split(str(attestation.get("run", "")), comments=True, posix=True)
-    except ValueError:
+        if not isinstance(inputs, dict):
+            return set()
+        repository = bound_image_repository(inputs.get("subject-name"))
+        digest = inputs.get("subject-digest")
+        if (
+            repository is None
+            or not isinstance(digest, str)
+            or re.fullmatch(
+                r"\$\{\{\s*steps\.[A-Za-z_][A-Za-z0-9_-]*\.outputs\.digest\s*\}\}",
+                digest.strip(),
+            )
+            is None
+        ):
+            return set()
+        subject = f"{repository}@{digest.strip()}"
+        return {subject}
+
+    raw_tokens = shell_tokens(str(step.get("run", "")))
+    for index in command_indexes(raw_tokens):
+        if executable_name(raw_tokens[index]).lower() != "cosign":
+            continue
+        arguments = raw_command_arguments(raw_tokens, index)
+        if not arguments or arguments[0].lower() != "attest":
+            continue
+        candidates = [argument for argument in arguments[1:] if not argument.startswith("-")]
+        if not candidates:
+            return set()
+        raw_subject = candidates[-1].strip()
+        if (
+            len(raw_subject) >= 2
+            and raw_subject[0] == raw_subject[-1]
+            and raw_subject[0] in {"'", '"'}
+        ):
+            raw_subject = raw_subject[1:-1].strip()
+        if re.fullmatch(
+            r"[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+@(?:sha256:[0-9a-f]{64}|"
+            r"\$\{\{\s*steps\.[A-Za-z_][A-Za-z0-9_-]*\.outputs\.digest\s*\}\})",
+            raw_subject,
+        ) is None:
+            return set()
+        return {raw_subject}
+    return set()
+
+
+def attestation_targets_publication(
+    attestation: dict[str, Any],
+    publication: dict[str, Any],
+) -> bool:
+    published = publication_subjects(publication)
+    attested = attestation_subjects(attestation)
+    if not published or not attested or not published <= attested:
         return False
-    return bool(arguments and arguments[-1] == repository + "@" + digest)
+    return True
 
 
 def require_reachable_signer_workflow(workflow: str, path: str) -> None:
     jobs = workflow_jobs(workflow, path)
+
+    def job_is_statically_blocked(
+        job_id: str,
+        seen: frozenset[str] = frozenset(),
+    ) -> bool:
+        if job_id in seen or job_id not in jobs:
+            return True
+        job = jobs[job_id]
+        if job_condition_is_statically_false(job):
+            return True
+        needs = job.data.get("needs", [])
+        if isinstance(needs, str):
+            dependencies = [needs]
+        elif isinstance(needs, list) and all(
+            isinstance(item, str) and item for item in needs
+        ):
+            dependencies = needs
+        elif needs in (None, []):
+            dependencies = []
+        else:
+            return True
+        return any(
+            job_is_statically_blocked(dependency, seen | {job_id})
+            for dependency in dependencies
+        )
+
     publication_jobs = [
-        job
-        for job in jobs.values()
+        (job_id, job)
+        for job_id, job in jobs.items()
+        if not job_is_statically_blocked(job_id)
         if any(
             not condition_is_statically_false(step.get("if"))
             and contains_image_publication(step)
+            and not step_has_reachable_attestation(step)
             for step in workflow_steps(job, path)
         )
     ]
@@ -4080,20 +4906,40 @@ def require_reachable_signer_workflow(workflow: str, path: str) -> None:
     require(
         any(
             not job_condition_is_statically_false(job)
-            for job in publication_jobs
+            for _, job in publication_jobs
         ),
         f"signer workflow image publication is unreachable: {path}",
     )
-    for publication_job in publication_jobs:
+    for _, publication_job in publication_jobs:
         steps = workflow_steps(publication_job, path)
-        for publication in steps:
-            if condition_is_statically_false(publication.get("if")) or not contains_image_publication(publication):
+        publications = [
+            (index, step)
+            for index, step in enumerate(steps)
+            if not condition_is_statically_false(step.get("if"))
+            and contains_image_publication(step)
+            and not step_has_reachable_attestation(step)
+        ]
+        for publication_index, publication in publications:
+            require(
+                any(
+                    step_has_reachable_attestation(step)
+                    and attestation_covers_publication(step, publication)
+                    and attestation_targets_publication(step, publication)
+                    for step in steps[publication_index + 1 :]
+                ),
+                f"signer publication path has no guaranteed attestation step: {path}",
+            )
+        for attestation_index, attestation in enumerate(steps):
+            if not step_has_reachable_attestation(attestation):
                 continue
             require(
-                any(step_has_reachable_attestation(step)
-                    and attestation_covers_publication(step, publication)
-                    and attestation_subject_matches_publication(step, publication) for step in steps),
-                f"signer publication path has no guaranteed attestation step: {path}",
+                any(
+                    publication_index < attestation_index
+                    and attestation_covers_publication(attestation, publication)
+                    and attestation_targets_publication(attestation, publication)
+                    for publication_index, publication in publications
+                ),
+                f"signer attestation is not bound to a preceding publication: {path}",
             )
 
 
@@ -4449,12 +5295,30 @@ def validate_release_validator_operations(source: str) -> None:
             for child in ast.walk(value)
         )
 
-    def named_assignments(node: ast.AST) -> list[tuple[str, ast.expr | None]]:
+    def target_value_pairs(
+        target: ast.expr,
+        value: ast.expr,
+    ) -> list[tuple[str, ast.expr]]:
+        if isinstance(target, ast.Name):
+            return [(target.id, value)]
+        if (
+            isinstance(target, (ast.List, ast.Tuple))
+            and isinstance(value, (ast.List, ast.Tuple))
+            and len(target.elts) == len(value.elts)
+        ):
+            return [
+                pair
+                for child_target, child_value in zip(target.elts, value.elts)
+                for pair in target_value_pairs(child_target, child_value)
+            ]
+        return []
+
+    def named_assignments(node: ast.AST) -> list[tuple[str, ast.expr]]:
         if isinstance(node, ast.Assign):
             return [
                 pair
                 for target in node.targets
-                for pair in assignment_value_pairs(target, node.value)
+                for pair in target_value_pairs(target, node.value)
             ]
         if (
             isinstance(node, ast.AnnAssign)
@@ -4491,10 +5355,7 @@ def validate_release_validator_operations(source: str) -> None:
             )
         )
 
-    scoped_assignment_values: dict[
-        tuple[int, str],
-        list[ast.expr | None],
-    ] = {}
+    scoped_assignment_values: dict[tuple[int, str], list[ast.expr]] = {}
     for candidate in ast.walk(tree):
         for target_name, value in named_assignments(candidate):
             scoped_assignment_values.setdefault(
@@ -4523,9 +5384,6 @@ def validate_release_validator_operations(source: str) -> None:
                 "release-intent validator stores a restricted callable on an unresolved target",
             )
         for target_name, value in named_assignments(node):
-            if value is None:
-                aliases[target_name] = "__unresolved_callable__"
-                continue
             if not isinstance(value, (ast.Name, ast.Attribute)):
                 invoked_callables = {
                     id(child.func)
@@ -4546,10 +5404,8 @@ def validate_release_validator_operations(source: str) -> None:
                 )
             if isinstance(value, (ast.Name, ast.Attribute)):
                 callable_name = qualified_name(value)
-                if (
-                    restricted_callable_name(callable_name)
-                    or restricted_module_name(callable_name)
-                    or callable_name == "__unresolved_callable__"
+                if restricted_callable_name(callable_name) or restricted_module_name(
+                    callable_name
                 ):
                     aliases[target_name] = callable_name
             if (
@@ -4732,8 +5588,6 @@ def validate_release_validator_operations(source: str) -> None:
                 "release-intent validator calls an unresolved callable expression",
             )
             qualified = qualified_name(node.func)
-            require(qualified != "__unresolved_callable__",
-                    "release-intent validator calls an ambiguous destructured callable")
             require(
                 not any(
                     expression_has_restricted_callable(value)
@@ -5114,6 +5968,10 @@ def validate(contract: dict[str, Any]) -> None:
     require(INTENT_PATH.is_file() and not INTENT_PATH.is_symlink(), "manual release-intent workflow is missing or unsafe")
     require(RELEASE_VALIDATOR_PATH.is_file() and not RELEASE_VALIDATOR_PATH.is_symlink(), "release-intent validator is missing or unsafe")
     intent = INTENT_PATH.read_text(encoding="utf-8")
+    require(
+        hashlib.sha256(intent.encode()).hexdigest() == MANUAL_RELEASE_INTENT_SHA256,
+        "manual release-intent workflow exact-source hash drift",
+    )
     release_validator = RELEASE_VALIDATOR_PATH.read_text(encoding="utf-8")
     validate_release_validator_trust_root(release_validator, repository)
     validate_release_validator_operations(release_validator)
@@ -5145,81 +6003,7 @@ def validate(contract: dict[str, Any]) -> None:
     require(bool(actions) and set(actions) <= ALLOWED_ACTIONS, "release-intent workflow uses a non-allowlisted action")
 
 
-def validate_release_trust_alias_regressions() -> None:
-    # These strings are parsed only; no process, HTTP or database call executes.
-    for method in ("post", "put", "patch", "delete"):
-        for target in ("holder.writer", "holder.nested.writer", "holder['writer']"):
-            require(python_source_has_runtime_mutation(
-                f"import requests\nwriter = requests.{method}\n{target} = writer\n{target}(url)\n"
-            ), "network writer alias was accepted")
-    for origin in ("database.execute", "database.commit", "unknown_writer", "factory()"):
-        for target in ("holder.writer", "holder.nested.writer", "holder['writer']"):
-            require(python_source_has_runtime_mutation(
-                f"{target} = {origin}\n{target}(argument)\n"
-            ), "database or unknown writer alias was accepted")
-    require(python_source_has_runtime_mutation(
-        "holder.writer, unused = unknown_writer, None\nholder.writer(argument)\n"
-    ), "destructured unknown attribute callable was accepted")
-    require(python_source_has_runtime_mutation(
-        "holder.writer = unknown_writer\nother = holder\nother.writer(argument)\n"
-    ), "writer callable escaped through a receiver alias")
-    require(python_source_has_runtime_mutation(
-        "holder.child.writer = unknown_writer\nother = holder.child\nother.writer(argument)\n"
-    ), "writer callable escaped through a nested receiver alias")
-    require(python_source_has_runtime_mutation(
-        "holder[index] = unknown_writer\nother = holder\nwriter = other[key]\nwriter(argument)\n"
-    ), "unknown subscript callable escaped through nested aliases")
-    for driver in ("psycopg", "psycopg2", "pymysql"):
-        for operation in ("execute('DELETE FROM records')", "commit()", "executemany(statement, rows)"):
-            require(python_source_has_runtime_mutation(
-                f"import {driver}\nc = {driver}.connect(url)\nc.{operation}\n"
-            ), "unresolved database writer was accepted")
-    require(not python_source_has_runtime_mutation(
-        "holder.label = 'report'\nholder.nested.count = 3\nprint(holder.label)\n"
-    ), "ordinary non-callable attribute data was rejected")
-    for call in (
-        "connection.putrequest('POST', path)", "connection.endheaders(body)",
-        "connection.send(body)", "connection.sendall(body)",
-        "connection.request('PATCH', path)", "connection.request('UNKNOWN', path)",
-        "connection.unknown_method(body)", "connection.request('GET', path, body)",
-    ):
-        require(python_source_has_runtime_mutation(
-            "import http.client\nconnection = http.client.HTTPConnection(host)\n" + call
-        ), "low-level HTTP write or unresolved method was accepted")
-    for method in ("GET", "HEAD"):
-        require(not python_source_has_runtime_mutation(
-            "import http.client\nconnection = http.client.HTTPConnection(host)\n"
-            f"connection.request('{method}', path)\nconnection.getresponse()\nconnection.close()\n"
-        ), "body-free low-level HTTP read was rejected")
-    for source in (
-        "const cp = require // comment\n('child_process');",
-        "const cp = require /* comment */ ('child_process');",
-        "const cp = require // comment\n('child_' + 'process');",
-        "const cp = require /* comment */ ('child_' + 'process');",
-        "const cp = require('child_' + 'process');",
-        "const cp = require(moduleName);",
-        "const loader = require; const cp = loader(moduleName);",
-        "const cp = require.call(null, 'child_' + 'process');",
-        "const cp = require.apply(null, ['child_' + 'process']);",
-        "const cp = import // comment\n(moduleName);",
-        "const cp = import /* comment */ (moduleName);",
-    ):
-        require(javascript_source_has_runtime_mutation(source),
-                "unresolved JavaScript runtime loader was accepted")
-    require(not javascript_source_has_runtime_mutation("const path = require('path');"),
-            "static read-only JavaScript import was rejected")
-    print("HTTP_WRITER_ATTRIBUTE_ALIAS=REJECTED")
-    print("NETWORK_WRITER_ALIAS_REGRESSION=PASS")
-    print("LOW_LEVEL_HTTP_WRITE=REJECTED")
-    print("HTTP_CLIENT_REGRESSION=PASS")
-    print("JS_REQUIRE_LINE_COMMENT_CHILD_PROCESS=REJECTED")
-    print("JS_REQUIRE_BLOCK_COMMENT_CHILD_PROCESS=REJECTED")
-    print("JS_CONCAT_CHILD_PROCESS=REJECTED")
-    print("JS_UNKNOWN_RUNTIME_LOADER=FAIL_CLOSED")
-
-
 def validate_negative_regressions(contract: dict[str, Any]) -> None:
-    validate_release_trust_alias_regressions()
     require_immutable_action_references(
         "jobs:\n  test:\n    uses: owner/repository/.github/workflows/check.yml@"
         "0123456789012345678901234567890123456789\n",
@@ -5240,31 +6024,50 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: docker/build-push-action@0123456789012345678901234567890123456789
-        id: publish
+      - id: build
+        uses: docker/build-push-action@0123456789012345678901234567890123456789
         with:
           push: true
-          tags: ghcr.io/example/app:ci
-      - uses: actions/attest@0123456789012345678901234567890123456789
-        with:
-          subject-name: ghcr.io/example/app
-          subject-digest: ${{ steps.publish.outputs.digest }}
+          tags: ghcr.io/example/repository:sha-0123456
+      - run: cosign attest --yes 'ghcr.io/example/repository@${{ steps.build.outputs.digest }}'
 """
     require_reachable_signer_workflow(
         reachable_signer,
         "synthetic-reachable-signer.yml",
     )
-    for invalid_subject in (
-        reachable_signer.replace("subject-name: ghcr.io/example/app", "subject-name: ghcr.io/example/unrelated"),
-        reachable_signer.replace("subject-digest: ${{ steps.publish.outputs.digest }}", "subject-digest: ${{ steps.other.outputs.digest }}"),
-        reachable_signer.replace("subject-digest: ${{ steps.publish.outputs.digest }}", "subject-path: unrelated.txt"),
-    ):
-        try:
-            require_reachable_signer_workflow(invalid_subject, "synthetic-wrong-subject.yml")
-        except ContractError:
-            pass
-        else:
-            raise ContractError("unrelated attestation subject was accepted")
+    symbolic_signer = """jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - id: build
+        uses: docker/build-push-action@0123456789012345678901234567890123456789
+        with:
+          push: true
+          tags: ghcr.io/example/${{ matrix.repository }}:sha-0123456
+      - uses: actions/attest-build-provenance@0123456789012345678901234567890123456789
+        with:
+          subject-name: ghcr.io/example/${{ matrix.repository }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+"""
+    require_reachable_signer_workflow(
+        symbolic_signer,
+        "synthetic-symbolic-signer.yml",
+    )
+    try:
+        require_reachable_signer_workflow(
+            symbolic_signer.replace(
+                "subject-name: ghcr.io/example/${{ matrix.repository }}",
+                "subject-name: ghcr.io/example/${{ matrix.other }}",
+            ),
+            "synthetic-symbolic-subject-mismatch.yml",
+        )
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: symbolic subject mismatch"
+        )
     for disabled_condition in (
         "false",
         "'false'",
@@ -5294,8 +6097,8 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
                 "negative regression unexpectedly passed: unreachable signer workflow"
             )
     disabled_publication_step = reachable_signer.replace(
-        "      - uses: docker/build-push-action@",
-        "      - if: false\n        uses: docker/build-push-action@",
+        "      - id: build\n        uses: docker/build-push-action@",
+        "      - id: build\n        if: false\n        uses: docker/build-push-action@",
         1,
     )
     try:
@@ -5310,7 +6113,7 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
             "negative regression unexpectedly passed: disabled publication step"
         )
     comment_only_attestation = reachable_signer.replace(
-        "      - uses: actions/attest@0123456789012345678901234567890123456789",
+        "      - run: cosign attest --yes 'ghcr.io/example/repository@${{ steps.build.outputs.digest }}'",
         "      - run: echo done # cosign attest",
         1,
     )
@@ -5326,66 +6129,54 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
             "negative regression unexpectedly passed: comment-only attestation"
         )
     for command in (
-        "if false; then cosign attest --yes 'ghcr.io/example/app@${{ steps.publish.outputs.digest }}'; fi",
-        "false && cosign attest --yes 'ghcr.io/example/app@${{ steps.publish.outputs.digest }}'",
-        "true || cosign attest --yes 'ghcr.io/example/app@${{ steps.publish.outputs.digest }}'",
-        "echo cosign attest --yes 'ghcr.io/example/app@${{ steps.publish.outputs.digest }}'",
+        "if false; then cosign attest --yes image@example; fi",
+        "false && cosign attest --yes image@example",
+        "true || cosign attest --yes image@example",
+        "echo cosign attest --yes image@example",
     ):
-        require(not step_has_reachable_attestation({"run": command}),
-                "unreachable shell attestation was accepted")
-    require(not attestation_covers_publication(
-        {"if": "${{ !inputs.publish }}"}, {"if": "inputs.publish"}
-    ), "complementary attestation condition was accepted")
-    require(attestation_covers_publication(
-        {"if": "${{ inputs.publish }}"}, {"if": "inputs.publish"}
-    ), "identical publication/attestation conditions were rejected")
-    require(attestation_covers_publication({}, {"if": "inputs.publish"}),
-            "unconditional attestation was rejected")
-    complementary_signer = reachable_signer.replace(
-        "      - uses: docker/build-push-action@",
-        "      - if: inputs.publish\n        uses: docker/build-push-action@",
-    ).replace(
-        "      - uses: actions/attest@",
-        "      - if: ${{ !inputs.publish }}\n        uses: actions/attest@",
-    )
-    for invalid_signer in (
-        complementary_signer,
-        reachable_signer.replace(
-            "      - uses: actions/attest@0123456789012345678901234567890123456789",
-            "      - run: if false; then cosign attest --yes 'ghcr.io/example/app@${{ steps.publish.outputs.digest }}'; fi",
+        require(
+            not step_has_reachable_attestation({"run": command}),
+            "unreachable shell attestation was accepted",
+        )
+    require(
+        not attestation_covers_publication(
+            {"if": "${{ !inputs.publish }}"},
+            {"if": "inputs.publish"},
         ),
-    ):
-        try:
-            require_reachable_signer_workflow(invalid_signer, "synthetic-unattested-path.yml")
-        except ContractError:
-            pass
-        else:
-            raise ContractError("publication without executable attestation was accepted")
-    cosign_signer = reachable_signer.replace(
-        "      - uses: actions/attest@0123456789012345678901234567890123456789",
-        "      - run: cosign attest --yes 'ghcr.io/example/app@${{ steps.publish.outputs.digest }}'",
-        1,
+        "complementary attestation condition was accepted",
     )
-    cosign_signer = cosign_signer.replace(
-        "        with:\n          subject-name: ghcr.io/example/app\n"
-        "          subject-digest: ${{ steps.publish.outputs.digest }}\n", ""
+    require(
+        attestation_covers_publication(
+            {"if": "${{ inputs.publish }}"},
+            {"if": "inputs.publish"},
+        ),
+        "identical publication/attestation conditions were rejected",
     )
-    require_reachable_signer_workflow(
-        cosign_signer,
-        "synthetic-cosign-signer.yml",
+    require(
+        attestation_covers_publication({}, {"if": "inputs.publish"}),
+        "unconditional attestation was rejected",
+    )
+    complementary_signer = reachable_signer.replace(
+        "      - id: build\n        uses: docker/build-push-action@",
+        "      - id: build\n        if: inputs.publish\n        uses: docker/build-push-action@",
+    ).replace(
+        "      - run: cosign attest",
+        "      - if: ${{ !inputs.publish }}\n        run: cosign attest",
     )
     try:
         require_reachable_signer_workflow(
-            cosign_signer.replace("app@${{ steps.publish.outputs.digest }}", "unrelated@${{ steps.publish.outputs.digest }}"),
-            "synthetic-unrelated-cosign-subject.yml",
+            complementary_signer,
+            "synthetic-complementary-signer.yml",
         )
     except ContractError:
         pass
     else:
-        raise ContractError("cosign attestation for an unrelated image was accepted")
-    unreachable_cosign = cosign_signer.replace(
-        "      - run: cosign attest --yes 'ghcr.io/example/app@${{ steps.publish.outputs.digest }}'",
-        "      - run: if false; then cosign attest --yes 'ghcr.io/example/app@${{ steps.publish.outputs.digest }}'; fi",
+        raise ContractError(
+            "negative regression unexpectedly passed: unattested publication path"
+        )
+    unreachable_cosign = reachable_signer.replace(
+        "      - run: cosign attest --yes 'ghcr.io/example/repository@${{ steps.build.outputs.digest }}'",
+        "      - run: if false; then cosign attest --yes 'ghcr.io/example/repository@${{ steps.build.outputs.digest }}'; fi",
         1,
     )
     try:
@@ -5399,6 +6190,73 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
         raise ContractError(
             "negative regression unexpectedly passed: unreachable cosign attestation"
         )
+    mismatched_attestation = reachable_signer.replace(
+        "cosign attest --yes 'ghcr.io/example/repository@${{ steps.build.outputs.digest }}'",
+        "cosign attest --yes ghcr.io/example/other:sha-0123456",
+        1,
+    )
+    try:
+        require_reachable_signer_workflow(
+            mismatched_attestation,
+            "synthetic-mismatched-attestation.yml",
+        )
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: attestation subject mismatch"
+        )
+    mixed_attestation = reachable_signer.replace(
+        "      - run: cosign attest --yes 'ghcr.io/example/repository@${{ steps.build.outputs.digest }}'",
+        "      - run: cosign attest --yes 'ghcr.io/example/repository@${{ steps.build.outputs.digest }}'\n"
+        "      - run: cosign attest --yes ghcr.io/example/other:sha-0123456",
+        1,
+    )
+    try:
+        require_reachable_signer_workflow(
+            mixed_attestation,
+            "synthetic-mixed-attestation.yml",
+        )
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: extra unbound attestation"
+        )
+    premature_attestation = """jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - run: cosign attest --yes 'ghcr.io/example/repository@${{ steps.build.outputs.digest }}'
+      - id: build
+        uses: docker/build-push-action@0123456789012345678901234567890123456789
+        with:
+          push: true
+          tags: ghcr.io/example/repository:sha-0123456
+"""
+    try:
+        require_reachable_signer_workflow(
+            premature_attestation,
+            "synthetic-premature-attestation.yml",
+        )
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: attestation preceded publication"
+        )
+    action_attestation = reachable_signer.replace(
+        "      - run: cosign attest --yes 'ghcr.io/example/repository@${{ steps.build.outputs.digest }}'",
+        "      - uses: actions/attest@0123456789012345678901234567890123456789\n"
+        "        with:\n"
+        "          subject-name: ghcr.io/example/repository\n"
+        "          subject-digest: ${{ steps.build.outputs.digest }}",
+        1,
+    )
+    require_reachable_signer_workflow(
+        action_attestation,
+        "synthetic-action-attestation.yml",
+    )
     split_attestation = """jobs:
   publish:
     runs-on: ubuntu-latest
@@ -5500,6 +6358,129 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
         supply_chain_downgrade = deepcopy(contract)
         supply_chain_downgrade["artifact_policy"]["attestation_verifier"] = "none"
         mutations.append(("supply-chain verifier downgrade", supply_chain_downgrade))
+
+    python_mutation_regressions = {
+        "socket-backed file writer": (
+            "import socket\ns=socket.socket(); f=s.makefile('wb'); f.write(b'x')\n"
+        ),
+        "socket sendmsg": "import socket\ns=socket.socket(); s.sendmsg([b'x'])\n",
+        "socket sendfile": (
+            "import socket\ns=socket.socket(); s.sendfile(open('x','rb'))\n"
+        ),
+        "asyncio stream writer": (
+            "import asyncio\nasync def send():\n"
+            " r,w=await asyncio.open_connection('host',443); w.write(b'x'); await w.drain()\n"
+        ),
+        "ctypes launcher": "import ctypes\nctypes.CDLL(None).system(b'kubectl apply -f x')\n",
+        "pty launcher": "import pty\npty.spawn(['kubectl','apply','-f','x'])\n",
+        "runpy loader": "import runpy\nrunpy.run_path('deploy.py')\n",
+        "returned callable": (
+            "import subprocess\ndef launcher(): return subprocess.run\n"
+            "runner=launcher(); runner(['kubectl','apply','-f','x'])\n"
+        ),
+        "container-returned callable": (
+            "import subprocess as s\nrunner=[s.run][0]\n"
+            "runner(['kubectl','apply','-f','x'])\n"
+        ),
+        "unresolved database writer": (
+            "import psycopg\nc=psycopg.connect('dsn'); c.execute('DELETE FROM x'); c.commit()\n"
+        ),
+    }
+    for name, source in python_mutation_regressions.items():
+        require(
+            python_source_has_runtime_mutation(source),
+            f"Python mutation regression escaped: {name}",
+        )
+
+    javascript_mutation_regressions = {
+        "optional loader": (
+            "const t=require?.('node:'+'https'); "
+            "t.request(url,{method:'POST'}).end(data)"
+        ),
+        "createRequire loader": (
+            "import {createRequire} from 'node:module'; const r=createRequire(import.meta.url); "
+            "r('child_process').execSync('kubectl apply -f x')"
+        ),
+        "datagram sender": (
+            "const d=require('node:dgram'); const s=d.createSocket('udp4'); "
+            "s.send('x',1,'host')"
+        ),
+    }
+    for name, source in javascript_mutation_regressions.items():
+        require(
+            javascript_source_has_runtime_mutation(source),
+            f"JavaScript mutation regression escaped: {name}",
+        )
+
+    for command in (
+        "kubectl edit deployment/api",
+        "prlimit -- kubectl apply -f runtime.yml",
+        "docker stop prod",
+        "podman restart prod",
+        'op=run; docker "$op" --rm image',
+        "PATH=./tools:$PATH git status",
+        "printf 'BASH_ENV=/tmp/hook\\n' >> \"$GITHUB_ENV\"",
+    ):
+        require(
+            contains_runtime_mutation(command),
+            f"shell mutation regression escaped: {command}",
+        )
+
+    with tempfile.TemporaryDirectory(dir=ROOT) as directory:
+        helper = Path(directory) / "helper.py"
+        caller = Path(directory) / "caller.py"
+        helper.write_text(
+            "import requests\ndef deploy(): requests.post('https://runtime.example')\n",
+            encoding="utf-8",
+        )
+        caller.write_text("import helper\nhelper.deploy()\n", encoding="utf-8")
+        require(
+            repository_script_path_has_runtime_mutation(
+                caller,
+                set(),
+                None,
+                Path(directory),
+            ),
+            "invoked imported helper body escaped mutation classification",
+        )
+
+    signer_regressions = {
+        "partially attested multi-subject publication": reachable_signer.replace(
+            "tags: ghcr.io/example/repository:sha-0123456",
+            "tags: |\n            ghcr.io/example/repository:sha-0123456\n"
+            "            ghcr.io/example/other:sha-0123456",
+        ),
+        "step-local dynamic subject mismatch": """jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - run: docker push "$IMAGE"
+        env: {IMAGE: ghcr.io/example/a@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
+      - run: cosign attest --yes "$IMAGE"
+        env: {IMAGE: ghcr.io/example/b@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb}
+""",
+        "publication blocked by dependency": """jobs:
+  prerequisite:
+    if: false
+    runs-on: ubuntu-latest
+    steps: [{run: echo blocked}]
+  publish:
+    needs: prerequisite
+    runs-on: ubuntu-latest
+    steps:
+      - id: build
+        uses: docker/build-push-action@0123456789012345678901234567890123456789
+        with: {push: true, tags: ghcr.io/example/repository:sha-0123456}
+      - run: cosign attest --yes 'ghcr.io/example/repository@${{ steps.build.outputs.digest }}'
+""",
+    }
+    for name, workflow in signer_regressions.items():
+        try:
+            require_reachable_signer_workflow(workflow, f"synthetic-{name}.yml")
+        except ContractError:
+            pass
+        else:
+            raise ContractError(f"signer regression unexpectedly passed: {name}")
 
     for name, mutation in mutations:
         try:
@@ -5659,7 +6640,6 @@ def validate_intent_negative_regressions(contract: dict[str, Any]) -> None:
         "ionice kubectl apply -f runtime.yml",
         "setsid kubectl apply -f runtime.yml",
         "systemd-run --wait kubectl apply -f runtime.yml",
-        "printf x > /dev/tcp/service/80",
         "TOOL=$(echo kubectl); \"$TOOL\" apply -f runtime.yml",
         "echo validation\n\ngh api --method POST repos/example/runtime/dispatches",
         "GIT_ALLOW_PROTOCOL=ext git fetch ext::sh\\ -c\\ id",
@@ -5674,6 +6654,102 @@ def validate_intent_negative_regressions(contract: dict[str, Any]) -> None:
     require(
         not contains_runtime_command("# docker pull example.invalid/image"),
         "comment-only runtime command was treated as executable",
+    )
+    if (ROOT / "scripts/apply_repository_governance.py").is_file():
+        require(
+            not contains_runtime_mutation(
+                "python3 scripts/apply_repository_governance.py"
+            ),
+            "governance plan invocation was treated as runtime mutation",
+        )
+        require(
+            not contains_runtime_mutation(
+                "python3 scripts/apply_repository_governance.py --apply"
+            ),
+            "repository-control-plane apply was treated as runtime mutation",
+        )
+        require(
+            contains_runtime_mutation(
+                "python3 scripts/apply_repository_governance.py --apply --unexpected"
+            ),
+            "unapproved governance invocation escaped runtime-mutation classification",
+        )
+        require(
+            not contains_runtime_mutation(
+                "python3 scripts/apply_repository_governance.py --verify-live"
+            ),
+            "read-only governance verification was treated as runtime mutation",
+        )
+    repository = "appolon1908-hue/Middleware-"
+    control_plane_paths = (
+        ".github/workflows/integration-main-release-authorities.yml",
+        ".github/workflows/production-reviewer-access.yml",
+    )
+    if not all((ROOT / path).is_file() for path in control_plane_paths):
+        control_plane_paths = ()
+    for workflow_path in control_plane_paths:
+        workflow = (ROOT / workflow_path).read_text(encoding="utf-8")
+        require(
+            not workflow_has_runtime_mutation(workflow, workflow_path),
+            f"approved repository control-plane workflow was treated as runtime: {workflow_path}",
+        )
+        require(
+            workflow_has_runtime_mutation(
+                workflow.replace(
+                    "CONTROL_PLANE_MUTATION=repository-administration",
+                    "CONTROL_PLANE_MUTATION=unreviewed",
+                    1,
+                ),
+                workflow_path,
+            ),
+            f"control-plane workflow hash drift escaped classification: {workflow_path}",
+        )
+        trusted = verified_control_plane_dependencies(repository, workflow_path)
+        require(
+            trusted is not None and bool(trusted),
+            f"control-plane dependency manifest is missing: {workflow_path}",
+        )
+        assert trusted is not None
+        entry_script = (
+            "scripts/apply_integration_main_release_authorities_v2.py"
+            if workflow_path.endswith("integration-main-release-authorities.yml")
+            else "scripts/apply_production_reviewer_access.py"
+        )
+        require(
+            not script_dependencies_have_runtime_mutation(
+                f"python3 -I {entry_script} --mode validate",
+                {},
+                ROOT,
+                trusted,
+            ),
+            f"isolated trusted control-plane script was rejected: {entry_script}",
+        )
+        require(
+            script_dependencies_have_runtime_mutation(
+                f"python3 {entry_script} --mode validate",
+                {},
+                ROOT,
+                trusted,
+            ),
+            f"non-isolated trusted control-plane script escaped: {entry_script}",
+        )
+        dependency_manifest = APPROVED_CONTROL_PLANE_DEPENDENCY_SHA256[repository][
+            workflow_path
+        ]
+        dependency_path = next(iter(dependency_manifest))
+        expected_hash = dependency_manifest[dependency_path]
+        dependency_manifest[dependency_path] = "0" * 64
+        try:
+            require(
+                verified_control_plane_dependencies(repository, workflow_path) is None,
+                f"control-plane dependency drift escaped classification: {workflow_path}",
+            )
+        finally:
+            dependency_manifest[dependency_path] = expected_hash
+    require(
+        contract.get("repository") != repository
+        or not contains_runtime_mutation("bash scripts/run_ci.sh"),
+        "validation script dependency chain was treated as runtime mutation",
     )
     enabled_mutation = """name: synthetic
 jobs:
@@ -5959,6 +7035,276 @@ jobs:
         ),
         "negative release-intent Python shell regression passed",
     )
+    pinned_parser_setup = f"""name: synthetic
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: {PINNED_WORKFLOW_PARSER_INSTALL}
+"""
+    require(
+        not workflow_has_runtime_command(
+            pinned_parser_setup,
+            "synthetic-pinned-parser-setup.yml",
+        ),
+        "exact pinned parser setup was treated as governed-runtime contact",
+    )
+    for unsafe_parser_setup in (
+        "python3 -m pip install PyYAML==6.0.3",
+        f"{PINNED_WORKFLOW_PARSER_INSTALL} && curl https://runtime.example",
+    ):
+        unsafe_parser_workflow = f"""name: synthetic
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: {unsafe_parser_setup}
+"""
+        require(
+            workflow_has_runtime_command(
+                unsafe_parser_workflow,
+                "synthetic-unsafe-parser-setup.yml",
+            ),
+            f"unsafe parser setup escaped contact classification: {unsafe_parser_setup}",
+        )
+    read_only_runtime_contact = """name: synthetic
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: |
+          kubectl get pods
+          docker inspect middleware-api
+"""
+    require(
+        workflow_has_runtime_command(
+            read_only_runtime_contact,
+            "synthetic-release-intent-runtime-read.yml",
+        ),
+        "negative release-intent read-only runtime regression passed",
+    )
+    python_runtime_contact = """name: synthetic
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - shell: python
+        run: |
+          import subprocess
+          subprocess.run(["kubectl", "get", "pods"], check=True)
+"""
+    require(
+        workflow_has_runtime_command(
+            python_runtime_contact,
+            "synthetic-release-intent-python-runtime-read.yml",
+        ),
+        "declared Python read-only runtime contact escaped classification",
+    )
+    node_runtime_contact = """name: synthetic
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - shell: node
+        run: await fetch("https://runtime.example/health")
+"""
+    require(
+        workflow_has_runtime_command(
+            node_runtime_contact,
+            "synthetic-release-intent-node-runtime-read.yml",
+        ),
+        "declared Node read-only runtime contact escaped classification",
+    )
+    invoked_runtime_reader = """name: synthetic
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: python3 scripts/audit_release_endpoints.py
+"""
+    require(
+        workflow_has_runtime_command(
+            invoked_runtime_reader,
+            "synthetic-release-intent-invoked-runtime-read.yml",
+        ),
+        "invoked read-only runtime script escaped classification",
+    )
+    for client_command in (
+        'curl -fsS "$RUNTIME_HEALTH_URL"',
+        'wget -qO- "$RUNTIME_HEALTH_URL"',
+    ):
+        generic_network_contact = f"""name: synthetic
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: {client_command}
+"""
+        require(
+            workflow_has_runtime_command(
+                generic_network_contact,
+                "synthetic-release-intent-generic-network-read.yml",
+            ),
+            f"generic network client escaped contact classification: {client_command}",
+        )
+    asyncio_runtime_contact = """name: synthetic
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - shell: python
+        run: |
+          import asyncio
+          asyncio.run(asyncio.open_connection(host, 443))
+"""
+    require(
+        workflow_has_runtime_command(
+            asyncio_runtime_contact,
+            "synthetic-release-intent-asyncio-runtime-read.yml",
+        ),
+        "asyncio network connection escaped contact classification",
+    )
+    dynamic_node_runtime_contact = """name: synthetic
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - shell: node
+        run: import("https").then(({get}) => get(process.env.RUNTIME_URL))
+"""
+    require(
+        workflow_has_runtime_command(
+            dynamic_node_runtime_contact,
+            "synthetic-release-intent-dynamic-node-runtime-read.yml",
+        ),
+        "dynamic Node network import escaped contact classification",
+    )
+    python_generic_client_contact = """name: synthetic
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - shell: python
+        run: |
+          import subprocess
+          subprocess.run(["curl", "-fsS", "https://runtime.example/health"])
+"""
+    require(
+        workflow_has_runtime_command(
+            python_generic_client_contact,
+            "synthetic-release-intent-python-generic-network-read.yml",
+        ),
+        "Python-launched generic network client escaped contact classification",
+    )
+    asyncio_subprocess_contact = """name: synthetic
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - shell: python
+        run: |
+          import asyncio
+          asyncio.run(asyncio.create_subprocess_exec("curl", "https://runtime.example"))
+"""
+    require(
+        workflow_has_runtime_command(
+            asyncio_subprocess_contact,
+            "synthetic-release-intent-asyncio-subprocess-read.yml",
+        ),
+        "asyncio subprocess runtime contact escaped classification",
+    )
+    computed_commonjs_contact = """name: synthetic
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - shell: node
+        run: |
+          const transport = require("node:" + "https");
+          transport.get(process.env.RUNTIME_URL);
+"""
+    require(
+        workflow_has_runtime_command(
+            computed_commonjs_contact,
+            "synthetic-release-intent-computed-commonjs-runtime-read.yml",
+        ),
+        "computed CommonJS network import escaped contact classification",
+    )
+    commented_commonjs_contact = """name: synthetic
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - shell: node
+        run: |
+          const transport = require /*comment*/ ("https");
+          transport.get(process.env.RUNTIME_URL);
+"""
+    require(
+        workflow_has_runtime_command(
+            commented_commonjs_contact,
+            "synthetic-release-intent-commented-commonjs-runtime-read.yml",
+        ),
+        "comment-separated CommonJS import escaped contact classification",
+    )
+    bash_network_device_contact = """name: synthetic
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - shell: bash
+        run: exec 3<>/dev/tcp/runtime.example/443
+"""
+    require(
+        workflow_has_runtime_command(
+            bash_network_device_contact,
+            "synthetic-release-intent-bash-network-device-read.yml",
+        ),
+        "Bash network-device redirection escaped contact classification",
+    )
+    expanded_bash_network_device_contact = """name: synthetic
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - shell: bash
+        run: proto=tcp; exec 3<>/dev/$proto/runtime.example/443
+"""
+    require(
+        workflow_has_runtime_command(
+            expanded_bash_network_device_contact,
+            "synthetic-release-intent-expanded-bash-network-device-read.yml",
+        ),
+        "expanded Bash network-device redirection escaped contact classification",
+    )
+    require(
+        not contains_runtime_command(
+            'printf %s "$EVIDENCE" > "$RUNNER_TEMP/release-intent.json"'
+        ),
+        "approved runner-temporary redirect was treated as runtime contact",
+    )
+    for unapproved_command in (
+        "openssl s_client -connect runtime.example:443 </dev/null",
+        (
+            "export GITHUB_OUTPUT=/dev/tcp/runtime.example/443; "
+            'printf x > "$GITHUB_OUTPUT"'
+        ),
+    ):
+        unapproved_shell_contact = f"""name: synthetic
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - shell: bash
+        run: {unapproved_command}
+"""
+        require(
+            workflow_has_runtime_command(
+                unapproved_shell_contact,
+                "synthetic-release-intent-unapproved-shell-contact.yml",
+            ),
+            f"unapproved executable or redirect escaped contact classification: {unapproved_command}",
+        )
     reusable_mutation = """name: synthetic
 jobs:
   deploy:
@@ -6219,78 +7565,6 @@ PY
         ),
         "negative computed urllib method regression passed",
     )
-    for assignment in (
-        "runner, unused = subprocess.run, None",
-        "(runner, unused) = (subprocess.run, None)",
-        "[runner, unused] = [subprocess.run, None]",
-        "a, (runner, b) = x, (subprocess.run, y)",
-        "runner, unused = unknown_values",
-        "runner, *unused = [subprocess.run, None, None]",
-        "runner, unused = [*unknown_values]",
-        "runner, unused = unknown_values; alias = runner; runner = None",
-        "runner, unused = subprocess.run, None; runner, unused = print, None",
-    ):
-        source = ("import subprocess\n" + assignment + "\n"
-                  "runner(['kubectl', 'apply', '-f', 'runtime.yml'])\n")
-        require(python_source_has_runtime_mutation(source),
-                "destructured callable mutation regression passed unexpectedly")
-        try:
-            validate_release_validator_operations(source)
-        except ContractError:
-            pass
-        else:
-            raise ContractError("release destructured callable regression passed unexpectedly")
-    for uncertain in (
-        "runner, unused = factory(), None",
-        "runner, unused = choices[0], None",
-        "runner, unused = (first if condition else second), None",
-        "runner, unused = (alias := external_callable), None",
-        "runner, unused = external_callable, None",
-        "runner, unused = external_client.write, None",
-        "runner, unused = other, None; other = runner",
-    ):
-        require(python_source_has_runtime_mutation(
-            uncertain + "; runner(['kubectl', 'apply'])"),
-            "unproved destructured callable origin admitted")
-    require(python_source_has_runtime_mutation(
-        "runner, unused = unknown_values; alias = runner; alias(['kubectl', 'apply'])"),
-        "ambiguous destructured alias propagation failed")
-    require(not python_source_has_runtime_mutation(
-        "runner, unused = print, None; runner('safe')"),
-        "positional read-only callable regression failed")
-    for expression in (
-        "urllib.request.build_opener().open(url, b'payload')",
-        "urllib.request.OpenerDirector().open(url, data=b'payload')",
-        "get_opener().open(url)",
-        "(factory()).open(url, method='PATCH')",
-        "unknown.open(url, method='PATCH')",
-        "unknown.open(url)",
-        "opener.open(url, data=b'payload')",
-        "opener.open(url, method='PATCH')",
-    ):
-        source = ("import urllib.request\nopener = urllib.request.build_opener()\n"
-                  "def api_request():\n    " + expression + "\n")
-        try:
-            validate_release_validator_operations(source)
-        except ContractError:
-            pass
-        else:
-            raise ContractError("unbound opener regression passed unexpectedly")
-    for method in ("GET", "HEAD"):
-        validate_release_validator_operations(
-            "import urllib.request\nopener = urllib.request.build_opener()\n"
-            "def api_request():\n"
-            "    request = urllib.request.Request('https://api.github.com/', method='" + method + "')\n"
-            "    return opener.open(request, timeout=30)\n"
-        )
-    print("DESTRUCTURED_SUBPROCESS_MUTATION=REJECTED")
-    print("NESTED_DESTRUCTURED_MUTATION=REJECTED")
-    print("AMBIGUOUS_DESTRUCTURED_CALLABLE=FAIL_CLOSED")
-    print("UNBOUND_OPENER_BODY_WRITE=REJECTED")
-    print("UNBOUND_OPENER_PATCH=REJECTED")
-    print("UNKNOWN_OPENER_RECEIVER=FAIL_CLOSED")
-    print("PROVEN_READONLY_GET=PASS")
-    print("PROVEN_READONLY_HEAD=PASS")
     for dynamic_import in (
         "__import__('subprocess').run(['kubectl', 'apply'])\n",
         "import importlib\n"
@@ -6445,6 +7719,8 @@ PY
         'run("kubectl apply -f runtime.yml")\n',
         "const cp = require('\\x63hild_process'); "
         "cp.execSync('kubectl apply -f runtime.yml')\n",
+        "const cp = require.call(null, 'child_' + 'process');\n",
+        "const cp = require.apply(null, ['child_' + 'process']);\n",
         "fetch(...args)\n",
         "process.getBuiltinModule('child_process').exec('kubectl apply')\n",
     ):
@@ -6500,6 +7776,23 @@ runner(["kubectl", "apply", "-f", "runtime.yml"], check=True)
     else:
         raise ContractError(
             "negative regression unexpectedly passed: assigned subprocess callable"
+        )
+    for returned in ("(subprocess.run,)[0]", "{'runner': subprocess.run}['runner']"):
+        unsafe = f"import subprocess\ndef helper():\n    return {returned}\nrunner = helper()\nrunner(['kubectl', 'apply'])\n"
+        try:
+            validate_release_validator_operations(unsafe)
+        except ContractError:
+            pass
+        else:
+            raise ContractError("container-returned restricted callable admitted")
+    for options in (
+        "{headers: {method: 'GET'}, method: 'POST'}",
+        "{method: 'GET', method: 'POST'}",
+        "{'method': 'POST'}",
+    ):
+        require(
+            javascript_source_has_runtime_mutation(f"fetch(url, {options})"),
+            "effective fetch mutation method admitted",
         )
     unsafe_annotated_callable_validator = """import subprocess
 runner: object = subprocess.run
@@ -6717,6 +8010,7 @@ open_url("https://runtime.example/mutate")
             "request.selector = '/mutate'",
             "request.method: str = 'POST'",
             "request.__dict__['method'] = 'POST'",
+            "request.__dict__['data'] = b'payload'",
             "object.__setattr__(request, 'method', 'POST')",
             "request.__setattr__('method', 'POST')",
             "request.__setattr__('data', b'payload')",
@@ -6836,6 +8130,21 @@ subprocess.run(["docker", "buildx", "build", "--push", "."], check=True)
         pass
     else:
         raise ContractError("negative regression unexpectedly passed: validator image writer")
+    require(
+        not contains_runtime_command(
+            'gh api "repos/${GITHUB_REPOSITORY}" --jq .default_branch'
+        ),
+        "fixed GitHub control-plane read was treated as runtime contact",
+    )
+    for command in (
+        'gh api --hostname runtime.example "repos/${GITHUB_REPOSITORY}" --jq .default_branch',
+        "gh api https://runtime.example/status --jq .status",
+        'GH_HOST=runtime.example gh api "repos/${GITHUB_REPOSITORY}" --jq .default_branch',
+    ):
+        require(
+            contains_runtime_command(command),
+            f"unapproved GitHub API authority escaped: {command}",
+        )
     for command in (
         "curl -X POST https://runtime.example/mutate",
         "METHOD=POST; curl -X \"$METHOD\" https://runtime.example/mutate",
@@ -6857,7 +8166,6 @@ subprocess.run(["docker", "buildx", "build", "--push", "."], check=True)
         "sudo -n ssh runtime.example deploy",
         "sudo --unknown-option harmless-command",
         "systemd-run --wait kubectl apply -f runtime.yml",
-        "printf x > /dev/tcp/service/80",
         "printf 'POST /mutate' | nc runtime.example 80",
         "printf 'POST /mutate' | openssl s_client -connect runtime.example:443",
         "cat <(printf x)\nkubectl apply -f runtime.yml",
