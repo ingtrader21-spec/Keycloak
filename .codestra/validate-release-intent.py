@@ -398,8 +398,8 @@ EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256 = {
         "e48b38ae8764c4eb498c9e30486c823d"
     ),
     "appolon1908-hue/scrapper": (
-        "5f105005eee6780d6f33b4e2b91c83ab"
-        "5f896846e64245a3a7dd1c449bf3bc53"
+        "a9bb5ea68265446aef7fbba60dc50608"
+        "4bf474c18ceb7c6db226cf0340d46c9c"
     ),
     "appolon1908-hue/Breero.com": (
         "3851f8137c592ab1a5fd0a51acd5344c"
