@@ -1268,13 +1268,31 @@ def interpreter_script_target(tokens: list[str], index: int) -> str | None:
     return None
 
 
+def assignment_value_pairs(
+    target: ast.expr, value: ast.expr,
+) -> list[tuple[str, ast.expr | None]]:
+    """Bind literal destructuring positionally; mark unproved targets unknown."""
+    if isinstance(target, ast.Name):
+        return [(target.id, value)]
+    if isinstance(target, (ast.Tuple, ast.List)):
+        if (isinstance(value, (ast.Tuple, ast.List))
+                and len(target.elts) == len(value.elts)
+                and not any(isinstance(item, ast.Starred)
+                            for item in (*target.elts, *value.elts))):
+            return [pair for left, right in zip(target.elts, value.elts)
+                    for pair in assignment_value_pairs(left, right)]
+        return [(node.id, None) for node in ast.walk(target)
+                if isinstance(node, ast.Name)]
+    return []
+
+
 def python_source_has_runtime_mutation(source: str) -> bool:
     try:
         tree = ast.parse(source)
     except SyntaxError:
         return True
     aliases: dict[str, str] = {}
-    command_bindings: dict[str, list[ast.expr]] = {}
+    command_bindings: dict[str, list[ast.expr | None]] = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -1285,13 +1303,15 @@ def python_source_has_runtime_mutation(source: str) -> bool:
                 aliases[alias.asname or alias.name] = f"{node.module}.{alias.name}"
         elif isinstance(node, ast.Assign):
             for target in node.targets:
-                if isinstance(target, ast.Name):
-                    command_bindings.setdefault(target.id, []).append(node.value)
+                for name, value in assignment_value_pairs(target, node.value):
+                    command_bindings.setdefault(name, []).append(value)
         elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
             if node.value is not None:
                 command_bindings.setdefault(node.target.id, []).append(node.value)
 
-    def qualified_name(node: ast.expr, seen: frozenset[str] = frozenset()) -> str:
+    def qualified_name(node: ast.expr | None, seen: frozenset[str] = frozenset()) -> str:
+        if node is None:
+            return "__unresolved_callable__"
         if isinstance(node, ast.Name):
             if node.id in command_bindings and node.id not in seen:
                 resolved = {
@@ -1304,7 +1324,7 @@ def python_source_has_runtime_mutation(source: str) -> bool:
                 risky = sorted(
                     value
                     for value in resolved
-                    if value == "getattr"
+                    if value in {"getattr", "__unresolved_callable__"}
                     or value.startswith(("os.", "subprocess."))
                     or set(re.split(r"[^a-z0-9_]+", value.lower()))
                     & (NETWORK_CLIENT_HINTS | DATABASE_CLIENT_HINTS)
@@ -1350,6 +1370,8 @@ def python_source_has_runtime_mutation(source: str) -> bool:
         if isinstance(node.func, ast.Call):
             return True
         qualified = qualified_name(node.func)
+        if qualified == "__unresolved_callable__":
+            return True
         if qualified in {
             "__import__",
             "builtins.__import__",
@@ -3078,30 +3100,12 @@ def validate_release_validator_operations(source: str) -> None:
             or name == "urllib.request.Request"
         )
 
-    def target_value_pairs(
-        target: ast.expr,
-        value: ast.expr,
-    ) -> list[tuple[str, ast.expr]]:
-        if isinstance(target, ast.Name):
-            return [(target.id, value)]
-        if (
-            isinstance(target, (ast.List, ast.Tuple))
-            and isinstance(value, (ast.List, ast.Tuple))
-            and len(target.elts) == len(value.elts)
-        ):
-            return [
-                pair
-                for child_target, child_value in zip(target.elts, value.elts)
-                for pair in target_value_pairs(child_target, child_value)
-            ]
-        return []
-
-    def named_assignments(node: ast.AST) -> list[tuple[str, ast.expr]]:
+    def named_assignments(node: ast.AST) -> list[tuple[str, ast.expr | None]]:
         if isinstance(node, ast.Assign):
             return [
                 pair
                 for target in node.targets
-                for pair in target_value_pairs(target, node.value)
+                for pair in assignment_value_pairs(target, node.value)
             ]
         if (
             isinstance(node, ast.AnnAssign)
@@ -3113,6 +3117,9 @@ def validate_release_validator_operations(source: str) -> None:
 
     for node in ast.walk(tree):
         for target_name, value in named_assignments(node):
+            if value is None:
+                aliases[target_name] = "__unresolved_callable__"
+                continue
             if not isinstance(value, (ast.Name, ast.Attribute)):
                 invoked_callables = {
                     id(child.func)
@@ -3133,7 +3140,7 @@ def validate_release_validator_operations(source: str) -> None:
                 )
             if isinstance(value, (ast.Name, ast.Attribute)):
                 callable_name = qualified_name(value)
-                if restricted_callable_name(callable_name):
+                if restricted_callable_name(callable_name) or callable_name == "__unresolved_callable__":
                     aliases[target_name] = callable_name
             if isinstance(value, (ast.List, ast.Tuple)):
                 prefix: list[str] = []
@@ -3237,6 +3244,8 @@ def validate_release_validator_operations(source: str) -> None:
                 "release-intent validator calls an unresolved callable expression",
             )
             qualified = qualified_name(node.func)
+            require(qualified != "__unresolved_callable__",
+                    "release-intent validator calls an ambiguous destructured callable")
             if isinstance(node.func, ast.Attribute):
                 require(
                     not (
@@ -3309,6 +3318,17 @@ def validate_release_validator_operations(source: str) -> None:
             approved_url_call = qualified == "urllib.request.Request" or any(
                 qualified == f"{name}.open" for name in opener_bindings
             )
+            if isinstance(node.func, ast.Attribute) and node.func.attr == "open":
+                receiver = node.func.value
+                # Filesystem IO is distinct from URL openers. Only an explicit
+                # pathlib constructor proves this exception; arbitrary factories
+                # and unknown receivers must never acquire network authority.
+                proven_file = (
+                    isinstance(receiver, ast.Call)
+                    and qualified_name(receiver.func) in {"pathlib.Path", "pathlib.PosixPath"}
+                )
+                require(approved_url_call or proven_file,
+                        "release-intent validator opens an unproved receiver")
             if approved_url_call:
                 require(
                     bool(function_stack)
@@ -4158,6 +4178,62 @@ PY
         ),
         "negative computed urllib method regression passed",
     )
+    for assignment in (
+        "runner, unused = subprocess.run, None",
+        "(runner, unused) = (subprocess.run, None)",
+        "[runner, unused] = [subprocess.run, None]",
+        "a, (runner, b) = x, (subprocess.run, y)",
+        "runner, unused = unknown_values",
+        "runner, *unused = [subprocess.run, None, None]",
+        "runner, unused = [*unknown_values]",
+        "runner, unused = unknown_values; alias = runner; runner = None",
+    ):
+        source = ("import subprocess\n" + assignment + "\n"
+                  "runner(['kubectl', 'apply', '-f', 'runtime.yml'])\n")
+        require(python_source_has_runtime_mutation(source),
+                "destructured callable mutation regression passed unexpectedly")
+        try:
+            validate_release_validator_operations(source)
+        except ContractError:
+            pass
+        else:
+            raise ContractError("release destructured callable regression passed unexpectedly")
+    require(not python_source_has_runtime_mutation(
+        "runner, unused = print, None; runner('safe')"),
+        "positional read-only callable regression failed")
+    for expression in (
+        "urllib.request.build_opener().open(url, b'payload')",
+        "urllib.request.OpenerDirector().open(url, data=b'payload')",
+        "get_opener().open(url)",
+        "(factory()).open(url, method='PATCH')",
+        "unknown.open(url, method='PATCH')",
+        "unknown.open(url)",
+        "opener.open(url, data=b'payload')",
+        "opener.open(url, method='PATCH')",
+    ):
+        source = ("import urllib.request\nopener = urllib.request.build_opener()\n"
+                  "def api_request():\n    " + expression + "\n")
+        try:
+            validate_release_validator_operations(source)
+        except ContractError:
+            pass
+        else:
+            raise ContractError("unbound opener regression passed unexpectedly")
+    for method in ("GET", "HEAD"):
+        validate_release_validator_operations(
+            "import urllib.request\nopener = urllib.request.build_opener()\n"
+            "def api_request():\n"
+            "    request = urllib.request.Request('https://api.github.com/', method='" + method + "')\n"
+            "    return opener.open(request, timeout=30)\n"
+        )
+    print("DESTRUCTURED_SUBPROCESS_MUTATION=REJECTED")
+    print("NESTED_DESTRUCTURED_MUTATION=REJECTED")
+    print("AMBIGUOUS_DESTRUCTURED_CALLABLE=FAIL_CLOSED")
+    print("UNBOUND_OPENER_BODY_WRITE=REJECTED")
+    print("UNBOUND_OPENER_PATCH=REJECTED")
+    print("UNKNOWN_OPENER_RECEIVER=FAIL_CLOSED")
+    print("PROVEN_READONLY_GET=PASS")
+    print("PROVEN_READONLY_HEAD=PASS")
     for dynamic_import in (
         "__import__('subprocess').run(['kubectl', 'apply'])\n",
         "import importlib\n"
