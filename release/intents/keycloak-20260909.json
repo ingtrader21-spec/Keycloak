@@ -1,0 +1,14 @@
+{
+  "schema": "reviewed-image-publication/v1",
+  "repository": "appolon1908-hue/Keycloak",
+  "source_sha": "8419fe1a3c85a8a26e548a817473ff2c55ca993b",
+  "source_tree": "87ab102c347a88cd22492475e0ebe25e75a8fc83",
+  "image_repository": "ghcr.io/appolon1908-hue/codestra-keycloak",
+  "publish_image": true,
+  "deploy_production": false,
+  "external_effects": false,
+  "sbom_required": true,
+  "provenance_required": true,
+  "target_environment": "production",
+  "approval_scope": "BUILD_AND_PUBLISH_CANDIDATE_ONLY; exact digest production approval remains separate"
+}

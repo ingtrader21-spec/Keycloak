@@ -229,24 +229,24 @@ jobs:
             --tag "codestra-keycloak:merge-${EXPECTED_SHA}" \
             .
 
-  release-contract-fixtures:
-    name: release-contract-fixtures
+  validate:
+    name: validate
+    if: always()
+    needs: [validate-source, validate-merge-result]
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    env:
-      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    timeout-minutes: 2
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ env.EXPECTED_SHA }}
-          fetch-depth: 1
-          persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-        with:
-          python-version: '3.12'
-      - run: python3 -m pip install PyYAML==6.0.3
-      - name: Validate exact source orchestrator and release contracts
+      - name: Require every applicable validation job to pass
+        env:
+          SOURCE_RESULT: ${{ needs.validate-source.result }}
+          MERGE_RESULT: ${{ needs.validate-merge-result.result }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-          python3 scripts/validate-workflows.py
-          python3 -m unittest discover -s scripts/release -v
+          set -Eeuo pipefail
+          test "$SOURCE_RESULT" = success
+          if [[ "$EVENT_NAME" == pull_request ]]; then
+            test "$MERGE_RESULT" = success
+          else
+            test "$EVENT_NAME" = push
+            test "$MERGE_RESULT" = skipped
+          fi
