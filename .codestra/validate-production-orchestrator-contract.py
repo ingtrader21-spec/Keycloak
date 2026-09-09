@@ -3671,7 +3671,7 @@ def require_reachable_signer_workflow(workflow: str, path: str) -> None:
         for job in jobs.values()
         if any(contains_image_publication(step) for step in workflow_steps(job, path))
     ]
-    require(publication_jobs, f"signer workflow has no image publication job: {path}")
+    require(bool(publication_jobs), f"signer workflow has no image publication job: {path}")
     require(
         any(job_condition(job) != "${{ false }}" for job in publication_jobs),
         f"signer workflow image publication is unreachable: {path}",

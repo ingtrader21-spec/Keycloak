@@ -210,20 +210,20 @@ EXPECTED_CHECK_WORKFLOW_SHA256 = {
     },
 }
 SHARED_PRODUCTION_VALIDATOR_SHA256 = (
-    "e5c09dfe70ae85584a81f02643a51532"
-    "7ef63546bbe05df14570e163c07c746d"
+    "036eaaae81d72dd2972533a00bbcc828"
+    "82994a1b72714233be348431af95aca4"
 )
 KEYCLOAK_PRODUCTION_VALIDATOR_SHA256 = (
-    "059d6daac11f1406fff9c417e72378f6"
-    "52206fdea43800402c8a732a73d3ed5d"
+    "b055562ea8f00708a23826c739582f22"
+    "ac935a5e6a59ea9bb4a5f7ee202633ef"
 )
 MIDDLEWARE_PRODUCTION_VALIDATOR_SHA256 = (
-    "4352b8c397e52287f05a8f61917350d7"
-    "e8d71e927e7bc1aaad8842171c714df4"
+    "34ea69c12ff5bd371d947b8c2295de9a"
+    "662d054a052126f874bbc4716a42f31d"
 )
 BACKEND_PRODUCTION_VALIDATOR_SHA256 = (
-    "8d736dcdb2272050be819ecee8746a80"
-    "31c1856fb70ba9e0afbde36390279df0"
+    "813422beda4bbb8627dda94236530185"
+    "6db0b0b41fb2a31c0a654ea7705b8bea"
 )
 EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
     "appolon1908-hue/Infustruction-repo": {
@@ -371,48 +371,48 @@ EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
 RELEASE_VALIDATOR_SOURCE_PATH = ".codestra/validate-release-intent.py"
 EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256 = {
     "appolon1908-hue/Infustruction-repo": (
-        "64ea6998d8c8d7de93a3b80577ddd72b"
-        "759b5d0ada2423c6374db58a27e76fee"
+        "38edd73179e201a4844cb33c8ffd28e7"
+        "43b96264ce2471f462c1cc67c797a167"
     ),
     "appolon1908-hue/Keycloak": (
-        "ddc0a86ea01cf6eedb86594aee496212"
-        "c1fb4d81342d38e75bd9dd92f085c6d8"
+        "98486cdf235af11e2634c70007523a88"
+        "59f5e6dc6c61016b59d0fb7097ef6763"
     ),
     "appolon1908-hue/Middleware-": (
-        "7ee309f78471d4ed3ee359e2a98cbc1c"
-        "2aab68ed62c48eb1720afc6daa220dec"
+        "9a9011ee4fe3598d62345f988eb282cb"
+        "bf06223452645e3cd41936c7991834c5"
     ),
     "appolon1908-hue/codestra": (
-        "e5c5d7f300be58b0ca0693157903e249"
-        "acb55035e5690ccf7d2e1f90beb273aa"
+        "36fe8258aca0027a1ae974788a8665d8"
+        "84919f217d34d35c3ce37f1389819815"
     ),
     "appolon1908-hue/beyvra-backend": (
-        "5539310d04ee34d3472209d089650f7e"
-        "0cd1363d2d479cf1f2e699c6080c2c4a"
+        "2bbf1c6640dae9cd7a1f6e1b9cd31fb"
+        "09517cafe5a70481a5a95e3f9273ab3e6"
     ),
     "appolon1908-hue/backend2": (
-        "5c068266b2539fcb765738bbc595cb6dd"
-        "0a7cef6625ecc4c43e63704835d8a15"
+        "72797310495abcf0f322d3ffd184cb9c"
+        "c2f2488ecfc02cc1a808469283b66180"
     ),
     "appolon1908-hue/beyvra-frontend": (
-        "096382bce61e91907e4ac246352fd53d"
-        "6011c361c1691930352210d7277e23bb"
+        "3f3cf8b88c88694c6818d465f435d624"
+        "694efb12c653d5223a89b0c5bad13562"
     ),
     "appolon1908-hue/scrapper": (
-        "5cc329a639cebd4686a7af21b2f9ad00"
-        "0a5f5015b7aa70e0f8b0d361011f3bfd"
+        "db45fd3e8af5f6d4ddb17a68625491ac"
+        "cd94e07ba76e60d1bb9113a67605e71e"
     ),
     "appolon1908-hue/Breero.com": (
-        "71996796eaed49de7b27c7b8a57841a"
-        "45506146c258dda912b0fcd28b5b8ad5b"
+        "6355f199f1bb1c846d9dd8b90d5a3d34"
+        "47344093a787dc0e63c15a48cb994aa1"
     ),
     "appolon1908-hue/Moneybee-Backend": (
-        "23f30308ef2782a5071691fa44a32926"
-        "91630aaf94037953bbb2f118d48d96fc"
+        "42e96c5a92f3e3090d14d7c8d9f1bd"
+        "54209bab6b8dfdd58add906a360b8ba76f"
     ),
     "appolon1908-hue/Telnexa-web": (
-        "05356e4d1731be004123bfb84cc2386a"
-        "2da138a8abd5c21de63764836cbc5206"
+        "3a2b4bd7ac4c117948ebb97c7821b924"
+        "025f250cbd67220318ecc26cf540d4df"
     ),
     CONTROLLER_REPOSITORY: (
         "4c7b54aa7cd59ac09703d235a264b830"
