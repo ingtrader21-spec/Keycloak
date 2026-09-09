@@ -80,6 +80,7 @@ ALLOWED_ACTIONS = {
 }
 RUNTIME_TOOLS = {
     "ansible-playbook",
+    "chroot",
     "docker",
     "helm",
     "kubectl",
@@ -1892,6 +1893,17 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
         parts.append(arguments[start:].strip())
         return parts
 
+    for match in re.finditer(r"\b(?:require|import)\s*\(", lower):
+        open_index = lower.find("(", match.start())
+        arguments = call_arguments(open_index)
+        if arguments is None or re.fullmatch(
+            r"""\s*(['"])[^'"\r\n]+\1\s*""",
+            arguments,
+        ) is None:
+            # Computed module specifiers can conceal networking or process
+            # modules behind an otherwise arbitrary binding.
+            return True
+
     if any(
         marker in lower
         for marker in (
@@ -3018,7 +3030,7 @@ def contains_runtime_mutation(
             or any("ext::" in token.lower() for token in raw_tail)
         ):
             return True
-        if name in {"ansible-playbook", "scp", "ssh"}:
+        if name in {"ansible-playbook", "chroot", "scp", "ssh"}:
             return True
         if name in {"helm", "kubectl", "terraform", "tofu"} and (
             runtime_cli_operation_is_dynamic(name, raw_tail)
@@ -3308,6 +3320,13 @@ def contains_runtime_action(step: dict[str, Any]) -> bool:
         ) or re.search(
             r"\b(?:const|let|var)\s+[a-z_$][a-z0-9_$]*\s*=\s*github\b",
             script,
+        ) or re.search(
+            r"\bobject\s*\.\s*(?:assign|create)\s*\([^)]*\bgithub\b",
+            script,
+            re.DOTALL,
+        ) or re.search(
+            r"\bnew\s+proxy\s*\(\s*github\b|\.\.\.\s*github\b",
+            script,
         ):
             # Bracket access and destructuring can hide REST, request, or
             # GraphQL writers from property-name inspection.
@@ -3420,6 +3439,20 @@ def contains_image_publication(step: dict[str, Any]) -> bool:
 def job_condition(job: WorkflowJob) -> str | None:
     value = job.data.get("if")
     return value if isinstance(value, str) else None
+
+
+def job_condition_is_statically_false(job: WorkflowJob) -> bool:
+    value = job.data.get("if")
+    if value is False or type(value) is int and value == 0:
+        return True
+    if not isinstance(value, str):
+        return False
+    expression = re.sub(r"\s+", "", value).lower()
+    if expression.startswith("${{") and expression.endswith("}}"):
+        expression = expression[3:-2]
+    while expression.startswith("(") and expression.endswith(")"):
+        expression = expression[1:-1]
+    return expression in {"false", "!true", "nottrue", "0", "null", "''", '""'}
 
 
 def job_executable_configuration_mutation(
@@ -3673,7 +3706,10 @@ def require_reachable_signer_workflow(workflow: str, path: str) -> None:
     ]
     require(bool(publication_jobs), f"signer workflow has no image publication job: {path}")
     require(
-        any(job_condition(job) != "${{ false }}" for job in publication_jobs),
+        any(
+            not job_condition_is_statically_false(job)
+            for job in publication_jobs
+        ),
         f"signer workflow image publication is unreachable: {path}",
     )
     actions = workflow_actions(workflow, path)
@@ -4761,20 +4797,21 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
         reachable_signer,
         "synthetic-reachable-signer.yml",
     )
-    try:
-        require_reachable_signer_workflow(
-            reachable_signer.replace(
-                "    runs-on: ubuntu-latest",
-                "    if: ${{ false }}\n    runs-on: ubuntu-latest",
-            ),
-            "synthetic-disabled-signer.yml",
-        )
-    except ContractError:
-        pass
-    else:
-        raise ContractError(
-            "negative regression unexpectedly passed: unreachable signer workflow"
-        )
+    for disabled_condition in ("false", "'false'", "${{ false }}", "0"):
+        try:
+            require_reachable_signer_workflow(
+                reachable_signer.replace(
+                    "    runs-on: ubuntu-latest",
+                    f"    if: {disabled_condition}\n    runs-on: ubuntu-latest",
+                ),
+                "synthetic-disabled-signer.yml",
+            )
+        except ContractError:
+            pass
+        else:
+            raise ContractError(
+                "negative regression unexpectedly passed: unreachable signer workflow"
+            )
     mutations = []
 
     missing_check = deepcopy(contract)
@@ -5159,6 +5196,16 @@ jobs:
             "aliased GitHub client mutation",
             "const client = github; "
             "await client.rest.actions.createWorkflowDispatch({owner, repo})",
+        ),
+        (
+            "copied GitHub client mutation",
+            "const client = Object.assign({}, github); "
+            "await client.rest.issues.create({owner, repo})",
+        ),
+        (
+            "spread GitHub client mutation",
+            "const client = {...github}; "
+            "await client.rest.issues.create({owner, repo})",
         ),
     ):
         workflow = f"""name: synthetic
@@ -6065,6 +6112,8 @@ subprocess.run(["docker", "login", "ghcr.io", "--username", "test"])
         'const transport = require("axios"); transport.create().post(url, body)',
         'const {default: transport} = await import("got"); transport.post(url)',
         'import transport from "axios/dist/node/axios.cjs"; transport.post(url)',
+        "const transport = await import('node:' + 'https'); "
+        "transport.request(url, {method: 'POST'}).end(data)",
     ):
         require(javascript_source_has_runtime_mutation(source),
                 f"imported network alias bypass admitted: {source}")
@@ -6151,6 +6200,7 @@ subprocess.run(["docker", "buildx", "build", "--push", "."], check=True)
         "printf './deploy.sh\\n' | xargs bash",
         "echo validation\n\ngh api --method POST repos/example/runtime/dispatches",
         "ionice kubectl apply -f runtime.yml",
+        "sudo chroot / kubectl apply -f runtime.yml",
         "GIT_ALLOW_PROTOCOL=ext git fetch ext::sh\\ -c\\ id",
         "trap 'kubectl apply -f runtime.yml' EXIT",
         "find . -exec kubectl apply -f runtime.yml {} \\;",
