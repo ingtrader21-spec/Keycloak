@@ -20,9 +20,8 @@ contains `merge_authorized: false`.
 
 1. Independently review this bootstrap PR and require successful CI and zero
    unresolved threads. Do not bypass existing required checks to merge it.
-   Protected main currently requires `orchestrator-contract`; the bootstrap's
-   `trust-bootstrap-tests` deliberately does not impersonate that check. The
-   bootstrap merge path must preserve and satisfy that existing requirement.
+   The bootstrap's `trust-bootstrap-tests` is distinct from the existing
+   `orchestrator-contract` job. Preserve and satisfy all existing required checks.
 2. Provision an approved, separately administered GitHub App. Configure the
    required `keycloak-independent-source-authority` check with that App as its
    expected source. A plain check name from GitHub Actions is insufficient.
