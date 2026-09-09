@@ -62,7 +62,10 @@ def verify_github_evidence(repo: str, pr: int, expected_sha: str, token: str) ->
         user = review.get("user")
         login = user.get("login") if isinstance(user, dict) else None
         if not isinstance(login, str) or not login:
-            fail("reviewer-invalid")
+            # Deleted accounts can leave historical reviews with no identity.
+            # Such records neither grant approval nor identify a reviewer whose
+            # current decision can be superseded.
+            continue
         if review.get("state") in {"APPROVED", "CHANGES_REQUESTED", "DISMISSED"}:
             latest[login] = review
     approvals = [r for login, r in latest.items() if r.get("state") == "APPROVED" and r.get("commit_id") == expected_sha and login != author]

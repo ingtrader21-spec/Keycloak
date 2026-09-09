@@ -72,6 +72,23 @@ class BootstrapTrustRootTests(unittest.TestCase):
                 with self.assertRaisesRegex(SystemExit, "missing-independent-approval"):
                     bootstrap.verify_github_evidence("owner/repo", 96, "a" * 40, "synthetic")
 
+    def test_deleted_account_history_does_not_hide_valid_approval(self):
+        for state in ("COMMENTED", "APPROVED", "CHANGES_REQUESTED", "DISMISSED"):
+            orphan = {"state": state, "commit_id": "a" * 40, "user": None}
+            with self.subTest(state=state), mock.patch.object(
+                bootstrap, "github_json", side_effect=self.evidence_api([[orphan, self.review()]])
+            ):
+                bootstrap.verify_github_evidence("owner/repo", 96, "a" * 40, "synthetic")
+
+    def test_identityless_approval_cannot_authorize_candidate(self):
+        for user in (None, {}, {"login": ""}):
+            orphan = {"state": "APPROVED", "commit_id": "a" * 40, "user": user}
+            with self.subTest(user=user), mock.patch.object(
+                bootstrap, "github_json", side_effect=self.evidence_api([[orphan]])
+            ):
+                with self.assertRaisesRegex(SystemExit, "missing-independent-approval"):
+                    bootstrap.verify_github_evidence("owner/repo", 96, "a" * 40, "synthetic")
+
     def test_invalid_page_and_unbounded_pagination_fail_closed(self):
         for page, reason in (({}, "reviews-invalid"), ([None], "reviews-invalid"),
                              ([self.review()] * 100, "reviews-pagination-limit")):
