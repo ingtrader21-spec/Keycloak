@@ -477,8 +477,7 @@ APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
     },
     "appolon1908-hue/Middleware-": {
         "scripts/apply_portfolio_release_reviewer_access.py": (
-            "f9ba7034692118c427555fab41b1b6e14"
-            "a8698a761eb18ef6c957e1fb386c27a"
+            "f34213e61c3eba4ac1a9191883421ad3e408c35cba4c91f9fda09e09ffe75d10"
         ),
         "scripts/integration_ci.sh": "8d9327fd9ad51d6ba7243d051336f623a4f75d60c60e69fd012e65f598b12d4a",
         "scripts/validate_middleware_authority_convergence.py": (
@@ -502,6 +501,42 @@ APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
         "services/connector-runtime/scripts/test_postgres.sh": "b9b31391d7a04aa8b3362e182a43f880e46f9e85b4d2f5c3c66cb9a9fe88f867",
         "tests/integration/campaign_extension_concurrency.py": "252b945c5779a0a8519d3dc2225b1cf495d4995cd42089d3c24c401297475377",
         "tests/integration/campaign_identity_concurrency.py": "234d97cf48cf29f0ec26bd4cfd48f61d031f46e1250cee477088abb7a190be76",
+        "tests/test_calling_api.py": (
+            "2b02e6c7c2b084362200db67cbf5c2f9"
+            "14b35ff00a16d18369dba96d3db1a78c"
+        ),
+        "tests/test_calling_contract.py": (
+            "8e5456fbe0a07e8732b77e1f421d5113"
+            "f38cef37b87984daa008eccdad82ac09"
+        ),
+        "tests/test_calling_postgres.py": (
+            "49891b89afde1955f66a411facb59fa19"
+            "f0c81e17c4e492d45aacf625af2e84e"
+        ),
+        "tests/test_reconciliation_activity.py": (
+            "9573de3bf0b5ad457d6c0673dfc27e53"
+            "05746161f11df7b2aa330d196bf8f1b3"
+        ),
+        "tests/test_vicidial_internal_call_adapter.py": (
+            "9bac8378d14c57a02a1b43b30b0b8d33"
+            "8b538cec3c036d3c500db57aaed6b417"
+        ),
+        "tests/pairing/test_selected_server_b.py": (
+            "2d30e63fef9c9621a2082418ac22ab8e"
+            "30eee34a9b0d17312314822a15185b93"
+        ),
+        "tests/recording/test_api_contract.py": (
+            "9aff153756e954091ac21d2831028a06e"
+            "00d42fd24b31343c18695a7193fb66a"
+        ),
+        "tests/recording/test_odoo_hmac.py": (
+            "8f02f5b50fc3728c3f9c1a94e77ca48"
+            "d01a19dbfdea38fc4805978bc7824a998"
+        ),
+        "tests/recording/test_source_gates.py": (
+            "b9c11f169acc87d720764ccb580561988"
+            "5cf3fa126d86b925d3a8412fd806b3a"
+        ),
     },
     "appolon1908-hue/codestra": {
         "scripts/deploy/read-only-runtime-discovery.sh": "14cd8ce2653da1e284da480408ba071fd989279ba889a22d0b1f21ec887e1d13",
@@ -513,6 +548,10 @@ APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
         "client-portal/scripts/audit-gate.mjs": (
             "8f50a0920735449fe65aa988cf2f4f290"
             "aa744362bbc848830992da7752e2fd6"
+        ),
+        "client-portal/scripts/check-api-contract.mjs": (
+            "df9cf9d60aab7c8296008f4356084610"
+            "ebc7ce5430600068d8112e86a6095f30"
         ),
     },
     "appolon1908-hue/beyvra-backend": {
@@ -532,6 +571,38 @@ APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
         "scripts/validate-deployment-scaffolding.sh": "03db69454e0ea0f62923ab43307ce95ab08c3586d3eb455f53552b65e052cfb9",
         "scripts/validate-workflow-policy.rb": "5cfa66e2126849121a263e0d651b5885ae0535156fb45c47a3ec5f1ca8f587c0",
         "scripts/verify-release-context.sh": "7f1799aed294208d9ad3d86d7f6d246ebf9293ab75fd8df8c16a076f86f9e7ba",
+        "test/integration-delivery-replay.test.mjs": (
+            "c251545621b2c4a3706ee70b5c376cbc"
+            "61f83135f2ab3c56a10ddbef394e55b1"
+        ),
+        "test/integration-runtime.test.mjs": (
+            "57acccbee1522daa07b513a23a212bc7"
+            "62353ef1d0998cbbe1fe603927b56697"
+        ),
+        "test/unit-discovery-import.test.mjs": (
+            "9fd2939f0fba91d88e47b2acb76cdc53"
+            "360a428172c050d94dacc5a174737a86"
+        ),
+        "test/unit-document-governance.test.mjs": (
+            "7b4d7d5d9e5d5cd383bff5a18c72387d"
+            "13c356af729efb6fab331828898d8f08"
+        ),
+        "test/unit-gateway-routes.test.mjs": (
+            "012e916599563c9363e073d0268551ba"
+            "31e3a6f77223f631c5556defd811c5be"
+        ),
+        "test/unit-job-view.test.mjs": (
+            "1f20f7c1d6e6051c3f77e173216f850a"
+            "b0d77526c256e3285a02d948142251e1"
+        ),
+        "test/unit-schema.test.mjs": (
+            "84e894c7980a53b5295ab66933758fd1"
+            "06e6c6c9705c4c6339a462da5b6691db"
+        ),
+        "test/unit-url-policy.test.mjs": (
+            "5218de57f97201b47e51e10943151037"
+            "b93ba8b7b883c5ed1462578f76a44849"
+        ),
     },
     "appolon1908-hue/Breero.com": {
         "apps/api/scripts/check_schema_drift.py": "746760dea22319cd64c486a08b82ebbccee1dc256566fa6b24cee7f02ff68b47",
@@ -563,6 +634,10 @@ APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
         "deployment/scripts/validate-compliance.sh": "a29fa2c3586332016ec468a710487bca7e5362244c6feec63ae1bde47f4f0f75",
         "scripts/smoke-local.mjs": "13d7f9fcd9bdcc1ac598018a0ca2aab3b3478c08d845b3d0f366b533e4142313",
         "scripts/validate-compliance.mjs": "cd174eebb976c8995545ceb07cd761e53ff1a54ac30c2a4b015bbd92a0768306",
+        "scripts/validate-contracts.mjs": (
+            "d1fa0b7327863cfcfcf3d00cbc275b45"
+            "5155efbd2e54f35589e4b4f6b9b3f162"
+        ),
         "tests/contracts/compliance.test.mjs": "1278421b46f690974e087af11fc989eecef21ad605f9707d8da81180391b0478",
     },
 }
@@ -692,26 +767,39 @@ APPROVED_OFFLINE_RUN_SHA256: dict[str, dict[str, frozenset[str]]] = {
         ),
     },
 }
+APPROVED_DEFAULT_TEST_DISCOVERY_SOURCE_SHA256 = {
+    "appolon1908-hue/Middleware-": (
+        "ed25fb37b29e499fe17d4e027d606723"
+        "55ba87a8858a2ab5b3e1ae70d702720f"
+    ),
+}
 APPROVED_CONTROL_PLANE_DEPENDENCY_SHA256: dict[
     str, dict[str, dict[str, str]]
 ] = {
     "appolon1908-hue/Middleware-": {
+        ".github/workflows/portfolio-production-ruleset-apply.yml": {
+            "config/ai-production-branch-ruleset.v1.json": "52db5e583b88edb069ba1d7b829d1f49ad820d0bb90e41bcf5b94e4074403ae1",
+            "config/portfolio-repositories.v1.json": "bcd65e22c20ee01812d0269af659fc09f81e0fdec78500437eebac937ae72fdf",
+            "scripts/apply_portfolio_production_ruleset.py": "31663d6f3101e593310b25a38035620d47a317d6a088193f6b550b730d0d39b0",
+            "scripts/portfolio_ruleset/__init__.py": "054ac3779dc21008042eada02c91f85c57612afc37163592f1aa90b9ee4b6b18",
+            "scripts/portfolio_ruleset/common.py": "1a8839c4dddbca4c3477a3a7cfd9d41a5f8d0c1f8361a07e85db2057f5dfdf70",
+            "scripts/portfolio_ruleset/github_api.py": "e0625083ed35b7a1fd46f67b3f91b7d166887f7d054d989dd2cac1d3d04dae6d",
+            "scripts/portfolio_ruleset/rollout.py": "91ccf5b6b8f4b119dbb3dc451c42200ab00026b91751ce9f014bd4a0c4275022",
+            "tests/test_portfolio_production_ruleset.py": "9f9605907a9c6a0e4a2b3446be236dbe7a5b49efeec0ce8b4d72ea30eda31e8d",
+        },
         ".github/workflows/portfolio-main-release-authorities.yml": {
             "config/portfolio-main-release-authorities.v1.json": (
                 "98da5d7935cc0f0e9e6c1fcfc820956b"
                 "618e05a5109c6ee7f16c698cff719897"
             ),
             "scripts/apply_portfolio_main_release_authorities.py": (
-                "add2e51cc09b0c4a6a3cf09944ec4b42"
-                "a2f15c37a6972a16dd77e123946103f0"
+                "1294f61d095d93328f403dfd9d2f1484f5debb3e945dca674d47bbd09f3ed0f0"
             ),
             "scripts/apply_portfolio_release_reviewer_access.py": (
-                "f9ba7034692118c427555fab41b1b6e14"
-                "a8698a761eb18ef6c957e1fb386c27a"
+                "f34213e61c3eba4ac1a9191883421ad3e408c35cba4c91f9fda09e09ffe75d10"
             ),
             "tests/test_portfolio_main_release_authorities.py": (
-                "69cec2a13ac7da3d5ddf72d6d9db78bc"
-                "b053bd4a43863ffe1fe5d135966f72d6"
+                "5d3a931ddad6f2cb68a85deee345d10a045762e6c1433f93383c4644e071d664"
             ),
             "tests/test_portfolio_release_reviewer_access.py": (
                 "1f5fe17545344ae89daed538be0b44a07"
@@ -742,8 +830,7 @@ APPROVED_CONTROL_PLANE_DEPENDENCY_SHA256: dict[
                 "d4c7c4ef69865067317d3e9300d0e6ed"
             ),
             "scripts/apply_production_reviewer_access.py": (
-                "305d52658d39cc45335676c6f3d0d780"
-                "b246b8c4c9b727c68ed705b30f99da22"
+                "ebfa963f6a4b91df0d172b16fc281bc12e67581776982e6b5c2b7458ab68abf2"
             ),
             "scripts/apply_production_reviewer_access_base.py": (
                 "22b5d7f425f949588ce29a6c3079c09f"
@@ -769,11 +856,11 @@ APPROVED_READ_ONLY_SCRIPT_INVOCATIONS: dict[
     },
     "appolon1908-hue/Middleware-": {
         "scripts/apply_portfolio_main_release_authorities.py": (
-            "add2e51cc09b0c4a6a3cf09944ec4b42a2f15c37a6972a16dd77e123946103f0",
+            "1294f61d095d93328f403dfd9d2f1484f5debb3e945dca674d47bbd09f3ed0f0",
             frozenset({("--mode", "validate")}),
         ),
         "scripts/apply_portfolio_release_reviewer_access.py": (
-            "f9ba7034692118c427555fab41b1b6e14a8698a761eb18ef6c957e1fb386c27a",
+            "f34213e61c3eba4ac1a9191883421ad3e408c35cba4c91f9fda09e09ffe75d10",
             frozenset({("--mode", "validate")}),
         ),
         "scripts/audit_release_endpoints.py": (
@@ -789,7 +876,7 @@ APPROVED_READ_ONLY_SCRIPT_INVOCATIONS: dict[
             frozenset({("--mode", "validate")}),
         ),
         "scripts/apply_production_reviewer_access.py": (
-            "305d52658d39cc45335676c6f3d0d780b246b8c4c9b727c68ed705b30f99da22",
+            "ebfa963f6a4b91df0d172b16fc281bc12e67581776982e6b5c2b7458ab68abf2",
             frozenset({("--mode", "validate")}),
         ),
         "scripts/apply_repository_governance.py": (
@@ -1780,13 +1867,13 @@ def python_source_has_runtime_mutation(
             targets = [node.target]
         for target in targets:
             if isinstance(target, (ast.Attribute, ast.Subscript)):
-                root = binding_root(target)
-                if root in command_bindings:
-                    mutated_command_bindings.add(root)
+                target_root = binding_root(target)
+                if target_root is not None and target_root in command_bindings:
+                    mutated_command_bindings.add(target_root)
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-            root = binding_root(node.func.value)
-            if root in command_bindings and node.func.attr in command_mutators:
-                mutated_command_bindings.add(root)
+            call_root = binding_root(node.func.value)
+            if call_root is not None and call_root in command_bindings and node.func.attr in command_mutators:
+                mutated_command_bindings.add(call_root)
 
     def qualified_name(node: ast.expr, seen: frozenset[str] = frozenset()) -> str:
         if isinstance(node, ast.Name):
@@ -2823,6 +2910,105 @@ def repository_python_import_has_runtime_mutation(
     )
 
 
+def repository_javascript_import_paths(
+    source: str,
+    current: Path,
+) -> set[Path] | None:
+    """Resolve static repository-local JavaScript dependencies."""
+
+    sanitized: list[str] = []
+    index = 0
+    quote: str | None = None
+    escaped = False
+    line_comment = False
+    block_comment = False
+    while index < len(source):
+        character = source[index]
+        following = source[index + 1] if index + 1 < len(source) else ""
+        if line_comment:
+            if character in "\r\n":
+                line_comment = False
+                sanitized.append(character)
+            else:
+                sanitized.append(" ")
+            index += 1
+            continue
+        if block_comment:
+            if character == "*" and following == "/":
+                sanitized.extend((" ", " "))
+                block_comment = False
+                index += 2
+            else:
+                sanitized.append(character if character in "\r\n" else " ")
+                index += 1
+            continue
+        if escaped:
+            sanitized.append(character)
+            escaped = False
+            index += 1
+            continue
+        if quote is not None:
+            sanitized.append(character)
+            if character == "\\":
+                escaped = True
+            elif character == quote:
+                quote = None
+            index += 1
+            continue
+        if character in {"'", '"', "`"}:
+            quote = character
+            sanitized.append(character)
+            index += 1
+            continue
+        if character == "/" and following == "/":
+            sanitized.extend((" ", " "))
+            line_comment = True
+            index += 2
+            continue
+        if character == "/" and following == "*":
+            sanitized.extend((" ", " "))
+            block_comment = True
+            index += 2
+            continue
+        sanitized.append(character)
+        index += 1
+    if quote is not None or block_comment:
+        return None
+    code = "".join(sanitized)
+    specifiers: set[str] = set()
+    patterns = (
+        r"\b(?:import|export)\s+(?:[^;\r\n]*?\s+from\s+)?"
+        r"(['\"])(\.[^'\"\r\n]*)\1",
+        r"\b(?:require|import)\s*\(\s*(['\"])(\.[^'\"\r\n]*)\1\s*\)",
+    )
+    for pattern in patterns:
+        specifiers.update(match.group(2) for match in re.finditer(pattern, code))
+    targets: set[Path] = set()
+    for specifier in specifiers:
+        if any(marker in specifier for marker in ("$", "?", "#", "\\")):
+            return None
+        base = current.parent / specifier
+        candidates = [base]
+        if base.suffix == "":
+            candidates.extend(base.with_suffix(suffix) for suffix in (".js", ".mjs", ".cjs", ".json"))
+            candidates.extend(base / f"index{suffix}" for suffix in (".js", ".mjs", ".cjs", ".json"))
+        resolved_target: Path | None = None
+        for candidate in candidates:
+            try:
+                resolved = candidate.resolve(strict=True)
+                resolved.relative_to(ROOT.resolve())
+            except (OSError, ValueError):
+                continue
+            if resolved.is_file() and not resolved.is_symlink():
+                resolved_target = resolved
+                break
+        if resolved_target is None:
+            return None
+        if resolved_target.suffix.lower() != ".json":
+            targets.add(resolved_target)
+    return targets
+
+
 def repository_script_path_has_runtime_mutation(
     candidate: Path,
     seen_scripts: set[Path],
@@ -2913,7 +3099,21 @@ def repository_script_path_has_runtime_mutation(
             for imported in import_paths
         )
     if suffix in {".cjs", ".js", ".mjs"}:
-        return javascript_source_has_runtime_mutation(source)
+        if javascript_source_has_runtime_mutation(source):
+            return True
+        import_paths = repository_javascript_import_paths(source, resolved)
+        if import_paths is None:
+            return True
+        return any(
+            imported not in seen_scripts | {resolved}
+            and repository_script_path_has_runtime_mutation(
+                imported,
+                seen_scripts | {resolved},
+                script_aliases,
+                working_directory,
+            )
+            for imported in import_paths
+        )
     if suffix not in {".bash", ".sh"}:
         return True
     return contains_runtime_mutation(
@@ -3012,6 +3212,269 @@ def interpreter_module_arguments(tokens: list[str], index: int) -> list[str]:
             return []
         return raw_command_arguments(tokens, option_index + 1)
     return []
+
+
+def pytest_configured_targets(working_directory: Path) -> list[str] | None:
+    """Return static pytest testpaths, or None when configuration is ambiguous."""
+
+    candidates = (
+        (ROOT / "pytest.ini", "pytest"),
+        (ROOT / "setup.cfg", "tool:pytest"),
+    )
+    for path, section_name in candidates:
+        if not path.exists():
+            continue
+        if not path.is_file() or path.is_symlink():
+            return None
+        source = path.read_text(encoding="utf-8")
+        section = re.search(
+            rf"(?ms)^\[{re.escape(section_name)}\]\s*(.*?)(?=^\[|\Z)",
+            source,
+        )
+        if section is None:
+            continue
+        setting = re.search(
+            r"(?m)^testpaths\s*=\s*([^\r\n]*(?:\r?\n[ \t]+[^\r\n]*)*)",
+            section.group(1),
+        )
+        if setting is None:
+            continue
+        try:
+            values = shlex.split(setting.group(1))
+        except ValueError:
+            return None
+        if not values:
+            return None
+        for value in values:
+            if (
+                "$" in value
+                or Path(value).is_absolute()
+                or any(marker in value for marker in "*?[")
+            ):
+                return None
+            try:
+                resolved = (ROOT / value).resolve(strict=True)
+                resolved.relative_to(ROOT.resolve())
+            except (OSError, ValueError):
+                return None
+            if not resolved.is_dir() or resolved.is_symlink():
+                return None
+        return [os.path.relpath(ROOT / value, working_directory) for value in values]
+    pyproject = ROOT / "pyproject.toml"
+    if pyproject.exists():
+        if not pyproject.is_file() or pyproject.is_symlink():
+            return None
+        source = pyproject.read_text(encoding="utf-8")
+        section = re.search(
+            r"(?ms)^\[tool\.pytest\.ini_options\]\s*(.*?)(?=^\[|\Z)",
+            source,
+        )
+        if section is not None and re.search(r"(?m)^testpaths\s*=", section.group(1)):
+            setting = re.search(
+                r"(?ms)^testpaths\s*=\s*\[(.*?)\]",
+                section.group(1),
+            )
+            if setting is None:
+                return None
+            values = re.findall(r"(['\"])([^'\"\r\n]+)\1", setting.group(1))
+            if not values:
+                return None
+            targets = [value for _, value in values]
+            if any(
+                "$" in value
+                or Path(value).is_absolute()
+                or any(marker in value for marker in "*?[")
+                for value in targets
+            ):
+                return None
+            return [os.path.relpath(ROOT / value, working_directory) for value in targets]
+    return []
+
+
+def tracked_python_source_fingerprint() -> str | None:
+    """Bind default test discovery to every tracked Python source byte."""
+
+    try:
+        raw = subprocess.check_output(
+            ["git", "ls-files", "-z", "*.py"],
+            cwd=ROOT,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    excluded = {
+        Path(__file__).resolve(),
+        RELEASE_VALIDATOR_PATH.resolve(),
+    }
+    records: list[bytes] = []
+    for encoded in raw.split(b"\0"):
+        if not encoded:
+            continue
+        try:
+            relative = encoded.decode("utf-8")
+            candidate = (ROOT / relative).resolve(strict=True)
+            candidate.relative_to(ROOT.resolve())
+        except (OSError, UnicodeDecodeError, ValueError):
+            return None
+        if candidate in excluded:
+            continue
+        if not candidate.is_file() or candidate.is_symlink():
+            return None
+        records.append(
+            f"{relative}\0{hashlib.sha256(candidate.read_bytes()).hexdigest()}\n".encode()
+        )
+    if not records:
+        return None
+    return hashlib.sha256(b"".join(sorted(records))).hexdigest()
+
+
+def test_runner_targets_have_runtime_mutation(
+    module: str,
+    arguments: list[str],
+    seen_scripts: set[Path],
+    script_aliases: dict[str, str] | None,
+    working_directory: Path,
+) -> bool:
+    if module not in {"pytest", "unittest"}:
+        return False
+    option_values = {
+        "--basetemp",
+        "--confcutdir",
+        "--ignore",
+        "--ignore-glob",
+        "--junitxml",
+        "--log-file",
+        "--maxfail",
+        "--rootdir",
+        "-k",
+    }
+    discovery_directories = frozenset()
+    discovery_pattern = "test*.py"
+    if module == "unittest":
+        option_values |= {"--top-level-directory", "-t"}
+        discovery_directories = frozenset({"--start-directory", "-s"})
+    else:
+        option_values |= {"-p"}
+    targets: list[str] = []
+    skip_value = False
+    for argument_index, argument in enumerate(arguments):
+        if skip_value:
+            skip_value = False
+            continue
+        if argument in option_values:
+            skip_value = True
+            continue
+        if argument in discovery_directories:
+            skip_value = True
+            if argument_index + 1 >= len(arguments):
+                return True
+            targets.append(arguments[argument_index + 1])
+            continue
+        if module == "unittest" and argument.startswith("--start-directory="):
+            targets.append(argument.split("=", 1)[1])
+            continue
+        if module == "unittest" and argument in {"--pattern", "-p"}:
+            if argument_index + 1 >= len(arguments):
+                return True
+            discovery_pattern = arguments[argument_index + 1]
+            if (
+                not discovery_pattern
+                or "$" in discovery_pattern
+                or "/" in discovery_pattern
+                or "\\" in discovery_pattern
+            ):
+                return True
+            skip_value = True
+            continue
+        if module == "unittest" and argument.startswith("--pattern="):
+            discovery_pattern = argument.split("=", 1)[1]
+            if (
+                not discovery_pattern
+                or "$" in discovery_pattern
+                or "/" in discovery_pattern
+                or "\\" in discovery_pattern
+            ):
+                return True
+            continue
+        if argument == "discover" or argument.startswith("-"):
+            continue
+        targets.append(argument.split("::", 1)[0])
+    default_discovery = not targets
+    if default_discovery:
+        configured = pytest_configured_targets(working_directory) if module == "pytest" else []
+        if configured is None:
+            return True
+        targets.extend(configured or ["."])
+    for target in targets:
+        if not target or "$" in target or any(marker in target for marker in "*?["):
+            return True
+        normalized = target.removeprefix("./")
+        candidates = [working_directory / normalized]
+        if (
+            normalized not in {".", ".."}
+            and "/" not in normalized
+            and not normalized.endswith(".py")
+        ):
+            candidates.extend(
+                (
+                    working_directory / Path(*normalized.split(".")).with_suffix(".py"),
+                    working_directory / Path(*normalized.split(".")) / "__init__.py",
+                )
+            )
+        resolved_targets: list[Path] = []
+        for candidate in candidates:
+            try:
+                resolved = candidate.resolve(strict=True)
+                resolved.relative_to(ROOT.resolve())
+            except (OSError, ValueError):
+                continue
+            if resolved.is_file() and not resolved.is_symlink():
+                resolved_targets = [resolved]
+                break
+            if resolved.is_dir() and not resolved.is_symlink():
+                patterns = {discovery_pattern}
+                if module == "pytest":
+                    patterns |= {"*_test.py", "conftest.py"}
+                discovered = sorted(
+                    {
+                        item
+                        for pattern in patterns
+                        for item in resolved.rglob(pattern)
+                    }
+                )
+                if discovered and all(
+                    item.is_file() and not item.is_symlink()
+                    for item in discovered
+                ):
+                    resolved_targets = discovered
+                break
+        if not resolved_targets:
+            return True
+        if any(
+            repository_script_path_has_runtime_mutation(
+                resolved_target,
+                seen_scripts,
+                script_aliases,
+                working_directory,
+            )
+            for resolved_target in resolved_targets
+        ):
+            if default_discovery:
+                repository = os.environ.get("GITHUB_REPOSITORY")
+                if not repository:
+                    repository = json.loads(
+                        CONTRACT_PATH.read_text(encoding="utf-8")
+                    ).get("repository", "")
+                expected = APPROVED_DEFAULT_TEST_DISCOVERY_SOURCE_SHA256.get(
+                    repository
+                )
+                if (
+                    expected is not None
+                    and working_directory.resolve() == ROOT.resolve()
+                    and tracked_python_source_fingerprint() == expected
+                ):
+                    continue
+            return True
+    return False
 
 
 def script_dependencies_have_runtime_mutation(
@@ -3585,6 +4048,15 @@ def contains_runtime_mutation(
                 return True
         module_name = interpreter_module_name(tokens, index)
         module_target = interpreter_module_target(tokens, index, working_directory)
+        module_arguments = interpreter_module_arguments(tokens, index)
+        if module_name is not None and test_runner_targets_have_runtime_mutation(
+            module_name,
+            module_arguments,
+            seen_scripts,
+            script_aliases,
+            working_directory,
+        ):
+            return True
         if module_name is not None and (
             not module_name
             or module_target is None
@@ -3598,7 +4070,7 @@ def contains_runtime_mutation(
             module_target is not None
             and not approved_read_only_script_invocation(
                 module_target,
-                interpreter_module_arguments(tokens, index),
+                module_arguments,
                 working_directory,
             )
             and repository_script_has_runtime_mutation(
@@ -4639,7 +5111,10 @@ def workflow_has_runtime_mutation(
         trusted_scripts = verified_control_plane_dependencies(repository, path)
         if trusted_scripts is None:
             return True
-        if path == ".github/workflows/portfolio-main-release-authorities.yml":
+        if path in {
+            ".github/workflows/portfolio-main-release-authorities.yml",
+            ".github/workflows/portfolio-production-ruleset-apply.yml",
+        }:
             # This exact, dependency-bound workflow mutates repository
             # governance only behind its explicit manual confirmation. It has
             # no application-runtime authority and is not a production
@@ -7791,6 +8266,53 @@ jobs:
             ),
             "negative imported local Python module regression passed",
         )
+        (working_directory / "mutate.mjs").write_text(
+            "fetch('https://runtime.example', {method: 'POST', body: 'x'})\n",
+            encoding="utf-8",
+        )
+        (working_directory / "entry.mjs").write_text(
+            "import './mutate.mjs'\n",
+            encoding="utf-8",
+        )
+        require(
+            contains_runtime_mutation(
+                "node entry.mjs",
+                working_directory=working_directory,
+            ),
+            "negative local JavaScript import regression passed",
+        )
+        (working_directory / "malicious_test.py").write_text(
+            "import subprocess\n"
+            "subprocess.run(['kubectl', 'apply', '-f', 'runtime.yml'])\n",
+            encoding="utf-8",
+        )
+        require(
+            contains_runtime_mutation(
+                "python3 -m unittest malicious_test",
+                working_directory=working_directory,
+            ),
+            "negative unittest target regression passed",
+        )
+        discovery_directory = working_directory / "discovery_tests"
+        discovery_directory.mkdir()
+        (discovery_directory / "test_runtime.py").write_text(
+            "import subprocess\n"
+            "subprocess.run(['kubectl', 'apply', '-f', 'runtime.yml'])\n",
+            encoding="utf-8",
+        )
+        for invocation in (
+            "python3 -m pytest",
+            "python3 -m pytest discovery_tests",
+            "python3 -m unittest",
+            "python3 -m unittest discover -s discovery_tests",
+        ):
+            require(
+                contains_runtime_mutation(
+                    invocation,
+                    working_directory=working_directory,
+                ),
+                f"negative test discovery regression passed: {invocation}",
+            )
         (working_directory / "package.json").write_text(
             json.dumps(
                 {
@@ -8691,8 +9213,30 @@ def require_image_publishing_jobs_disabled(workflow: str, path: str) -> None:
     require(publishing_jobs > 0, f"image publication classification drift: {path}")
 
 
+
+def validate_portfolio_control_plane_bindings() -> None:
+    repository = "appolon1908-hue/Middleware-"
+    path = ".github/workflows/portfolio-production-ruleset-apply.yml"
+    if not (ROOT / path).is_file():
+        return
+    workflow = (ROOT / path).read_text(encoding="utf-8")
+    require(not workflow_has_runtime_mutation(workflow, path), "pinned portfolio governance was rejected")
+    require(workflow_has_runtime_mutation(workflow + "\n# changed\n", path), "portfolio workflow drift was accepted")
+    bindings = APPROVED_CONTROL_PLANE_DEPENDENCY_SHA256[repository][path]
+    for dependency, expected in bindings.items():
+        bindings[dependency] = "0" * 64
+        try:
+            require(
+                workflow_has_runtime_mutation(workflow, path),
+                f"portfolio dependency drift was accepted: {dependency}",
+            )
+        finally:
+            bindings[dependency] = expected
+
+
 def main() -> int:
     contract = load_contract()
+    validate_portfolio_control_plane_bindings()
     validate(contract)
     validate_negative_regressions(contract)
     validate_intent_negative_regressions(contract)
