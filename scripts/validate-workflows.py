@@ -335,6 +335,8 @@ def validate_release_contract() -> None:
     if contract.get("required_checks") != [
         "orchestrator-contract",
         "validate",
+        "validate-source",
+        "validate-merge-result",
     ]:
         fail("release-intent required-check authority drift")
     if contract.get("supported_phases") != ["plan", "staging", "canary", "production"]:

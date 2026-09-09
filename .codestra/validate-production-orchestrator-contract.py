@@ -33,8 +33,8 @@ RELEASE_VALIDATOR_NON_SELF_REFERENTIAL_BINDINGS = frozenset(
     }
 )
 STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "c112e9bf31d39e57002c27cd51eb7d34"
-    "3e80b9e5e1c9b6574ed5b5b1294dfb61"
+    "e51e7e3c2836b3ee5a612943cdab27e6"
+    "a32d10f1e69d0bb81ffc0480d0b39194"
 )
 MIDDLEWARE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
     "8abee4eb254b40fb56125d4cc07b6ce2"
@@ -359,7 +359,7 @@ APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
         "scripts/test-plan-gate.sh": "a1998a4a92a2535aea09f35c5de369f0675ab4276e86ab92a42f908590c0ca6d",
         "scripts/test-runtime-preflight.sh": "e4fae06b294f0385d6006d35107463eaa65ec1099fae45ef032dffa1d3f65471",
         "scripts/validate-governance.sh": ("8e2fb48c36e849f61c838699726e29a6" "a57ba5d73e6c6e8048737b1627ec5823"),
-        "scripts/validate-workflows.py": ("0f2cdde118ebe2e2c97186fa1ae26fb6" "642ba7c14777b5b16796660b74b6ca9c"),
+        "scripts/validate-workflows.py": ("946687f92f5f437c3b2beebd3bc3e4b0" "2e494375846f03c0f9c8ee9a7b88fd80"),
         "scripts/validate.sh": ("3783706062b23eb83b6323aae3be9d5b" "568de57eac81e3d557cca8c13bba2ace"),
     },
     "appolon1908-hue/Middleware-": {
@@ -1761,6 +1761,9 @@ def python_source_has_runtime_mutation(source: str) -> bool:
         receiver_hints = set(re.split(r"[^a-z0-9_]+", receiver))
         network_receiver = bool(receiver_hints & NETWORK_CLIENT_HINTS)
         database_receiver = bool(receiver_hints & DATABASE_CLIENT_HINTS)
+        if qualified.startswith("__unresolved_callable__.") and method in {"execute", "executemany", "commit", "rollback"}:
+            return True
+
         if receiver in {"http.client.httpconnection", "http.client.httpsconnection"}:
             if method not in {"request", "getresponse", "close"}:
                 return True
@@ -4025,6 +4028,43 @@ def attestation_covers_publication(attestation: dict[str, Any], publication: dic
                 and attestation_condition == condition(publication)))
 
 
+def attestation_subject_matches_publication(attestation: dict[str, Any], publication: dict[str, Any]) -> bool:
+    """Require a direct digest output binding; unresolved subject paths fail closed."""
+    uses = publication.get("uses", "")
+    step_id = publication.get("id")
+    if not isinstance(uses, str) or not uses.startswith("docker/build-push-action@"):
+        return False
+    if not isinstance(step_id, str) or re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]*", step_id) is None:
+        return False
+    options = publication.get("with", {})
+    tags = options.get("tags") if isinstance(options, dict) else None
+    if not isinstance(tags, str) or any(marker in tags for marker in ("${", "`", "$")):
+        return False
+    repositories = set()
+    for tag in re.split(r"[,\s]+", tags.strip()):
+        if not tag or re.fullmatch(r"[A-Za-z0-9._:/-]+", tag) is None:
+            return False
+        repository = tag.rsplit(":", 1)[0] if tag.rfind(":") > tag.rfind("/") else tag
+        repositories.add(repository)
+    if len(repositories) != 1:
+        return False
+    repository = next(iter(repositories))
+    digest = "${{ steps." + step_id + ".outputs.digest }}"
+    attestation_uses = attestation.get("uses", "")
+    if isinstance(attestation_uses, str) and attestation_uses.startswith(
+        ("actions/attest@", "actions/attest-build-provenance@")
+    ):
+        inputs = attestation.get("with", {})
+        return (isinstance(inputs, dict) and inputs.get("subject-name") == repository
+                and inputs.get("subject-digest") == digest
+                and "subject-path" not in inputs)
+    try:
+        arguments = shlex.split(str(attestation.get("run", "")), comments=True, posix=True)
+    except ValueError:
+        return False
+    return bool(arguments and arguments[-1] == repository + "@" + digest)
+
+
 def require_reachable_signer_workflow(workflow: str, path: str) -> None:
     jobs = workflow_jobs(workflow, path)
     publication_jobs = [
@@ -4051,7 +4091,8 @@ def require_reachable_signer_workflow(workflow: str, path: str) -> None:
                 continue
             require(
                 any(step_has_reachable_attestation(step)
-                    and attestation_covers_publication(step, publication) for step in steps),
+                    and attestation_covers_publication(step, publication)
+                    and attestation_subject_matches_publication(step, publication) for step in steps),
                 f"signer publication path has no guaranteed attestation step: {path}",
             )
 
@@ -5128,6 +5169,11 @@ def validate_release_trust_alias_regressions() -> None:
     require(python_source_has_runtime_mutation(
         "holder[index] = unknown_writer\nother = holder\nwriter = other[key]\nwriter(argument)\n"
     ), "unknown subscript callable escaped through nested aliases")
+    for driver in ("psycopg", "psycopg2", "pymysql"):
+        for operation in ("execute('DELETE FROM records')", "commit()", "executemany(statement, rows)"):
+            require(python_source_has_runtime_mutation(
+                f"import {driver}\nc = {driver}.connect(url)\nc.{operation}\n"
+            ), "unresolved database writer was accepted")
     require(not python_source_has_runtime_mutation(
         "holder.label = 'report'\nholder.nested.count = 3\nprint(holder.label)\n"
     ), "ordinary non-callable attribute data was rejected")
@@ -5195,14 +5241,30 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
     runs-on: ubuntu-latest
     steps:
       - uses: docker/build-push-action@0123456789012345678901234567890123456789
+        id: publish
         with:
           push: true
+          tags: ghcr.io/example/app:ci
       - uses: actions/attest@0123456789012345678901234567890123456789
+        with:
+          subject-name: ghcr.io/example/app
+          subject-digest: ${{ steps.publish.outputs.digest }}
 """
     require_reachable_signer_workflow(
         reachable_signer,
         "synthetic-reachable-signer.yml",
     )
+    for invalid_subject in (
+        reachable_signer.replace("subject-name: ghcr.io/example/app", "subject-name: ghcr.io/example/unrelated"),
+        reachable_signer.replace("subject-digest: ${{ steps.publish.outputs.digest }}", "subject-digest: ${{ steps.other.outputs.digest }}"),
+        reachable_signer.replace("subject-digest: ${{ steps.publish.outputs.digest }}", "subject-path: unrelated.txt"),
+    ):
+        try:
+            require_reachable_signer_workflow(invalid_subject, "synthetic-wrong-subject.yml")
+        except ContractError:
+            pass
+        else:
+            raise ContractError("unrelated attestation subject was accepted")
     for disabled_condition in (
         "false",
         "'false'",
@@ -5264,10 +5326,10 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
             "negative regression unexpectedly passed: comment-only attestation"
         )
     for command in (
-        "if false; then cosign attest --yes image@example; fi",
-        "false && cosign attest --yes image@example",
-        "true || cosign attest --yes image@example",
-        "echo cosign attest --yes image@example",
+        "if false; then cosign attest --yes 'ghcr.io/example/app@${{ steps.publish.outputs.digest }}'; fi",
+        "false && cosign attest --yes 'ghcr.io/example/app@${{ steps.publish.outputs.digest }}'",
+        "true || cosign attest --yes 'ghcr.io/example/app@${{ steps.publish.outputs.digest }}'",
+        "echo cosign attest --yes 'ghcr.io/example/app@${{ steps.publish.outputs.digest }}'",
     ):
         require(not step_has_reachable_attestation({"run": command}),
                 "unreachable shell attestation was accepted")
@@ -5290,7 +5352,7 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
         complementary_signer,
         reachable_signer.replace(
             "      - uses: actions/attest@0123456789012345678901234567890123456789",
-            "      - run: if false; then cosign attest --yes image@example; fi",
+            "      - run: if false; then cosign attest --yes 'ghcr.io/example/app@${{ steps.publish.outputs.digest }}'; fi",
         ),
     ):
         try:
@@ -5301,16 +5363,29 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
             raise ContractError("publication without executable attestation was accepted")
     cosign_signer = reachable_signer.replace(
         "      - uses: actions/attest@0123456789012345678901234567890123456789",
-        "      - run: cosign attest --yes image@example",
+        "      - run: cosign attest --yes 'ghcr.io/example/app@${{ steps.publish.outputs.digest }}'",
         1,
+    )
+    cosign_signer = cosign_signer.replace(
+        "        with:\n          subject-name: ghcr.io/example/app\n"
+        "          subject-digest: ${{ steps.publish.outputs.digest }}\n", ""
     )
     require_reachable_signer_workflow(
         cosign_signer,
         "synthetic-cosign-signer.yml",
     )
+    try:
+        require_reachable_signer_workflow(
+            cosign_signer.replace("app@${{ steps.publish.outputs.digest }}", "unrelated@${{ steps.publish.outputs.digest }}"),
+            "synthetic-unrelated-cosign-subject.yml",
+        )
+    except ContractError:
+        pass
+    else:
+        raise ContractError("cosign attestation for an unrelated image was accepted")
     unreachable_cosign = cosign_signer.replace(
-        "      - run: cosign attest --yes image@example",
-        "      - run: if false; then cosign attest --yes image@example; fi",
+        "      - run: cosign attest --yes 'ghcr.io/example/app@${{ steps.publish.outputs.digest }}'",
+        "      - run: if false; then cosign attest --yes 'ghcr.io/example/app@${{ steps.publish.outputs.digest }}'; fi",
         1,
     )
     try:

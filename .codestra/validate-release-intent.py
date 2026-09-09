@@ -69,6 +69,7 @@ CATALOG_REPOSITORIES = {
     CONTROLLER_REPOSITORY,
 }
 PR_ONLY_REQUIRED_CHECKS = {
+    "appolon1908-hue/Keycloak": frozenset({"bootstrap"}),
     "appolon1908-hue/Middleware-": frozenset(
         {
             "Validate middleware merge result",
@@ -86,6 +87,7 @@ EXPECTED_CHECK_WORKFLOWS = {
     "appolon1908-hue/Keycloak": {
         "orchestrator-contract": ".github/workflows/production-orchestrator-contract.yml",
         "validate": ".github/workflows/validate.yml",
+        "validate-source": ".github/workflows/validate.yml",
         "validate-merge-result": ".github/workflows/validate.yml",
     },
     "appolon1908-hue/Middleware-": {
@@ -214,8 +216,8 @@ SHARED_PRODUCTION_VALIDATOR_SHA256 = (
     "a2514d469b267bc04156b07a0fa14849"
 )
 KEYCLOAK_PRODUCTION_VALIDATOR_SHA256 = (
-    "5349183d10bf98d13326044411a0f407"
-    "f121f67549af1715e8b1bfb681bda95e"
+    "0c6c00f818d0624ae3a900f086699402"
+    "4b96dbb834762c67db1e6e32fd04aaf8"
 )
 MIDDLEWARE_PRODUCTION_VALIDATOR_SHA256 = (
     "3304f7651907746ce3a80d0f13e1bbff"
@@ -378,8 +380,8 @@ EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256 = {
         "f1b423679732b91fa9d2d9ecffcb7cbcf"
     ),
     "appolon1908-hue/Keycloak": (
-        "6e359c5cfe3f0b6c34d10c8744f2a159"
-        "26ff3dcb339662f86bd3e8862b93ae47"
+        "b72f3066bb8f9e5c331663866c028135"
+        "4e071f341c829816e657bd812b0ddca7"
     ),
     "appolon1908-hue/Middleware-": (
         "0223be02da3e7406a5252f5fb83c7c31"
@@ -2172,6 +2174,22 @@ def self_test() -> int:
         == ["connector-runtime-build", "orchestrator-contract", "validate"],
         "PR-only required-check classification regression failed",
     )
+
+    keycloak_head_checks = ["orchestrator-contract", "validate", "validate-merge-result", "validate-source"]
+    require(head_applicable_required_checks(
+        "appolon1908-hue/Keycloak", keycloak_head_checks + ["bootstrap"], keycloak_head_checks
+    ) == keycloak_head_checks, "Keycloak head/PR check alignment failed")
+    for branch_checks, contract_checks in (
+        (keycloak_head_checks, keycloak_head_checks),
+        (keycloak_head_checks + ["bootstrap"], ["orchestrator-contract", "validate"]),
+        (keycloak_head_checks + ["bootstrap", "unexpected-check"], keycloak_head_checks),
+    ):
+        try:
+            head_applicable_required_checks("appolon1908-hue/Keycloak", branch_checks, contract_checks)
+        except PolicyError:
+            pass
+        else:
+            raise PolicyError("Keycloak incomplete branch/check policy was accepted")
 
     digest_a = "ghcr.io/example/app@sha256:" + "a" * 64
     digest_b = "ghcr.io/example/app@sha256:" + "b" * 64
