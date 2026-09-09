@@ -9,8 +9,8 @@
     {"path": "scripts/validate-kong-oidc-contract.py", "sha256": "a86d956b56ff50fcd726f39db68d3e533eb9a0e90a6de24f358a814adee1d835"},
     {"path": "scripts/validate-password-reset-contract.py", "sha256": "241402d098d64d90c4b9abedab9396e8efc08cb660b9cc41d5bdaafb52396b6b"},
     {"path": "scripts/validate-repository-name-authority.py", "sha256": "d56d85a41734dc468efecb99d590d0d33267dcd1c84f4ff4dd3fa93c2076bd96"},
-    {"path": "scripts/validate-workflows.py", "sha256": "0f2cdde118ebe2e2c97186fa1ae26fb6642ba7c14777b5b16796660b74b6ca9c"},
+    {"path": "scripts/validate-workflows.py", "sha256": "946687f92f5f437c3b2beebd3bc3e4b02e494375846f03c0f9c8ee9a7b88fd80"},
     {"path": "scripts/validate.sh", "sha256": "3783706062b23eb83b6323aae3be9d5b568de57eac81e3d557cca8c13bba2ace"}
   ],
-  "manifest_sha256": "4876e32c04cbf58265e43baca2823b7f9b93ec45853d5089eaed9f857399f10b"
+  "manifest_sha256": "47f9cc4948f67bc8ebf6a300c75bfb09050d8ae3806c7536d139c2d435af8f4b"
 }
