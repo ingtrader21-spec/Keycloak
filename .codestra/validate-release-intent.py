@@ -221,7 +221,7 @@ EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
     },
     "appolon1908-hue/Middleware-": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "b820f9bd72b25b164518f67d0c241d8c03c9b62aed13a1e46ff29fd4da4a0602",
+            ".codestra/validate-production-orchestrator-contract.py": "5613555545aca6fda6ab52762a92c2853b792e776d6dc579c54f67c64fd99b13",
         },
     },
     "appolon1908-hue/codestra": {
