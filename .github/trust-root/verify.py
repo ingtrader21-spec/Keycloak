@@ -109,6 +109,7 @@ def verify(policy, base, candidate, approved):
     require(base_root and candidate_root == base_root, "candidate changes trusted bootstrap files")
     app = policy.get("required_check_app_id")
     require(type(app) is int and app > 0, "dedicated required-check App is not configured")
+    require(app != 15368, "ordinary GitHub Actions cannot be the independent check authority")
     require(policy.get("required_check_context") == "keycloak-independent-source-authority",
             "required-check identity mismatch")
     approved_digest = policy.get("approved_manifest_sha256")

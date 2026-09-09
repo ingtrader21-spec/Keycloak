@@ -49,6 +49,11 @@ class TrustBootstrapTests(unittest.TestCase):
                 with self.assertRaises(TRUST.Rejected):
                     TRUST.verify(policy, self.base, self.candidate, self.approved)
 
+    def test_github_actions_is_not_independent_authority(self):
+        self.policy["required_check_app_id"] = 15368
+        with self.assertRaises(TRUST.Rejected):
+            self.verify()
+
     def test_candidate_cannot_edit_add_or_remove_trust_root(self):
         for operation in ('edit', 'add', 'remove'):
             with self.subTest(operation=operation):
