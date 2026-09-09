@@ -248,3 +248,27 @@ jobs:
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           python3 scripts/validate-workflows.py
           python3 -m unittest discover -s scripts/release -v
+
+  validate:
+    name: validate
+    if: always()
+    needs: [validate-source, validate-merge-result, orchestrator-contract]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require every applicable validation job to pass
+        env:
+          SOURCE_RESULT: ${{ needs.validate-source.result }}
+          MERGE_RESULT: ${{ needs.validate-merge-result.result }}
+          CONTRACT_RESULT: ${{ needs.orchestrator-contract.result }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -Eeuo pipefail
+          test "$SOURCE_RESULT" = success
+          test "$CONTRACT_RESULT" = success
+          if [[ "$EVENT_NAME" == pull_request ]]; then
+            test "$MERGE_RESULT" = success
+          else
+            test "$EVENT_NAME" = push
+            test "$MERGE_RESULT" = skipped
+          fi
