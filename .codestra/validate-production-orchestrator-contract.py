@@ -1898,12 +1898,21 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
         parts.append(arguments[start:].strip())
         return parts
 
-    for match in re.finditer(
-        r"\b(?:require|import)\s*(?:/\*.*?\*/\s*)*\(",
-        lower,
-        re.DOTALL,
-    ):
-        open_index = match.end() - 1
+    for match in re.finditer(r"\b(?:require|import)\b", lower):
+        open_index = match.end()
+        while True:
+            while open_index < len(lower) and lower[open_index].isspace():
+                open_index += 1
+            if not lower.startswith("/*", open_index):
+                break
+            comment_end = lower.find("*/", open_index + 2)
+            if comment_end < 0:
+                # Malformed loader syntax is not safe to classify as a
+                # static, read-only module import.
+                return True
+            open_index = comment_end + 2
+        if open_index >= len(lower) or lower[open_index] != "(":
+            continue
         arguments = call_arguments(open_index)
         if arguments is None or re.fullmatch(
             r"""\s*(['"])[^'"\r\n]+\1\s*""",
@@ -5944,6 +5953,10 @@ PY
         "import https from 'node:https'; "
         "https.request({method: 'POST'}, callback).end()\n",
         "const transport = await import/*comment*/('node:' + 'https'); "
+        "transport.request(url, {method: 'POST'}).end(data)\n",
+        "const transport = await import"
+        + "/* adjacent loader comment */" * 128
+        + "('node:' + 'https'); "
         "transport.request(url, {method: 'POST'}).end(data)\n",
         "const ws = new WebSocket(url); "
         "ws.addEventListener('open', () => ws.send(payload))\n",
