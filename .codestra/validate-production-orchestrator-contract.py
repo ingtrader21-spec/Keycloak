@@ -33,8 +33,8 @@ RELEASE_VALIDATOR_NON_SELF_REFERENTIAL_BINDINGS = frozenset(
     }
 )
 STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "63bc9735a00a6d32fdf9deb185eff9ad"
-    "ae34c3f5cdbbb469018b421ef36134f7"
+    "c112e9bf31d39e57002c27cd51eb7d34"
+    "3e80b9e5e1c9b6574ed5b5b1294dfb61"
 )
 MIDDLEWARE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
     "8abee4eb254b40fb56125d4cc07b6ce2"
@@ -171,6 +171,7 @@ NETWORK_CLIENT_HINTS = {
     "api",
     "api_client",
     "client",
+    "conn",
     "connection",
     "http",
     "http_client",
@@ -2011,6 +2012,15 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
         }:
             return True
 
+    # Unknown loader callables can evaluate executable built-in modules even
+    # when the loader name is not literally `require` or `import`.
+    if re.search(
+        r"\b[a-z_$][a-z0-9_$]*\s*\(\s*(['\"])[^'\"]*"
+        r"(?:child[_-]?process|(?:node:)?(?:http|https|net|tls))[^'\"]*\1",
+        lower,
+    ):
+        return True
+
     if any(
         marker in lower
         for marker in (
@@ -2023,6 +2033,12 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
     ):
         # Destructuring and ordinary assignments can rename every launcher;
         # without a JavaScript AST, child-process access is not provably safe.
+        return True
+    if re.search(
+        r"\brequire\s*(?:/\*.*?\*/\s*)?\(\s*['\"]child_process['\"]",
+        lower,
+        re.DOTALL,
+    ):
         return True
     if "getbuiltinmodule" in lower:
         # Dynamic built-in access can recover child_process without an import.

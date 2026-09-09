@@ -214,8 +214,8 @@ SHARED_PRODUCTION_VALIDATOR_SHA256 = (
     "9eac65207c0818b5ee13eb1d7c1df910"
 )
 KEYCLOAK_PRODUCTION_VALIDATOR_SHA256 = (
-    "262c81e91f9166855c16535af435ecc8"
-    "9663e42df5f508f663cb4441979a4925"
+    "5349183d10bf98d13326044411a0f407"
+    "f121f67549af1715e8b1bfb681bda95e"
 )
 MIDDLEWARE_PRODUCTION_VALIDATOR_SHA256 = (
     "d441a4ec1f20b762f72db6757dd733af"
@@ -260,6 +260,9 @@ EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
                 "3783706062b23eb83b6323aae3be9d5b"
                 "568de57eac81e3d557cca8c13bba2ace"
             ),
+            "scripts/validate-repository-name-authority.py": "d56d85a41734dc468efecb99d590d0d33267dcd1c84f4ff4dd3fa93c2076bd96",
+            "scripts/validate-kong-oidc-contract.py": "a86d956b56ff50fcd726f39db68d3e533eb9a0e90a6de24f358a814adee1d835",
+            "scripts/validate-password-reset-contract.py": "241402d098d64d90c4b9abedab9396e8efc08cb660b9cc41d5bdaafb52396b6b",
         },
     },
     "appolon1908-hue/Middleware-": {
@@ -375,8 +378,8 @@ EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256 = {
         "a5772e9afbce85c6953d6a7202d53081"
     ),
     "appolon1908-hue/Keycloak": (
-        "635a69ae1a7f4931aede345eba9b20b8"
-        "32e432973f8840dbec4f3425e70c5cd2"
+        "8213518487a6c512b4a124eed6723877"
+        "532f7200ee05fbfac4bcc568f48caddb"
     ),
     "appolon1908-hue/Middleware-": (
         "da143a3e31264d02ec6125dd588b97ad"
