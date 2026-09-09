@@ -286,7 +286,7 @@ jq -e '
   )
   and (
     [.rules[] | select(.type == "required_status_checks")][0].parameters.required_status_checks
-    | map(.context) == ["validate-source", "validate-merge-result"]
+    | map(.context) == ["validate-source", "validate-merge-result", "bootstrap"]
   )
 ' "$ruleset_file" >/dev/null || fail "Main-branch ruleset desired state is invalid"
 
