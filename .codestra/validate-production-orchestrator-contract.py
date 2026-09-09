@@ -201,6 +201,8 @@ HTTP_MUTATION_FLAGS = {
 }
 HTTP_MUTATION_METHODS = {"delete", "patch", "post", "put"}
 NETWORK_MUTATION_METHODS = {
+    "connect",
+    "connect_ex",
     "delete",
     "endheaders",
     "patch",
@@ -7399,8 +7401,9 @@ jobs:
         module_directory.mkdir()
         (module_directory / "__init__.py").write_text("", encoding="utf-8")
         (module_directory / "deploy.py").write_text(
-            "import subprocess\n"
-            "subprocess.run(['kubectl', 'apply', '-f', 'runtime.yml'], check=True)\n",
+            "import requests\n"
+            "def deploy():\n"
+            "    requests.post('https://runtime.example/deploy', data=b'x')\n",
             encoding="utf-8",
         )
         require(
@@ -7418,7 +7421,8 @@ jobs:
             "negative long-option Python module regression passed",
         )
         (working_directory / "wrapper.py").write_text(
-            "from ops import deploy\n",
+            "from ops import deploy\n"
+            "deploy.deploy()\n",
             encoding="utf-8",
         )
         require(
@@ -8105,6 +8109,9 @@ subprocess.run(["docker", "login", "ghcr.io", "--username", "test"])
         "Mail('example.invalid').send_message(message)",
         "import aiosmtplib; aiosmtplib.send(message)",
         "import socket; socket.socket().sendto(b'payload', ('runtime.example', 9))",
+        "import socket; socket.socket().makefile('wb').write(b'payload')",
+        "import socket; socket.socket().sendmsg([b'payload'])",
+        "import socket; socket.socket().sendfile(open('payload.bin', 'rb'))",
         "import requests; (session := requests.Session()).post(url, data=b'x')",
         "import os; os.system.__call__('kubectl apply -f runtime.yml')",
     ):
