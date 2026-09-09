@@ -533,6 +533,20 @@ def validate_image_release_workflow(path: Path, workflow: dict[str, Any]) -> Non
             fail(f"{path}: immutable image release gate is incomplete; missing {fragment}")
 
 
+def static_check_name(job: dict[str, Any], job_name: object, path: Path) -> str:
+    check_name = job.get("name", job_name)
+    if not isinstance(check_name, str):
+        fail(f"{path}.jobs.{job_name}: check name must be a string")
+    if "${{" in check_name:
+        fixed_text = re.sub(r"\$\{\{.*?\}\}", "", check_name).strip()
+        if not fixed_text or "orchestrator-contract" in check_name:
+            fail(
+                f"{path}.jobs.{job_name}: dynamic check name can alias "
+                "orchestrator-contract"
+            )
+    return check_name
+
+
 def validate_orchestrator_contract_check_uniqueness(
     workflow_files: list[Path],
 ) -> None:
@@ -542,7 +556,7 @@ def validate_orchestrator_contract_check_uniqueness(
         jobs = CORE.as_mapping(workflow.get("jobs"), f"{path}.jobs")
         for job_name, raw_job in jobs.items():
             job = CORE.as_mapping(raw_job, f"{path}.jobs.{job_name}")
-            check_name = str(job.get("name", job_name))
+            check_name = static_check_name(job, job_name, path)
             if check_name == "orchestrator-contract":
                 emitters.append((path.name, str(job_name)))
     if emitters != [(ORCHESTRATOR_CONTRACT_WORKFLOW, "validate")]:
@@ -558,6 +572,19 @@ def validate_orchestrator_contract_check_uniqueness(
         not in workflow_text(contract_workflow)
     ):
         fail("orchestrator-contract does not run the full contract validator")
+
+
+def validate_orchestrator_contract_check_name_regression() -> None:
+    try:
+        static_check_name(
+            {"name": "${{ 'orchestrator-contract' }}"},
+            "lightweight",
+            Path("synthetic.yml"),
+        )
+    except PolicyError:
+        return
+    else:
+        fail("dynamic check-name negative regression unexpectedly passed")
 
 
 def validate() -> None:
@@ -585,6 +612,7 @@ def validate() -> None:
     )
     validate_pr_authority_workflows()
     validate_password_reset_workflows()
+    validate_orchestrator_contract_check_name_regression()
     validate_orchestrator_contract_check_uniqueness(workflow_files)
     validate_manual_release_intent(
         WORKFLOW_DIR / MANUAL_RELEASE_WORKFLOW,
