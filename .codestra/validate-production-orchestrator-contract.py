@@ -376,7 +376,10 @@ APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
         "scripts/ci/validate-breero-scope.sh": "f8ffb8a3953c56d7d6722938825bfb33fced802ba162f4cefd3d12be8ffb9a1e",
     },
     "appolon1908-hue/Moneybee-Backend": {
-        "scripts/generate_endpoint_catalog.py": "174a22ef99c72a9432ede92e1c5117e7092aaf2f9e6dbf40af79087503c30f0a",
+        "scripts/generate_endpoint_catalog.py": (
+            "174a22ef99c72a9432ede92e1c5117e7"
+            "092aaf2f9e6dbf40af79087503c30f0a"
+        ),
         "ops/stage-bank-credential-references.py": (
             "ea78c91ccc0d779260b13ccead92ca31"
             "16b5b0ac5f3ede028e86a8aa197e3cca"
@@ -386,7 +389,10 @@ APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
             "62b60fa9fb0331d5227b51b9b2c542d"
             "4ec96da9f683a5f678a60d5f27996c692"
         ),
-        "scripts/verify_openapi_contract.py": "b4dd40045e2781a6a741787b0c1a51d30b96248027a0e058f0123a9853a784a0",
+        "scripts/verify_openapi_contract.py": (
+            "b4dd40045e2781a6a741787b0c1a51d"
+            "30b96248027a0e058f0123a9853a784a0"
+        ),
     },
     "appolon1908-hue/Telnexa-web": {
         "deployment/scripts/validate-compliance.sh": "a29fa2c3586332016ec468a710487bca7e5362244c6feec63ae1bde47f4f0f75",

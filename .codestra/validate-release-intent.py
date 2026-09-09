@@ -211,47 +211,47 @@ EXPECTED_CHECK_WORKFLOW_SHA256 = {
 EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
     "appolon1908-hue/Infustruction-repo": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "85ae254c253501eaf4c96f4b3c2b4b6275a3fae8a1a4f2851a79fe23e23ff998",
+            ".codestra/validate-production-orchestrator-contract.py": "91e2aacc080b491931cb28845ce008a4241f16fe7da0875daafd8e45dcd23b84",
         },
     },
     "appolon1908-hue/Keycloak": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "3bd226b8bd4010790579681f1bb9639af6cb695d7eab6904eb247e0e988d3e04",
+            ".codestra/validate-production-orchestrator-contract.py": "5e35ef9f67869f8124f2447b44fd1924de0e64881e5a7c17179638b0d35e788a",
         },
     },
     "appolon1908-hue/Middleware-": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "bfe7338eed5b0f98a5bf16d751df5ca0e2351a29b391d7ba7208207ea665f10d",
+            ".codestra/validate-production-orchestrator-contract.py": "b820f9bd72b25b164518f67d0c241d8c03c9b62aed13a1e46ff29fd4da4a0602",
         },
     },
     "appolon1908-hue/codestra": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "85ae254c253501eaf4c96f4b3c2b4b6275a3fae8a1a4f2851a79fe23e23ff998",
+            ".codestra/validate-production-orchestrator-contract.py": "91e2aacc080b491931cb28845ce008a4241f16fe7da0875daafd8e45dcd23b84",
         },
     },
     "appolon1908-hue/beyvra-backend": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "6db66478c77fba0d1575338d712f1502807c39586c3ebc2baa3c775978f554f3",
+            ".codestra/validate-production-orchestrator-contract.py": "39a8007e47c62e75d283103c1bc0c44a95831099bd9df205c4841e2fabcf5098",
         },
     },
     "appolon1908-hue/backend2": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "85ae254c253501eaf4c96f4b3c2b4b6275a3fae8a1a4f2851a79fe23e23ff998",
+            ".codestra/validate-production-orchestrator-contract.py": "91e2aacc080b491931cb28845ce008a4241f16fe7da0875daafd8e45dcd23b84",
         },
     },
     "appolon1908-hue/beyvra-frontend": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "85ae254c253501eaf4c96f4b3c2b4b6275a3fae8a1a4f2851a79fe23e23ff998",
+            ".codestra/validate-production-orchestrator-contract.py": "91e2aacc080b491931cb28845ce008a4241f16fe7da0875daafd8e45dcd23b84",
         },
     },
     "appolon1908-hue/scrapper": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "85ae254c253501eaf4c96f4b3c2b4b6275a3fae8a1a4f2851a79fe23e23ff998",
+            ".codestra/validate-production-orchestrator-contract.py": "91e2aacc080b491931cb28845ce008a4241f16fe7da0875daafd8e45dcd23b84",
         },
     },
     "appolon1908-hue/Breero.com": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "85ae254c253501eaf4c96f4b3c2b4b6275a3fae8a1a4f2851a79fe23e23ff998",
+            ".codestra/validate-production-orchestrator-contract.py": "91e2aacc080b491931cb28845ce008a4241f16fe7da0875daafd8e45dcd23b84",
         },
         ".github/workflows/quality.yml": {
             ".github/workflows/backend-production.yml": "6451590fa0b6a6dff14a4b8682396f270545e1f4788a7c44b1b8ba16408cdf24",
@@ -264,12 +264,12 @@ EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
     },
     "appolon1908-hue/Moneybee-Backend": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "85ae254c253501eaf4c96f4b3c2b4b6275a3fae8a1a4f2851a79fe23e23ff998",
+            ".codestra/validate-production-orchestrator-contract.py": "91e2aacc080b491931cb28845ce008a4241f16fe7da0875daafd8e45dcd23b84",
         },
     },
     "appolon1908-hue/Telnexa-web": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "85ae254c253501eaf4c96f4b3c2b4b6275a3fae8a1a4f2851a79fe23e23ff998",
+            ".codestra/validate-production-orchestrator-contract.py": "91e2aacc080b491931cb28845ce008a4241f16fe7da0875daafd8e45dcd23b84",
         },
     },
 }
