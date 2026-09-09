@@ -213,20 +213,20 @@ EXPECTED_CHECK_WORKFLOW_SHA256 = {
     },
 }
 SHARED_PRODUCTION_VALIDATOR_SHA256 = (
-    "d2763c075a464151d9c75644fbab7445"
-    "a03a5700e369e48b63565f72f46939a0"
+    "a209c32af701e134fce77cc5af666450"
+    "9ae2432a05d33c9aa8691dd9e3ee1672"
 )
 KEYCLOAK_PRODUCTION_VALIDATOR_SHA256 = (
-    "d2763c075a464151d9c75644fbab7445"
-    "a03a5700e369e48b63565f72f46939a0"
+    "a209c32af701e134fce77cc5af666450"
+    "9ae2432a05d33c9aa8691dd9e3ee1672"
 )
 MIDDLEWARE_PRODUCTION_VALIDATOR_SHA256 = (
-    "d2763c075a464151d9c75644fbab7445"
-    "a03a5700e369e48b63565f72f46939a0"
+    "a209c32af701e134fce77cc5af666450"
+    "9ae2432a05d33c9aa8691dd9e3ee1672"
 )
 BACKEND_PRODUCTION_VALIDATOR_SHA256 = (
-    "d2763c075a464151d9c75644fbab7445"
-    "a03a5700e369e48b63565f72f46939a0"
+    "a209c32af701e134fce77cc5af666450"
+    "9ae2432a05d33c9aa8691dd9e3ee1672"
 )
 EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
     "appolon1908-hue/Infustruction-repo": {
@@ -374,48 +374,48 @@ EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
 RELEASE_VALIDATOR_SOURCE_PATH = ".codestra/validate-release-intent.py"
 EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256 = {
     "appolon1908-hue/Infustruction-repo": (
-        "bd01d47d2b8d2d24e7052b32d5e1989e"
-        "9a6ff83875dae14999c51de63edef015"
+        "95879ff61792e5ca60846b10ca1eb21c1"
+        "5ba7bd02d43b542d91ef3c44544da5f"
     ),
     "appolon1908-hue/Keycloak": (
-        "355e9c8630872e6ed07a3c3bb4359707"
-        "1fee5a42fe4b1819f5da3f0100f31a56"
+        "64d66f449a24357278a4fe3e297794c5a"
+        "307e10bb1242ebcdfa722694e411e13"
     ),
     "appolon1908-hue/Middleware-": (
-        "25df12a2234f2c075f43d41103e9252f"
-        "385946efa369ef864fe9a9d56c21b163"
+        "4e72dad08b75dea1b0308ca7d938af6d"
+        "0b5bfb0c067bf2cba6624e8d7a915e82"
     ),
     "appolon1908-hue/codestra": (
-        "3638ea929ac4a4ae3f839c46af51b9a1"
-        "36a196c4b93ed8a3b92ef66eb660b9c1"
+        "6934d6f0f5ce2190c45a04ae9514f3ce"
+        "724da0f2b0df07f4e845e14a6aead84d"
     ),
     "appolon1908-hue/beyvra-backend": (
-        "251f6b606d6b909040243e16c855d161"
-        "bc0281682e318aafa1be3f1dc36b2f69"
+        "8228b5413794102f21360f329a4585eb"
+        "a677ad553c539cd2690586c5c58c19dd"
     ),
     "appolon1908-hue/backend2": (
-        "ab1d78461d87fa473795f416747a3aae"
-        "f58bef50538b656df78f2682a7bdabc5"
+        "b3a05f8e7bf0f2cfe3f14909e66c48a"
+        "4e03c8fcaca5050cc82fc83e14f50b0f6"
     ),
     "appolon1908-hue/beyvra-frontend": (
-        "50ee3a3ac225f42ce02126ffe8d72db6"
-        "4792598ac57bd4e8ed04d8b0e2c5163e"
+        "47a562b6e6004e7560792a156c191d31"
+        "5fd38343f131138a7bac7004b146d368"
     ),
     "appolon1908-hue/scrapper": (
-        "0b443407274936b10938d66c80b5af8a"
-        "f4cac00a21bb255c583e8b213177ae71"
+        "20b93378b66e3d1c0e39018717384662e"
+        "94ebaff03ffa45861ae8e9611b446c6"
     ),
     "appolon1908-hue/Breero.com": (
-        "4db173857bf7ca0acb2f825d470bc19c"
-        "732d97fd480ea45903da93c245c382f5"
+        "45a078fbb5573ed175670f854536076d"
+        "11e72fb9c93cc3ac25492b1d8b81191f"
     ),
     "appolon1908-hue/Moneybee-Backend": (
-        "390bfbc20b57e63c1eada6d24cdc8c68"
-        "3d697b5eec55785b9c10520e4f1ec86e"
+        "5e3a2dbac0eb6fc5fb82c1a80b05c8e"
+        "dfa204990e4c7f80bd10870476393cf74"
     ),
     "appolon1908-hue/Telnexa-web": (
-        "5a875790361cb3f371fa9eaaea58083d"
-        "9843c5dff5688dfecf5dc45f8d0fe831"
+        "b283d88bba46e8ca73a5b7517a7a2b9"
+        "3ebabe9c9292da3002e8965a1b42ef81f"
     ),
     CONTROLLER_REPOSITORY: (
         "4c7b54aa7cd59ac09703d235a264b830"
@@ -811,6 +811,76 @@ def validate_workflow_definition_bytes(
     validate_workflow_action_references(repository, source_sha, path, raw)
 
 
+def validate_local_action_dockerfile(
+    repository: str,
+    source_sha: str,
+    action_path: str,
+) -> None:
+    dockerfile_path = (Path(action_path).parent / "Dockerfile").as_posix()
+    raw = repository_file_bytes(repository, source_sha, dockerfile_path)
+    try:
+        source = raw.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise PolicyError(
+            f"required check local-action Dockerfile is not UTF-8: {dockerfile_path}"
+        ) from error
+
+    logical_lines: list[str] = []
+    pending = ""
+    for physical_line in source.splitlines():
+        line = physical_line.rstrip()
+        pending = f"{pending}{line.lstrip()}" if pending else line
+        if pending.endswith("\\"):
+            pending = f"{pending[:-1].rstrip()} "
+            continue
+        logical_lines.append(pending)
+        pending = ""
+    require(
+        not pending,
+        f"required check local-action Dockerfile has an incomplete instruction: {dockerfile_path}",
+    )
+
+    stages: set[str] = set()
+    from_count = 0
+    for logical_line in logical_lines:
+        stripped = logical_line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        match = re.match(r"(?i)^FROM\s+(.+)$", stripped)
+        if match is None:
+            continue
+        from_count += 1
+        arguments = match.group(1).split()
+        while arguments and arguments[0].startswith("--"):
+            arguments.pop(0)
+        require(
+            bool(arguments),
+            f"required check local-action Dockerfile has an invalid FROM: {dockerfile_path}",
+        )
+        base = arguments.pop(0)
+        normalized_base = base.lower()
+        require(
+            "$" not in base
+            and (
+                normalized_base == "scratch"
+                or normalized_base in stages
+                or re.fullmatch(r"[^\s@]+@sha256:[0-9a-f]{64}", base) is not None
+            ),
+            f"required check local-action Dockerfile uses a mutable base: {dockerfile_path}:{base}",
+        )
+        if len(arguments) >= 2 and arguments[0].lower() == "as":
+            stage = arguments[1].lower()
+            require(
+                re.fullmatch(r"[a-z0-9_.-]+", stage) is not None,
+                f"required check local-action Dockerfile has an invalid stage: {dockerfile_path}",
+            )
+            stages.add(stage)
+    require(
+        from_count > 0,
+        f"required check local-action Dockerfile has no FROM instruction: {dockerfile_path}",
+    )
+
+
 def validate_workflow_action_references(
     repository: str,
     source_sha: str,
@@ -832,6 +902,24 @@ def validate_workflow_action_references(
     except yaml.YAMLError as error:
         raise PolicyError(f"required check workflow YAML is invalid: {path}") from error
     require(isinstance(document, dict), f"required check workflow is invalid: {path}")
+    runs = document.get("runs")
+    if isinstance(runs, dict) and runs.get("using") == "docker":
+        image = runs.get("image")
+        require(
+            isinstance(image, str) and bool(image),
+            f"required check local container action image is invalid: {path}",
+        )
+        if image == "Dockerfile":
+            validate_local_action_dockerfile(repository, source_sha, path)
+        else:
+            require(
+                re.fullmatch(
+                    r"docker://[^\s@]+@sha256:[0-9a-f]{64}",
+                    image,
+                )
+                is not None,
+                f"required check local container action image is mutable: {path}:{image}",
+            )
     references: list[str] = []
 
     def collect_references(value: object) -> None:
@@ -1390,9 +1478,9 @@ def download_and_validate_candidate(
     require(controller.get("id") == 1314230781, "controller stable repository ID mismatch")
     require(controller.get("default_branch") == CONTROLLER_BRANCH, "controller protected branch drift")
     require(controller.get("archived") is False and controller.get("disabled") is False, "controller repository unavailable")
-    branch_name = urllib.parse.quote(CONTROLLER_BRANCH, safe="")
+    encoded_branch = urllib.parse.quote(CONTROLLER_BRANCH, safe="")
     branch = api_json(
-        f"repos/{CONTROLLER_REPOSITORY}/branches/{branch_name}",
+        f"repos/{CONTROLLER_REPOSITORY}/branches/{encoded_branch}",
         administration=True,
     )
     controller_head = branch.get("commit", {}).get("sha")
@@ -1413,7 +1501,7 @@ def download_and_validate_candidate(
     controller_checks, controller_bindings = required_check_bindings(
         branch,
         api_pages(
-            f"repos/{CONTROLLER_REPOSITORY}/rules/branches/{branch_name}?per_page=100",
+            f"repos/{CONTROLLER_REPOSITORY}/rules/branches/{encoded_branch}?per_page=100",
             administration=True,
         ),
         15368,
@@ -1429,7 +1517,7 @@ def download_and_validate_candidate(
         controller_head,
         controller_checks,
         controller_bindings,
-        str(branch_name),
+        CONTROLLER_BRANCH,
         administration=True,
     )
     controller_missing = [
@@ -2077,6 +2165,53 @@ def self_test() -> int:
             pass
         else:
             raise PolicyError("negative recursive local-action pin regression passed")
+        (action_directory / "action.yml").write_text(
+            "name: unsafe-container-action\nruns:\n  using: docker\n"
+            "  image: docker://example/check:latest\n",
+            encoding="utf-8",
+        )
+        try:
+            validate_workflow_action_references(
+                local_repository,
+                checkout_sha,
+                f"{relative_action}/action.yml",
+                (action_directory / "action.yml").read_bytes(),
+            )
+        except PolicyError:
+            pass
+        else:
+            raise PolicyError("negative local container-action pin regression passed")
+        (action_directory / "action.yml").write_text(
+            "name: unsafe-dockerfile-action\nruns:\n  using: docker\n"
+            "  image: Dockerfile\n",
+            encoding="utf-8",
+        )
+        (action_directory / "Dockerfile").write_text(
+            "FROM example/base:latest\n",
+            encoding="utf-8",
+        )
+        try:
+            validate_workflow_action_references(
+                local_repository,
+                checkout_sha,
+                f"{relative_action}/action.yml",
+                (action_directory / "action.yml").read_bytes(),
+            )
+        except PolicyError:
+            pass
+        else:
+            raise PolicyError("negative local-action Dockerfile pin regression passed")
+        (action_directory / "Dockerfile").write_text(
+            "FROM example/base@sha256:" + "a" * 64 + " AS build\n"
+            "FROM build\n",
+            encoding="utf-8",
+        )
+        validate_workflow_action_references(
+            local_repository,
+            checkout_sha,
+            f"{relative_action}/action.yml",
+            (action_directory / "action.yml").read_bytes(),
+        )
     source_fixture_repository = CONTROLLER_REPOSITORY
     source_fixture = [
         {

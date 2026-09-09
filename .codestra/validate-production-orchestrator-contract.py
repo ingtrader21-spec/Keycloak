@@ -33,20 +33,20 @@ RELEASE_VALIDATOR_NON_SELF_REFERENTIAL_BINDINGS = frozenset(
     }
 )
 STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "d74a30006541102ba1e9e10d13500a28"
-    "3a33f82df99c7b0cfc079b761c5f0aca"
+    "c9c61765a32ae87d2151176bd706c776"
+    "08da3a9a2a117541030d97e8281c50a9"
 )
 MIDDLEWARE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "d74a30006541102ba1e9e10d13500a28"
-    "3a33f82df99c7b0cfc079b761c5f0aca"
+    "c9c61765a32ae87d2151176bd706c776"
+    "08da3a9a2a117541030d97e8281c50a9"
 )
 BACKEND_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "d74a30006541102ba1e9e10d13500a28"
-    "3a33f82df99c7b0cfc079b761c5f0aca"
+    "c9c61765a32ae87d2151176bd706c776"
+    "08da3a9a2a117541030d97e8281c50a9"
 )
 MONEYBEE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "d74a30006541102ba1e9e10d13500a28"
-    "3a33f82df99c7b0cfc079b761c5f0aca"
+    "c9c61765a32ae87d2151176bd706c776"
+    "08da3a9a2a117541030d97e8281c50a9"
 )
 EXPECTED_RELEASE_VALIDATOR_SECURITY_SHA256 = {
     "appolon1908-hue/Infustruction-repo": STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256,
@@ -1741,6 +1741,12 @@ def python_source_has_runtime_mutation(
                 )
                 if risky:
                     return risky[0]
+            if constructor.rsplit(".", 1)[-1].lower() == "wrap_socket":
+                # TLS wrappers retain the mutation capability of the wrapped
+                # socket. Preserve that provenance through assignments such as
+                # ``channel = context.wrap_socket(socket.socket())`` so later
+                # ``channel.connect``/``channel.write`` calls fail closed.
+                return f"socket.{constructor}"
             hints = set(re.split(r"[^a-z0-9_]+", constructor.lower()))
             if hints & (NETWORK_CLIENT_HINTS | DATABASE_CLIENT_HINTS):
                 return constructor
@@ -3868,6 +3874,7 @@ def contains_runtime_action(step: dict[str, Any]) -> bool:
         if not isinstance(inputs, dict) or not isinstance(inputs.get("script"), str):
             return True
         script = re.sub(r"\?\s*\.", ".", inputs["script"].lower())
+        member_script = re.sub(r"\s*\.\s*", ".", script)
         if any(
             marker in script
             for marker in (
@@ -3914,12 +3921,12 @@ def contains_runtime_action(step: dict[str, Any]) -> bool:
             r"github(?:\.rest)?(?:\.[a-z0-9_]+)+\."
             r"(?:add|approve|cancel|create|delete|disable|dispatch|enable|lock|merge|"
             r"remove|replace|request|rerun|set|unlock|update|upload)[a-z0-9_]*\b",
-            script,
+            member_script,
         ):
             # A mutating REST method can be assigned to another identifier
             # before invocation, so the property reference itself is unsafe.
             return True
-        request_calls = list(re.finditer(r"github\.request\s*\(", script))
+        request_calls = list(re.finditer(r"github\.request\s*\(", member_script))
         if re.search(
             r"github\s*(?:\.\s*graphql\b|\[\s*['\"]graphql['\"]\s*\])",
             script,
@@ -3927,11 +3934,14 @@ def contains_runtime_action(step: dict[str, Any]) -> bool:
             # GraphQL documents and interpolated fragments cannot be proved
             # read-only, and bracket access can alias the callable.
             return True
-        if "github.request" in script and not request_calls:
+        if "github.request" in member_script and not request_calls:
             # Reject callable aliases such as ``const write = github.request``.
             return True
         return any(
-            re.match(r"\s*['\"`]\s*(?:get|head)\s+", script[match.end() :])
+            re.match(
+                r"\s*['\"`]\s*(?:get|head)\s+",
+                member_script[match.end() :],
+            )
             is None
             for match in request_calls
         )
@@ -6509,6 +6519,11 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
         "socket sendfile": (
             "import socket\ns=socket.socket(); s.sendfile(open('x','rb'))\n"
         ),
+        "TLS-wrapped socket writer": (
+            "import socket, ssl\n"
+            "channel=ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT).wrap_socket(socket.socket())\n"
+            "channel.connect(('runtime.example',443)); channel.write(b'x')\n"
+        ),
         "asyncio stream writer": (
             "import asyncio\nasync def send():\n"
             " r,w=await asyncio.open_connection('host',443); w.write(b'x'); await w.drain()\n"
@@ -7041,6 +7056,10 @@ jobs:
         (
             "optional-chain GitHub REST mutation",
             "await github?.rest.repos.createDeployment({owner, repo, ref})",
+        ),
+        (
+            "whitespace-separated GitHub REST mutation",
+            "await github\n .rest . repos . createDeployment({owner, repo, ref})",
         ),
         (
             "aliased GitHub client mutation",
