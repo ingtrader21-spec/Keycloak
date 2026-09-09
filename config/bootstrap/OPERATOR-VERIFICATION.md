@@ -35,7 +35,9 @@ After independent merge, an authorized operator must:
 
 The command requires its own checkout to equal current protected main, verifies
 branch protection and a clean checkout, compares the candidate with the trusted
-policy, checks fresh independent approval from an eligible collaborator, reads
+policy, checks fresh independent approval from an eligible collaborator, requires
+GitHub’s native exact-head review decision to be APPROVED with last-push
+approval and stale-review protections enforced (including administrators), reads
 all review-thread pages, rejects incomplete or unsuccessful checks, and rechecks
 main and PR identities before returning. Git replacement objects are disabled.
 It never prints credentials, executes candidate code, posts a status, merges,
@@ -51,3 +53,8 @@ After reconciling PR96 with this maintenance PR, any changes outside the four
 trust-owned paths (including source-binding refreshes) intentionally fail the
 policy comparison. Prepare and independently review a new policy for those
 bytes; do not silently regenerate the policy inside PR96.
+
+GitHub performs the last-push actor comparison; commit author and committer
+metadata are not substitutes for that identity. A missing native decision or
+inaccessible protection evidence is a rejection, not an inferred approval. See
+[GitHub’s protected-branch approval rules](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches).

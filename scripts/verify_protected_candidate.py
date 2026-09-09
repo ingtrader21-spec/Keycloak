@@ -103,13 +103,16 @@ def pages(endpoint: str) -> list:
 def verify_reviews(pr: int, sha: str, author: str) -> None:
     latest = {}
     for review in pages(f"repos/{REPOSITORY}/pulls/{pr}/reviews"):
-        require(isinstance(review, dict) and isinstance(review.get("user"), dict), "invalid-review")
-        if review.get("state") not in {"APPROVED", "CHANGES_REQUESTED", "DISMISSED"}:
+        require(isinstance(review, dict), "invalid-review")
+        user = review.get("user")
+        # Deleted accounts cannot authorize a head, but their historical
+        # comments must not permanently block an otherwise eligible review.
+        if user is None or review.get("state") not in {"APPROVED", "CHANGES_REQUESTED", "DISMISSED"}:
             continue
-        login = review["user"].get("login")
+        require(isinstance(user, dict), "invalid-reviewer")
+        login = user.get("login")
         require(isinstance(login, str) and re.fullmatch(r"[A-Za-z0-9-]+", login), "invalid-reviewer")
-        if review.get("state") in {"APPROVED", "CHANGES_REQUESTED", "DISMISSED"}:
-            latest[login] = review
+        latest[login] = review
     approved = False
     for login, review in latest.items():
         if login == author or review.get("commit_id") != sha or review.get("state") != "APPROVED":
@@ -118,6 +121,35 @@ def verify_reviews(pr: int, sha: str, author: str) -> None:
         if isinstance(permission, dict) and permission.get("permission") in {"admin", "write", "maintain"}:
             approved = True
     require(approved, "missing-independent-exact-head-approval")
+    verify_native_review_gate(pr, sha)
+
+
+def verify_native_review_gate(pr: int, sha: str) -> None:
+    # Commit author/committer identities are not the push actor. Defer that
+    # identity check to GitHub's enforced most-recent-push approval rule.
+    protection = api(f"repos/{REPOSITORY}/branches/main/protection")
+    require(isinstance(protection, dict), "review-protection-missing")
+    reviews = protection.get("required_pull_request_reviews")
+    require(isinstance(reviews, dict)
+            and reviews.get("require_last_push_approval") is True
+            and reviews.get("dismiss_stale_reviews") is True
+            and type(reviews.get("required_approving_review_count")) is int
+            and reviews["required_approving_review_count"] >= 1,
+            "independent-push-approval-protection-required")
+    admins = protection.get("enforce_admins")
+    require(isinstance(admins, dict) and admins.get("enabled") is True, "admin-review-bypass-enabled")
+    query = ('query($number:Int!){repository(owner:"appolon1908-hue",name:"Keycloak")'
+             '{pullRequest(number:$number){headRefOid baseRefName reviewDecision}}}')
+    response = json.loads(subprocess.check_output(
+        ["gh", "api", "graphql", "--input", "-"],
+        input=canonical({"query": query, "variables": {"number": pr}}), stderr=subprocess.DEVNULL))
+    require(isinstance(response, dict) and not response.get("errors"), "native-review-api-error")
+    try:
+        pull = response["data"]["repository"]["pullRequest"]
+        require(pull["headRefOid"] == sha and pull["baseRefName"] == "main", "native-review-head-mismatch")
+        require(pull["reviewDecision"] == "APPROVED", "native-independent-review-not-approved")
+    except (KeyError, TypeError):
+        raise Rejected("native-review-evidence-missing") from None
 
 
 def verify_threads(pr: int) -> None:
@@ -195,6 +227,7 @@ def main() -> int:
         verify_checks(args.candidate_sha)
         require(api(f"repos/{REPOSITORY}/pulls/{args.pr}")["head"]["sha"] == args.candidate_sha, "head-changed-during-verification")
         require(api(f"repos/{REPOSITORY}/branches/main")["commit"]["sha"] == main_sha, "main-changed-during-verification")
+        verify_native_review_gate(args.pr, args.candidate_sha)
         print(f"PROTECTED_MAIN_SHA={main_sha}\nCANDIDATE_SHA={args.candidate_sha}")
         print(f"CANDIDATE_MANIFEST_SHA256={policy['manifest_sha256']}")
         print("OPERATOR_SOURCE_AND_REVIEW_VERIFICATION=PASS")

@@ -94,8 +94,9 @@ class ProtectedCandidateTests(unittest.TestCase):
     def test_bot_comment_does_not_block_eligible_approval(self):
         reviews = [{'user': {'login': 'reviewer'}, 'state': 'APPROVED', 'commit_id': self.main},
                    {'user': {'login': 'review[bot]'}, 'state': 'COMMENTED'}]
-        with patch.object(verifier, 'pages', return_value=reviews), patch.object(verifier, 'api', return_value={'permission': 'write'}):
+        with patch.object(verifier, 'pages', return_value=reviews), patch.object(verifier, 'api', return_value={'permission': 'write'}), patch.object(verifier, 'verify_native_review_gate') as native:
             verifier.verify_reviews(96, self.main, 'author')
+            native.assert_called_once_with(96, self.main)
 
     def test_pending_check_is_not_pass(self):
         checks = [{'id': i, 'name': name, 'head_sha': self.main, 'status': 'completed', 'conclusion': 'success'}
@@ -137,3 +138,70 @@ class ProtectedCandidateTests(unittest.TestCase):
         (self.root / 'app.py').unlink()
         with self.assertRaisesRegex(verifier.Rejected, 'unreviewed-source-change'):
             verifier.verify_source(self.root, self.main, self.commit(), self.policy)
+
+
+class NativeReviewGateTests(unittest.TestCase):
+    sha = 'a' * 40
+
+    def protection(self):
+        return {'required_pull_request_reviews': {
+            'require_last_push_approval': True, 'dismiss_stale_reviews': True,
+            'required_approving_review_count': 1,
+        }, 'enforce_admins': {'enabled': True}}
+
+    def decision(self, value='APPROVED', sha=None):
+        return json.dumps({'data': {'repository': {'pullRequest': {
+            'headRefOid': sha or self.sha, 'baseRefName': 'main', 'reviewDecision': value,
+        }}}}).encode()
+
+    def test_enforced_native_approval_passes(self):
+        with patch.object(verifier, 'api', return_value=self.protection()), patch.object(
+                verifier.subprocess, 'check_output', return_value=self.decision()):
+            verifier.verify_native_review_gate(96, self.sha)
+
+    def test_last_pusher_approval_cannot_override_native_rejection(self):
+        reviews = [{'user': {'login': 'last-pusher'}, 'state': 'APPROVED', 'commit_id': self.sha}]
+        with patch.object(verifier, 'pages', return_value=reviews), patch.object(
+                verifier, 'api', side_effect=[{'permission': 'write'}, self.protection()]), patch.object(
+                verifier.subprocess, 'check_output', return_value=self.decision('REVIEW_REQUIRED')):
+            with self.assertRaisesRegex(verifier.Rejected, 'native-independent-review-not-approved'):
+                verifier.verify_reviews(96, self.sha, 'original-author')
+
+    def test_missing_or_changed_native_review_fails_closed(self):
+        for decision in [None, 'REVIEW_REQUIRED', 'CHANGES_REQUESTED']:
+            with self.subTest(decision=decision), patch.object(verifier, 'api', return_value=self.protection()), patch.object(
+                    verifier.subprocess, 'check_output', return_value=self.decision(decision)):
+                with self.assertRaisesRegex(verifier.Rejected, 'native-independent-review-not-approved'):
+                    verifier.verify_native_review_gate(96, self.sha)
+
+    def test_native_review_on_old_head_rejected(self):
+        with patch.object(verifier, 'api', return_value=self.protection()), patch.object(
+                verifier.subprocess, 'check_output', return_value=self.decision(sha='b' * 40)):
+            with self.assertRaisesRegex(verifier.Rejected, 'native-review-head-mismatch'):
+                verifier.verify_native_review_gate(96, self.sha)
+
+    def test_disabled_last_push_protection_rejected(self):
+        policy = self.protection()
+        policy['required_pull_request_reviews']['require_last_push_approval'] = False
+        with patch.object(verifier, 'api', return_value=policy):
+            with self.assertRaisesRegex(verifier.Rejected, 'independent-push-approval-protection-required'):
+                verifier.verify_native_review_gate(96, self.sha)
+
+    def test_admin_bypass_rejected(self):
+        policy = self.protection()
+        policy['enforce_admins']['enabled'] = False
+        with patch.object(verifier, 'api', return_value=policy):
+            with self.assertRaisesRegex(verifier.Rejected, 'admin-review-bypass-enabled'):
+                verifier.verify_native_review_gate(96, self.sha)
+
+    def test_graphql_error_rejected(self):
+        with patch.object(verifier, 'api', return_value=self.protection()), patch.object(
+                verifier.subprocess, 'check_output', return_value=b'{"errors":[{}]}'):
+            with self.assertRaisesRegex(verifier.Rejected, 'native-review-api-error'):
+                verifier.verify_native_review_gate(96, self.sha)
+
+    def test_missing_graphql_data_rejected(self):
+        with patch.object(verifier, 'api', return_value=self.protection()), patch.object(
+                verifier.subprocess, 'check_output', return_value=b'{"data":null}'):
+            with self.assertRaisesRegex(verifier.Rejected, 'native-review-evidence-missing'):
+                verifier.verify_native_review_gate(96, self.sha)
