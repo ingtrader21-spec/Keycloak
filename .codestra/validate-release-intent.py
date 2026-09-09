@@ -18,7 +18,7 @@ import zipfile
 from copy import deepcopy
 from email.message import Message
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 
 CONTRACT_PATH = Path(".codestra/production-orchestrator-contract.v1.json")
@@ -402,8 +402,8 @@ EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256 = {
         "c84579a85855712446a1a2b15c2d232f"
     ),
     "appolon1908-hue/Breero.com": (
-        "ed0c547b362cb06fe1c3ab7b5d4089ad"
-        "07c41f1a32be49d0dcf1b431cf586a72"
+        "4e5f6b752f2c61e41677bf3f03be4c0f"
+        "45dc370af8bacb4d268368308ca89090"
     ),
     "appolon1908-hue/Moneybee-Backend": (
         "befc9355ed0caeb9109ac8b3946888c7"
@@ -893,7 +893,7 @@ def source_closure_fingerprint(entries: list[dict[str, Any]]) -> str:
         sha = entry.get("sha")
         require(
             isinstance(path, str)
-            and path
+            and path != ""
             and "\0" not in path
             and "\n" not in path
             and isinstance(mode, str)
@@ -903,10 +903,11 @@ def source_closure_fingerprint(entries: list[dict[str, Any]]) -> str:
             and SHA.fullmatch(sha) is not None,
             "required source tree entry is invalid",
         )
-        if path == RELEASE_VALIDATOR_SOURCE_PATH:
+        validated_path = cast(str, path)
+        if validated_path == RELEASE_VALIDATOR_SOURCE_PATH:
             continue
-        require(path not in records, "required source tree contains duplicate paths")
-        records[path] = f"{mode}\0{kind}\0{path}\0{sha}\n".encode()
+        require(validated_path not in records, "required source tree contains duplicate paths")
+        records[validated_path] = f"{mode}\0{kind}\0{validated_path}\0{sha}\n".encode()
     require(bool(records), "required source tree is empty")
     return hashlib.sha256(b"".join(records[path] for path in sorted(records))).hexdigest()
 
