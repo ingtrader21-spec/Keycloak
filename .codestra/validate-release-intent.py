@@ -374,16 +374,16 @@ EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
 RELEASE_VALIDATOR_SOURCE_PATH = ".codestra/validate-release-intent.py"
 EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256 = {
     "appolon1908-hue/Infustruction-repo": (
-        "5c7f895f7d3b01743353c6c43d475390"
-        "427e3a769ddc1b7aa1fcc477a4b7f881"
+        "c230179bc2132b0d559b6f72fb985cda"
+        "6dd1f9b9a8f7908d516797350c170902"
     ),
     "appolon1908-hue/Keycloak": (
-        "50bf384e39b6a3faee7866e11d2d7be1"
-        "6b0ccd5c2631e71302f9d30d3aeee06a"
+        "163da86df3c0f93b7138483fce3deabc"
+        "203c166e27319f21b1dfdb1ec472af9d"
     ),
     "appolon1908-hue/Middleware-": (
-        "014ba59c003c6e9ac492d6662e45a2af"
-        "4b6511b454f143b8d5e4a8b7ab5d1e34"
+        "5e432242a6298bcbfe677103a183d7be"
+        "7dfce47d9247698c3ea54c40e13c0bbc"
     ),
     "appolon1908-hue/codestra": (
         "2e3b5f2ac60cc03bfb03cbcde7ebcc1d"
