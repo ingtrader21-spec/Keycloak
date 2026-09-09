@@ -93,7 +93,8 @@ validate_ruleset() {
           and .do_not_enforce_on_create == false
           and (.required_status_checks | map(.context)) == [
             "validate-source",
-            "validate-merge-result"
+            "validate-merge-result",
+            "bootstrap"
           ]
       )
     ' "$ruleset_file" >/dev/null ||
