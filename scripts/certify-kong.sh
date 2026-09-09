@@ -1,28 +1,37 @@
 #!/usr/bin/env bash
+set +x
 set -Eeuo pipefail
 umask 077
 
 fail() { printf 'KONG_CERTIFICATION=FAIL\nERROR=%s\n' "$*" >&2; exit 1; }
-for command_name in curl jq base64 install date; do command -v "$command_name" >/dev/null || fail "missing command: $command_name"; done
-for variable in KONG_TEST_URL CERT_CLIENT_ID CERT_CLIENT_SECRET EXPECTED_AUDIENCE EXPECTED_SCOPE KONG_EVIDENCE_FILE; do
+for command_name in curl jq python3 base64 install date; do command -v "$command_name" >/dev/null || fail "missing command: $command_name"; done
+for variable in DEPLOY_ENVIRONMENT KONG_TEST_URL CERT_CLIENT_ID CERT_CLIENT_SECRET KC_CERT_ADMIN_CLIENT_ID KC_CERT_ADMIN_CLIENT_SECRET DISABLED_CLIENT_ID DISABLED_CLIENT_SECRET EXPECTED_AUDIENCE EXPECTED_SCOPE KONG_EVIDENCE_FILE; do
   [[ -n "${!variable:-}" ]] || fail "required environment variable is missing: $variable"
 done
 [[ "$KONG_TEST_URL" == https://* ]] || fail "KONG_TEST_URL must use HTTPS"
 [[ "$KONG_EVIDENCE_FILE" == /* && ! -L "$KONG_EVIDENCE_FILE" ]] || fail "KONG_EVIDENCE_FILE must be an absolute non-symlink path"
 
 root_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-token_endpoint="$(jq -er '.tokenEndpoint' "$root_dir/config/endpoints/codestra.json")"
-expected_issuer="$(jq -er '.issuer' "$root_dir/config/endpoints/codestra.json")"
+case "$DEPLOY_ENVIRONMENT" in
+  staging) endpoint_file="$root_dir/config/endpoints/codestra-staging.json" ;;
+  production) endpoint_file="$root_dir/config/endpoints/codestra.json" ;;
+  *) fail 'DEPLOY_ENVIRONMENT must be staging or production' ;;
+esac
+token_endpoint="$(jq -er '.tokenEndpoint' "$endpoint_file")"
+expected_issuer="$(jq -er '.issuer' "$endpoint_file")"
 tmp_dir="$(mktemp -d)"
-trap 'rm -rf "$tmp_dir"; unset CERT_CLIENT_SECRET valid_token' EXIT
+trap 'rm -rf "$tmp_dir"; unset CERT_CLIENT_SECRET KC_CERT_ADMIN_CLIENT_SECRET DISABLED_CLIENT_SECRET valid_token' EXIT
+disabled_evidence="$tmp_dir/disabled-client.json"
+python3 "$root_dir/scripts/certify_disabled_client.py" >"$disabled_evidence" || fail 'authenticated disabled-client certification failed'
 
 valid_response="$tmp_dir/valid-token.json"
+printf '%s' "$CERT_CLIENT_SECRET" >"$tmp_dir/client-secret"
 token_status="$(curl --silent --show-error --output "$valid_response" --write-out '%{http_code}' \
   --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 30 \
   --request POST "$token_endpoint" \
   --data-urlencode 'grant_type=client_credentials' \
   --data-urlencode "client_id=$CERT_CLIENT_ID" \
-  --data-urlencode "client_secret=$CERT_CLIENT_SECRET")"
+  --data-urlencode "client_secret@$tmp_dir/client-secret")"
 [[ "$token_status" == 200 ]] || fail "Client Credentials token request returned HTTP $token_status"
 valid_token="$(jq -er '.access_token' "$valid_response")"
 
@@ -50,7 +59,9 @@ declare -A statuses=()
 request_kong() {
   local name="$1" token="${2:-}" expected="$3" status
   if [[ -n "$token" ]]; then
-    status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 30 --header "Authorization: Bearer $token" "$KONG_TEST_URL")"
+    [[ "$token" != *$'\r'* && "$token" != *$'\n'* ]] || fail 'token contains a header separator'
+    printf 'Authorization: Bearer %s\n' "$token" >"$tmp_dir/kong-header"
+    status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 30 --header "@$tmp_dir/kong-header" "$KONG_TEST_URL")"
   else
     status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 30 "$KONG_TEST_URL")"
   fi
@@ -75,26 +86,26 @@ for case_name in wrong_issuer wrong_audience insufficient_scope expired; do
   esac
   request_kong "$case_name" "${!variable}" '^(401|403)$'
 done
-last_character="${valid_token: -1}"
-replacement='A'; [[ "$last_character" == A ]] && replacement='B'
-invalid_signature_token="${valid_token::-1}${replacement}"
+# Change the first signature sextet, not the final character's unused padding bits.
+signature="${valid_token##*.}"
+[[ -n "$signature" && "$valid_token" == *.*.* ]] || fail 'valid token has no JWT signature'
+replacement='A'; [[ "${signature:0:1}" == A ]] && replacement='B'
+invalid_signature_token="${valid_token%.*}.${replacement}${signature:1}"
 request_kong invalid_signature "$invalid_signature_token" '^(401|403)$'
 
-disabled_status='NOT_RUN'
-if [[ -n "${DISABLED_CLIENT_ID:-}" && -n "${DISABLED_CLIENT_SECRET:-}" ]]; then
-  disabled_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --proto '=https' --tlsv1.2 --connect-timeout 10 --max-time 30 --request POST "$token_endpoint" --data-urlencode 'grant_type=client_credentials' --data-urlencode "client_id=$DISABLED_CLIENT_ID" --data-urlencode "client_secret=$DISABLED_CLIENT_SECRET")"
-  [[ "$disabled_status" =~ ^(400|401)$ ]] || fail "disabled client unexpectedly obtained a token (HTTP $disabled_status)"
-fi
+disabled_status="$(jq -er '.httpStatus' "$disabled_evidence")"
 
 install -d -m 0700 -- "$(dirname -- "$KONG_EVIDENCE_FILE")"
 jq -S -n \
   --arg repositorySha "${GITHUB_SHA:-$(git -C "$root_dir" rev-parse HEAD)}" \
+  --arg environment "$DEPLOY_ENVIRONMENT" --slurpfile disabledEvidence "$disabled_evidence" \
   --arg issuer "$expected_issuer" --arg audience "$EXPECTED_AUDIENCE" --arg scope "$EXPECTED_SCOPE" \
   --arg valid "${statuses[valid]}" --arg missing "${statuses[missing]}" --arg malformed "${statuses[malformed]}" \
   --arg wrongIssuer "${statuses[wrong_issuer]}" --arg wrongAudience "${statuses[wrong_audience]}" \
   --arg insufficientScope "${statuses[insufficient_scope]}" --arg expired "${statuses[expired]}" \
   --arg invalidSignature "${statuses[invalid_signature]}" --arg disabledClient "$disabled_status" '
-  {schemaVersion:1, repositorySha:$repositorySha, issuer:$issuer, audience:$audience, scope:$scope,
+  {schemaVersion:1, repositorySha:$repositorySha, environment:$environment,
+   issuer:$issuer, audience:$audience, scope:$scope, disabledClientEvidence:$disabledEvidence[0],
    results:{valid:$valid,missing:$missing,malformed:$malformed,wrongIssuer:$wrongIssuer,
    wrongAudience:$wrongAudience,insufficientScope:$insufficientScope,expired:$expired,
    invalidSignature:$invalidSignature,disabledClient:$disabledClient}}
