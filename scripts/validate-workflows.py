@@ -538,8 +538,10 @@ def static_check_name(job: dict[str, Any], job_name: object, path: Path) -> str:
     if not isinstance(check_name, str):
         fail(f"{path}.jobs.{job_name}: check name must be a string")
     if "${{" in check_name:
-        fixed_text = re.sub(r"\$\{\{.*?\}\}", "", check_name).strip()
-        if not fixed_text or "orchestrator-contract" in check_name:
+        # Expressions may contain delimiters in string literals. Only a literal
+        # prefix that already differs from the protected name proves separation.
+        prefix = check_name.split("${{", 1)[0].lstrip()
+        if "orchestrator-contract".startswith(prefix):
             fail(
                 f"{path}.jobs.{job_name}: dynamic check name can alias "
                 "orchestrator-contract"
@@ -575,16 +577,21 @@ def validate_orchestrator_contract_check_uniqueness(
 
 
 def validate_orchestrator_contract_check_name_regression() -> None:
-    try:
-        static_check_name(
-            {"name": "${{ 'orchestrator-contract' }}"},
-            "lightweight",
-            Path("synthetic.yml"),
-        )
-    except PolicyError:
-        return
-    else:
+    for name in (
+        "${{ 'orchestrator-contract' }}",
+        "orchestrator-${{ 'contract' }}",
+        "${{ 'orchestrator' }}-contract",
+        "or${{ 'chestrator' }}-${{ 'contract' }}",
+    ):
+        try:
+            static_check_name({"name": name}, "lightweight", Path("synthetic.yml"))
+        except PolicyError:
+            continue
         fail("dynamic check-name negative regression unexpectedly passed")
+    static_check_name(
+        {"name": "release-intent / protected-${{ inputs.phase }}"},
+        "protected", Path("synthetic.yml"),
+    )
 
 
 def validate() -> None:

@@ -1241,6 +1241,8 @@ def python_source_has_runtime_mutation(source: str) -> bool:
         "fabric",
         "kubernetes",
         "paramiko",
+        "smtplib",
+        "aiosmtplib",
     }
     if any(
         value.split(".", 1)[0] in runtime_modules
@@ -2312,6 +2314,10 @@ def contains_runtime_mutation(
             or "state" in tail and any(item in {"mv", "push", "rm"} for item in tail)
         ):
             return True
+        if name in {"docker", "podman"} and any(
+            item in {"run", "exec"} for item in tail
+        ):
+            return True
         if name in {"docker", "podman"} and "compose" in tail and any(
             item in CONTAINER_MUTATIONS for item in tail
         ):
@@ -3037,6 +3043,27 @@ def validate_release_validator_operations(source: str) -> None:
                 qualified == f"{name}.open" for name in opener_bindings
             )
             if approved_url_call:
+                # Request data defaults to POST; opener data can override an
+                # otherwise read-only Request. Unknown kwargs cannot prove safety.
+                require(
+                    len(node.args) == 1
+                    and not any(isinstance(arg, ast.Starred) for arg in node.args)
+                    and all(keyword.arg is not None for keyword in node.keywords),
+                    "evidence HTTP calls require one explicit request and no dynamic kwargs",
+                )
+                for keyword in node.keywords:
+                    if keyword.arg == "data":
+                        require(
+                            isinstance(keyword.value, ast.Constant)
+                            and keyword.value.value is None,
+                            "evidence HTTP clients must not send a request body",
+                        )
+                    if keyword.arg == "method":
+                        require(
+                            isinstance(keyword.value, ast.Constant)
+                            and keyword.value.value in {"GET", "HEAD"},
+                            "evidence HTTP clients require a static GET or HEAD method",
+                        )
                 require(
                     bool(function_stack)
                     and function_stack[-1] in {"api_request", "download_artifact_archive"},
@@ -3812,6 +3839,31 @@ PY
         ),
         "negative computed urllib method regression passed",
     )
+    for smtp_source in (
+        "import smtplib; smtp = smtplib.SMTP('example.invalid'); smtp.sendmail('a', 'b', 'c')",
+        "from smtplib import SMTP_SSL as Mail; Mail('example.invalid').send_message(message)",
+        "import aiosmtplib; aiosmtplib.send(message)",
+    ):
+        require(python_source_has_runtime_mutation(smtp_source),
+                "negative SMTP delivery regression passed")
+    for request_arguments in (
+        "'https://api.github.com/repos/example', data=b'x', method='PATCH'",
+        "'https://api.github.com/repos/example', b'x'",
+        "'https://api.github.com/repos/example', method=method",
+        "'https://api.github.com/repos/example', **options",
+    ):
+        unsafe_client = ("import urllib.request\ndef api_request():\n"
+                         "    return urllib.request.Request(" + request_arguments + ")\n")
+        try:
+            validate_release_validator_operations(unsafe_client)
+        except ContractError:
+            continue
+        raise ContractError("negative evidence HTTP mutation regression passed")
+    for method in ("GET", "HEAD"):
+        validate_release_validator_operations(
+            "import urllib.request\ndef api_request():\n"
+            "    return urllib.request.Request('https://api.github.com/', method='" + method + "')\n"
+        )
     for dynamic_import in (
         "__import__('subprocess').run(['kubectl', 'apply'])\n",
         "import importlib\n"
@@ -4092,6 +4144,9 @@ subprocess.run(["docker", "buildx", "build", "--push", "."], check=True)
         "env -i kubectl apply -f runtime.yml",
         "sudo -n ssh runtime.example deploy",
         "sudo --unknown-option harmless-command",
+        'docker run --rm -v "$HOME/.kube:/root/.kube" bitnami/kubectl apply -f runtime.yml',
+        "docker exec runtime kubectl apply -f runtime.yml",
+        "podman run example.invalid/mail send",
         "docker stack deploy -c compose.yml app",
         "docker service update --image example.invalid/app service",
         "result=`kubectl apply -f runtime.yml`",
