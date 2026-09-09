@@ -898,10 +898,16 @@ def recheck_protected_gates() -> int:
     source_sha = os.environ["SOURCE_SHA"]
     release_id = os.environ["RELEASE_ID"]
     candidate_sha256 = os.environ["CANDIDATE_SHA256"]
+    prior_hash = os.environ["PRIOR_EVIDENCE_SHA256"]
+    prior_run_text = os.environ["PRIOR_EVIDENCE_RUN_ID"]
     require(phase in PREVIOUS_PHASE, "post-approval recheck requires a protected phase")
     require(SHA.fullmatch(source_sha) is not None and source_sha != "0" * 40, "source_sha must be nonzero lowercase 40-hex")
     require(RELEASE.fullmatch(release_id) is not None, "invalid release_id")
     require(DIGEST.fullmatch(candidate_sha256) is not None and candidate_sha256 != ZERO64, "candidate_sha256 must be nonzero lowercase 64-hex")
+    require(DIGEST.fullmatch(prior_hash) is not None and prior_hash != ZERO64, "protected recheck requires nonzero prior evidence")
+    require(prior_run_text.isdigit() and int(prior_run_text) > 0, "protected recheck requires a positive prior evidence run ID")
+    require(prior_run_text != os.environ["GITHUB_RUN_ID"], "prior evidence cannot come from the current run")
+    prior_run_id = int(prior_run_text)
     require(CONTRACT_PATH.is_file() and not CONTRACT_PATH.is_symlink(), "release contract is missing or unsafe")
     contract_bytes = CONTRACT_PATH.read_bytes()
     contract = json.loads(contract_bytes)
@@ -941,6 +947,36 @@ def recheck_protected_gates() -> int:
     )
     verify_supply_chain(images, policy, repository, branch_name, source_sha, exact_source=True)
     verify_supply_chain(previous_images, policy, repository, branch_name, source_sha, exact_source=False)
+    previous_phase = PREVIOUS_PHASE[phase]
+    prior = download_prior_evidence(
+        repository,
+        prior_run_id,
+        f"codestra-release-intent-{previous_phase}-{source_sha}",
+        prior_hash,
+    )
+    run = api_json(f"repos/{repository}/actions/runs/{prior_run_id}")
+    require(run.get("head_sha") == source_sha, "prior evidence run used a different source SHA")
+    validate_prior(
+        prior,
+        {
+            "schema_version": "codestra.normalized-release-intent.v1",
+            "repository": repository,
+            "repository_id": contract["repository_id"],
+            "phase": previous_phase,
+            "release_id": release_id,
+            "source_sha": source_sha,
+            "candidate_sha256": candidate_sha256,
+            "candidate_images": images,
+            "previous_images": previous_images,
+            "runtime_contacted": False,
+            "production_changed": False,
+            "external_effects_enabled": False,
+            "protected_environment_approved": False,
+            "protected_environment_job_completed": previous_phase != "plan",
+            "status": "PASS",
+        },
+    )
+    validate_repository_gates(contract, source_sha, phase, environment)
     print("PROTECTED_GATES_RECHECK=PASS")
     return 0
 
@@ -1218,6 +1254,13 @@ def main() -> int:
                 "status": "PASS",
             },
         )
+
+    required_checks, bindings = validate_repository_gates(
+        contract,
+        source_sha,
+        phase,
+        environment,
+    )
 
     evidence = {
         "schema_version": "codestra.normalized-release-intent.v1",

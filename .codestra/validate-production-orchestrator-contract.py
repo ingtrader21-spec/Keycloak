@@ -65,6 +65,7 @@ SHELL_WRAPPERS = {
     "sudo",
     "time",
     "timeout",
+    "watch",
 }
 KUBECTL_MUTATIONS = {
     "annotate",
@@ -487,6 +488,12 @@ APPROVED_UNRESOLVED_SCRIPT_TARGETS: dict[str, frozenset[str]] = {
 APPROVED_READ_ONLY_SCRIPT_INVOCATIONS: dict[
     str, dict[str, tuple[str, frozenset[tuple[str, ...]]]]
 ] = {
+    "appolon1908-hue/Keycloak": {
+        "tests/test_audit_keycloak_pull_requests.py": (
+            "0d1065ef132a324ab52694c61e2f47c24fa0787e1a92334f6d34ba0f9b952325",
+            frozenset({()}),
+        ),
+    },
     "appolon1908-hue/Middleware-": {
         "scripts/audit_release_endpoints.py": (
             "636088666d9e0f605325073b7e06596192cc20247207ae1f0e4531ca4cbf8628",
@@ -1354,6 +1361,51 @@ def python_source_has_runtime_mutation(source: str) -> bool:
             return ""
         return ""
 
+    def restricted_callable_name(name: str) -> bool:
+        return (
+            name
+            in {
+                "subprocess.Popen",
+                "subprocess.call",
+                "subprocess.check_call",
+                "subprocess.check_output",
+                "subprocess.getoutput",
+                "subprocess.getstatusoutput",
+                "subprocess.run",
+            }
+            or name.startswith("os.exec")
+            or name.startswith("os.spawn")
+            or name
+            in {
+                "asyncio.create_subprocess_exec",
+                "asyncio.create_subprocess_shell",
+                "os.popen",
+                "os.posix_spawn",
+                "os.posix_spawnp",
+                "os.system",
+                "urllib.request.urlopen",
+                "urllib.request.urlretrieve",
+            }
+        )
+
+    def expression_has_restricted_callable(value: ast.expr) -> bool:
+        invoked = {
+            id(child.func)
+            for child in ast.walk(value)
+            if isinstance(child, ast.Call)
+        }
+        attribute_receivers = {
+            id(child.value)
+            for child in ast.walk(value)
+            if isinstance(child, ast.Attribute)
+        }
+        return any(
+            id(child) not in invoked | attribute_receivers
+            and isinstance(child, (ast.Name, ast.Attribute))
+            and restricted_callable_name(qualified_name(child))
+            for child in ast.walk(value)
+        )
+
     runtime_modules = {
         "aiosmtplib",
         "ansible",
@@ -1375,8 +1427,35 @@ def python_source_has_runtime_mutation(source: str) -> bool:
     ):
         return True
     for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            if any(
+                isinstance(target, (ast.Attribute, ast.Subscript))
+                for target in node.targets
+            ) and expression_has_restricted_callable(node.value):
+                return True
+        elif isinstance(node, ast.AnnAssign) and node.value is not None:
+            if isinstance(node.target, (ast.Attribute, ast.Subscript)) and (
+                expression_has_restricted_callable(node.value)
+            ):
+                return True
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            defaults = [*node.args.defaults, *node.args.kw_defaults]
+            if any(
+                value is not None and expression_has_restricted_callable(value)
+                for value in defaults
+            ):
+                return True
+    for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
+        if any(
+            expression_has_restricted_callable(value)
+            for value in [
+                *node.args,
+                *(keyword.value for keyword in node.keywords),
+            ]
+        ):
+            return True
         if isinstance(node.func, (ast.NamedExpr, ast.Subscript)):
             return True
         if isinstance(node.func, ast.Call):
@@ -1391,13 +1470,19 @@ def python_source_has_runtime_mutation(source: str) -> bool:
             "builtins.eval",
             "builtins.exec",
             "builtins.getattr",
+            "builtins.globals",
+            "builtins.locals",
             "builtins.setattr",
             "compile",
             "eval",
             "exec",
             "getattr",
+            "globals",
             "importlib.import_module",
+            "locals",
+            "object.__setattr__",
             "setattr",
+            "type.__setattr__",
         }:
             # Dynamic imports, code execution, and attribute lookup can hide a
             # process or network primitive from the qualified-name analysis.
@@ -2070,7 +2155,7 @@ def inline_interpreter_payload_has_runtime_mutation(
     script_aliases: dict[str, str] | None = None,
     working_directory: Path = ROOT,
 ) -> bool:
-    if "$" in payload:
+    if "$" in payload or "SUBSTITUTION" in payload:
         return True
     if interpreter in {"python", "python3"}:
         return python_source_has_runtime_mutation(payload)
@@ -2588,6 +2673,95 @@ def api_client_has_mutating_operation(name: str, tail: list[str]) -> bool:
 
     lower_name = name.lower()
     lower_tail = [token.lower() for token in tail]
+    if lower_name in {"awk", "gawk", "mawk", "nawk"}:
+        return any(
+            "SUBSTITUTION" in token
+            or re.search(
+                r"\bsystem\s*\(|\|\s*getline\b|\b(?:print|printf)\b[^;{}]*\|",
+                token,
+            )
+            is not None
+            for token in tail
+        )
+    if lower_name == "git":
+        index = 0
+        while index < len(lower_tail) and lower_tail[index].startswith("-"):
+            option = lower_tail[index]
+            raw_option = tail[index]
+            if raw_option == "-c" or raw_option.startswith("-c") and len(raw_option) > 2:
+                # Per-invocation configuration can install shell aliases or
+                # redirect transports and helper executables.
+                return True
+            if raw_option == "-C" or option in {"--git-dir", "--work-tree", "--namespace"}:
+                index += 2
+                continue
+            if any(
+                option.startswith(f"{prefix}=")
+                for prefix in ("--git-dir", "--work-tree", "--namespace")
+            ):
+                index += 1
+                continue
+            if option in {
+                "--bare",
+                "--no-pager",
+                "--no-replace-objects",
+                "--literal-pathspecs",
+                "--glob-pathspecs",
+                "--noglob-pathspecs",
+                "--icase-pathspecs",
+            }:
+                index += 1
+                continue
+            return True
+        if index >= len(lower_tail):
+            return False
+        command = lower_tail[index]
+        if command == "config":
+            return not any(
+                token in {
+                    "--get",
+                    "--get-all",
+                    "--get-regexp",
+                    "--get-urlmatch",
+                    "--list",
+                    "--show-origin",
+                    "--show-scope",
+                    "get",
+                    "get-all",
+                    "get-regexp",
+                    "get-urlmatch",
+                    "list",
+                }
+                for token in lower_tail[index + 1 :]
+            )
+        read_only_or_local = {
+            "archive",
+            "branch",
+            "cat-file",
+            "check-attr",
+            "check-ignore",
+            "checkout",
+            "diff",
+            "diff-index",
+            "diff-tree",
+            "fetch",
+            "grep",
+            "hash-object",
+            "log",
+            "ls-files",
+            "ls-remote",
+            "merge-base",
+            "rev-list",
+            "rev-parse",
+            "show",
+            "show-ref",
+            "status",
+            "tag",
+            "worktree",
+        }
+        # Unknown subcommands may be configured shell aliases; remote writers
+        # such as push are intentionally outside this allowlist.
+        return command not in read_only_or_local
     if lower_name in {"curl", "wget"}:
         if lower_name == "curl" and any(
             token == "-K"
@@ -2643,7 +2817,35 @@ def api_client_has_mutating_operation(name: str, tail: list[str]) -> bool:
                     for token in arguments[1:]
                 )
             )
-        return arguments[:2] in (["workflow", "run"], ["run", "rerun"])
+        read_only_commands = {
+            ("attestation", "verify"),
+            ("auth", "setup-git"),
+            ("auth", "status"),
+            ("cache", "list"),
+            ("issue", "list"),
+            ("issue", "status"),
+            ("issue", "view"),
+            ("pr", "checks"),
+            ("pr", "diff"),
+            ("pr", "list"),
+            ("pr", "status"),
+            ("pr", "view"),
+            ("release", "download"),
+            ("release", "list"),
+            ("release", "view"),
+            ("repo", "list"),
+            ("repo", "view"),
+            ("run", "download"),
+            ("run", "list"),
+            ("run", "view"),
+            ("run", "watch"),
+            ("secret", "list"),
+            ("variable", "get"),
+            ("variable", "list"),
+            ("workflow", "list"),
+            ("workflow", "view"),
+        }
+        return tuple(arguments[:2]) not in read_only_commands
     if lower_name in {"aws", "az", "doctl", "gcloud"}:
         # These general-purpose clients can mutate through non-verb operations
         # (for example, `aws s3 cp`). No native workflow currently needs a
@@ -2748,11 +2950,38 @@ def contains_image_publication(step: dict[str, Any]) -> bool:
             return inputs.get("push-to-registry", False) not in {False, "false"}
     raw_tokens = shell_tokens(str(step.get("run", "")))
     tokens = [executable_name(item).lower() for item in raw_tokens]
-    return any(
-        name in {"docker", "podman"} and "push" in tokens[index + 1 : index + 5]
-        for index in command_indexes(raw_tokens)
-        for name in [tokens[index]]
-    )
+    for index in command_indexes(raw_tokens):
+        name = tokens[index]
+        if name not in {"docker", "podman"}:
+            continue
+        arguments = [token.lower() for token in raw_command_arguments(raw_tokens, index)]
+        if "push" in arguments[:4]:
+            return True
+        if not (arguments[:2] == ["buildx", "build"] or arguments[:1] == ["build"]):
+            continue
+        for argument_index, argument in enumerate(arguments):
+            if argument == "--push" or argument.startswith("--push=") and argument != "--push=false":
+                return True
+            output = ""
+            if argument in {"--output", "-o"}:
+                if argument_index + 1 >= len(arguments):
+                    return True
+                output = arguments[argument_index + 1]
+            elif argument.startswith("--output="):
+                output = argument.split("=", 1)[1]
+            elif argument.startswith("-o") and len(argument) > 2:
+                output = argument[2:]
+            fields = {
+                key.strip(): value.strip()
+                for field in output.split(",")
+                if "=" in field
+                for key, value in [field.split("=", 1)]
+            }
+            if fields.get("type") == "registry" or (
+                fields.get("type") == "image" and fields.get("push") != "false"
+            ):
+                return True
+    return False
 
 
 def job_condition(job: WorkflowJob) -> str | None:
@@ -3078,8 +3307,61 @@ def validate_protected_job_recheck(intent: str) -> None:
         "CANDIDATE_SHA256": "${{ inputs.candidate_sha256 }}",
         "IMAGES_JSON": "${{ inputs.images_json }}",
         "PREVIOUS_IMAGES_JSON": "${{ inputs.previous_images_json }}",
+        "PRIOR_EVIDENCE_SHA256": "${{ inputs.prior_evidence_sha256 }}",
+        "PRIOR_EVIDENCE_RUN_ID": "${{ inputs.prior_evidence_run_id }}",
     }
     require(recheck.get("env") == expected_env, "protected job policy recheck inputs are incomplete")
+
+
+def validate_release_validator_gate_rechecks(source: str) -> None:
+    """Require exact gates after all slow evidence validation paths."""
+
+    try:
+        tree = ast.parse(source, filename=str(RELEASE_VALIDATOR_PATH))
+    except SyntaxError as exc:
+        raise ContractError("release-intent validator is not valid Python") from exc
+    functions = {
+        node.name: node
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+    for function_name in ("main", "recheck_protected_gates"):
+        function = functions.get(function_name)
+        require(function is not None, f"release-intent {function_name} function is missing")
+        calls = [
+            node
+            for node in ast.walk(function)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+        ]
+        gate_lines = [
+            node.lineno
+            for node in calls
+            if node.func.id == "validate_repository_gates"
+        ]
+        require(
+            len(gate_lines) >= 2,
+            f"release-intent {function_name} lacks final exact-head gate revalidation",
+        )
+        slow_lines = [
+            node.lineno
+            for node in calls
+            if node.func.id
+            in {
+                "download_and_validate_candidate",
+                "download_prior_evidence",
+                "validate_prior",
+                "verify_supply_chain",
+            }
+        ]
+        require(
+            slow_lines and max(gate_lines) > max(slow_lines),
+            f"release-intent {function_name} revalidates gates before evidence verification finishes",
+        )
+        require(
+            any(node.func.id == "download_prior_evidence" for node in calls)
+            and any(node.func.id == "validate_prior" for node in calls),
+            f"release-intent {function_name} omits prior-phase evidence revalidation",
+        )
 
 
 def validate_release_validator_operations(source: str) -> None:
@@ -3141,11 +3423,44 @@ def validate_release_validator_operations(source: str) -> None:
 
     def restricted_callable_name(name: str) -> bool:
         return (
-            name.startswith("subprocess.")
+            name
+            in {
+                "subprocess.Popen",
+                "subprocess.call",
+                "subprocess.check_call",
+                "subprocess.check_output",
+                "subprocess.getoutput",
+                "subprocess.getstatusoutput",
+                "subprocess.run",
+            }
             or is_os_process_launcher(name)
             or name in {"os.popen", "os.system"}
             or name in prohibited_url_calls
             or name == "urllib.request.Request"
+        )
+
+    def restricted_module_name(name: str) -> bool:
+        return name in {"asyncio", "os", "subprocess", "urllib.request"}
+
+    def expression_has_restricted_callable(value: ast.expr) -> bool:
+        invoked = {
+            id(child.func)
+            for child in ast.walk(value)
+            if isinstance(child, ast.Call)
+        }
+        attribute_receivers = {
+            id(child.value)
+            for child in ast.walk(value)
+            if isinstance(child, ast.Attribute)
+        }
+        return any(
+            id(child) not in invoked | attribute_receivers
+            and isinstance(child, (ast.Name, ast.Attribute))
+            and (
+                restricted_callable_name(qualified_name(child))
+                or restricted_module_name(qualified_name(child))
+            )
+            for child in ast.walk(value)
         )
 
     def named_assignments(node: ast.AST) -> list[tuple[str, ast.expr | None]]:
@@ -3164,6 +3479,25 @@ def validate_release_validator_operations(source: str) -> None:
         return []
 
     for node in ast.walk(tree):
+        assigned_value: ast.expr | None = None
+        assigned_targets: list[ast.expr] = []
+        if isinstance(node, ast.Assign):
+            assigned_value = node.value
+            assigned_targets = list(node.targets)
+        elif isinstance(node, ast.AnnAssign) and node.value is not None:
+            assigned_value = node.value
+            assigned_targets = [node.target]
+        if assigned_value is not None:
+            require(
+                not (
+                    any(
+                        isinstance(target, (ast.Attribute, ast.Subscript))
+                        for target in assigned_targets
+                    )
+                    and expression_has_restricted_callable(assigned_value)
+                ),
+                "release-intent validator stores a restricted callable on an unresolved target",
+            )
         for target_name, value in named_assignments(node):
             if value is None:
                 aliases[target_name] = "__unresolved_callable__"
@@ -3188,7 +3522,11 @@ def validate_release_validator_operations(source: str) -> None:
                 )
             if isinstance(value, (ast.Name, ast.Attribute)):
                 callable_name = qualified_name(value)
-                if restricted_callable_name(callable_name) or callable_name == "__unresolved_callable__":
+                if (
+                    restricted_callable_name(callable_name)
+                    or restricted_module_name(callable_name)
+                    or callable_name == "__unresolved_callable__"
+                ):
                     aliases[target_name] = callable_name
             if isinstance(value, (ast.List, ast.Tuple)):
                 prefix: list[str] = []
@@ -3250,13 +3588,39 @@ def validate_release_validator_operations(source: str) -> None:
 
     function_stack: list[str] = []
 
+    def environment_path_target(target: ast.expr) -> bool:
+        if isinstance(target, ast.Attribute):
+            return qualified_name(target) == "os.environ"
+        if not isinstance(target, ast.Subscript):
+            return False
+        if qualified_name(target.value) != "os.environ":
+            return False
+        key = target.slice
+        return not (
+            isinstance(key, ast.Constant)
+            and isinstance(key.value, str)
+            and key.value != "PATH"
+        )
+
+    def require_safe_defaults(node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+        defaults = [*node.args.defaults, *node.args.kw_defaults]
+        require(
+            not any(
+                value is not None and expression_has_restricted_callable(value)
+                for value in defaults
+            ),
+            "release-intent validator binds a restricted callable as a function default",
+        )
+
     class OperationsVisitor(ast.NodeVisitor):
         def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+            require_safe_defaults(node)
             function_stack.append(node.name)
             self.generic_visit(node)
             function_stack.pop()
 
         def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+            require_safe_defaults(node)
             function_stack.append(node.name)
             self.generic_visit(node)
             function_stack.pop()
@@ -3276,12 +3640,27 @@ def validate_release_validator_operations(source: str) -> None:
                 ),
                 "release-intent validator mutates an allowlisted command",
             )
+            require(
+                not any(environment_path_target(target) for target in node.targets),
+                "release-intent validator mutates executable resolution",
+            )
+            self.generic_visit(node)
+
+        def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+            require(
+                not environment_path_target(node.target),
+                "release-intent validator mutates executable resolution",
+            )
             self.generic_visit(node)
 
         def visit_AugAssign(self, node: ast.AugAssign) -> None:
             require(
                 not self.mutated_command_binding(node.target),
                 "release-intent validator mutates an allowlisted command",
+            )
+            require(
+                not environment_path_target(node.target),
+                "release-intent validator mutates executable resolution",
             )
             self.generic_visit(node)
 
@@ -3305,6 +3684,17 @@ def validate_release_validator_operations(source: str) -> None:
             qualified = qualified_name(node.func)
             require(qualified != "__unresolved_callable__",
                     "release-intent validator calls an ambiguous destructured callable")
+            require(
+                not any(
+                    expression_has_restricted_callable(value)
+                    for value in [
+                        *node.args,
+                        *(keyword.value for keyword in node.keywords),
+                    ]
+                ),
+                "release-intent validator forwards a restricted callable "
+                f"at line {node.lineno}",
+            )
             if isinstance(node.func, ast.Attribute):
                 require(
                     not (
@@ -3334,20 +3724,49 @@ def validate_release_validator_operations(source: str) -> None:
                     "builtins.eval",
                     "builtins.exec",
                     "builtins.getattr",
+                    "builtins.globals",
+                    "builtins.locals",
                     "builtins.setattr",
                     "builtins.vars",
                     "compile",
                     "eval",
                     "exec",
                     "getattr",
+                    "globals",
                     "importlib.import_module",
+                    "locals",
+                    "object.__setattr__",
+                    "os.putenv",
+                    "os.unsetenv",
                     "setattr",
+                    "type.__setattr__",
                     "vars",
                 }
                 and qualified not in {"os.popen", "os.system"}
                 and not is_os_process_launcher(qualified),
                 "release-intent validator contains dynamic command execution",
             )
+            if qualified.startswith("os.environ."):
+                method = qualified.rsplit(".", 1)[-1]
+                require(
+                    method not in {
+                        "__delitem__",
+                        "__setitem__",
+                        "clear",
+                        "pop",
+                        "popitem",
+                        "update",
+                    },
+                    "release-intent validator mutates executable resolution",
+                )
+                if method == "setdefault":
+                    require(
+                        bool(node.args)
+                        and isinstance(node.args[0], ast.Constant)
+                        and isinstance(node.args[0].value, str)
+                        and node.args[0].value != "PATH",
+                        "release-intent validator mutates executable resolution",
+                    )
             if qualified.startswith("subprocess."):
                 method = qualified.split(".", 1)[1]
                 require(
@@ -3620,6 +4039,7 @@ def validate(contract: dict[str, Any]) -> None:
     intent = INTENT_PATH.read_text(encoding="utf-8")
     release_validator = RELEASE_VALIDATOR_PATH.read_text(encoding="utf-8")
     validate_release_validator_operations(release_validator)
+    validate_release_validator_gate_rechecks(release_validator)
     for marker in (
         "runtime_contacted\": False",
         "production_changed\": False",
@@ -3777,6 +4197,21 @@ def validate_intent_negative_regressions() -> None:
         raise ContractError(
             "negative regression unexpectedly passed: protected environment binding"
         )
+    for binding in (
+        "          PRIOR_EVIDENCE_SHA256: ${{ inputs.prior_evidence_sha256 }}\n",
+        "          PRIOR_EVIDENCE_RUN_ID: ${{ inputs.prior_evidence_run_id }}\n",
+    ):
+        prefix, separator, suffix = intent.rpartition(binding)
+        require(bool(separator), "protected prior evidence binding fixture is missing")
+        unsafe_protected_job = prefix + suffix
+        try:
+            validate_protected_job_recheck(unsafe_protected_job)
+        except ContractError:
+            pass
+        else:
+            raise ContractError(
+                "negative regression unexpectedly passed: incomplete protected prior evidence binding"
+            )
     for command in (
         "helm upgrade release chart",
         "kubectl apply -f runtime.yml",
@@ -4390,6 +4825,21 @@ PY
     )
     require(
         python_source_has_runtime_mutation(
+            "import subprocess\nclass Holder: pass\nholder = Holder()\n"
+            "holder.runner = subprocess.run\n"
+            "holder.runner(['kubectl', 'apply', '-f', 'runtime.yml'])\n"
+        ),
+        "negative attribute-bound Python launcher regression passed",
+    )
+    require(
+        python_source_has_runtime_mutation(
+            "import subprocess\ndef invoke(runner):\n"
+            "    runner(['kubectl', 'apply'])\ninvoke(subprocess.run)\n"
+        ),
+        "negative forwarded Python launcher regression passed",
+    )
+    require(
+        python_source_has_runtime_mutation(
             "import subprocess\nlaunch: object = subprocess.run\n"
             "launch(['kubectl', 'apply', '-f', 'runtime.yml'], check=True)\n"
         ),
@@ -4523,6 +4973,17 @@ runner(["kubectl", "apply", "-f", "runtime.yml"], check=True)
         "import subprocess\ndef launcher():\n    return subprocess.run\n"
         "runner = launcher()\nrunner(['kubectl', 'apply'])\n",
         "import subprocess\nrunner = {'go': subprocess.run}['go']\n"
+        "runner(['kubectl', 'apply'])\n",
+        "import subprocess\nclass Holder: pass\nholder = Holder()\n"
+        "holder.runner = subprocess.run\n"
+        "holder.runner(['kubectl', 'apply'])\n",
+        "import subprocess\nrunner = subprocess\n"
+        "runner.run(['kubectl', 'apply'])\n",
+        "import subprocess\ndef invoke(runner):\n"
+        "    runner(['kubectl', 'apply'])\ninvoke(subprocess.run)\n",
+        "import subprocess\ndef invoke(runner=subprocess.run):\n"
+        "    runner(['kubectl', 'apply'])\ninvoke()\n",
+        "import subprocess\nglobals()['runner'] = subprocess.run\n"
         "runner(['kubectl', 'apply'])\n",
     ):
         try:
@@ -4679,6 +5140,7 @@ open_url("https://runtime.example/mutate")
             "request.method = 'POST'", "request.data = b'payload'",
             "request.method: str = 'POST'",
             "request.__dict__['method'] = 'POST'",
+            "object.__setattr__(request, 'method', 'POST')",
         ):
             unsafe = (
                 "import urllib.request\n"
@@ -4721,6 +5183,19 @@ subprocess.run(
         pass
     else:
         raise ContractError("dynamic evidence registry endpoint admitted")
+    unsafe_path_shadow = """import os, subprocess
+from pathlib import Path
+Path("docker").write_text("#!/bin/sh\\nkubectl apply -f runtime.yml\\n")
+Path("docker").chmod(0o755)
+os.environ["PATH"] = ".:" + os.environ["PATH"]
+subprocess.run(["docker", "login", "ghcr.io", "--username", "test"])
+"""
+    try:
+        validate_release_validator_operations(unsafe_path_shadow)
+    except ContractError:
+        pass
+    else:
+        raise ContractError("mutable executable search path admitted")
     for source in (
         'import transport from "axios"; transport.post(runtimeUrl, payload)',
         'import { request as send } from "undici"; send(url, options)',
@@ -4770,6 +5245,14 @@ subprocess.run(["docker", "buildx", "build", "--push", "."], check=True)
         "gh api --method POST repos/example/runtime/dispatches",
         "gh -R example/runtime workflow run deploy.yml",
         "gh run rerun 123 -R example/runtime",
+        "gh issue create --title incident --body mutation",
+        "gh pr merge 123",
+        "gh release create v1 artifact.tar.gz",
+        "git -c alias.deploy='!kubectl apply -f runtime.yml' deploy",
+        "git push origin HEAD:main",
+        "awk 'BEGIN { system(\"kubectl apply -f runtime.yml\") }'",
+        "watch -n 60 kubectl apply -f runtime.yml",
+        "bash -c \"$(printf 'kubectl apply -f runtime.yml')\"",
         "aws ecs update-service --cluster production --service api",
         "aws s3 cp artifact s3://production-bucket/artifact",
         "env -i kubectl apply -f runtime.yml",
@@ -4817,6 +5300,15 @@ subprocess.run(["docker", "buildx", "build", "--push", "."], check=True)
         require(
             contains_runtime_mutation(command),
             f"negative API mutation regression passed: {command}",
+        )
+    for run in (
+        "docker buildx build --push -t ghcr.io/example/image .",
+        "docker buildx build --output=type=registry,name=ghcr.io/example/image .",
+        "docker buildx build -o type=image,name=ghcr.io/example/image,push=true .",
+    ):
+        require(
+            contains_image_publication({"run": run}),
+            f"negative shell image publication regression passed: {run}",
         )
     require(
         not contains_runtime_mutation(
