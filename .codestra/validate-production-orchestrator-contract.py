@@ -142,6 +142,7 @@ SHELL_WRAPPERS = {
     "setsid",
     "sg",
     "stdbuf",
+    "su",
     "sudo",
     "systemd-run",
     "taskset",
@@ -783,7 +784,10 @@ APPROVED_CONTROL_PLANE_DEPENDENCY_SHA256: dict[
             "scripts/apply_portfolio_production_ruleset.py": "31663d6f3101e593310b25a38035620d47a317d6a088193f6b550b730d0d39b0",
             "scripts/portfolio_ruleset/__init__.py": "054ac3779dc21008042eada02c91f85c57612afc37163592f1aa90b9ee4b6b18",
             "scripts/portfolio_ruleset/common.py": "1a8839c4dddbca4c3477a3a7cfd9d41a5f8d0c1f8361a07e85db2057f5dfdf70",
-            "scripts/portfolio_ruleset/github_api.py": "e0625083ed35b7a1fd46f67b3f91b7d166887f7d054d989dd2cac1d3d04dae6d",
+            "scripts/portfolio_ruleset/github_api.py": (
+                "e0625083ed35b7a1fd46f67b3f91b7d"
+                "166887f7d054d989dd2cac1d3d04dae6d"
+            ),
             "scripts/portfolio_ruleset/rollout.py": "91ccf5b6b8f4b119dbb3dc451c42200ab00026b91751ce9f014bd4a0c4275022",
             "tests/test_portfolio_production_ruleset.py": "9f9605907a9c6a0e4a2b3446be236dbe7a5b49efeec0ce8b4d72ea30eda31e8d",
         },
@@ -1145,6 +1149,7 @@ class WorkflowJob:
     raw: str
     working_directory: str | None
     shell: str | None
+    environment: dict[str, Any]
 
 
 def default_working_directory(value: dict[str, Any], path: str) -> str | None:
@@ -1194,6 +1199,12 @@ def workflow_jobs(workflow: str, path: str) -> dict[str, WorkflowJob]:
     require(isinstance(document, dict), f"workflow is not a mapping: {path}")
     workflow_working_directory = default_working_directory(document, path)
     workflow_shell = default_shell(document, path)
+    workflow_environment = document.get("env", {})
+    require(
+        isinstance(workflow_environment, dict)
+        and all(isinstance(name, str) and bool(name) for name in workflow_environment),
+        f"workflow environment is invalid: {path}",
+    )
     jobs_value = document.get("jobs")
     require(isinstance(jobs_value, dict) and bool(jobs_value), f"workflow has no jobs: {path}")
     require(isinstance(root, yaml.nodes.MappingNode), f"workflow root is invalid: {path}")
@@ -1212,6 +1223,12 @@ def workflow_jobs(workflow: str, path: str) -> dict[str, WorkflowJob]:
         name = key_node.value
         data = jobs_value.get(name)
         require(isinstance(data, dict), f"workflow job is not a mapping: {path}:{name}")
+        job_environment = data.get("env", {})
+        require(
+            isinstance(job_environment, dict)
+            and all(isinstance(key, str) and bool(key) for key in job_environment),
+            f"workflow job environment is invalid: {path}:{name}",
+        )
         raw = "\n".join(lines[key_node.start_mark.line : value_node.end_mark.line]) + "\n"
         job_working_directory = default_working_directory(data, path)
         job_shell = default_shell(data, path)
@@ -1220,6 +1237,7 @@ def workflow_jobs(workflow: str, path: str) -> dict[str, WorkflowJob]:
             raw=raw,
             working_directory=job_working_directory or workflow_working_directory,
             shell=job_shell or workflow_shell,
+            environment={**workflow_environment, **job_environment},
         )
     require(set(result) == set(jobs_value), f"workflow job source mismatch: {path}")
     return result
@@ -2020,6 +2038,7 @@ def python_source_has_runtime_mutation(
         "pty",
         "runpy",
         "smtplib",
+        "xmlrpc",
     }
     if any(
         value.split(".", 1)[0] in runtime_modules
@@ -5021,6 +5040,13 @@ def step_has_runtime_mutation(
     script_aliases: dict[str, str],
 ) -> bool:
     run = str(step.get("run", ""))
+    environment = step_environment(job, step)
+    if environment is None or environment_has_unproved_executable_startup(
+        environment
+    ):
+        # Workflow, job, and step environment mappings can preload code or
+        # redirect executable/module resolution before the literal run block.
+        return True
     repository = os.environ.get("GITHUB_REPOSITORY")
     if not repository:
         repository = json.loads(CONTRACT_PATH.read_text(encoding="utf-8")).get(
@@ -5042,7 +5068,7 @@ def step_has_runtime_mutation(
             or step.get("shell") != "bash"
             or job.shell is not None
             or job.working_directory is not None
-            or "env" in job.data
+            or bool(job.environment)
         ):
             return True
         return False
@@ -5400,7 +5426,7 @@ def step_environment(
     step: dict[str, Any],
 ) -> dict[str, object] | None:
     environment: dict[str, object] = {}
-    for source in (job.data.get("env", {}), step.get("env", {})):
+    for source in (job.environment, step.get("env", {})):
         if not isinstance(source, dict) or not all(
             isinstance(name, str) and bool(name)
             for name in source
@@ -5408,6 +5434,36 @@ def step_environment(
             return None
         environment.update(source)
     return environment
+
+
+def environment_has_unproved_executable_startup(
+    environment: dict[str, object],
+) -> bool:
+    """Reject YAML environment hooks except source-bound Python import roots."""
+
+    for name, value in environment.items():
+        upper = name.upper()
+        if upper not in EXECUTABLE_STARTUP_ENV:
+            continue
+        if upper != "PYTHONPATH" or not isinstance(value, str) or not value:
+            return True
+        for component in value.split(":"):
+            normalized = re.sub(
+                r"^\$\{\{\s*github\.workspace\s*\}\}(?:/|$)",
+                "",
+                component,
+            )
+            if (
+                component.startswith("/")
+                and normalized == component
+                or "$" in normalized
+                or not normalized
+                and component != "${{ github.workspace }}"
+                or any(part == ".." for part in Path(normalized or ".").parts)
+                or re.fullmatch(r"[A-Za-z0-9_./-]*", normalized) is None
+            ):
+                return True
+    return False
 
 
 def publication_subjects(
@@ -7176,6 +7232,11 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
         "ctypes launcher": "import ctypes\nctypes.CDLL(None).system(b'kubectl apply -f x')\n",
         "pty launcher": "import pty\npty.spawn(['kubectl','apply','-f','x'])\n",
         "runpy loader": "import runpy\nrunpy.run_path('deploy.py')\n",
+        "XML-RPC client": (
+            "import xmlrpc.client\n"
+            "api=xmlrpc.client.ServerProxy('https://runtime.example/RPC2')\n"
+            "api.deploy({'production': True})\n"
+        ),
         "returned callable": (
             "import subprocess\ndef launcher(): return subprocess.run\n"
             "runner=launcher(); runner(['kubectl','apply','-f','x'])\n"
@@ -7245,6 +7306,7 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
         "run-parts ./runtime-hooks",
         "setpriv --no-new-privs kubectl apply -f runtime.yml",
         "sg runtime -c 'kubectl apply -f runtime.yml'",
+        "sudo su -c 'kubectl apply -f runtime.yml'",
         "docker stop prod",
         "podman restart prod",
         'op=run; docker "$op" --rm image',
@@ -7256,6 +7318,41 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
         require(
             contains_runtime_mutation(command),
             f"shell mutation regression escaped: {command}",
+        )
+
+    startup_environment_workflows = {
+        "workflow": """env:
+  BASH_ENV: ./.codestra/runtime-deploy.sh
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo harmless
+""",
+        "job": """jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      BASH_ENV: ./.codestra/runtime-deploy.sh
+    steps:
+      - run: echo harmless
+""",
+        "step": """jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          BASH_ENV: ./.codestra/runtime-deploy.sh
+        run: echo harmless
+""",
+    }
+    for scope, workflow in startup_environment_workflows.items():
+        require(
+            workflow_has_runtime_mutation(
+                workflow,
+                f"synthetic-{scope}-startup-environment.yml",
+            ),
+            f"{scope} startup environment regression escaped",
         )
 
     with tempfile.TemporaryDirectory(dir=ROOT) as directory:
