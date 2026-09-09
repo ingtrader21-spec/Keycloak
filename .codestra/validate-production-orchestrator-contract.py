@@ -3576,7 +3576,7 @@ def validate_release_validator_gate_rechecks(source: str) -> None:
         returns = [node for node in ast.walk(function) if isinstance(node, ast.Return)]
         require(
             len(returns) == 1
-            and function.body
+            and bool(function.body)
             and function.body[-1] is returns[0],
             f"release-intent {function_name} has an early or hidden success return",
         )
