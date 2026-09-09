@@ -214,8 +214,8 @@ SHARED_PRODUCTION_VALIDATOR_SHA256 = (
     "9eac65207c0818b5ee13eb1d7c1df910"
 )
 KEYCLOAK_PRODUCTION_VALIDATOR_SHA256 = (
-    "2cd1cc9855afcb4d7e8e6d49c437b253"
-    "3ee32182393ed9b7d515ecb25105bd08"
+    "262c81e91f9166855c16535af435ecc8"
+    "9663e42df5f508f663cb4441979a4925"
 )
 MIDDLEWARE_PRODUCTION_VALIDATOR_SHA256 = (
     "d441a4ec1f20b762f72db6757dd733af"
@@ -249,16 +249,16 @@ EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
                 "0675ab4276e86ab92a42f908590c0ca6d"
             ),
             "scripts/validate-governance.sh": (
-                "cefd59aaba1446e9aa0d8b0fc5370eab"
-                "90f1d629422a0be25fad675515440c80"
+                "8e2fb48c36e849f61c838699726e29a6"
+                "a57ba5d73e6c6e8048737b1627ec5823"
             ),
             "scripts/validate-service-integrations.py": (
                 "8063ee5e69b6dd3da7682f56e76a8b9"
                 "e92c1b0dab785a961b4e05372d9f9d132"
             ),
             "scripts/validate.sh": (
-                "770f873d978b072dc86d5b8bec1c958f"
-                "3a02d67b69bdda27f8cc77a3da6ee3d8"
+                "3783706062b23eb83b6323aae3be9d5b"
+                "568de57eac81e3d557cca8c13bba2ace"
             ),
         },
     },
@@ -375,8 +375,8 @@ EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256 = {
         "a5772e9afbce85c6953d6a7202d53081"
     ),
     "appolon1908-hue/Keycloak": (
-        "08712fee7f2d0382d7b1e41fd3fd51d9"
-        "cf284c092c13dcd89e29aba56e06e06c"
+        "635a69ae1a7f4931aede345eba9b20b8"
+        "32e432973f8840dbec4f3425e70c5cd2"
     ),
     "appolon1908-hue/Middleware-": (
         "da143a3e31264d02ec6125dd588b97ad"

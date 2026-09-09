@@ -44,6 +44,18 @@
           {
             "context": "orchestrator-contract",
             "integration_id": 15368
+          },
+          {
+            "context": "validate-source",
+            "integration_id": 15368
+          },
+          {
+            "context": "validate-merge-result",
+            "integration_id": 15368
+          },
+          {
+            "context": "bootstrap",
+            "integration_id": 15368
           }
         ]
       }

@@ -33,8 +33,8 @@ RELEASE_VALIDATOR_NON_SELF_REFERENTIAL_BINDINGS = frozenset(
     }
 )
 STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "ecf3d5b2669c14a62b9ca472d6236196"
-    "8c483ed95f76664a0aa02cb9888f13b2"
+    "63bc9735a00a6d32fdf9deb185eff9ad"
+    "ae34c3f5cdbbb469018b421ef36134f7"
 )
 MIDDLEWARE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
     "8abee4eb254b40fb56125d4cc07b6ce2"
@@ -344,6 +344,8 @@ EXPECTED_ARTIFACT_POLICIES: dict[
 }
 APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
     "appolon1908-hue/Keycloak": {
+        # Protected-main bootstrap performs GitHub evidence reads only.
+        "scripts/bootstrap_release_trust_root.py": ("265c4d1b9bd365d0cb14d933ec4fa22a" "269295952874781413befd87a241a294"),
         "scripts/ci/audit_keycloak_pull_requests.py": "fa0c559a3dccfd4ced2a73ebcb2e1858724dcdba654fe84198045a6abbfc358b",
         "scripts/review-plan.sh": "65fe10f82d6fdb51ebca45e0453d5288baf05fa78ddce8754946e702432b50c4",
         "scripts/runtime-preflight.sh": "67bff10567f1c9763794f17d378f1dc3785e18569bda7432d0003d872239a052",
@@ -355,12 +357,9 @@ APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
         ),
         "scripts/test-plan-gate.sh": "a1998a4a92a2535aea09f35c5de369f0675ab4276e86ab92a42f908590c0ca6d",
         "scripts/test-runtime-preflight.sh": "e4fae06b294f0385d6006d35107463eaa65ec1099fae45ef032dffa1d3f65471",
-        "scripts/validate-governance.sh": "cefd59aaba1446e9aa0d8b0fc5370eab90f1d629422a0be25fad675515440c80",
-        "scripts/validate-workflows.py": (
-            "06b7f5eec4e36d51d9575decf70ce0a2"
-            "12767b563bc0fbdb1b61fa46ae7fc321"
-        ),
-        "scripts/validate.sh": "0c2924af94d4f0b494cd287e3fe6a52fcc6e20f9e0e80d47671584306b859c95",
+        "scripts/validate-governance.sh": ("8e2fb48c36e849f61c838699726e29a6" "a57ba5d73e6c6e8048737b1627ec5823"),
+        "scripts/validate-workflows.py": ("0f2cdde118ebe2e2c97186fa1ae26fb6" "642ba7c14777b5b16796660b74b6ca9c"),
+        "scripts/validate.sh": ("3783706062b23eb83b6323aae3be9d5b" "568de57eac81e3d557cca8c13bba2ace"),
     },
     "appolon1908-hue/Middleware-": {
         "scripts/apply_portfolio_release_reviewer_access.py": (
