@@ -1312,6 +1312,7 @@ def python_source_has_runtime_mutation(source: str) -> bool:
         return True
     aliases: dict[str, str] = {}
     command_bindings: dict[str, list[ast.expr | None]] = {}
+    destructured_targets: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -1322,17 +1323,30 @@ def python_source_has_runtime_mutation(source: str) -> bool:
                 aliases[alias.asname or alias.name] = f"{node.module}.{alias.name}"
         elif isinstance(node, ast.Assign):
             for target in node.targets:
+                if isinstance(target, (ast.Tuple, ast.List)):
+                    destructured_targets.update(child.id for child in ast.walk(target)
+                                                if isinstance(child, ast.Name))
                 for name, value in assignment_value_pairs(target, node.value):
                     command_bindings.setdefault(name, []).append(value)
         elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
             if node.value is not None:
                 command_bindings.setdefault(node.target.id, []).append(node.value)
 
+    known_functions = {node.name for node in ast.walk(tree)
+                       if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    safe_builtin_callables = {
+        "abs", "all", "any", "bool", "dict", "enumerate", "float", "frozenset",
+        "int", "len", "list", "max", "min", "print", "range", "reversed",
+        "set", "sorted", "str", "sum", "tuple", "zip",
+    }
+
     def qualified_name(node: ast.expr | None, seen: frozenset[str] = frozenset()) -> str:
         if node is None:
             return "__unresolved_callable__"
         if isinstance(node, ast.Name):
-            if node.id in command_bindings and node.id not in seen:
+            if node.id in seen:
+                return "__unresolved_callable__"
+            if node.id in command_bindings:
                 resolved = {
                     qualified_name(value, seen | {node.id})
                     for value in command_bindings[node.id]
@@ -1343,12 +1357,16 @@ def python_source_has_runtime_mutation(source: str) -> bool:
                 risky = sorted(
                     value
                     for value in resolved
-                    if value in {"getattr", "__unresolved_callable__"}
+                    if value == "getattr" or value.startswith("__unresolved_callable__")
                     or value.startswith(("os.", "subprocess."))
                     or set(re.split(r"[^a-z0-9_]+", value.lower()))
                     & (NETWORK_CLIENT_HINTS | DATABASE_CLIENT_HINTS)
                 )
                 return risky[0] if risky else sorted(resolved)[0]
+            if (seen and node.id not in aliases
+                    and node.id not in known_functions
+                    and node.id not in safe_builtin_callables):
+                return "__unresolved_callable__"
             return aliases.get(node.id, node.id)
         if isinstance(node, ast.Attribute):
             parent = qualified_name(node.value, seen)
@@ -1358,8 +1376,8 @@ def python_source_has_runtime_mutation(source: str) -> bool:
             hints = set(re.split(r"[^a-z0-9_]+", constructor.lower()))
             if hints & (NETWORK_CLIENT_HINTS | DATABASE_CLIENT_HINTS):
                 return constructor
-            return ""
-        return ""
+            return "__unresolved_callable__"
+        return "__unresolved_callable__" if seen & destructured_targets else ""
 
     def restricted_callable_name(name: str) -> bool:
         return (
@@ -1461,7 +1479,10 @@ def python_source_has_runtime_mutation(source: str) -> bool:
         if isinstance(node.func, ast.Call):
             return True
         qualified = qualified_name(node.func)
-        if qualified == "__unresolved_callable__":
+        if qualified == "__unresolved_callable__" or (
+            isinstance(node.func, ast.Name)
+            and qualified.startswith("__unresolved_callable__.")
+        ):
             return True
         if qualified in {
             "__import__",
@@ -4721,6 +4742,18 @@ PY
             pass
         else:
             raise ContractError("release destructured callable regression passed unexpectedly")
+    for uncertain in (
+        "runner, unused = factory(), None",
+        "runner, unused = choices[0], None",
+        "runner, unused = (first if condition else second), None",
+        "runner, unused = (alias := external_callable), None",
+        "runner, unused = external_callable, None",
+        "runner, unused = external_client.write, None",
+        "runner, unused = other, None; other = runner",
+    ):
+        require(python_source_has_runtime_mutation(
+            uncertain + "; runner(['kubectl', 'apply'])"),
+            "unproved destructured callable origin admitted")
     require(python_source_has_runtime_mutation(
         "runner, unused = unknown_values; alias = runner; alias(['kubectl', 'apply'])"),
         "ambiguous destructured alias propagation failed")
