@@ -10,6 +10,14 @@ from scripts.bootstrap_release_trust_root import load_manifest, main
 
 
 class BootstrapTrustRootTests(unittest.TestCase):
+    def test_checked_in_closure_matches_source_bytes(self):
+        manifest = load_manifest(bootstrap.ROOT / "config/bootstrap/executable-closure.json")
+        for entry in manifest["files"]:
+            with self.subTest(path=entry["path"]):
+                self.assertEqual(
+                    bootstrap.sha256(bootstrap.ROOT / entry["path"]), entry["sha256"]
+                )
+
     def test_rejects_unsorted_duplicate_manifest(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "manifest.json"
