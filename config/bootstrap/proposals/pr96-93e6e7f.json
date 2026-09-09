@@ -1,0 +1,87 @@
+{
+  "authorization": "PENDING_INDEPENDENT_REVIEW",
+  "changes": [
+    {
+      "path": ".github/workflows/keycloak-release-trust-root.yml",
+      "previous_sha256": "5a5f017dcb11188d04f4dce0f4fa80656a36562f08aaa5d9982a1bfa889b5307",
+      "proposed_sha256": "3c10c909cdd09792ecb095d06bb3d9f762caecaf3036d02eb2b9fef3da199258"
+    },
+    {
+      "path": ".github/workflows/manual-release-intent.yml",
+      "previous_sha256": "7f6b88e0a4a6ded29919d15ef19b4ead8e2269f2794e51fec6cffbce415fb4c9",
+      "proposed_sha256": "2362835ba774c42766bb5da01d72b1842d66ef7a63635971d15378a730e301b5"
+    },
+    {
+      "path": ".github/workflows/validate.yml",
+      "previous_sha256": "c208c34950199693bfbbc9db85dc091abd3bdbaedf0b2544ff8b7da4fa63ad70",
+      "proposed_sha256": "34e8692d93f3a30949e1e3de0543d4db93c508ce026538f6b5a8442d1a800f1a"
+    },
+    {
+      "path": "scripts/validate-governance.sh",
+      "previous_sha256": "fb47093b167bb894b4c041bf9874964de9add683f64f583d391baea6d085ea93",
+      "proposed_sha256": "8e2fb48c36e849f61c838699726e29a6a57ba5d73e6c6e8048737b1627ec5823"
+    },
+    {
+      "path": "scripts/validate-workflows.py",
+      "previous_sha256": "fddf958c7c56cbbe8a5aa30acfad9e4a4c9ec7b637a2e9708139ea74302ccc6c",
+      "proposed_sha256": "946687f92f5f437c3b2beebd3bc3e4b02e494375846f03c0f9c8ee9a7b88fd80"
+    },
+    {
+      "path": "scripts/validate.sh",
+      "previous_sha256": "0345d3d59c445e47dc63093c6e31a0ebf2ec2e538a187bfe4a40ac5f4778a33c",
+      "proposed_sha256": "3783706062b23eb83b6323aae3be9d5b568de57eac81e3d557cca8c13bba2ace"
+    }
+  ],
+  "manifest": {
+    "files": [
+      {
+        "path": ".github/workflows/keycloak-release-trust-root.yml",
+        "sha256": "3c10c909cdd09792ecb095d06bb3d9f762caecaf3036d02eb2b9fef3da199258"
+      },
+      {
+        "path": ".github/workflows/manual-release-intent.yml",
+        "sha256": "2362835ba774c42766bb5da01d72b1842d66ef7a63635971d15378a730e301b5"
+      },
+      {
+        "path": ".github/workflows/validate.yml",
+        "sha256": "34e8692d93f3a30949e1e3de0543d4db93c508ce026538f6b5a8442d1a800f1a"
+      },
+      {
+        "path": "scripts/bootstrap_release_trust_root.py",
+        "sha256": "265c4d1b9bd365d0cb14d933ec4fa22a269295952874781413befd87a241a294"
+      },
+      {
+        "path": "scripts/validate-governance.sh",
+        "sha256": "8e2fb48c36e849f61c838699726e29a6a57ba5d73e6c6e8048737b1627ec5823"
+      },
+      {
+        "path": "scripts/validate-kong-oidc-contract.py",
+        "sha256": "a86d956b56ff50fcd726f39db68d3e533eb9a0e90a6de24f358a814adee1d835"
+      },
+      {
+        "path": "scripts/validate-password-reset-contract.py",
+        "sha256": "241402d098d64d90c4b9abedab9396e8efc08cb660b9cc41d5bdaafb52396b6b"
+      },
+      {
+        "path": "scripts/validate-repository-name-authority.py",
+        "sha256": "d56d85a41734dc468efecb99d590d0d33267dcd1c84f4ff4dd3fa93c2076bd96"
+      },
+      {
+        "path": "scripts/validate-workflows.py",
+        "sha256": "946687f92f5f437c3b2beebd3bc3e4b02e494375846f03c0f9c8ee9a7b88fd80"
+      },
+      {
+        "path": "scripts/validate.sh",
+        "sha256": "3783706062b23eb83b6323aae3be9d5b568de57eac81e3d557cca8c13bba2ace"
+      }
+    ],
+    "manifest_sha256": "47f9cc4948f67bc8ebf6a300c75bfb09050d8ae3806c7536d139c2d435af8f4b",
+    "schema": "keycloak.bootstrap-closure.v1"
+  },
+  "policy_commit_sha": "e15e20088a529c4f8f9ac3cecb873f21e28e3ed3",
+  "previous_manifest_sha256": "74bb81923216c8df2710c108074a2d0ee948ef05bb5d7cd5d1815f56ac724923",
+  "repository": "appolon1908-hue/Keycloak",
+  "reviewed_source_sha": "93e6e7fc57a95940dd725b704e976be0710a44c4",
+  "schema": "keycloak.bootstrap-manifest-proposal.v1",
+  "scope": "EXISTING_DECLARED_FILES_ONLY"
+}
