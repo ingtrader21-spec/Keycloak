@@ -213,20 +213,20 @@ EXPECTED_CHECK_WORKFLOW_SHA256 = {
     },
 }
 SHARED_PRODUCTION_VALIDATOR_SHA256 = (
-    "a209c32af701e134fce77cc5af666450"
-    "9ae2432a05d33c9aa8691dd9e3ee1672"
+    "9687838cbaa16759f2fe77ba7a5155ab"
+    "e4781e8d105f3d58a5bf7f5a30b46edd"
 )
 KEYCLOAK_PRODUCTION_VALIDATOR_SHA256 = (
-    "a209c32af701e134fce77cc5af666450"
-    "9ae2432a05d33c9aa8691dd9e3ee1672"
+    "9687838cbaa16759f2fe77ba7a5155ab"
+    "e4781e8d105f3d58a5bf7f5a30b46edd"
 )
 MIDDLEWARE_PRODUCTION_VALIDATOR_SHA256 = (
-    "a209c32af701e134fce77cc5af666450"
-    "9ae2432a05d33c9aa8691dd9e3ee1672"
+    "9687838cbaa16759f2fe77ba7a5155ab"
+    "e4781e8d105f3d58a5bf7f5a30b46edd"
 )
 BACKEND_PRODUCTION_VALIDATOR_SHA256 = (
-    "a209c32af701e134fce77cc5af666450"
-    "9ae2432a05d33c9aa8691dd9e3ee1672"
+    "9687838cbaa16759f2fe77ba7a5155ab"
+    "e4781e8d105f3d58a5bf7f5a30b46edd"
 )
 EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
     "appolon1908-hue/Infustruction-repo": {
@@ -374,48 +374,48 @@ EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
 RELEASE_VALIDATOR_SOURCE_PATH = ".codestra/validate-release-intent.py"
 EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256 = {
     "appolon1908-hue/Infustruction-repo": (
-        "95879ff61792e5ca60846b10ca1eb21c1"
-        "5ba7bd02d43b542d91ef3c44544da5f"
+        "5c7f895f7d3b01743353c6c43d475390"
+        "427e3a769ddc1b7aa1fcc477a4b7f881"
     ),
     "appolon1908-hue/Keycloak": (
-        "64d66f449a24357278a4fe3e297794c5a"
-        "307e10bb1242ebcdfa722694e411e13"
+        "50bf384e39b6a3faee7866e11d2d7be1"
+        "6b0ccd5c2631e71302f9d30d3aeee06a"
     ),
     "appolon1908-hue/Middleware-": (
-        "4e72dad08b75dea1b0308ca7d938af6d"
-        "0b5bfb0c067bf2cba6624e8d7a915e82"
+        "014ba59c003c6e9ac492d6662e45a2af"
+        "4b6511b454f143b8d5e4a8b7ab5d1e34"
     ),
     "appolon1908-hue/codestra": (
-        "6934d6f0f5ce2190c45a04ae9514f3ce"
-        "724da0f2b0df07f4e845e14a6aead84d"
+        "2e3b5f2ac60cc03bfb03cbcde7ebcc1d"
+        "7ba9c8b0ed22a92ec2dc89c2d3c6ae78"
     ),
     "appolon1908-hue/beyvra-backend": (
-        "8228b5413794102f21360f329a4585eb"
-        "a677ad553c539cd2690586c5c58c19dd"
+        "780e35cc287d5bdeed80c27b260699e6"
+        "44441290d656f6488ace0e10fac1821a"
     ),
     "appolon1908-hue/backend2": (
-        "b3a05f8e7bf0f2cfe3f14909e66c48a"
-        "4e03c8fcaca5050cc82fc83e14f50b0f6"
+        "5516433c096fa61dee487af5e125d6d1"
+        "be50f9a2bfd9d1610f1d474c9edd1143"
     ),
     "appolon1908-hue/beyvra-frontend": (
-        "47a562b6e6004e7560792a156c191d31"
-        "5fd38343f131138a7bac7004b146d368"
+        "035f39ff5233af2568c7e533d09c24a1"
+        "c48b3e5eed8562ab3292ade00b710fa9"
     ),
     "appolon1908-hue/scrapper": (
-        "20b93378b66e3d1c0e39018717384662e"
-        "94ebaff03ffa45861ae8e9611b446c6"
+        "af9fca64ad56f650ea91372e75ade473"
+        "cf9d72c532d92dfbe953443b92e708d0"
     ),
     "appolon1908-hue/Breero.com": (
-        "45a078fbb5573ed175670f854536076d"
-        "11e72fb9c93cc3ac25492b1d8b81191f"
+        "efcdb637474950b1221ab324a68ac12f"
+        "c53374756f4b640f992160675aba2186"
     ),
     "appolon1908-hue/Moneybee-Backend": (
-        "5e3a2dbac0eb6fc5fb82c1a80b05c8e"
-        "dfa204990e4c7f80bd10870476393cf74"
+        "43adaa96391d086ba7b71d9652dd13e1"
+        "54f3800989ac76f4850ab9caccaa8b1a"
     ),
     "appolon1908-hue/Telnexa-web": (
-        "b283d88bba46e8ca73a5b7517a7a2b9"
-        "3ebabe9c9292da3002e8965a1b42ef81f"
+        "43330c132c923ed17e8ee9e84f9b4192"
+        "c31d33dacba8a2a1f4553c2ce04025ac"
     ),
     CONTROLLER_REPOSITORY: (
         "4c7b54aa7cd59ac09703d235a264b830"
@@ -905,10 +905,10 @@ def validate_workflow_action_references(
     runs = document.get("runs")
     if isinstance(runs, dict) and runs.get("using") == "docker":
         image = runs.get("image")
-        require(
-            isinstance(image, str) and bool(image),
-            f"required check local container action image is invalid: {path}",
-        )
+        if not isinstance(image, str) or not image:
+            raise PolicyError(
+                f"required check local container action image is invalid: {path}"
+            )
         if image == "Dockerfile":
             validate_local_action_dockerfile(repository, source_sha, path)
         else:
