@@ -769,8 +769,8 @@ APPROVED_OFFLINE_RUN_SHA256: dict[str, dict[str, frozenset[str]]] = {
 }
 APPROVED_DEFAULT_TEST_DISCOVERY_SOURCE_SHA256 = {
     "appolon1908-hue/Middleware-": (
-        "ed25fb37b29e499fe17d4e027d606723"
-        "55ba87a8858a2ab5b3e1ae70d702720f"
+        "317e69eb9ba8393187cc7ef73655121b"
+        "2ec4879f6a57e055f5f72c051bb3b354"
     ),
 }
 APPROVED_CONTROL_PLANE_DEPENDENCY_SHA256: dict[
