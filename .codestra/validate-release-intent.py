@@ -214,8 +214,8 @@ SHARED_PRODUCTION_VALIDATOR_SHA256 = (
     "d472c24f1cf50b5cd6d1d451a1f5b9f6"
 )
 KEYCLOAK_PRODUCTION_VALIDATOR_SHA256 = (
-    "91845a86e309e736592a0b5687c51425"
-    "52d288993c8181b25ef9b6c32a7622ac"
+    "69a49871845bc8a56d2ade88f60700d4"
+    "f40f428e3fb4ede0afc2a733bc857bb3"
 )
 MIDDLEWARE_PRODUCTION_VALIDATOR_SHA256 = (
     "b79fe323ec1de3ec3541bbb910a8cbb2"
@@ -375,8 +375,8 @@ EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256 = {
         "2d5a6716a96375f8add8de937654459f"
     ),
     "appolon1908-hue/Keycloak": (
-        "62f6e87227a0061ccbc948687df09af5"
-        "41e630a6a2f68e9ea24f642b0af7131a"
+        "86a254561b8995b3a3dcf1e17e52dccf"
+        "130c1aeecd0f556a31eceada092185af"
     ),
     "appolon1908-hue/Middleware-": (
         "eb07b65b1edecd2140919d0307e25fa6"

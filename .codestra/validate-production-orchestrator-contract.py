@@ -1507,6 +1507,7 @@ def python_source_has_runtime_mutation(source: str) -> bool:
     aliases: dict[str, str] = {}
     command_bindings: dict[str, list[ast.expr | None]] = {}
     destructured_targets: set[str] = set()
+    attribute_targets: list[ast.expr] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -1517,11 +1518,16 @@ def python_source_has_runtime_mutation(source: str) -> bool:
                 aliases[alias.asname or alias.name] = f"{node.module}.{alias.name}"
         elif isinstance(node, ast.Assign):
             for target in node.targets:
+                attribute_targets.extend(child for child in ast.walk(target)
+                                         if isinstance(child, (ast.Attribute, ast.Subscript))
+                                         and isinstance(child.ctx, ast.Store))
                 if isinstance(target, (ast.Tuple, ast.List)):
                     destructured_targets.update(child.id for child in ast.walk(target)
                                                 if isinstance(child, ast.Name))
                 for name, value in assignment_value_pairs(target, node.value):
                     command_bindings.setdefault(name, []).append(value)
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, (ast.Attribute, ast.Subscript)):
+            attribute_targets.append(node.target)
         elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
             if node.value is not None:
                 command_bindings.setdefault(node.target.id, []).append(node.value)
@@ -1608,7 +1614,7 @@ def python_source_has_runtime_mutation(source: str) -> bool:
                 and bool(receiver_hints & NETWORK_CLIENT_HINTS)
             )
             or (
-                method in DATABASE_MUTATION_METHODS
+                method in DATABASE_MUTATION_METHODS | {"execute"}
                 and bool(receiver_hints & DATABASE_CLIENT_HINTS)
             )
             or (
@@ -1634,6 +1640,25 @@ def python_source_has_runtime_mutation(source: str) -> bool:
             and restricted_callable_name(qualified_name(child))
             for child in ast.walk(value)
         )
+
+    def attribute_storage_keys(node: ast.expr, seen: frozenset[str] = frozenset()) -> set[str]:
+        if isinstance(node, ast.Name):
+            if node.id in seen:
+                return {"__ambiguous_attribute_storage__"}
+            keys = {node.id}
+            for value in command_bindings.get(node.id, []):
+                if isinstance(value, (ast.Name, ast.Attribute, ast.Subscript)):
+                    keys.update(attribute_storage_keys(value, seen | {node.id}))
+            return keys
+        if isinstance(node, ast.Attribute):
+            return {f"{key}.{node.attr}" for key in attribute_storage_keys(node.value, seen)}
+        if isinstance(node, ast.Subscript):
+            # Index equivalence is not proven. Treat every element of this
+            # receiver as possibly containing the assigned callable.
+            return {f"{key}[*]" for key in attribute_storage_keys(node.value, seen)}
+        return {ast.unparse(node)}
+
+    attribute_bound_names = set().union(*(attribute_storage_keys(target) for target in attribute_targets))
 
     runtime_modules = {
         "aiosmtplib",
@@ -1690,10 +1715,10 @@ def python_source_has_runtime_mutation(source: str) -> bool:
         if isinstance(node.func, ast.Call):
             return True
         qualified = qualified_name(node.func)
-        if qualified == "__unresolved_callable__" or (
-            isinstance(node.func, ast.Name)
-            and qualified.startswith("__unresolved_callable__.")
-        ):
+        if (qualified == "__unresolved_callable__"
+                or (isinstance(node.func, ast.Name)
+                    and qualified.startswith("__unresolved_callable__."))
+                or bool(attribute_storage_keys(node.func) & attribute_bound_names)):
             return True
         if qualified in {
             "__import__",
@@ -1722,6 +1747,9 @@ def python_source_has_runtime_mutation(source: str) -> bool:
         receiver_hints = set(re.split(r"[^a-z0-9_]+", receiver))
         network_receiver = bool(receiver_hints & NETWORK_CLIENT_HINTS)
         database_receiver = bool(receiver_hints & DATABASE_CLIENT_HINTS)
+        if receiver in {"http.client.httpconnection", "http.client.httpsconnection"}:
+            if method not in {"request", "getresponse", "close"}:
+                return True
         if method in NETWORK_MUTATION_METHODS and network_receiver:
             return True
         if method in DATABASE_MUTATION_METHODS and database_receiver:
@@ -1737,7 +1765,12 @@ def python_source_has_runtime_mutation(source: str) -> bool:
                     value = keyword.value.value
                     if isinstance(value, str):
                         http_method = value.lower()
-            if http_method is None or http_method in HTTP_MUTATION_METHODS:
+            if http_method not in {"get", "head"}:
+                return True
+            if len(node.args) > 2 or any(isinstance(arg, ast.Starred) for arg in node.args):
+                return True
+            if any(keyword.arg is None or keyword.arg in {"body", "data", "json", "files"}
+                   for keyword in node.keywords):
                 return True
         if method == "execute" and database_receiver:
             if not node.args:
@@ -1904,17 +1937,10 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
             while open_index < len(lower) and lower[open_index].isspace():
                 open_index += 1
             if lower.startswith("//", open_index):
-                comment_end = lower.find("\n", open_index + 2)
-                carriage_return = lower.find("\r", open_index + 2)
-                if carriage_return >= 0 and (
-                    comment_end < 0 or carriage_return < comment_end
-                ):
-                    comment_end = carriage_return
-                if comment_end < 0:
-                    # A loader followed only by a line comment cannot prove a
-                    # static, read-only import.
+                newline = re.search(r"[\r\n\u2028\u2029]", lower[open_index + 2:])
+                if newline is None:
                     return True
-                open_index = comment_end + 1
+                open_index += 2 + newline.end()
                 continue
             if not lower.startswith("/*", open_index):
                 break
@@ -1925,6 +1951,10 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
                 return True
             open_index = comment_end + 2
         if open_index >= len(lower) or lower[open_index] != "(":
+            # A loader value can escape through an alias. It is not a proven
+            # static read-only import, even if its eventual call is renamed.
+            if match.group() == "require":
+                return True
             continue
         arguments = call_arguments(open_index)
         if arguments is None or re.fullmatch(
@@ -1933,6 +1963,11 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
         ) is None:
             # Computed module specifiers can conceal networking or process
             # modules behind an otherwise arbitrary binding.
+            return True
+        module_name = arguments.strip()[1:-1]
+        if "\\" in module_name or module_name.removeprefix("node:") in {
+            "child_process", "cluster", "vm", "worker_threads",
+        }:
             return True
 
     if any(
@@ -4945,7 +4980,74 @@ def validate(contract: dict[str, Any]) -> None:
     require(bool(actions) and set(actions) <= ALLOWED_ACTIONS, "release-intent workflow uses a non-allowlisted action")
 
 
+def validate_release_trust_alias_regressions() -> None:
+    # These strings are parsed only; no process, HTTP or database call executes.
+    for method in ("post", "put", "patch", "delete"):
+        for target in ("holder.writer", "holder.nested.writer", "holder['writer']"):
+            require(python_source_has_runtime_mutation(
+                f"import requests\nwriter = requests.{method}\n{target} = writer\n{target}(url)\n"
+            ), "network writer alias was accepted")
+    for origin in ("database.execute", "database.commit", "unknown_writer", "factory()"):
+        for target in ("holder.writer", "holder.nested.writer", "holder['writer']"):
+            require(python_source_has_runtime_mutation(
+                f"{target} = {origin}\n{target}(argument)\n"
+            ), "database or unknown writer alias was accepted")
+    require(python_source_has_runtime_mutation(
+        "holder.writer, unused = unknown_writer, None\nholder.writer(argument)\n"
+    ), "destructured unknown attribute callable was accepted")
+    require(python_source_has_runtime_mutation(
+        "holder.writer = unknown_writer\nother = holder\nother.writer(argument)\n"
+    ), "writer callable escaped through a receiver alias")
+    require(python_source_has_runtime_mutation(
+        "holder.child.writer = unknown_writer\nother = holder.child\nother.writer(argument)\n"
+    ), "writer callable escaped through a nested receiver alias")
+    require(python_source_has_runtime_mutation(
+        "holder[index] = unknown_writer\nother = holder\nwriter = other[key]\nwriter(argument)\n"
+    ), "unknown subscript callable escaped through nested aliases")
+    require(not python_source_has_runtime_mutation(
+        "holder.label = 'report'\nholder.nested.count = 3\nprint(holder.label)\n"
+    ), "ordinary non-callable attribute data was rejected")
+    for call in (
+        "connection.putrequest('POST', path)", "connection.endheaders(body)",
+        "connection.send(body)", "connection.sendall(body)",
+        "connection.request('PATCH', path)", "connection.request('UNKNOWN', path)",
+        "connection.unknown_method(body)", "connection.request('GET', path, body)",
+    ):
+        require(python_source_has_runtime_mutation(
+            "import http.client\nconnection = http.client.HTTPConnection(host)\n" + call
+        ), "low-level HTTP write or unresolved method was accepted")
+    for method in ("GET", "HEAD"):
+        require(not python_source_has_runtime_mutation(
+            "import http.client\nconnection = http.client.HTTPConnection(host)\n"
+            f"connection.request('{method}', path)\nconnection.getresponse()\nconnection.close()\n"
+        ), "body-free low-level HTTP read was rejected")
+    for source in (
+        "const cp = require // comment\n('child_process');",
+        "const cp = require /* comment */ ('child_process');",
+        "const cp = require // comment\n('child_' + 'process');",
+        "const cp = require /* comment */ ('child_' + 'process');",
+        "const cp = require('child_' + 'process');",
+        "const cp = require(moduleName);",
+        "const loader = require; const cp = loader(moduleName);",
+        "const cp = import // comment\n(moduleName);",
+        "const cp = import /* comment */ (moduleName);",
+    ):
+        require(javascript_source_has_runtime_mutation(source),
+                "unresolved JavaScript runtime loader was accepted")
+    require(not javascript_source_has_runtime_mutation("const path = require('path');"),
+            "static read-only JavaScript import was rejected")
+    print("HTTP_WRITER_ATTRIBUTE_ALIAS=REJECTED")
+    print("NETWORK_WRITER_ALIAS_REGRESSION=PASS")
+    print("LOW_LEVEL_HTTP_WRITE=REJECTED")
+    print("HTTP_CLIENT_REGRESSION=PASS")
+    print("JS_REQUIRE_LINE_COMMENT_CHILD_PROCESS=REJECTED")
+    print("JS_REQUIRE_BLOCK_COMMENT_CHILD_PROCESS=REJECTED")
+    print("JS_CONCAT_CHILD_PROCESS=REJECTED")
+    print("JS_UNKNOWN_RUNTIME_LOADER=FAIL_CLOSED")
+
+
 def validate_negative_regressions(contract: dict[str, Any]) -> None:
+    validate_release_trust_alias_regressions()
     require_immutable_action_references(
         "jobs:\n  test:\n    uses: owner/repository/.github/workflows/check.yml@"
         "0123456789012345678901234567890123456789\n",
