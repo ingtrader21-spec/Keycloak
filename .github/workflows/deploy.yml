@@ -125,6 +125,20 @@ jobs:
       - name: Validate reviewed repository state
         run: ./scripts/validate.sh
 
+      - name: Enforce production mutation stop flag
+        env:
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          set -Eeuo pipefail
+          if [[ "$DEPLOY_ENVIRONMENT" == production && "$MODE" == apply ]]; then
+            jq -e '.productionMutationAllowed == true' \
+              config/certification/service-identity-matrix.json >/dev/null || {
+                echo 'ERROR=production_mutation_not_authorized_by_certification_contract' >&2
+                exit 1
+              }
+          fi
+
   reconcile:
     needs: guard
     runs-on: [self-hosted, linux, x64, codestra-keycloak]
@@ -436,6 +450,12 @@ jobs:
           KC_CLIENT_SECRET_POSTLY_ADAPTER: ${{ secrets.KC_CLIENT_SECRET_POSTLY_ADAPTER }}
           KC_CLIENT_SECRET_PROVISIONING_SERVICE: ${{ secrets.KC_CLIENT_SECRET_PROVISIONING_SERVICE }}
           KC_CLIENT_SECRET_MONITORING_READONLY: ${{ secrets.KC_CLIENT_SECRET_MONITORING_READONLY }}
+          KC_CLIENT_SECRET_MONEYBEE_BACKEND: ${{ secrets.KC_CLIENT_SECRET_MONEYBEE_BACKEND }}
+          KC_CLIENT_SECRET_BREERO_BACKEND: ${{ secrets.KC_CLIENT_SECRET_BREERO_BACKEND }}
+          KC_CLIENT_SECRET_LARIM_A_BACKEND: ${{ secrets.KC_CLIENT_SECRET_LARIM_A_BACKEND }}
+          KC_CLIENT_SECRET_TRANSPORTATION_BACKEND: ${{ secrets.KC_CLIENT_SECRET_TRANSPORTATION_BACKEND }}
+          KC_CLIENT_SECRET_BEYVRA_BACKEND: ${{ secrets.KC_CLIENT_SECRET_BEYVRA_BACKEND }}
+          KC_CLIENT_SECRET_SOCIAL_CODESTRA: ${{ secrets.KC_CLIENT_SECRET_SOCIAL_CODESTRA }}
         run: |
           set -Eeuo pipefail
           ./scripts/apply-plan.sh \
