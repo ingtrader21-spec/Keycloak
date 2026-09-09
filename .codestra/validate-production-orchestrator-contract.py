@@ -303,8 +303,8 @@ APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
         "scripts/test-runtime-preflight.sh": "e4fae06b294f0385d6006d35107463eaa65ec1099fae45ef032dffa1d3f65471",
         "scripts/validate-governance.sh": "cefd59aaba1446e9aa0d8b0fc5370eab90f1d629422a0be25fad675515440c80",
         "scripts/validate-workflows.py": (
-            "4a50a79e5acedc94a37e4c22b3959359"
-            "f8caab2791bb38d660383b4d7c58ba85"
+            "06b7f5eec4e36d51d9575decf70ce0a2"
+            "12767b563bc0fbdb1b61fa46ae7fc321"
         ),
         "scripts/validate.sh": "770f873d978b072dc86d5b8bec1c958f3a02d67b69bdda27f8cc77a3da6ee3d8",
     },
@@ -428,6 +428,17 @@ APPROVED_CONTROL_PLANE_WORKFLOW_SHA256: dict[str, dict[str, str]] = {
     },
     "appolon1908-hue/beyvra-frontend": {
         ".github/workflows/ci.yml": "8dfd828f1c50f774d34d22008cc8e5eb3ce4961165b388e058fd3cab6130e2e5",
+    },
+    "appolon1908-hue/scrapper": {
+        ".github/workflows/ci.yml": "31d81c5be094a1510bc821ef4359bba591630d2273662f5de0683205d908c60d",
+        ".github/workflows/dashboard-ci.yml": (
+            "1f4c4add5bae50bc11fc2c7693c9a7ed"
+            "e79f89300da81b9f7a6904d30462dac7"
+        ),
+        ".github/workflows/release-readiness.yml": (
+            "22fb9e9447770c5b463b028d9ef6195d"
+            "f53fbc99b2e8a467ba11e7a2b58b167b"
+        ),
     },
     "appolon1908-hue/Breero.com": {
         ".github/workflows/quality.yml": "68f066200e3f656c63ecabc1dcb9551d9c669eb5b3f6e5d70ab4f1960bc67043",
@@ -1312,6 +1323,7 @@ def python_source_has_runtime_mutation(source: str) -> bool:
         return ""
 
     runtime_modules = {
+        "aiosmtplib",
         "ansible",
         "azure",
         "boto3",
@@ -1321,6 +1333,7 @@ def python_source_has_runtime_mutation(source: str) -> bool:
         "fabric",
         "kubernetes",
         "paramiko",
+        "smtplib",
     }
     if any(
         value.split(".", 1)[0] in runtime_modules
@@ -1558,6 +1571,16 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
                 lowered_options[method.end() :],
             ) is None:
                 return True
+    # Module imports can rename or construct clients in arbitrary ways. Until
+    # those bindings are parsed, networking imports cannot prove read-only use.
+    if re.search(
+        r"(?:\bfrom\s*|\b(?:require|import)\s*\(\s*|\bimport\s*)"
+        r"['\"](?:axios|got|superagent|undici|node-fetch|cross-fetch|"
+        r"(?:node:)?(?:http|https|http2|net|tls)|socket\.io-client)"
+        r"(?:/[^'\"]*)?['\"]",
+        lower,
+    ):
+        return True
     client_aliases = set(
         re.findall(
             r"\b(?:const|let|var)\s+([a-z_$][a-z0-9_$]*)\s*=\s*"
@@ -3034,6 +3057,7 @@ def validate_release_validator_operations(source: str) -> None:
             name.startswith("subprocess.")
             or is_os_process_launcher(name)
             or name in prohibited_url_calls
+            or name == "urllib.request.Request"
         )
 
     def target_value_pairs(
@@ -3251,26 +3275,41 @@ def validate_release_validator_operations(source: str) -> None:
                     and function_stack[-1] in {"api_request", "download_artifact_archive"},
                     "release-intent validator opens a URL outside the evidence clients",
                 )
-                if qualified == "urllib.request.Request":
-                    require(
-                        len(node.args) < 2
-                        and not any(keyword.arg == "data" for keyword in node.keywords),
-                        "release-intent validator sends an HTTP request body",
-                    )
-                    for keyword in node.keywords:
-                        if keyword.arg == "method":
-                            require(
-                                isinstance(keyword.value, ast.Constant)
-                                and isinstance(keyword.value.value, str)
-                                and keyword.value.value.upper() in {"GET", "HEAD"},
-                                "release-intent validator uses a mutating HTTP method",
-                            )
-                else:
-                    require(
-                        len(node.args) < 2
-                        and not any(keyword.arg == "data" for keyword in node.keywords),
-                        "release-intent validator opener sends a request body",
-                    )
+                require(
+                    len(node.args) == 1
+                    and not any(isinstance(argument, ast.Starred) for argument in node.args),
+                    "evidence client uses unproved positional request arguments",
+                )
+                require(
+                    all(keyword.arg is not None for keyword in node.keywords),
+                    "evidence client uses unproved request keyword expansion",
+                )
+                for keyword in node.keywords:
+                    if keyword.arg == "data":
+                        require(
+                            isinstance(keyword.value, ast.Constant)
+                            and keyword.value.value is None,
+                            "evidence client request must not contain a body",
+                        )
+                    if keyword.arg == "method":
+                        require(
+                            qualified == "urllib.request.Request"
+                            and isinstance(keyword.value, ast.Constant)
+                            and keyword.value.value in {"GET", "HEAD"},
+                            "evidence client request method must be provably read-only",
+                        )
+            self.generic_visit(node)
+
+        def visit_Attribute(self, node: ast.Attribute) -> None:
+            require(
+                not (
+                    function_stack
+                    and function_stack[-1] in {"api_request", "download_artifact_archive"}
+                    and isinstance(node.ctx, (ast.Store, ast.Del))
+                    and node.attr in {"method", "data", "get_method"}
+                ),
+                "evidence client mutates request method or body after construction",
+            )
             self.generic_visit(node)
 
     OperationsVisitor().visit(tree)
@@ -4354,22 +4393,73 @@ open_url("https://runtime.example/mutate")
         raise ContractError(
             "negative regression unexpectedly passed: aliased URL opener"
         )
-    for unsafe_evidence_request in (
-        "import urllib.request\ndef api_request():\n"
-        "    return urllib.request.Request('https://api.github.com/repos/x/y', "
-        "method='PATCH')\n",
-        "import urllib.request\ndef download_artifact_archive():\n"
-        "    return urllib.request.Request('https://api.github.com/repos/x/y', "
-        "data=b'write')\n",
-    ):
-        try:
-            validate_release_validator_operations(unsafe_evidence_request)
-        except ContractError:
-            pass
-        else:
-            raise ContractError(
-                "negative regression unexpectedly passed: mutating evidence request"
+    for function_name in ("api_request", "download_artifact_archive"):
+        for request_arguments in (
+            "url, method='POST'", "url, data=b'payload'",
+            "url, method=method", "url, **options", "url, b'payload'",
+            "*arguments", "url, method='GET', data=b'payload'",
+        ):
+            unsafe = (
+                "import urllib.request\n"
+                f"def {function_name}():\n"
+                f"    request = urllib.request.Request({request_arguments})\n"
             )
+            try:
+                validate_release_validator_operations(unsafe)
+            except ContractError:
+                pass
+            else:
+                raise ContractError(f"mutating evidence request admitted: {request_arguments}")
+        for suffix in ("", ", method='GET'", ", method='HEAD'", ", data=None"):
+            validate_release_validator_operations(
+                "import urllib.request\n"
+                f"def {function_name}():\n"
+                f"    request = urllib.request.Request(url{suffix})\n"
+            )
+        for statement in (
+            "NO_REDIRECT_OPENER.open(request, data=b'payload')",
+            "NO_REDIRECT_OPENER.open(request, b'payload')",
+            "NO_REDIRECT_OPENER.open(request, **options)",
+            "request.method = 'POST'", "request.data = b'payload'",
+            "request.method: str = 'POST'",
+        ):
+            unsafe = (
+                "import urllib.request\n"
+                "NO_REDIRECT_OPENER = urllib.request.build_opener()\n"
+                f"def {function_name}():\n"
+                "    request = urllib.request.Request(url)\n"
+                f"    {statement}\n"
+            )
+            try:
+                validate_release_validator_operations(unsafe)
+            except ContractError:
+                pass
+            else:
+                raise ContractError(f"mutating evidence opener admitted: {statement}")
+    for source in (
+        'import transport from "axios"; transport.post(runtimeUrl, payload)',
+        'import { request as send } from "undici"; send(url, options)',
+        'import * as transport from "node:https"; transport.request(options)',
+        'const transport = require("axios"); transport.create().post(url, body)',
+        'const {default: transport} = await import("got"); transport.post(url)',
+        'import transport from "axios/dist/node/axios.cjs"; transport.post(url)',
+    ):
+        require(javascript_source_has_runtime_mutation(source),
+                f"imported network alias bypass admitted: {source}")
+    require(not javascript_source_has_runtime_mutation(
+        'import { strict as assert } from "node:assert"; assert.equal(1, 1)'
+    ), "read-only non-network import was rejected")
+    for smtp_source in (
+        "import smtplib; smtp = smtplib.SMTP('example.invalid'); "
+        "smtp.sendmail('a', 'b', 'c')",
+        "from smtplib import SMTP_SSL as Mail; "
+        "Mail('example.invalid').send_message(message)",
+        "import aiosmtplib; aiosmtplib.send(message)",
+    ):
+        require(
+            python_source_has_runtime_mutation(smtp_source),
+            "negative SMTP delivery regression passed",
+        )
     unsafe_status_writer = """import subprocess
 subprocess.run([\"gh\", \"api\", \"--method\", \"POST\"], check=True)
 """

@@ -537,17 +537,10 @@ def static_check_name(job: dict[str, Any], job_name: object, path: Path) -> str:
     if not isinstance(check_name, str):
         fail(f"{path}.jobs.{job_name}: check name must be a string")
     if "${{" in check_name:
-        target = "orchestrator-contract"
-        fragments = re.split(r"\$\{\{.*?\}\}", check_name)
-        position = 0
-        can_render_target = True
-        for fragment in fragments:
-            found = target.find(fragment, position)
-            if found < 0:
-                can_render_target = False
-                break
-            position = found + len(fragment)
-        if can_render_target:
+        # Expressions may contain delimiters in string literals. Only a literal
+        # prefix that already differs from the protected name proves separation.
+        prefix = check_name.split("${{", 1)[0].lstrip()
+        if "orchestrator-contract".startswith(prefix):
             fail(
                 f"{path}.jobs.{job_name}: dynamic check name can alias "
                 "orchestrator-contract"
@@ -583,27 +576,22 @@ def validate_orchestrator_contract_check_uniqueness(
 
 
 def validate_orchestrator_contract_check_name_regression() -> None:
-    for check_name in (
+    for name in (
         "${{ 'orchestrator-contract' }}",
         "orchestrator-${{ 'contract' }}",
+        "${{ 'orchestrator' }}-contract",
         "${{ 'orchestrator-' }}contract",
+        "or${{ 'chestrator' }}-${{ 'contract' }}",
     ):
         try:
-            static_check_name(
-                {"name": check_name},
-                "lightweight",
-                Path("synthetic.yml"),
-            )
+            static_check_name({"name": name}, "lightweight", Path("synthetic.yml"))
         except PolicyError:
-            pass
-        else:
-            fail("dynamic check-name negative regression unexpectedly passed")
-    if static_check_name(
+            continue
+        fail("dynamic check-name negative regression unexpectedly passed")
+    static_check_name(
         {"name": "release-intent / protected-${{ inputs.phase }}"},
-        "intent",
-        Path("synthetic.yml"),
-    ) != "release-intent / protected-${{ inputs.phase }}":
-        fail("non-aliasing dynamic check-name regression failed")
+        "protected", Path("synthetic.yml"),
+    )
 
 
 def validate() -> None:
