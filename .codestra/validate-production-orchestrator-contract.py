@@ -3341,23 +3341,24 @@ def validate_release_validator_gate_rechecks(source: str) -> None:
         tree = ast.parse(source, filename=str(RELEASE_VALIDATOR_PATH))
     except SyntaxError as exc:
         raise ContractError("release-intent validator is not valid Python") from exc
-    functions = {
+    functions: dict[str, ast.FunctionDef | ast.AsyncFunctionDef] = {
         node.name: node
         for node in tree.body
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
     }
     for function_name in ("main", "recheck_protected_gates"):
         function = functions.get(function_name)
-        require(function is not None, f"release-intent {function_name} function is missing")
-        calls = [
-            node
+        if function is None:
+            raise ContractError(f"release-intent {function_name} function is missing")
+        named_calls = [
+            (node, node.func.id)
             for node in ast.walk(function)
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
         ]
         gate_lines = [
             node.lineno
-            for node in calls
-            if node.func.id == "validate_repository_gates"
+            for node, name in named_calls
+            if name == "validate_repository_gates"
         ]
         require(
             len(gate_lines) >= 2,
@@ -3365,8 +3366,8 @@ def validate_release_validator_gate_rechecks(source: str) -> None:
         )
         controller_lines = [
             node.lineno
-            for node in calls
-            if node.func.id == "download_and_validate_candidate"
+            for node, name in named_calls
+            if name == "download_and_validate_candidate"
         ]
         require(
             len(controller_lines) >= 2,
@@ -3374,8 +3375,8 @@ def validate_release_validator_gate_rechecks(source: str) -> None:
         )
         slow_lines = [
             node.lineno
-            for node in calls
-            if node.func.id
+            for node, name in named_calls
+            if name
             in {
                 "download_and_validate_candidate",
                 "download_prior_evidence",
@@ -3384,23 +3385,23 @@ def validate_release_validator_gate_rechecks(source: str) -> None:
             }
         ]
         require(
-            slow_lines and max(gate_lines) > max(slow_lines),
+            bool(slow_lines) and max(gate_lines) > max(slow_lines),
             f"release-intent {function_name} revalidates gates before evidence verification finishes",
         )
         non_controller_slow_lines = [
             node.lineno
-            for node in calls
-            if node.func.id
+            for node, name in named_calls
+            if name
             in {"download_prior_evidence", "validate_prior", "verify_supply_chain"}
         ]
         require(
-            non_controller_slow_lines
+            bool(non_controller_slow_lines)
             and max(controller_lines) > max(non_controller_slow_lines),
             f"release-intent {function_name} revalidates the controller before evidence verification finishes",
         )
         require(
-            any(node.func.id == "download_prior_evidence" for node in calls)
-            and any(node.func.id == "validate_prior" for node in calls),
+            any(name == "download_prior_evidence" for _, name in named_calls)
+            and any(name == "validate_prior" for _, name in named_calls),
             f"release-intent {function_name} omits prior-phase evidence revalidation",
         )
 

@@ -211,57 +211,57 @@ EXPECTED_CHECK_WORKFLOW_SHA256 = {
 EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
     "appolon1908-hue/Infustruction-repo": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "8e1e253505988c6c2de211cf64d822a73ddbe69e214ccb990c85ab22b55a2dea",
+            ".codestra/validate-production-orchestrator-contract.py": "b6e44e6e9d4a5d5015873d02b292a1c57d8ea50175643328ac6ea32b87dad3a9",
         },
     },
     "appolon1908-hue/Keycloak": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "3eb1f9ffbdf38785d51fd6109c21e3624bbfd9fd5460ec33590571a09a77b808",
+            ".codestra/validate-production-orchestrator-contract.py": "fd5721a89ed25a4060f3d521149aa87b32af50705e0846ed5dd86b124fb0683e",
         },
     },
     "appolon1908-hue/Middleware-": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "6f49be243f0dacd7d1ea926dfe58f9a02676daf80bcb4ab7e045a63d1af2cebc",
+            ".codestra/validate-production-orchestrator-contract.py": "230fea356c904a67ec3e24935614f3ef4d6050c33853e2f19ec5e22bf1a68fd1",
         },
     },
     "appolon1908-hue/codestra": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "8e1e253505988c6c2de211cf64d822a73ddbe69e214ccb990c85ab22b55a2dea",
+            ".codestra/validate-production-orchestrator-contract.py": "b6e44e6e9d4a5d5015873d02b292a1c57d8ea50175643328ac6ea32b87dad3a9",
         },
     },
     "appolon1908-hue/beyvra-backend": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "aac2f818b650bc7061e5ba8afb903fe46ea2f4f9f7143339438d45e01279a089",
+            ".codestra/validate-production-orchestrator-contract.py": "6ef99b8889c00b308f1c5a9252129758f942647e20670734ec4b8eb024c43e0c",
         },
     },
     "appolon1908-hue/backend2": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "8e1e253505988c6c2de211cf64d822a73ddbe69e214ccb990c85ab22b55a2dea",
+            ".codestra/validate-production-orchestrator-contract.py": "b6e44e6e9d4a5d5015873d02b292a1c57d8ea50175643328ac6ea32b87dad3a9",
         },
     },
     "appolon1908-hue/beyvra-frontend": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "8e1e253505988c6c2de211cf64d822a73ddbe69e214ccb990c85ab22b55a2dea",
+            ".codestra/validate-production-orchestrator-contract.py": "b6e44e6e9d4a5d5015873d02b292a1c57d8ea50175643328ac6ea32b87dad3a9",
         },
     },
     "appolon1908-hue/scrapper": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "8e1e253505988c6c2de211cf64d822a73ddbe69e214ccb990c85ab22b55a2dea",
+            ".codestra/validate-production-orchestrator-contract.py": "b6e44e6e9d4a5d5015873d02b292a1c57d8ea50175643328ac6ea32b87dad3a9",
         },
     },
     "appolon1908-hue/Breero.com": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "8e1e253505988c6c2de211cf64d822a73ddbe69e214ccb990c85ab22b55a2dea",
+            ".codestra/validate-production-orchestrator-contract.py": "b6e44e6e9d4a5d5015873d02b292a1c57d8ea50175643328ac6ea32b87dad3a9",
         },
     },
     "appolon1908-hue/Moneybee-Backend": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "8e1e253505988c6c2de211cf64d822a73ddbe69e214ccb990c85ab22b55a2dea",
+            ".codestra/validate-production-orchestrator-contract.py": "b6e44e6e9d4a5d5015873d02b292a1c57d8ea50175643328ac6ea32b87dad3a9",
         },
     },
     "appolon1908-hue/Telnexa-web": {
         ".github/workflows/production-orchestrator-contract.yml": {
-            ".codestra/validate-production-orchestrator-contract.py": "8e1e253505988c6c2de211cf64d822a73ddbe69e214ccb990c85ab22b55a2dea",
+            ".codestra/validate-production-orchestrator-contract.py": "b6e44e6e9d4a5d5015873d02b292a1c57d8ea50175643328ac6ea32b87dad3a9",
         },
     },
 }
@@ -735,12 +735,14 @@ def validate_required_check_workflow_definitions(
     administration: bool = False,
 ) -> None:
     paths = EXPECTED_CHECK_WORKFLOWS.get(repository)
-    require(isinstance(paths, dict), "required check workflow policy is missing")
-    required_paths = {paths.get(name) for name in required_checks}
-    require(
-        None not in required_paths and all(isinstance(path, str) for path in required_paths),
-        "required check workflow policy is incomplete",
-    )
+    if not isinstance(paths, dict):
+        raise PolicyError("required check workflow policy is missing")
+    required_paths: set[str] = set()
+    for name in required_checks:
+        workflow_path = paths.get(name)
+        if not isinstance(workflow_path, str):
+            raise PolicyError("required check workflow policy is incomplete")
+        required_paths.add(workflow_path)
     for path in sorted(required_paths):
         raw = repository_file_bytes(
             repository,
