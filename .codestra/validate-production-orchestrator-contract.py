@@ -33,20 +33,20 @@ RELEASE_VALIDATOR_NON_SELF_REFERENTIAL_BINDINGS = frozenset(
     }
 )
 STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "05041e31ec14eb04ffcd3b49c9128893"
-    "20ea2248bdb02acb0e53442480c209e6"
+    "72c21ab40dfd5ec14ffe415c9f68964bc"
+    "6e58e40db49183ff3f11f3e2af0f041"
 )
 MIDDLEWARE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "83a00d6d085a482d8ca01022be54f727"
-    "9fc35eaaa2ff9e0dfac299f1eb873648"
+    "0b24b4a692ed2d77795816e362198abc9"
+    "8b83a2c59a1d118674355aa7d7dae9c"
 )
 BACKEND_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "05041e31ec14eb04ffcd3b49c9128893"
-    "20ea2248bdb02acb0e53442480c209e6"
+    "72c21ab40dfd5ec14ffe415c9f68964bc"
+    "6e58e40db49183ff3f11f3e2af0f041"
 )
 MONEYBEE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "27a76cca50847a2563c70bf88598c8c1"
-    "04467833f74ce60c67d94888c58e9871"
+    "3608e249dce5f83762b7f49a995d64db"
+    "728476309069cddad932070ec51029ff"
 )
 EXPECTED_RELEASE_VALIDATOR_SECURITY_SHA256 = {
     "appolon1908-hue/Infustruction-repo": STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256,
@@ -154,9 +154,11 @@ HTTP_MUTATION_FLAGS = {
 HTTP_MUTATION_METHODS = {"delete", "patch", "post", "put"}
 NETWORK_MUTATION_METHODS = {
     "delete",
+    "endheaders",
     "patch",
     "post",
     "put",
+    "putrequest",
     "send",
     "send_message",
     "sendall",
@@ -626,6 +628,7 @@ ALLOWED_RELEASE_VALIDATOR_IMPORTS = {
     "sys",
     "typing",
     "urllib",
+    "yaml",
     "zipfile",
 }
 
@@ -3441,8 +3444,7 @@ def job_condition(job: WorkflowJob) -> str | None:
     return value if isinstance(value, str) else None
 
 
-def job_condition_is_statically_false(job: WorkflowJob) -> bool:
-    value = job.data.get("if")
+def condition_is_statically_false(value: object) -> bool:
     if value is False or type(value) is int and value == 0:
         return True
     if not isinstance(value, str):
@@ -3453,6 +3455,10 @@ def job_condition_is_statically_false(job: WorkflowJob) -> bool:
     while expression.startswith("(") and expression.endswith(")"):
         expression = expression[1:-1]
     return expression in {"false", "!true", "nottrue", "0", "null", "''", '""'}
+
+
+def job_condition_is_statically_false(job: WorkflowJob) -> bool:
+    return condition_is_statically_false(job.data.get("if"))
 
 
 def job_executable_configuration_mutation(
@@ -3712,15 +3718,22 @@ def require_reachable_signer_workflow(workflow: str, path: str) -> None:
         ),
         f"signer workflow image publication is unreachable: {path}",
     )
-    actions = workflow_actions(workflow, path)
-    require(
-        any(
-            action.startswith(("actions/attest@", "actions/attest-build-provenance@"))
-            for action in actions
+    for publication_job in publication_jobs:
+        steps = workflow_steps(publication_job, path)
+        require(
+            any(
+                not condition_is_statically_false(step.get("if"))
+                and (
+                    isinstance(step.get("uses"), str)
+                    and str(step["uses"]).startswith(
+                        ("actions/attest@", "actions/attest-build-provenance@")
+                    )
+                    or "cosign attest" in str(step.get("run", ""))
+                )
+                for step in steps
+            ),
+            f"signer publication job has no reachable attestation step: {path}",
         )
-        or "cosign attest" in workflow,
-        f"signer workflow has no attestation step: {path}",
-    )
 
 
 def validate_intent_source_binding(intent: str) -> None:
@@ -4812,6 +4825,30 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
             raise ContractError(
                 "negative regression unexpectedly passed: unreachable signer workflow"
             )
+    split_attestation = """jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/build-push-action@0123456789012345678901234567890123456789
+        with:
+          push: true
+  attest:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/attest@0123456789012345678901234567890123456789
+"""
+    try:
+        require_reachable_signer_workflow(
+            split_attestation,
+            "synthetic-detached-attestation.yml",
+        )
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: detached attestation"
+        )
     mutations = []
 
     missing_check = deepcopy(contract)
@@ -5729,6 +5766,15 @@ PY
             "import requests\nrequests.Session().post('https://runtime.example/mutate')\n"
         ),
         "negative constructed Python client regression passed",
+    )
+    require(
+        python_source_has_runtime_mutation(
+            "import http.client\n"
+            "connection = http.client.HTTPConnection('runtime.example')\n"
+            "connection.putrequest('POST', '/mutate')\n"
+            "connection.endheaders(b'payload')\n"
+        ),
+        "negative low-level HTTP writer regression passed",
     )
     require(
         python_source_has_runtime_mutation(

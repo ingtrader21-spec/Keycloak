@@ -210,20 +210,20 @@ EXPECTED_CHECK_WORKFLOW_SHA256 = {
     },
 }
 SHARED_PRODUCTION_VALIDATOR_SHA256 = (
-    "3e2b700668b19938cb2a6f7eb9c206e7"
-    "053b6449150d1a443b5f77840fab68f1"
+    "ccf5b0251bfcf0913d317b810aed005a"
+    "8d6310e08a42589880f93b37a7ad7fe5"
 )
 KEYCLOAK_PRODUCTION_VALIDATOR_SHA256 = (
-    "edeadcdae54e30f1c046e06226165bb6"
-    "87b9ac4c1a6dcccd42fa9a4c656373a0"
+    "0fb33aee587fba00d70b80bf46a44ecc"
+    "8f42287862774551ba860cc782a4b868"
 )
 MIDDLEWARE_PRODUCTION_VALIDATOR_SHA256 = (
-    "c3c5483c9e81fede88dcca2bf4ebb0db"
-    "35f6ee1b3b4d824403014aec0d4d33ba"
+    "acee8c4cb4cc955ab6b32489873a6957"
+    "efde41dd897427c28f229db43e957828"
 )
 BACKEND_PRODUCTION_VALIDATOR_SHA256 = (
-    "b24586722ca48a91160e55a3e5c5a9f8"
-    "fca680433aa9c90ccfb20252889fc5bd"
+    "c333b7324403cc2c47d7bb07f12ed16c"
+    "16ee235a09ec0af1881ade429ab4b514"
 )
 EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
     "appolon1908-hue/Infustruction-repo": {
@@ -371,48 +371,48 @@ EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
 RELEASE_VALIDATOR_SOURCE_PATH = ".codestra/validate-release-intent.py"
 EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256 = {
     "appolon1908-hue/Infustruction-repo": (
-        "29bd5c05599cb7c6fae8fd1e2f7883f6"
-        "34d0625cae42b615b322162a4bf3f470"
+        "da33af59aa3b19c4b6693537d881e039"
+        "81ec1942e8e10fd842b14d867f4ac14a"
     ),
     "appolon1908-hue/Keycloak": (
-        "0c32779ed78e6d9d74dec84fd1f520c0"
-        "6828bc7398d560a66e4a96c02d2026f4"
+        "efbb3eb51d3311e005c76763a3e6276f"
+        "efaef279da6952985a8e9d32acc0ae8b"
     ),
     "appolon1908-hue/Middleware-": (
-        "1df4100ec25aa39f91d11885543a3575"
-        "d8dbaeda6f746f8dd27251dd0d9f3eb3"
+        "04945ec7e477eae0928a5bb836ddbf8c"
+        "22c781e86756c5278a1bbced3a487afb"
     ),
     "appolon1908-hue/codestra": (
-        "257f9f76b3f745ab97611f8aea89aa4d"
-        "998f6fc5119281817dc77ae09a0dc3f5"
+        "5a6d2e7c761dc4a66f9aea6bc28c479"
+        "65ec2df64bde5d946080049d9864c839f"
     ),
     "appolon1908-hue/beyvra-backend": (
-        "d8a0c32163f06d936e1d5ed62dafe1d9"
-        "b0cd0f37b8120c6a8a84cfbe8938e6c0"
+        "e05ad011412f1f58e73c8af6ff03ff88"
+        "8fefb248e26b4498385c9b2bc1ef0969"
     ),
     "appolon1908-hue/backend2": (
-        "7de08fb79da63b35be538bf5613717ed"
-        "2da4db61458356260513ca3440e52b6e"
+        "49c8f916eaa8979ca560773880b964fb"
+        "ef15ef1050e41223f14d5b80cd136136"
     ),
     "appolon1908-hue/beyvra-frontend": (
-        "41a9c89a01bb7660bbe8f20a3bfc9c46"
-        "30704cf0a6dfc11ac36f4af97173e2cc"
+        "03361f507c2650f73eb64475b61cd2f0"
+        "498c056e1649ea24aa5e277e655e9308"
     ),
     "appolon1908-hue/scrapper": (
-        "b00ef85b1ef5544be1d576e9b6eb3e38"
-        "6fa5d1c4af0e053beb7dbf1d6e23dd9f"
+        "463af787585e287fe4c4a0467c4ebe23"
+        "e3f9af7189eaf59b05a9b8f040b9bdee"
     ),
     "appolon1908-hue/Breero.com": (
-        "9d3983d1dac3ac8636ed228027517854"
-        "7c4fc87970ec4991d96e5bb6d3e3e78f"
+        "2df07ec5418fefa84ce5af3327c5c94e"
+        "e95c20cf12a285773dcfa8f8b3397ca9"
     ),
     "appolon1908-hue/Moneybee-Backend": (
-        "cd76eee5447c4e4697ff360cae1cd323"
-        "5ae405f9868e6f5037209d2d1a59ee35"
+        "0fc54018729f6a2ec9be39dcb8f5dc82"
+        "6d3b632e71ae3d57902dc71edb07dadf"
     ),
     "appolon1908-hue/Telnexa-web": (
-        "a5a52982cd0f75a2a215894e1b8640af"
-        "5aad35bfae7a448349cebe06b301a05a"
+        "7a788ba47e20c2e42e2b70d2b5a4fa3e"
+        "d01641a0b1ff728e1fa2fa8878a9399f"
     ),
     CONTROLLER_REPOSITORY: (
         "4c7b54aa7cd59ac09703d235a264b830"
@@ -798,11 +798,39 @@ def validate_workflow_action_references(path: str, raw: bytes) -> None:
         source = raw.decode("utf-8")
     except UnicodeDecodeError as error:
         raise PolicyError(f"required check workflow is not UTF-8: {path}") from error
-    references = re.findall(
-        r"(?m)^\s*(?:-\s*)?uses:\s*([^\s#]+)",
-        source,
-    )
+    try:
+        import yaml  # type: ignore[import-untyped]
+    except ModuleNotFoundError as error:
+        raise PolicyError("pinned workflow parser is unavailable") from error
+    try:
+        document = yaml.safe_load(source)
+    except yaml.YAMLError as error:
+        raise PolicyError(f"required check workflow YAML is invalid: {path}") from error
+    require(isinstance(document, dict), f"required check workflow is invalid: {path}")
+    jobs = document.get("jobs")
+    require(isinstance(jobs, dict) and bool(jobs), f"required check jobs are invalid: {path}")
+    references: list[str] = []
+    for job in jobs.values():
+        require(isinstance(job, dict), f"required check job is invalid: {path}")
+        if "uses" in job:
+            require(
+                isinstance(job["uses"], str) and bool(job["uses"]),
+                f"required check reusable workflow reference is invalid: {path}",
+            )
+            references.append(job["uses"])
+        steps = job.get("steps", [])
+        require(isinstance(steps, list), f"required check steps are invalid: {path}")
+        for step in steps:
+            require(isinstance(step, dict), f"required check step is invalid: {path}")
+            if "uses" not in step:
+                continue
+            require(
+                isinstance(step["uses"], str) and bool(step["uses"]),
+                f"required check action reference is invalid: {path}",
+            )
+            references.append(step["uses"])
     for reference in references:
+        reference = reference.split(" #", 1)[0].strip()
         if reference.startswith("./"):
             continue
         if reference.startswith("docker://"):
@@ -1869,22 +1897,24 @@ def self_test() -> int:
     validate_workflow_action_references(
         "synthetic-required-check.yml",
         (
-            b"steps:\n"
-            b"  - uses: actions/checkout@0123456789012345678901234567890123456789\n"
-            b"  - uses: ./.github/actions/local-check\n"
-            b"  - uses: docker://example/check@sha256:"
+            b"jobs:\n  test:\n    steps:\n"
+            b"      - uses: actions/checkout@0123456789012345678901234567890123456789\n"
+            b"      - uses: ./.github/actions/local-check\n"
+            b"      - uses: docker://example/check@sha256:"
             + b"a" * 64
             + b"\n"
         ),
     )
-    for mutable_reference in (
-        b"actions/checkout@v7",
-        b"docker://example/check:latest",
+    for mutable_workflow in (
+        b"jobs:\n  test:\n    steps:\n      - uses: actions/checkout@v7\n",
+        b"jobs:\n  test:\n    steps:\n      - uses: docker://example/check:latest\n",
+        b"jobs: {test: {steps: [{uses: owner/action@v1}]}}\n",
+        b"jobs:\n  test:\n    steps:\n      - {'uses': owner/action@main}\n",
     ):
         try:
             validate_workflow_action_references(
                 "synthetic-required-check.yml",
-                b"steps:\n  - uses: " + mutable_reference + b"\n",
+                mutable_workflow,
             )
         except PolicyError:
             pass
