@@ -33,8 +33,8 @@ RELEASE_VALIDATOR_NON_SELF_REFERENTIAL_BINDINGS = frozenset(
     }
 )
 STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "1b01e26adee8863b4f8e26e4531bcf51"
-    "2b21bf5456478e0ae14fde4016b8ba4c"
+    "eedd2d8f985ebc5d8a7381946a0a532e"
+    "c9470d519c78667f567f8cb9b6ffba0a"
 )
 MIDDLEWARE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
     "dc82cab6204271d236a558e29556b1eec"
@@ -171,6 +171,7 @@ NETWORK_CLIENT_HINTS = {
     "api",
     "api_client",
     "client",
+    "conn",
     "connection",
     "http",
     "http_client",
@@ -1903,6 +1904,12 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
         while True:
             while open_index < len(lower) and lower[open_index].isspace():
                 open_index += 1
+            if lower.startswith("//", open_index):
+                newline = lower.find("\n", open_index + 2)
+                if newline < 0:
+                    return True
+                open_index = newline + 1
+                continue
             if not lower.startswith("/*", open_index):
                 break
             comment_end = lower.find("*/", open_index + 2)
@@ -1922,6 +1929,15 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
             # modules behind an otherwise arbitrary binding.
             return True
 
+    # Unknown loader callables can evaluate executable built-in modules even
+    # when the loader name is not literally `require` or `import`.
+    if re.search(
+        r"\b[a-z_$][a-z0-9_$]*\s*\(\s*(['\"])[^'\"]*"
+        r"(?:child[_-]?process|(?:node:)?(?:http|https|net|tls))[^'\"]*\1",
+        lower,
+    ):
+        return True
+
     if any(
         marker in lower
         for marker in (
@@ -1934,6 +1950,12 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
     ):
         # Destructuring and ordinary assignments can rename every launcher;
         # without a JavaScript AST, child-process access is not provably safe.
+        return True
+    if re.search(
+        r"\brequire\s*(?:/\*.*?\*/\s*)?\(\s*['\"]child_process['\"]",
+        lower,
+        re.DOTALL,
+    ):
         return True
     if "getbuiltinmodule" in lower:
         # Dynamic built-in access can recover child_process without an import.
