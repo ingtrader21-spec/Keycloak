@@ -100,6 +100,31 @@ RUNTIME_TOOLS = {
 }
 SHELL_INTERPRETERS = {"bash", "dash", "eval", "ksh", "sh", "zsh"}
 SCRIPT_INTERPRETERS = {"node", "perl", "php", "python", "python3", "ruby"}
+SAFE_EXTERNAL_PYTHON_MODULES = {
+    "compileall",
+    "http.server",
+    "json.tool",
+    "pip",
+    "py_compile",
+    "pytest",
+    "ruff",
+    "unittest",
+    "venv",
+}
+EXECUTABLE_STARTUP_ENV = {
+    "BASH_ENV",
+    "ENV",
+    "LD_LIBRARY_PATH",
+    "LD_PRELOAD",
+    "NODE_OPTIONS",
+    "PATH",
+    "PERL5OPT",
+    "PYTHONHOME",
+    "PYTHONINSPECT",
+    "PYTHONPATH",
+    "PYTHONSTARTUP",
+    "RUBYOPT",
+}
 SHELL_WRAPPERS = {
     "!",
     "builtin",
@@ -111,7 +136,11 @@ SHELL_WRAPPERS = {
     "ionice",
     "nice",
     "nohup",
+    "parallel",
+    "run-parts",
+    "setpriv",
     "setsid",
+    "sg",
     "stdbuf",
     "sudo",
     "systemd-run",
@@ -169,6 +198,7 @@ KUBECTL_MUTATIONS = {
     "cp",
     "create",
     "delete",
+    "debug",
     "drain",
     "edit",
     "exec",
@@ -205,10 +235,13 @@ NETWORK_MUTATION_METHODS = {
     "connect_ex",
     "delete",
     "endheaders",
+    "mkd",
     "patch",
     "post",
     "put",
     "putrequest",
+    "rename",
+    "rmd",
     "send",
     "sendfile",
     "sendmsg",
@@ -216,6 +249,10 @@ NETWORK_MUTATION_METHODS = {
     "sendall",
     "sendto",
     "sendmail",
+    "sendcmd",
+    "storbinary",
+    "storlines",
+    "voidcmd",
     "write",
     "writelines",
 }
@@ -225,6 +262,8 @@ NETWORK_CLIENT_HINTS = {
     "api_client",
     "client",
     "connection",
+    "ftp",
+    "ftplib",
     "http",
     "http_client",
     "httpx",
@@ -238,17 +277,28 @@ NETWORK_CLIENT_HINTS = {
 }
 DATABASE_MUTATION_METHODS = {
     "add",
+    "bulk_write",
     "bulk_insert_mappings",
     "bulk_save_objects",
     "commit",
     "create",
     "delete",
+    "delete_many",
+    "delete_one",
     "executemany",
     "flush",
+    "find_one_and_delete",
+    "find_one_and_replace",
+    "find_one_and_update",
     "insert",
+    "insert_many",
+    "insert_one",
     "save",
     "update",
+    "update_many",
+    "update_one",
     "upsert",
+    "replace_one",
 }
 DATABASE_CLIENT_HINTS = {
     "asyncpg",
@@ -258,8 +308,11 @@ DATABASE_CLIENT_HINTS = {
     "database",
     "db",
     "engine",
+    "mongo",
+    "mongodb",
     "psycopg",
     "psycopg2",
+    "pymongo",
     "pymysql",
     "session",
     "sqlalchemy",
@@ -1699,6 +1752,42 @@ def python_source_has_runtime_mutation(
                 if isinstance(child, ast.Return) and child.value is not None
             ]
 
+    def binding_root(node: ast.expr) -> str | None:
+        while isinstance(node, (ast.Attribute, ast.Subscript)):
+            node = node.value
+        return node.id if isinstance(node, ast.Name) else None
+
+    mutated_command_bindings: set[str] = set()
+    command_mutators = {
+        "__delitem__",
+        "__iadd__",
+        "__imul__",
+        "__setitem__",
+        "append",
+        "clear",
+        "extend",
+        "insert",
+        "pop",
+        "remove",
+        "reverse",
+        "sort",
+    }
+    for node in ast.walk(tree):
+        targets: list[ast.expr] = []
+        if isinstance(node, ast.Assign):
+            targets = list(node.targets)
+        elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
+            targets = [node.target]
+        for target in targets:
+            if isinstance(target, (ast.Attribute, ast.Subscript)):
+                root = binding_root(target)
+                if root in command_bindings:
+                    mutated_command_bindings.add(root)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+            root = binding_root(node.func.value)
+            if root in command_bindings and node.func.attr in command_mutators:
+                mutated_command_bindings.add(root)
+
     def qualified_name(node: ast.expr, seen: frozenset[str] = frozenset()) -> str:
         if isinstance(node, ast.Name):
             if node.id in command_bindings and node.id not in seen:
@@ -1762,6 +1851,8 @@ def python_source_has_runtime_mutation(
                 if -len(node.value.elts) <= index < len(node.value.elts):
                     return qualified_name(node.value.elts[index], seen)
             return ""
+        if isinstance(node, ast.Lambda):
+            return qualified_name(node.body, seen)
         if isinstance(node, ast.NamedExpr):
             return qualified_name(node.value, seen)
         return ""
@@ -1838,6 +1929,7 @@ def python_source_has_runtime_mutation(
         "fabric",
         "kubernetes",
         "paramiko",
+        "posix",
         "pty",
         "runpy",
         "smtplib",
@@ -2056,6 +2148,8 @@ def python_source_has_runtime_mutation(
                 return True
             argument = node.args[0]
             if isinstance(argument, ast.Name) and argument.id in command_bindings:
+                if argument.id in mutated_command_bindings:
+                    return True
                 bindings = command_bindings[argument.id]
                 if len(bindings) != 1:
                     return True
@@ -2261,9 +2355,16 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
         )
     )
     if any(
-        re.search(rf"\b{re.escape(alias)}\s*\.\s*send\s*\(", lower)
+        re.search(
+            rf"\b{re.escape(alias)}\s*(?:\.\s*send|\[\s*['\"]send['\"]\s*\])\s*\(",
+            lower,
+        )
         for alias in websocket_aliases
     ):
+        return True
+    if re.search(r"\b(?:globalthis|window|self)\s*\[", lower):
+        # Computed global access can assemble fetch, WebSocket, or another
+        # network primitive without leaving a literal identifier to inspect.
         return True
     for match in re.finditer(r"\bfetch\b", lower):
         open_index = match.end()
@@ -2885,6 +2986,21 @@ def interpreter_module_target(
     return None
 
 
+def interpreter_module_name(tokens: list[str], index: int) -> str | None:
+    if executable_name(tokens[index]) not in {"python", "python3"}:
+        return None
+    for option_index in range(index + 1, len(tokens)):
+        token = tokens[option_index]
+        if shell_separator_token(token):
+            break
+        if token != "-m":
+            continue
+        if option_index + 1 >= len(tokens) or "$" in tokens[option_index + 1]:
+            return ""
+        return tokens[option_index + 1]
+    return None
+
+
 def interpreter_module_arguments(tokens: list[str], index: int) -> list[str]:
     for option_index in range(index + 1, len(tokens)):
         token = tokens[option_index]
@@ -3398,7 +3514,8 @@ def contains_runtime_mutation(
     if seen_scripts is None:
         seen_scripts = set()
     if "$GITHUB_ENV" in script and re.search(
-        r"\b(?:BASH_ENV|ENV|PATH)\s*=",
+        r"\b(?:BASH_ENV|ENV|LD_LIBRARY_PATH|LD_PRELOAD|NODE_OPTIONS|PATH|"
+        r"PERL5OPT|PYTHONHOME|PYTHONINSPECT|PYTHONPATH|PYTHONSTARTUP|RUBYOPT)\s*=",
         script,
         re.IGNORECASE,
     ):
@@ -3432,7 +3549,7 @@ def contains_runtime_mutation(
         return True
     for index in command_indexes(tokens):
         bindings = shell_command_bindings(tokens, index)
-        if any(key.upper() in {"BASH_ENV", "ENV", "PATH"} for key in bindings):
+        if any(key.upper() in EXECUTABLE_STARTUP_ENV for key in bindings):
             return True
         command_token = resolved_command_token(tokens[index], bindings)
         name = executable_name(command_token)
@@ -3466,7 +3583,17 @@ def contains_runtime_mutation(
                 working_directory,
             ):
                 return True
+        module_name = interpreter_module_name(tokens, index)
         module_target = interpreter_module_target(tokens, index, working_directory)
+        if module_name is not None and (
+            not module_name
+            or module_target is None
+            and module_name not in SAFE_EXTERNAL_PYTHON_MODULES
+        ):
+            # Installed module entry points can execute arbitrary startup and
+            # migration logic. Only explicitly read-only standard/tooling
+            # modules may remain outside the repository dependency closure.
+            return True
         if (
             module_target is not None
             and not approved_read_only_script_invocation(
@@ -3983,7 +4110,18 @@ def contains_image_publication(step: dict[str, Any]) -> bool:
             return False
         if normalized.startswith("actions/attest-build-provenance@"):
             return inputs.get("push-to-registry", False) not in {False, "false"}
-    raw_tokens = shell_tokens(str(step.get("run", "")))
+    run = str(step.get("run", ""))
+    if re.search(
+        r"(?ms)^\s*(?:function\s+)?[A-Za-z_][A-Za-z0-9_]*\s*"
+        r"(?:\(\s*\))?\s*\{.*?\b(?:docker|podman)\b",
+        run,
+    ):
+        # A shell function can forward or synthesize a later `push` operation,
+        # while token inspection sees only the function invocation. Without a
+        # shell AST, a container CLI inside a function is not provably
+        # publication-free.
+        return True
+    raw_tokens = shell_tokens(run)
     tokens = [executable_name(item).lower() for item in raw_tokens]
     for index in command_indexes(raw_tokens):
         name = tokens[index]
@@ -4417,10 +4555,24 @@ def step_has_runtime_mutation(
             "repository",
             "",
         )
-    if hashlib.sha256(run.encode()).hexdigest() in APPROVED_OFFLINE_RUN_SHA256.get(
-        repository,
-        {},
-    ).get(path, frozenset()):
+    approved_offline = hashlib.sha256(
+        run.encode()
+    ).hexdigest() in APPROVED_OFFLINE_RUN_SHA256.get(repository, {}).get(
+        path,
+        frozenset(),
+    )
+    if approved_offline:
+        # The exception binds the complete execution envelope, not only the
+        # run bytes. Environment or shell changes can turn the same fixture
+        # into an executable preload or redirect its fake tools.
+        if (
+            set(step) != {"name", "run", "shell"}
+            or step.get("shell") != "bash"
+            or job.shell is not None
+            or job.working_directory is not None
+            or "env" in job.data
+        ):
+            return True
         return False
     shell = step.get("shell", job.shell)
     if shell is not None:
@@ -5342,19 +5494,28 @@ def validate_release_validator_operations(source: str) -> None:
     }
     command_bindings: dict[tuple[int, str], set[tuple[str, ...]]] = {}
     opener_bindings: set[str] = set()
+    restricted_callable_roots = {
+        "posix.popen",
+        "posix.posix_spawn",
+        "posix.posix_spawnp",
+        "posix.spawn",
+        "posix.spawnp",
+        "posix.system",
+        "subprocess.Popen",
+        "subprocess.call",
+        "subprocess.check_call",
+        "subprocess.check_output",
+        "subprocess.getoutput",
+        "subprocess.getstatusoutput",
+        "subprocess.run",
+    }
 
     def restricted_callable_name(name: str) -> bool:
         return (
-            name
-            in {
-                "subprocess.Popen",
-                "subprocess.call",
-                "subprocess.check_call",
-                "subprocess.check_output",
-                "subprocess.getoutput",
-                "subprocess.getstatusoutput",
-                "subprocess.run",
-            }
+            any(
+                name == root or name.startswith(f"{root}.")
+                for root in restricted_callable_roots
+            )
             or is_os_process_launcher(name)
             or name in {"os.popen", "os.system"}
             or name.startswith(("os.popen.", "os.system."))
@@ -5363,7 +5524,15 @@ def validate_release_validator_operations(source: str) -> None:
         )
 
     def restricted_module_name(name: str) -> bool:
-        return name in {"asyncio", "os", "subprocess", "urllib.request"}
+        return name in {
+            "asyncio",
+            "ftplib",
+            "os",
+            "posix",
+            "pymongo",
+            "subprocess",
+            "urllib.request",
+        }
 
     def expression_has_restricted_callable(value: ast.expr) -> bool:
         invoked = {
@@ -5708,7 +5877,8 @@ def validate_release_validator_operations(source: str) -> None:
                             "sort",
                         }
                     ),
-                    "release-intent validator mutates an allowlisted command",
+                    "release-intent validator mutates an allowlisted command "
+                    f"at line {node.lineno}",
                 )
             require(
                 qualified
@@ -6542,6 +6712,23 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
         "unresolved database writer": (
             "import psycopg\nc=psycopg.connect('dsn'); c.execute('DELETE FROM x'); c.commit()\n"
         ),
+        "MongoDB writer": (
+            "import pymongo\nclient=pymongo.MongoClient('mongodb://runtime')\n"
+            "client.db.users.delete_many({})\n"
+        ),
+        "FTP writer": (
+            "import ftplib\nftp=ftplib.FTP('runtime')\n"
+            "ftp.storbinary('STOR payload', open('payload','rb'))\n"
+        ),
+        "posix launcher": "import posix\nposix.system('kubectl apply -f x')\n",
+        "mutated command binding": (
+            "import subprocess\ncmd=['echo']; cmd.clear(); "
+            "cmd.extend(['kubectl','apply']); subprocess.run(cmd)\n"
+        ),
+        "lambda socket factory": (
+            "import socket\nfactory=lambda: socket.socket(); "
+            "channel=factory(); channel.sendto(b'x', ('runtime', 9))\n"
+        ),
     }
     for name, source in python_mutation_regressions.items():
         require(
@@ -6562,6 +6749,12 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
             "const d=require('node:dgram'); const s=d.createSocket('udp4'); "
             "s.send('x',1,'host')"
         ),
+        "computed WebSocket send": (
+            "const ws=new WebSocket(url); ws['send'](payload)"
+        ),
+        "computed global fetch": (
+            "globalThis['fe'+'tch'](url,{method:'POST',body:data})"
+        ),
     }
     for name, source in javascript_mutation_regressions.items():
         require(
@@ -6571,12 +6764,19 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
 
     for command in (
         "kubectl edit deployment/api",
+        "kubectl debug node/runtime-node --image=busybox",
         "prlimit -- kubectl apply -f runtime.yml",
+        "parallel sh -c 'kubectl apply -f runtime.yml' -- one",
+        "run-parts ./runtime-hooks",
+        "setpriv --no-new-privs kubectl apply -f runtime.yml",
+        "sg runtime -c 'kubectl apply -f runtime.yml'",
         "docker stop prod",
         "podman restart prod",
         'op=run; docker "$op" --rm image',
         "PATH=./tools:$PATH git status",
         "printf 'BASH_ENV=/tmp/hook\\n' >> \"$GITHUB_ENV\"",
+        "NODE_OPTIONS=--require=./mutate.cjs node -e '0'",
+        "python3 -m django migrate --settings=CORE.settings",
     ):
         require(
             contains_runtime_mutation(command),
@@ -7940,6 +8140,18 @@ runner(["kubectl", "apply", "-f", "runtime.yml"], check=True)
         raise ContractError(
             "negative regression unexpectedly passed: assigned subprocess callable"
         )
+    unsafe_chained_callable_validator = """import subprocess
+runner = subprocess.run.__call__
+runner(["kubectl", "apply", "-f", "runtime.yml"], check=True)
+"""
+    try:
+        validate_release_validator_operations(unsafe_chained_callable_validator)
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: chained subprocess callable"
+        )
     for returned in ("(subprocess.run,)[0]", "{'runner': subprocess.run}['runner']"):
         unsafe = f"import subprocess\ndef helper():\n    return {returned}\nrunner = helper()\nrunner(['kubectl', 'apply'])\n"
         try:
@@ -8391,6 +8603,7 @@ subprocess.run(["docker", "buildx", "build", "--push", "."], check=True)
         "docker buildx build -o type=image,name=ghcr.io/example/image,push=true .",
         "docker buildx bake --push",
         "docker buildx imagetools create --tag ghcr.io/example/image:release source@sha256:deadbeef",
+        "publish() { docker \"$@\"; }\npublish push ghcr.io/example/image:release",
     ):
         require(
             contains_image_publication({"run": run}),
