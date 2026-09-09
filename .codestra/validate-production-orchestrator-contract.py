@@ -1345,6 +1345,8 @@ def python_source_has_runtime_mutation(source: str) -> bool:
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
+        if isinstance(node.func, (ast.NamedExpr, ast.Subscript)):
+            return True
         if isinstance(node.func, ast.Call):
             return True
         qualified = qualified_name(node.func)
@@ -1422,12 +1424,19 @@ def python_source_has_runtime_mutation(source: str) -> bool:
             or qualified.startswith("os.exec")
             or qualified.startswith("os.spawn")
             or qualified in {"os.posix_spawn", "os.posix_spawnp"}
+            or qualified
+            in {
+                "asyncio.create_subprocess_exec",
+                "asyncio.create_subprocess_shell",
+            }
             or qualified.startswith("subprocess.")
         ):
             # os.exec* and os.spawn* have multiple incompatible argument
             # layouts. They replace or launch a process, so reject them
             # conservatively instead of risking a skipped executable argument.
             if qualified.startswith(("os.exec", "os.spawn")) or qualified in {
+                "asyncio.create_subprocess_exec",
+                "asyncio.create_subprocess_shell",
                 "os.posix_spawn",
                 "os.posix_spawnp",
             }:
@@ -1563,6 +1572,9 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
                 # An identifier or computed expression can conceal POST data.
                 return True
             lowered_options = options.lower()
+            if "..." in lowered_options:
+                # Object spread can conceal a body or mutating method.
+                return True
             if re.search(r"\bbody\s*:", lowered_options):
                 return True
             method = re.search(r"\bmethod\s*:", lowered_options)
@@ -3040,7 +3052,13 @@ def validate_release_validator_operations(source: str) -> None:
         return (
             name.startswith("os.exec")
             or name.startswith("os.spawn")
-            or name in {"os.posix_spawn", "os.posix_spawnp"}
+            or name
+            in {
+                "asyncio.create_subprocess_exec",
+                "asyncio.create_subprocess_shell",
+                "os.posix_spawn",
+                "os.posix_spawnp",
+            }
         )
 
     prohibited_url_calls = {
@@ -3214,6 +3232,10 @@ def validate_release_validator_operations(source: str) -> None:
             self.generic_visit(node)
 
         def visit_Call(self, node: ast.Call) -> None:
+            require(
+                isinstance(node.func, (ast.Name, ast.Attribute)),
+                "release-intent validator calls an unresolved callable expression",
+            )
             qualified = qualified_name(node.func)
             if isinstance(node.func, ast.Attribute):
                 require(
@@ -4180,6 +4202,20 @@ PY
     )
     require(
         python_source_has_runtime_mutation(
+            "import asyncio\nasyncio.run(asyncio.create_subprocess_exec("
+            "'kubectl', 'apply'))\n"
+        ),
+        "negative Python asyncio subprocess regression passed",
+    )
+    require(
+        python_source_has_runtime_mutation(
+            "import subprocess\n"
+            "subprocess.__dict__['run'](['kubectl', 'apply'])\n"
+        ),
+        "negative subscripted Python launcher regression passed",
+    )
+    require(
+        python_source_has_runtime_mutation(
             "import subprocess\nlaunch = subprocess.run\n"
             "launch(['kubectl', 'apply', '-f', 'runtime.yml'], check=True)\n"
         ),
@@ -4230,6 +4266,8 @@ PY
         "const write = fetch; await write('/mutate', {method: 'POST'})\n",
         "await fetch(new URL(endpoint), {method: 'POST', body})\n",
         "const options = {method: 'POST', body: data}; fetch(url, options)\n",
+        "const options = {method: 'POST', body: data}; "
+        "fetch(url, {...options})\n",
         "import https from 'node:https'; "
         "https.request({method: 'POST'}, callback).end()\n",
         'const {exec: run} = require("node:child_process"); '
@@ -4327,6 +4365,21 @@ runner(["kubectl", "apply", "-f", "runtime.yml"], check=True)
         else:
             raise ContractError(
                 "negative regression unexpectedly passed: indirect restricted callable"
+            )
+    for unresolved_callable_validator in (
+        "import subprocess\nsubprocess.__dict__['run'](['kubectl', 'apply'])\n",
+        "import subprocess\n"
+        "(runner := subprocess.run)(['kubectl', 'apply'])\n",
+        "import asyncio\nasyncio.run(asyncio.create_subprocess_exec("
+        "'kubectl', 'apply'))\n",
+    ):
+        try:
+            validate_release_validator_operations(unresolved_callable_validator)
+        except ContractError:
+            pass
+        else:
+            raise ContractError(
+                "negative regression unexpectedly passed: unresolved callable"
             )
     for unsafe_dynamic_validator in (
         "import subprocess\nrunner = getattr(subprocess, 'run')\n"

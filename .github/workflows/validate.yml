@@ -242,9 +242,5 @@ jobs:
         run: |
           set -Eeuo pipefail
           test "$SOURCE_RESULT" = success
-          if [[ "$EVENT_NAME" == pull_request ]]; then
-            test "$MERGE_RESULT" = success
-          else
-            test "$EVENT_NAME" = push
-            test "$MERGE_RESULT" = skipped
-          fi
+          [[ "$EVENT_NAME" == pull_request || "$EVENT_NAME" == push ]]
+          test "$MERGE_RESULT" = success

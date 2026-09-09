@@ -15,9 +15,11 @@ class AggregateTests(unittest.TestCase):
         states = ['success', 'failure', 'cancelled', 'skipped']
         for event in ['pull_request', 'push', 'workflow_dispatch']:
             for source, merge in itertools.product(states, repeat=2):
-                expected = source == 'success' and (
-                    event == 'pull_request' and merge == 'success' or
-                    event == 'push' and merge == 'skipped')
+                expected = (
+                    event in {'pull_request', 'push'}
+                    and source == 'success'
+                    and merge == 'success'
+                )
                 with self.subTest(event=event, source=source, merge=merge):
                     result = subprocess.run(['bash', '-c', script], env={
                         **os.environ, 'EVENT_NAME': event, 'SOURCE_RESULT': source,
