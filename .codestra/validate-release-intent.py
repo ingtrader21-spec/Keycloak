@@ -210,20 +210,20 @@ EXPECTED_CHECK_WORKFLOW_SHA256 = {
     },
 }
 SHARED_PRODUCTION_VALIDATOR_SHA256 = (
-    "ccf5b0251bfcf0913d317b810aed005a"
-    "8d6310e08a42589880f93b37a7ad7fe5"
+    "d0f2c40cf71c8644f2004b5be6ebc7b7"
+    "fb08fd5fa20dd00ad2422b2659b3b174"
 )
 KEYCLOAK_PRODUCTION_VALIDATOR_SHA256 = (
-    "0fb33aee587fba00d70b80bf46a44ecc"
-    "8f42287862774551ba860cc782a4b868"
+    "56d4f41a8ad4be303606909c0133e987"
+    "43a9f9e8b86dcdccc461784d37ed3af3"
 )
 MIDDLEWARE_PRODUCTION_VALIDATOR_SHA256 = (
-    "acee8c4cb4cc955ab6b32489873a6957"
-    "efde41dd897427c28f229db43e957828"
+    "73da79434cc4d6b116c6791e4845488f"
+    "ae1f19db306367bfd9d2826ab8211c92"
 )
 BACKEND_PRODUCTION_VALIDATOR_SHA256 = (
-    "c333b7324403cc2c47d7bb07f12ed16c"
-    "16ee235a09ec0af1881ade429ab4b514"
+    "8dfa0e73c359d509a169abecef0b9d09"
+    "f2172325dfeb5f8d73843ac843c19ae2"
 )
 EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
     "appolon1908-hue/Infustruction-repo": {
@@ -371,48 +371,48 @@ EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
 RELEASE_VALIDATOR_SOURCE_PATH = ".codestra/validate-release-intent.py"
 EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256 = {
     "appolon1908-hue/Infustruction-repo": (
-        "da33af59aa3b19c4b6693537d881e039"
-        "81ec1942e8e10fd842b14d867f4ac14a"
+        "b39640e1597bce0c97b2dafe5472bcfa"
+        "a0a48b67b57d78642dd5c8cfe6f287ce"
     ),
     "appolon1908-hue/Keycloak": (
-        "efbb3eb51d3311e005c76763a3e6276f"
-        "efaef279da6952985a8e9d32acc0ae8b"
+        "9c1788c7c87172e0cb09272454566cf8"
+        "ce4c6005641a96271052aff7a5344d1c"
     ),
     "appolon1908-hue/Middleware-": (
-        "04945ec7e477eae0928a5bb836ddbf8c"
-        "22c781e86756c5278a1bbced3a487afb"
+        "30ca1af10df4a8a377bc33e4a75b966f"
+        "138d59a6a0795fa30c03d37009810613"
     ),
     "appolon1908-hue/codestra": (
-        "5a6d2e7c761dc4a66f9aea6bc28c479"
-        "65ec2df64bde5d946080049d9864c839f"
+        "1d9d0f1c629d35b67e2abb7a1a1f84b"
+        "8920894fc8da73f5b9632dc4e017f1597"
     ),
     "appolon1908-hue/beyvra-backend": (
-        "e05ad011412f1f58e73c8af6ff03ff88"
-        "8fefb248e26b4498385c9b2bc1ef0969"
+        "b45001d69d5b919fe1bb821212235ebf"
+        "eb4388c303a6fad3087eace9784b423f"
     ),
     "appolon1908-hue/backend2": (
-        "49c8f916eaa8979ca560773880b964fb"
-        "ef15ef1050e41223f14d5b80cd136136"
+        "d47cd3608bbbb15781d1944471eda72c"
+        "c314e2db7d0863f378b40e42e14e393a"
     ),
     "appolon1908-hue/beyvra-frontend": (
-        "03361f507c2650f73eb64475b61cd2f0"
-        "498c056e1649ea24aa5e277e655e9308"
+        "77f4a8068d38efeaac2dcb15158801d4"
+        "36910cd35ee7a7cfa6f804392ed1b0d7"
     ),
     "appolon1908-hue/scrapper": (
-        "463af787585e287fe4c4a0467c4ebe23"
-        "e3f9af7189eaf59b05a9b8f040b9bdee"
+        "595e051f5c520842f0dcb7fd15bc78eb"
+        "be536e0ab57e57157663f4e46fc40344"
     ),
     "appolon1908-hue/Breero.com": (
-        "2df07ec5418fefa84ce5af3327c5c94e"
-        "e95c20cf12a285773dcfa8f8b3397ca9"
+        "2d88c1ae9318918f60e6c5620090a1d9"
+        "4449a1112e2cfbd4f03f522558b5578c"
     ),
     "appolon1908-hue/Moneybee-Backend": (
-        "0fc54018729f6a2ec9be39dcb8f5dc82"
-        "6d3b632e71ae3d57902dc71edb07dadf"
+        "518efe221246e0c36e95d553c027a146"
+        "a75deb4cf4737bbf941a5e2e66ba530d"
     ),
     "appolon1908-hue/Telnexa-web": (
-        "7a788ba47e20c2e42e2b70d2b5a4fa3e"
-        "d01641a0b1ff728e1fa2fa8878a9399f"
+        "703bfcc66f5eaa7e348ba52976673b0b"
+        "67db20af6235b50be729e16a430affb0"
     ),
     CONTROLLER_REPOSITORY: (
         "4c7b54aa7cd59ac09703d235a264b830"
@@ -934,14 +934,50 @@ def repository_file_bytes(
         raise PolicyError(
             f"required source file encoding is invalid: {repository}:{path}"
         ) from error
-def source_closure_fingerprint(entries: list[dict[str, Any]]) -> str:
-    """Fingerprint every tracked blob/submodule except this policy file.
+def required_check_source_paths(repository: str) -> set[str]:
+    workflow_bindings = EXPECTED_CHECK_WORKFLOW_SHA256.get(repository)
+    executable_bindings = EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256.get(
+        repository,
+        {},
+    )
+    require(
+        isinstance(workflow_bindings, dict) and bool(workflow_bindings),
+        f"required workflow source policy is missing: {repository}",
+    )
+    require(
+        isinstance(executable_bindings, dict),
+        f"required executable source policy is invalid: {repository}",
+    )
+    validated_workflows = cast(dict[str, str], workflow_bindings)
+    validated_executables = cast(
+        dict[str, dict[str, str]],
+        executable_bindings,
+    )
+    paths = set(validated_workflows)
+    for workflow, bindings in validated_executables.items():
+        require(
+            workflow in validated_workflows and isinstance(bindings, dict),
+            f"required executable source policy is detached: {repository}:{workflow}",
+        )
+        paths.update(bindings)
+    require(
+        RELEASE_VALIDATOR_SOURCE_PATH not in paths,
+        "release validator cannot bind its own source closure",
+    )
+    return paths
 
-    Excluding the release validator avoids an impossible self-referential
-    digest while still binding every repository-owned executable and input
-    reachable from a required-check workflow.
+
+def source_closure_fingerprint(
+    entries: list[dict[str, Any]],
+    repository: str,
+) -> str:
+    """Fingerprint only explicitly hashed required-check workflows and inputs.
+
+    Candidate and evidence files are intentionally outside this closure so
+    their review cannot change application SHAs or create a digest cycle.
     """
 
+    required_paths = required_check_source_paths(repository)
     records: dict[str, bytes] = {}
     for entry in entries:
         require(isinstance(entry, dict), "required source tree entry is invalid")
@@ -962,11 +998,14 @@ def source_closure_fingerprint(entries: list[dict[str, Any]]) -> str:
             "required source tree entry is invalid",
         )
         validated_path = cast(str, path)
-        if validated_path == RELEASE_VALIDATOR_SOURCE_PATH:
+        if validated_path not in required_paths:
             continue
         require(validated_path not in records, "required source tree contains duplicate paths")
         records[validated_path] = f"{mode}\0{kind}\0{validated_path}\0{sha}\n".encode()
-    require(bool(records), "required source tree is empty")
+    require(
+        set(records) == required_paths,
+        f"required source tree inputs are incomplete: {sorted(required_paths - set(records))}",
+    )
     return hashlib.sha256(b"".join(records[path] for path in sorted(records))).hexdigest()
 
 
@@ -1039,7 +1078,7 @@ def validate_required_check_source_closure(
             for entry in tree["tree"]
             if isinstance(entry, dict) and entry.get("type") != "tree"
         ]
-    observed = source_closure_fingerprint(entries)
+    observed = source_closure_fingerprint(entries, repository)
     require(observed == expected, f"required source closure drift: {repository}")
 
 
@@ -1539,6 +1578,17 @@ def recheck_protected_gates() -> int:
         post_gate_controller_candidate_head == controller_candidate_head,
         "controller protected head changed during final source-gate validation",
     )
+    post_controller_required_checks, post_controller_bindings = validate_repository_gates(
+        contract,
+        source_sha,
+        phase,
+        environment,
+    )
+    require(
+        post_controller_required_checks == final_required_checks
+        and post_controller_bindings == final_bindings,
+        "source protected head or check policy changed during final controller validation",
+    )
     print("PROTECTED_GATES_RECHECK=PASS")
     return 0
 
@@ -1849,6 +1899,17 @@ def main() -> int:
         post_gate_controller_candidate_head == controller_candidate_head,
         "controller protected head changed during final source-gate validation",
     )
+    post_controller_required_checks, post_controller_bindings = validate_repository_gates(
+        contract,
+        source_sha,
+        phase,
+        environment,
+    )
+    require(
+        post_controller_required_checks == required_checks
+        and post_controller_bindings == bindings,
+        "source protected head or check policy changed during final controller validation",
+    )
 
     evidence = {
         "schema_version": "codestra.normalized-release-intent.v1",
@@ -1920,32 +1981,58 @@ def self_test() -> int:
             pass
         else:
             raise PolicyError("negative mutable required-check action regression passed")
+    source_fixture_repository = "appolon1908-hue/Infustruction-repo"
     source_fixture = [
         {
             "mode": "100644",
             "type": "blob",
-            "path": RELEASE_VALIDATOR_SOURCE_PATH,
-            "sha": "1" * 40,
-        },
-        {
-            "mode": "100755",
-            "type": "blob",
-            "path": "scripts/required-check.sh",
+            "path": path,
             "sha": "2" * 40,
-        },
+        }
+        for path in sorted(required_check_source_paths(source_fixture_repository))
     ]
-    source_fingerprint = source_closure_fingerprint(source_fixture)
+    source_fixture.extend(
+        [
+            {
+                "mode": "100644",
+                "type": "blob",
+                "path": RELEASE_VALIDATOR_SOURCE_PATH,
+                "sha": "1" * 40,
+            },
+            {
+                "mode": "100644",
+                "type": "blob",
+                "path": "config/releases/release-test-001.json",
+                "sha": "3" * 40,
+            },
+        ]
+    )
+    source_fingerprint = source_closure_fingerprint(
+        source_fixture,
+        source_fixture_repository,
+    )
     require(
         source_fingerprint
         == source_closure_fingerprint(
-            [{**source_fixture[0], "sha": "3" * 40}, source_fixture[1]]
+            source_fixture[:-2]
+            + [{**source_fixture[-2], "sha": "4" * 40}, source_fixture[-1]],
+            source_fixture_repository,
         ),
         "release validator exclusion created a self-referential source closure",
     )
     require(
         source_fingerprint
-        != source_closure_fingerprint(
-            [source_fixture[0], {**source_fixture[1], "sha": "3" * 40}]
+        == source_closure_fingerprint(
+            source_fixture[:-1]
+            + [{**source_fixture[-1], "sha": "4" * 40}],
+            source_fixture_repository,
+        ),
+        "candidate review created a self-referential source closure",
+    )
+    require(
+        source_fingerprint != source_closure_fingerprint(
+            [{**source_fixture[0], "sha": "4" * 40}, *source_fixture[1:]],
+            source_fixture_repository,
         ),
         "required-check executable drift did not change the source closure",
     )

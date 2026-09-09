@@ -33,20 +33,20 @@ RELEASE_VALIDATOR_NON_SELF_REFERENTIAL_BINDINGS = frozenset(
     }
 )
 STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "72c21ab40dfd5ec14ffe415c9f68964bc"
-    "6e58e40db49183ff3f11f3e2af0f041"
+    "1b01e26adee8863b4f8e26e4531bcf51"
+    "2b21bf5456478e0ae14fde4016b8ba4c"
 )
 MIDDLEWARE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "0b24b4a692ed2d77795816e362198abc9"
-    "8b83a2c59a1d118674355aa7d7dae9c"
+    "dc82cab6204271d236a558e29556b1eec"
+    "ca1b536e2085695a0ee4229584b4630"
 )
 BACKEND_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "72c21ab40dfd5ec14ffe415c9f68964bc"
-    "6e58e40db49183ff3f11f3e2af0f041"
+    "1b01e26adee8863b4f8e26e4531bcf51"
+    "2b21bf5456478e0ae14fde4016b8ba4c"
 )
 MONEYBEE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "3608e249dce5f83762b7f49a995d64db"
-    "728476309069cddad932070ec51029ff"
+    "38c581b0f00b087bbef5992145696d5c"
+    "04ecce6ebd1d7a9caedb14565dc47baa"
 )
 EXPECTED_RELEASE_VALIDATOR_SECURITY_SHA256 = {
     "appolon1908-hue/Infustruction-repo": STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256,
@@ -86,6 +86,7 @@ RUNTIME_TOOLS = {
     "kubectl",
     "podman",
     "scp",
+    "script",
     "ssh",
     "terraform",
     "tofu",
@@ -966,11 +967,12 @@ def shell_tokens(script: str) -> list[str]:
 
 
 def shell_separator_token(token: str) -> bool:
-    # shlex can coalesce adjacent punctuation, including a process-substitution
-    # close followed by a physical newline. A newline still terminates the
-    # current command when it shares a token with adjacent punctuation.
+    # shlex can coalesce adjacent punctuation such as a close parenthesis and
+    # semicolon. Every token made only of separators ends the current command.
     return token in SHELL_SEPARATORS or (
-        "\n" in token and all(character in "\n&();|{}" for character in token)
+        bool(token)
+        and all(character in "\n&();|{}" for character in token)
+        and any(character in "\n&();|" for character in token)
     )
 
 
@@ -1896,8 +1898,12 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
         parts.append(arguments[start:].strip())
         return parts
 
-    for match in re.finditer(r"\b(?:require|import)\s*\(", lower):
-        open_index = lower.find("(", match.start())
+    for match in re.finditer(
+        r"\b(?:require|import)\s*(?:/\*.*?\*/\s*)*\(",
+        lower,
+        re.DOTALL,
+    ):
+        open_index = match.end() - 1
         arguments = call_arguments(open_index)
         if arguments is None or re.fullmatch(
             r"""\s*(['"])[^'"\r\n]+\1\s*""",
@@ -1922,6 +1928,18 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
         return True
     if "getbuiltinmodule" in lower:
         # Dynamic built-in access can recover child_process without an import.
+        return True
+    websocket_aliases = set(
+        re.findall(
+            r"\b(?:const|let|var)\s+([a-z_$][a-z0-9_$]*)\s*=\s*"
+            r"new\s+(?:globalthis\s*\.\s*)?websocket\s*\(",
+            lower,
+        )
+    )
+    if any(
+        re.search(rf"\b{re.escape(alias)}\s*\.\s*send\s*\(", lower)
+        for alias in websocket_aliases
+    ):
         return True
     for match in re.finditer(r"\bfetch\b", lower):
         open_index = match.end()
@@ -3033,7 +3051,7 @@ def contains_runtime_mutation(
             or any("ext::" in token.lower() for token in raw_tail)
         ):
             return True
-        if name in {"ansible-playbook", "chroot", "scp", "ssh"}:
+        if name in {"ansible-playbook", "chroot", "script", "scp", "ssh"}:
             return True
         if name in {"helm", "kubectl", "terraform", "tofu"} and (
             runtime_cli_operation_is_dynamic(name, raw_tail)
@@ -3330,6 +3348,14 @@ def contains_runtime_action(step: dict[str, Any]) -> bool:
         ) or re.search(
             r"\bnew\s+proxy\s*\(\s*github\b|\.\.\.\s*github\b",
             script,
+        ) or (
+            re.search(r"\bgithub\b", script) is not None
+            and re.search(
+                r"\b(?:object\s*\.\s*(?:assign|create)|new\s+proxy|"
+                r"reflect\s*\.\s*get)\b",
+                script,
+            )
+            is not None
         ):
             # Bracket access and destructuring can hide REST, request, or
             # GraphQL writers from property-name inspection.
@@ -3444,17 +3470,90 @@ def job_condition(job: WorkflowJob) -> str | None:
     return value if isinstance(value, str) else None
 
 
+def condition_expression_parts(expression: str, operator: str) -> list[str]:
+    parts: list[str] = []
+    start = 0
+    depth = 0
+    quote: str | None = None
+    escaped = False
+    index = 0
+    while index < len(expression):
+        character = expression[index]
+        if escaped:
+            escaped = False
+        elif character == "\\" and quote is not None:
+            escaped = True
+        elif quote is not None:
+            if character == quote:
+                quote = None
+        elif character in {"'", '"'}:
+            quote = character
+        elif character == "(":
+            depth += 1
+        elif character == ")":
+            depth -= 1
+            if depth < 0:
+                return [expression]
+        elif depth == 0 and expression.startswith(operator, index):
+            parts.append(expression[start:index].strip())
+            start = index + len(operator)
+            index += len(operator) - 1
+        index += 1
+    if quote is not None or depth != 0 or not parts:
+        return [expression]
+    parts.append(expression[start:].strip())
+    return parts
+
+
+def strip_condition_parentheses(expression: str) -> str:
+    while expression.startswith("(") and expression.endswith(")"):
+        depth = 0
+        quote: str | None = None
+        closes_at_end = False
+        for index, character in enumerate(expression):
+            if quote is not None:
+                if character == quote and (index == 0 or expression[index - 1] != "\\"):
+                    quote = None
+                continue
+            if character in {"'", '"'}:
+                quote = character
+            elif character == "(":
+                depth += 1
+            elif character == ")":
+                depth -= 1
+                if depth == 0:
+                    closes_at_end = index == len(expression) - 1
+                    break
+        if not closes_at_end:
+            break
+        expression = expression[1:-1].strip()
+    return expression
+
+
 def condition_is_statically_false(value: object) -> bool:
     if value is False or type(value) is int and value == 0:
         return True
     if not isinstance(value, str):
         return False
-    expression = re.sub(r"\s+", "", value).lower()
+    expression = value.strip().lower()
     if expression.startswith("${{") and expression.endswith("}}"):
-        expression = expression[3:-2]
-    while expression.startswith("(") and expression.endswith(")"):
-        expression = expression[1:-1]
-    return expression in {"false", "!true", "nottrue", "0", "null", "''", '""'}
+        expression = expression[3:-2].strip()
+    expression = strip_condition_parentheses(expression)
+    disjunction = condition_expression_parts(expression, "||")
+    if len(disjunction) > 1:
+        return all(condition_is_statically_false(part) for part in disjunction)
+    conjunction = condition_expression_parts(expression, "&&")
+    if len(conjunction) > 1:
+        return any(condition_is_statically_false(part) for part in conjunction)
+    compact = re.sub(r"\s+", "", expression)
+    if compact in {"false", "!true", "nottrue", "0", "null", "''", '""'}:
+        return True
+    comparison = re.fullmatch(r"(-?\d+)\s*(==|!=)\s*(-?\d+)", expression)
+    if comparison is not None:
+        left, operator, right = comparison.groups()
+        equal = int(left) == int(right)
+        return equal if operator == "!=" else not equal
+    return False
 
 
 def job_condition_is_statically_false(job: WorkflowJob) -> bool:
@@ -3922,8 +4021,8 @@ def validate_release_validator_gate_rechecks(source: str) -> None:
             if name == "validate_repository_gates"
         ]
         require(
-            len(gate_indexes) >= 2,
-            f"release-intent {function_name} lacks final exact-head gate revalidation",
+            len(gate_indexes) >= 3,
+            f"release-intent {function_name} lacks post-controller exact-head revalidation",
         )
         controller_indexes = [
             index for index, (name, _) in top_level_calls
@@ -3933,12 +4032,16 @@ def validate_release_validator_gate_rechecks(source: str) -> None:
             len(controller_indexes) >= 3,
             f"release-intent {function_name} lacks controller stability revalidation",
         )
+        sandwiched_gate = gate_indexes[-2]
         final_gate = gate_indexes[-1]
         before_gate_controller = controller_indexes[-2]
         after_gate_controller = controller_indexes[-1]
         require(
-            before_gate_controller < final_gate < after_gate_controller,
-            f"release-intent {function_name} does not sandwich its final source gate with controller checks",
+            before_gate_controller
+            < sandwiched_gate
+            < after_gate_controller
+            and after_gate_controller + 1 < final_gate,
+            f"release-intent {function_name} does not recheck source after its final controller observation",
         )
         before_call = statement_named_call(function.body[before_gate_controller])
         after_call = statement_named_call(function.body[after_gate_controller])
@@ -4810,7 +4913,15 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
         reachable_signer,
         "synthetic-reachable-signer.yml",
     )
-    for disabled_condition in ("false", "'false'", "${{ false }}", "0"):
+    for disabled_condition in (
+        "false",
+        "'false'",
+        "${{ false }}",
+        "0",
+        "${{ false && true }}",
+        "${{ 1 == 2 }}",
+        "${{ false && github.ref == 'refs/heads/main' }}",
+    ):
         try:
             require_reachable_signer_workflow(
                 reachable_signer.replace(
@@ -5240,6 +5351,21 @@ jobs:
             "await client.rest.issues.create({owner, repo})",
         ),
         (
+            "nested copied GitHub client mutation",
+            "const client = Object.assign(Object.create(null), github); "
+            "await client.rest.issues.create({owner, repo})",
+        ),
+        (
+            "parenthesized proxied GitHub client mutation",
+            "const client = new Proxy((github), {}); "
+            "await client.rest.issues.create({owner, repo})",
+        ),
+        (
+            "reflective GitHub client mutation",
+            "const rest = Reflect.get(github, 'rest'); "
+            "await rest.repos.createDeployment({owner, repo, ref})",
+        ),
+        (
             "spread GitHub client mutation",
             "const client = {...github}; "
             "await client.rest.issues.create({owner, repo})",
@@ -5530,6 +5656,18 @@ jobs:
     )
     require(
         contains_runtime_mutation(
+            "script -q -c 'kubectl apply -f runtime.yml' /dev/null"
+        ),
+        "negative command-executing script wrapper regression passed",
+    )
+    require(
+        contains_runtime_mutation(
+            "(echo harmless); kubectl apply -f runtime.yml"
+        ),
+        "negative coalesced shell separator regression passed",
+    )
+    require(
+        contains_runtime_mutation(
             """python3 - <<'PY'
 import subprocess
 subprocess.run(["kubectl", "apply", "-f", "runtime.yml"], check=True)
@@ -5805,6 +5943,10 @@ PY
         "fetch(url, {...options})\n",
         "import https from 'node:https'; "
         "https.request({method: 'POST'}, callback).end()\n",
+        "const transport = await import/*comment*/('node:' + 'https'); "
+        "transport.request(url, {method: 'POST'}).end(data)\n",
+        "const ws = new WebSocket(url); "
+        "ws.addEventListener('open', () => ws.send(payload))\n",
         'const {exec: run} = require("node:child_process"); '
         'run("kubectl apply -f runtime.yml")\n',
         "fetch(...args)\n",
