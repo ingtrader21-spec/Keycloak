@@ -67,6 +67,7 @@ SHELL_WRAPPERS = {
     "setsid",
     "stdbuf",
     "sudo",
+    "systemd-run",
     "taskset",
     "time",
     "timeout",
@@ -120,6 +121,7 @@ NETWORK_MUTATION_METHODS = {
     "send",
     "send_message",
     "sendall",
+    "sendto",
     "sendmail",
 }
 NETWORK_CLIENT_HINTS = {
@@ -335,6 +337,10 @@ APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
         "scripts/run_ci.sh": "64d7c92279dd442144c7e1f74c3e48f0ab5d5db105238a534dcf8ccd99e93138",
         "scripts/synthetic_acceptance_ci.sh": "087dac2c5371f2013fa0a8dd22ed4024409ab5015231fb8801c75cf3203e3a8a",
         "scripts/temporal_integration_ci.sh": "76a682cc1f5b15a0a3eb15a029d87206238dfe4a262eaf5fa2c79403f147d4d6",
+        "scripts/verify_container_image.sh": (
+            "84207f2ec5d748aacf134b398e770fc9"
+            "d21e9d48a1c3a174cdf05864d75e4a61"
+        ),
         "services/connector-runtime/scripts/test_postgres.sh": "b9b31391d7a04aa8b3362e182a43f880e46f9e85b4d2f5c3c66cb9a9fe88f867",
         "tests/integration/campaign_extension_concurrency.py": "252b945c5779a0a8519d3dc2225b1cf495d4995cd42089d3c24c401297475377",
         "tests/integration/campaign_identity_concurrency.py": "234d97cf48cf29f0ec26bd4cfd48f61d031f46e1250cee477088abb7a190be76",
@@ -481,7 +487,10 @@ APPROVED_JOB_EXECUTABLE_CONFIGURATION_SHA256: dict[str, dict[str, str]] = {
         ".github/workflows/connector-runtime-api-ci.yml": "917ab06febf30f0d81146fc147794dace9510f7bb0a6fb903dd69b2244d4e1d0",
         ".github/workflows/connector-storage-ci.yml": "eada698e8756b76431a43f8d54d1aa192b9d964bca9a5e76d90476f35135bc7a",
         ".github/workflows/lead-automation-v1.yml": "9cdf5b9ce21f528bb8d0cb29b170586d212f5dfeb0e4ad237bb531a41bd89274",
-        ".github/workflows/odoo-calling-contract.yml": "a186063edd3d780a5f813090b7364edb9af23e3dba845dc49c476e62acd44fd9",
+        ".github/workflows/odoo-calling-contract.yml": (
+            "0010271981bd5683a5c28af02ba24cb3d"
+            "0387c7920d1f2f59c6235166341e5b2"
+        ),
     },
     "appolon1908-hue/beyvra-backend": {
         ".github/workflows/email-boundary-ci.yml": "13ec97e8fb3cf77dcea400c2c8d4d5f089a567852ebcfa7f8efc581efa6f1fd6",
@@ -491,7 +500,10 @@ APPROVED_JOB_EXECUTABLE_CONFIGURATION_SHA256: dict[str, dict[str, str]] = {
         ".github/workflows/release-readiness.yml": "22fb9e9447770c5b463b028d9ef6195df53fbc99b2e8a467ba11e7a2b58b167b",
     },
     "appolon1908-hue/Breero.com": {
-        ".github/workflows/backend-production.yml": "6451590fa0b6a6dff14a4b8682396f270545e1f4788a7c44b1b8ba16408cdf24",
+        ".github/workflows/backend-production.yml": (
+            "016e56dce8bd0358207f3dc4ac1ba7be"
+            "f7d3a55bbd324983d0e599594c6c08b3"
+        ),
     },
 }
 APPROVED_UNRESOLVED_SCRIPT_TARGETS: dict[str, frozenset[str]] = {
@@ -556,6 +568,7 @@ ALLOWED_RELEASE_VALIDATOR_COMMAND_PREFIXES = {
     ("docker", "buildx", "imagetools", "inspect"),
     ("docker", "login"),
     ("gh", "attestation", "verify"),
+    ("git", "ls-tree", "-r", "-z"),
     ("git", "rev-parse"),
     ("git", "status"),
 }
@@ -796,7 +809,12 @@ def shell_tokens(script: str) -> list[str]:
 
 
 def shell_separator_token(token: str) -> bool:
-    return token in SHELL_SEPARATORS or bool(token) and set(token) == {"\n"}
+    # shlex can coalesce adjacent punctuation, including a process-substitution
+    # close followed by a physical newline. A newline still terminates the
+    # current command when it shares a token with adjacent punctuation.
+    return token in SHELL_SEPARATORS or (
+        "\n" in token and all(character in "\n&();|{}" for character in token)
+    )
 
 
 def executable_name(token: str) -> str:
@@ -1045,6 +1063,7 @@ def wrapped_executable_index(tokens: list[str], start: int) -> int | None:
             "-k",
             "-n",
         },
+        "systemd-run": {"--", "--wait"},
         "time": {"--", "-a", "-p", "-v"},
     }
     value_options = {
@@ -1393,6 +1412,8 @@ def python_source_has_runtime_mutation(source: str) -> bool:
             if hints & (NETWORK_CLIENT_HINTS | DATABASE_CLIENT_HINTS):
                 return constructor
             return "__unresolved_callable__"
+        if isinstance(node, ast.NamedExpr):
+            return qualified_name(node.value, seen)
         return "__unresolved_callable__" if seen & destructured_targets else ""
 
     def restricted_callable_name(name: str) -> bool:
@@ -1575,6 +1596,7 @@ def python_source_has_runtime_mutation(source: str) -> bool:
                     return True
         if (
             qualified in {"os.system", "os.popen"}
+            or qualified.startswith(("os.system.", "os.popen."))
             or qualified.startswith("os.exec")
             or qualified.startswith("os.spawn")
             or qualified in {"os.posix_spawn", "os.posix_spawnp"}
@@ -2568,6 +2590,11 @@ def contains_runtime_command(script: str) -> bool:
     if any(contains_runtime_command(payload) for payload in substitutions):
         return True
     tokens = shell_tokens(shell_script)
+    if any(
+        re.search(r"(?:^|[<>])/dev/(?:tcp|udp)(?:/|$)", token)
+        for token in tokens
+    ):
+        return True
     for index in command_indexes(tokens):
         bindings = shell_command_bindings(tokens, index)
         command_token = resolved_command_token(tokens[index], bindings)
@@ -2652,6 +2679,11 @@ def contains_runtime_mutation(
     ):
         return True
     tokens = shell_tokens(shell_script)
+    if any(
+        re.search(r"(?:^|[<>])/dev/(?:tcp|udp)(?:/|$)", token)
+        for token in tokens
+    ):
+        return True
     for index in command_indexes(tokens):
         bindings = shell_command_bindings(tokens, index)
         command_token = resolved_command_token(tokens[index], bindings)
@@ -2804,7 +2836,13 @@ def contains_runtime_mutation(
             runtime_cli_operation_is_dynamic(name, raw_tail)
         ):
             return True
-        if name == "kubectl" and any(item in KUBECTL_MUTATIONS for item in tail):
+        if name == "kubectl" and (
+            any(item in KUBECTL_MUTATIONS for item in tail)
+            or any(
+                tail[position : position + 2] == ["auth", "reconcile"]
+                for position in range(len(tail) - 1)
+            )
+        ):
             return True
         if name == "helm" and any(item in HELM_MUTATIONS for item in tail):
             return True
@@ -3058,7 +3096,7 @@ def contains_runtime_action(step: dict[str, Any]) -> bool:
         inputs = step.get("with")
         if not isinstance(inputs, dict) or not isinstance(inputs.get("script"), str):
             return True
-        script = inputs["script"].lower()
+        script = re.sub(r"\?\s*\.", ".", inputs["script"].lower())
         if any(
             marker in script
             for marker in (
@@ -3078,6 +3116,9 @@ def contains_runtime_action(step: dict[str, Any]) -> bool:
             script,
         ) or re.search(
             r"\b(?:const|let|var)\s*\{[^}]+\}\s*=\s*github\b",
+            script,
+        ) or re.search(
+            r"\b(?:const|let|var)\s+[a-z_$][a-z0-9_$]*\s*=\s*github\b",
             script,
         ):
             # Bracket access and destructuring can hide REST, request, or
@@ -3158,6 +3199,8 @@ def contains_image_publication(step: dict[str, Any]) -> bool:
         if arguments[:2] == ["buildx", "bake"]:
             # Bake targets can carry registry outputs in repository HCL; an
             # unparsed bake invocation cannot prove that it is build-only.
+            return True
+        if arguments[:3] == ["buildx", "imagetools", "create"]:
             return True
         if not (arguments[:2] == ["buildx", "build"] or arguments[:1] == ["build"]):
             continue
@@ -3711,7 +3754,7 @@ def validate_release_validator_operations(source: str) -> None:
         "urllib.request.URLopener.open",
         "urllib.request.FancyURLopener.open",
     }
-    command_bindings: dict[str, set[tuple[str, ...]]] = {}
+    command_bindings: dict[tuple[int, str], set[tuple[str, ...]]] = {}
     opener_bindings: set[str] = set()
 
     def restricted_callable_name(name: str) -> bool:
@@ -3728,6 +3771,7 @@ def validate_release_validator_operations(source: str) -> None:
             }
             or is_os_process_launcher(name)
             or name in {"os.popen", "os.system"}
+            or name.startswith(("os.popen.", "os.system."))
             or name in prohibited_url_calls
             or name == "urllib.request.Request"
         )
@@ -3770,6 +3814,44 @@ def validate_release_validator_operations(source: str) -> None:
         ):
             return [(node.target.id, node.value)]
         return []
+
+    lexical_scopes: list[ast.AST] = [tree]
+    lexical_scopes.extend(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda))
+    )
+
+    def lexical_scope_id(node: ast.AST) -> int:
+        line = getattr(node, "lineno", 0)
+        containing = [
+            scope
+            for scope in lexical_scopes[1:]
+            if getattr(scope, "lineno", 0) <= line
+            <= getattr(scope, "end_lineno", -1)
+        ]
+        if not containing:
+            return id(tree)
+        return id(
+            min(
+                containing,
+                key=lambda scope: (
+                    getattr(scope, "end_lineno", 0) - getattr(scope, "lineno", 0),
+                    -getattr(scope, "lineno", 0),
+                ),
+            )
+        )
+
+    scoped_assignment_values: dict[
+        tuple[int, str],
+        list[ast.expr | None],
+    ] = {}
+    for candidate in ast.walk(tree):
+        for target_name, value in named_assignments(candidate):
+            scoped_assignment_values.setdefault(
+                (lexical_scope_id(candidate), target_name),
+                [],
+            ).append(value)
 
     for node in ast.walk(tree):
         assigned_value: ast.expr | None = None
@@ -3821,7 +3903,15 @@ def validate_release_validator_operations(source: str) -> None:
                     or callable_name == "__unresolved_callable__"
                 ):
                     aliases[target_name] = callable_name
-            if isinstance(value, (ast.List, ast.Tuple)):
+            if (
+                isinstance(value, (ast.List, ast.Tuple))
+                and all(
+                    isinstance(assigned, (ast.List, ast.Tuple))
+                    for assigned in scoped_assignment_values[
+                        (lexical_scope_id(node), target_name)
+                    ]
+                )
+            ):
                 prefix: list[str] = []
                 for item in value.elts:
                     if not isinstance(item, ast.Constant) or not isinstance(
@@ -3831,9 +3921,10 @@ def validate_release_validator_operations(source: str) -> None:
                     prefix.append(item.value)
                 if prefix:
                     prefix[0] = executable_name(prefix[0])
-                    command_bindings.setdefault(target_name, set()).add(
-                        tuple(prefix)
-                    )
+                    command_bindings.setdefault(
+                        (lexical_scope_id(node), target_name),
+                        set(),
+                    ).add(tuple(prefix))
             elif (
                 isinstance(value, ast.Call)
                 and qualified_name(value.func) == "urllib.request.build_opener"
@@ -3853,7 +3944,10 @@ def validate_release_validator_operations(source: str) -> None:
             for item in argument.elts:
                 if isinstance(item, ast.Starred) and isinstance(item.value, ast.Name):
                     if not prefix:
-                        return command_bindings.get(item.value.id, set())
+                        return command_bindings.get(
+                            (lexical_scope_id(argument), item.value.id),
+                            set(),
+                        )
                     break
                 if not isinstance(item, ast.Constant) or not isinstance(
                     item.value, str
@@ -3864,7 +3958,10 @@ def validate_release_validator_operations(source: str) -> None:
                 prefix[0] = executable_name(prefix[0])
                 return {tuple(prefix)}
         if isinstance(argument, ast.Name):
-            return command_bindings.get(argument.id, set())
+            return command_bindings.get(
+                (lexical_scope_id(argument), argument.id),
+                set(),
+            )
         return set()
 
     def allowed_evidence_command(command: tuple[str, ...]) -> bool:
@@ -3906,6 +4003,16 @@ def validate_release_validator_operations(source: str) -> None:
         )
 
     class OperationsVisitor(ast.NodeVisitor):
+        def visit_ClassDef(self, node: ast.ClassDef) -> None:
+            require(
+                not any(
+                    qualified_name(base) == "urllib.request.Request"
+                    for base in node.bases
+                ),
+                "release-intent validator subclasses the evidence request type",
+            )
+            self.generic_visit(node)
+
         def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
             require_safe_defaults(node)
             function_stack.append(node.name)
@@ -3918,11 +4025,12 @@ def validate_release_validator_operations(source: str) -> None:
             self.generic_visit(node)
             function_stack.pop()
 
-        @staticmethod
-        def mutated_command_binding(target: ast.expr) -> bool:
+        def mutated_command_binding(self, target: ast.expr) -> bool:
             while isinstance(target, (ast.Attribute, ast.Subscript)):
                 target = target.value
-            return isinstance(target, ast.Name) and target.id in command_bindings
+            return isinstance(target, ast.Name) and (
+                lexical_scope_id(target), target.id
+            ) in command_bindings
 
         def visit_Assign(self, node: ast.Assign) -> None:
             require(
@@ -4549,6 +4657,8 @@ def validate_intent_negative_regressions() -> None:
         "nice kubectl apply -f runtime.yml",
         "ionice kubectl apply -f runtime.yml",
         "setsid kubectl apply -f runtime.yml",
+        "systemd-run --wait kubectl apply -f runtime.yml",
+        "printf x > /dev/tcp/service/80",
         "TOOL=$(echo kubectl); \"$TOOL\" apply -f runtime.yml",
         "echo validation\n\ngh api --method POST repos/example/runtime/dispatches",
         "GIT_ALLOW_PROTOCOL=ext git fetch ext::sh\\ -c\\ id",
@@ -4708,6 +4818,15 @@ jobs:
         (
             "computed GitHub workflow dispatch",
             "await github.rest.actions['create' + 'WorkflowDispatch']({owner, repo})",
+        ),
+        (
+            "optional-chain GitHub REST mutation",
+            "await github?.rest.repos.createDeployment({owner, repo, ref})",
+        ),
+        (
+            "aliased GitHub client mutation",
+            "const client = github; "
+            "await client.rest.actions.createWorkflowDispatch({owner, repo})",
         ),
     ):
         workflow = f"""name: synthetic
@@ -5403,6 +5522,19 @@ subprocess.run(command, check=True)
         raise ContractError(
             "negative regression unexpectedly passed: mutated allowlisted command"
         )
+    unsafe_rebound_command_validator = """import os, subprocess
+command = ["git", "status", "--porcelain"]
+command = os.environ["COMMAND"].split()
+subprocess.run(command, check=True)
+"""
+    try:
+        validate_release_validator_operations(unsafe_rebound_command_validator)
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: rebound allowlisted command"
+        )
     unsafe_method_mutated_command_validator = """import subprocess
 command = ["git", "status"]
 command.clear()
@@ -5458,6 +5590,9 @@ open_url("https://runtime.example/mutate")
         "urllib.request.build_opener().open(url, b'payload')\n",
         "import http.client\n"
         "http.client.HTTPSConnection(host).request('POST', path, body=data)\n",
+        "import urllib.request\n"
+        "class MutatingRequest(urllib.request.Request):\n"
+        "    def get_method(self): return 'POST'\n",
     ):
         try:
             validate_release_validator_operations(unsafe_opener)
@@ -5588,6 +5723,9 @@ subprocess.run(["docker", "login", "ghcr.io", "--username", "test"])
         "from smtplib import SMTP_SSL as Mail; "
         "Mail('example.invalid').send_message(message)",
         "import aiosmtplib; aiosmtplib.send(message)",
+        "import socket; socket.socket().sendto(b'payload', ('runtime.example', 9))",
+        "import requests; (session := requests.Session()).post(url, data=b'x')",
+        "import os; os.system.__call__('kubectl apply -f runtime.yml')",
     ):
         require(
             python_source_has_runtime_mutation(smtp_source),
@@ -5631,6 +5769,10 @@ subprocess.run(["docker", "buildx", "build", "--push", "."], check=True)
         "env -i kubectl apply -f runtime.yml",
         "sudo -n ssh runtime.example deploy",
         "sudo --unknown-option harmless-command",
+        "systemd-run --wait kubectl apply -f runtime.yml",
+        "printf x > /dev/tcp/service/80",
+        "cat <(printf x)\nkubectl apply -f runtime.yml",
+        "kubectl auth reconcile -f runtime-role.yml",
         "docker stack deploy -c compose.yml app",
         "docker service update --image example.invalid/app service",
         "docker run --rm bitnami/kubectl apply -f runtime.yml",
@@ -5684,6 +5826,7 @@ subprocess.run(["docker", "buildx", "build", "--push", "."], check=True)
         "docker buildx build --output=type=registry,name=ghcr.io/example/image .",
         "docker buildx build -o type=image,name=ghcr.io/example/image,push=true .",
         "docker buildx bake --push",
+        "docker buildx imagetools create --tag ghcr.io/example/image:release source@sha256:deadbeef",
     ):
         require(
             contains_image_publication({"run": run}),

@@ -209,20 +209,20 @@ EXPECTED_CHECK_WORKFLOW_SHA256 = {
     },
 }
 SHARED_PRODUCTION_VALIDATOR_SHA256 = (
-    "7d8877b5811097dda4a100f982b4f49f"
-    "da469bb60911f60be9b27bc394e1a59c"
+    "23dfedbd9e254dfc8205acb9bc8c2dca"
+    "fce71bf41f8f567ccaf72c9592f4eb5a"
 )
 KEYCLOAK_PRODUCTION_VALIDATOR_SHA256 = (
-    "9755001df3bd33a134cba81fd1ecf8e9"
-    "477c67b1a7a2a187edb76d814178f7cb"
+    "234a2c31539f4d96d49f0455caedff45"
+    "11c5bcc706b09db80b0ad59fb614f478"
 )
 MIDDLEWARE_PRODUCTION_VALIDATOR_SHA256 = (
-    "b949bcb8760f4670ae81e284e56c0233"
-    "8278e1e0eacab0316294e7f4e7401e80"
+    "70612512c0701e534ac2598e50bf7859"
+    "080c894cfde376813b2d48014ba6041e"
 )
 BACKEND_PRODUCTION_VALIDATOR_SHA256 = (
-    "ee227c5b9b1ab58d3d20a43fe83e2fbc"
-    "f1e6eca4d329118d1bc409b46ad80201"
+    "fb594c30227c22936a6804cef538f1c5"
+    "7d55d7a438dfc5131bc6069940bf4f2c"
 )
 EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
     "appolon1908-hue/Infustruction-repo": {
@@ -234,10 +234,66 @@ EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
         ".github/workflows/production-orchestrator-contract.yml": {
             ".codestra/validate-production-orchestrator-contract.py": KEYCLOAK_PRODUCTION_VALIDATOR_SHA256,
         },
+        ".github/workflows/validate.yml": {
+            "Dockerfile": (
+                "43c8c2347e91c23adffbeb01955b7bf3"
+                "d0fce6c2b1e47b66f8eedc9a172ff86e"
+            ),
+            "compose.yaml": (
+                "95f1f64a4383bcde88004363860adeb5"
+                "16821e669ca0a473c5e11d5b803c6342"
+            ),
+            "scripts/test-plan-gate.sh": (
+                "a1998a4a92a2535aea09f35c5de369f"
+                "0675ab4276e86ab92a42f908590c0ca6d"
+            ),
+            "scripts/validate-governance.sh": (
+                "cefd59aaba1446e9aa0d8b0fc5370eab"
+                "90f1d629422a0be25fad675515440c80"
+            ),
+            "scripts/validate-service-integrations.py": (
+                "8063ee5e69b6dd3da7682f56e76a8b9"
+                "e92c1b0dab785a961b4e05372d9f9d132"
+            ),
+            "scripts/validate.sh": (
+                "770f873d978b072dc86d5b8bec1c958f"
+                "3a02d67b69bdda27f8cc77a3da6ee3d8"
+            ),
+        },
     },
     "appolon1908-hue/Middleware-": {
         ".github/workflows/production-orchestrator-contract.yml": {
             ".codestra/validate-production-orchestrator-contract.py": MIDDLEWARE_PRODUCTION_VALIDATOR_SHA256,
+        },
+        ".github/workflows/middleware-ci.yml": {
+            "Dockerfile.runtime": (
+                "b35ff04d9cd0fd76c2ccfaf8e21dc510"
+                "2eaa34ee4f499c3c75d2902eb2de3aba"
+            ),
+            "scripts/integration_ci.sh": (
+                "8d9327fd9ad51d6ba7243d051336f623"
+                "a4f75d60c60e69fd012e65f598b12d4a"
+            ),
+            "scripts/nats_integration_ci.sh": (
+                "88d843c665cece68e0fb56a931c295ee"
+                "10490446cad7b64d9f5356c1cbf7263d"
+            ),
+            "scripts/run_ci.sh": (
+                "64d7c92279dd442144c7e1f74c3e48f"
+                "0ab5d5db105238a534dcf8ccd99e93138"
+            ),
+            "scripts/synthetic_acceptance_ci.sh": (
+                "087dac2c5371f2013fa0a8dd22ed4024"
+                "409ab5015231fb8801c75cf3203e3a8a"
+            ),
+            "scripts/temporal_integration_ci.sh": (
+                "76a682cc1f5b15a0a3eb15a029d87206"
+                "238dfe4a262eaf5fa2c79403f147d4d6"
+            ),
+            "scripts/verify_container_image.sh": (
+                "84207f2ec5d748aacf134b398e770fc9"
+                "d21e9d48a1c3a174cdf05864d75e4a61"
+            ),
         },
     },
     "appolon1908-hue/codestra": {
@@ -270,8 +326,30 @@ EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
             ".codestra/validate-production-orchestrator-contract.py": SHARED_PRODUCTION_VALIDATOR_SHA256,
         },
         ".github/workflows/quality.yml": {
-            ".github/workflows/backend-production.yml": "6451590fa0b6a6dff14a4b8682396f270545e1f4788a7c44b1b8ba16408cdf24",
-            ".github/workflows/frontend-production.yml": "31cfc938e7b4b9b6ce60c5c410044c0931a02947dffaa498f5bf550c347ee372",
+            ".github/workflows/backend-production.yml": (
+                "016e56dce8bd0358207f3dc4ac1ba7be"
+                "f7d3a55bbd324983d0e599594c6c08b3"
+            ),
+            ".github/workflows/frontend-production.yml": (
+                "06a3bb42bce76205947ba4c6960d4940"
+                "49b28940895b1dfe51680f5b0032e3ce"
+            ),
+            ".github/workflows/release-images.yml": (
+                "edf3678604b134a21bc69ba8e793f0bc"
+                "542dd4e0005d79e3e71eb2a112563b5b"
+            ),
+            "apps/api/Dockerfile": (
+                "9f2a4ea8ee572d02a238bdeb6aa5dc4d"
+                "c122fd348dea23e32e92f9cf94453fe5"
+            ),
+            "deploy/frontend/Dockerfile": (
+                "0f6ee0e77e353b56660fe317826f2fb8"
+                "6a2eb4391b55f93e816312eb0f588717"
+            ),
+            "deploy/portals/Dockerfile": (
+                "8ec9b8ac30f114bd65e2b70558ca4125"
+                "2049c9fc5458a3d758cc5766daad4b9b"
+            ),
             "scripts/ci/classify-quality-scope.sh": "7cc6cc7d213e4c962a8cda4ce052bbcfa51decc1af78ac663b1170c1b8c210c2",
             "scripts/ci/test-classify-quality-scope.sh": "0365cd71d85e00facf1a64c2f11734e413430af75e4cf39e0e52971d13d5c473",
             "scripts/ci/test-validate-breero-scope.sh": "ea29de36868e28ff82e3ec151f896aed388d2421f5907151c4c13480dae20bf8",
@@ -288,6 +366,57 @@ EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
             ".codestra/validate-production-orchestrator-contract.py": SHARED_PRODUCTION_VALIDATOR_SHA256,
         },
     },
+}
+RELEASE_VALIDATOR_SOURCE_PATH = ".codestra/validate-release-intent.py"
+EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256 = {
+    "appolon1908-hue/Infustruction-repo": (
+        "0b9e074dbf75e832c65700be74420628"
+        "2c0d133d610dd02896cdfa9fcd304f91"
+    ),
+    "appolon1908-hue/Keycloak": (
+        "0a330bed933b9c5e609e43ec9f8a29eb"
+        "10afc3275bfc8a748eca009bf8f30f2e"
+    ),
+    "appolon1908-hue/Middleware-": (
+        "4fb8207152562003553bb02056565790a"
+        "6b093db3c34278f60e3037b3d576122"
+    ),
+    "appolon1908-hue/codestra": (
+        "662bf7637e9c097e92b39d64f30aaff2"
+        "58c3e3a43399a2b0e5943c6c7978551f"
+    ),
+    "appolon1908-hue/beyvra-backend": (
+        "2f3943fbbbc33c249f8273b802ed3e02"
+        "7de8750b56b69c94262ff6c40bfd14a7"
+    ),
+    "appolon1908-hue/backend2": (
+        "62c5ea92c6d8ef56846d2784cfe4c0ff"
+        "9d12805efc0904e93a16d1dee9650fdb"
+    ),
+    "appolon1908-hue/beyvra-frontend": (
+        "8d96484425aabfda11f04ee9b85407d4"
+        "e48b38ae8764c4eb498c9e30486c823d"
+    ),
+    "appolon1908-hue/scrapper": (
+        "5f105005eee6780d6f33b4e2b91c83ab"
+        "5f896846e64245a3a7dd1c449bf3bc53"
+    ),
+    "appolon1908-hue/Breero.com": (
+        "3851f8137c592ab1a5fd0a51acd5344c"
+        "29a703e90b10f90602af56c4205f2539"
+    ),
+    "appolon1908-hue/Moneybee-Backend": (
+        "de79b4a568f865c35e1b1bc740f9cb36"
+        "3b3ee1d3a27e7a2b0883d573d2a6106f"
+    ),
+    "appolon1908-hue/Telnexa-web": (
+        "05bb19dd0701dab853a0f2161caa56e0"
+        "b3c6f2d09b3d5281308b698dd4979fac"
+    ),
+    CONTROLLER_REPOSITORY: (
+        "4c7b54aa7cd59ac09703d235a264b830"
+        "7c1757e4335a63a043b88d260b6d6a2b"
+    ),
 }
 
 
@@ -582,10 +711,8 @@ def workflow_bound_check_conclusions(
     for name, values in candidates.items():
         if not values:
             continue
-        latest_run = max(item[0] for item in values)
-        latest_attempt = max(
-            item[1] for item in values if item[0] == latest_run
-        )
+        newest = max(values, key=lambda item: item[2])
+        latest_run, latest_attempt = newest[:2]
         current = [
             item
             for item in values
@@ -749,6 +876,112 @@ def repository_file_bytes(
         raise PolicyError(
             f"required source file encoding is invalid: {repository}:{path}"
         ) from error
+def source_closure_fingerprint(entries: list[dict[str, Any]]) -> str:
+    """Fingerprint every tracked blob/submodule except this policy file.
+
+    Excluding the release validator avoids an impossible self-referential
+    digest while still binding every repository-owned executable and input
+    reachable from a required-check workflow.
+    """
+
+    records: dict[str, bytes] = {}
+    for entry in entries:
+        require(isinstance(entry, dict), "required source tree entry is invalid")
+        path = entry.get("path")
+        mode = entry.get("mode")
+        kind = entry.get("type")
+        sha = entry.get("sha")
+        require(
+            isinstance(path, str)
+            and path
+            and "\0" not in path
+            and "\n" not in path
+            and isinstance(mode, str)
+            and mode in {"100644", "100755", "120000", "160000"}
+            and kind in {"blob", "commit"}
+            and isinstance(sha, str)
+            and SHA.fullmatch(sha) is not None,
+            "required source tree entry is invalid",
+        )
+        if path == RELEASE_VALIDATOR_SOURCE_PATH:
+            continue
+        require(path not in records, "required source tree contains duplicate paths")
+        records[path] = f"{mode}\0{kind}\0{path}\0{sha}\n".encode()
+    require(bool(records), "required source tree is empty")
+    return hashlib.sha256(b"".join(records[path] for path in sorted(records))).hexdigest()
+
+
+def local_source_tree_entries(source_sha: str) -> list[dict[str, Any]]:
+    raw = subprocess.check_output(
+        ["git", "ls-tree", "-r", "-z", source_sha],
+    )
+    entries: list[dict[str, Any]] = []
+    for record in raw.split(b"\0"):
+        if not record:
+            continue
+        try:
+            metadata, encoded_path = record.split(b"\t", 1)
+            mode, kind, sha = metadata.decode("ascii").split()
+            path = encoded_path.decode("utf-8")
+        except (UnicodeDecodeError, ValueError) as error:
+            raise PolicyError("local required source tree is invalid") from error
+        entries.append({"mode": mode, "type": kind, "sha": sha, "path": path})
+    return entries
+
+
+def validate_required_check_source_closure(
+    repository: str,
+    source_sha: str,
+    *,
+    administration: bool = False,
+) -> None:
+    expected = EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256.get(repository)
+    require(
+        isinstance(expected, str) and DIGEST.fullmatch(expected) is not None,
+        f"required source closure policy is missing: {repository}",
+    )
+    local_repository = os.environ.get("GITHUB_REPOSITORY")
+    checkout_sha = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"],
+        text=True,
+    ).strip()
+    if is_exact_local_repository_source(
+        repository,
+        source_sha,
+        local_repository,
+        checkout_sha,
+    ):
+        entries = local_source_tree_entries(source_sha)
+    else:
+        commit = api_json(
+            f"repos/{repository}/git/commits/{source_sha}",
+            administration=administration,
+        )
+        require(
+            isinstance(commit, dict)
+            and commit.get("sha") == source_sha
+            and isinstance(commit.get("tree"), dict)
+            and isinstance(commit["tree"].get("sha"), str)
+            and SHA.fullmatch(commit["tree"]["sha"]) is not None,
+            f"required source commit tree is invalid: {repository}",
+        )
+        tree = api_json(
+            f"repos/{repository}/git/trees/{commit['tree']['sha']}?recursive=1",
+            administration=administration,
+        )
+        require(
+            isinstance(tree, dict)
+            and tree.get("truncated") is False
+            and isinstance(tree.get("tree"), list),
+            f"required source tree is incomplete: {repository}",
+        )
+        entries = [
+            entry
+            for entry in tree["tree"]
+            if isinstance(entry, dict) and entry.get("type") != "tree"
+        ]
+    observed = source_closure_fingerprint(entries)
+    require(observed == expected, f"required source closure drift: {repository}")
 
 
 def validate_required_check_workflow_definitions(
@@ -758,6 +991,11 @@ def validate_required_check_workflow_definitions(
     *,
     administration: bool = False,
 ) -> None:
+    validate_required_check_source_closure(
+        repository,
+        source_sha,
+        administration=administration,
+    )
     paths = EXPECTED_CHECK_WORKFLOWS.get(repository)
     if not isinstance(paths, dict):
         raise PolicyError("required check workflow policy is missing")
@@ -1581,9 +1819,47 @@ def main() -> int:
 def self_test() -> int:
     global NO_REDIRECT_OPENER
 
+    require(
+        set(EXPECTED_CHECK_WORKFLOWS)
+        == set(EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256),
+        "required source closure catalog is incomplete",
+    )
+    source_fixture = [
+        {
+            "mode": "100644",
+            "type": "blob",
+            "path": RELEASE_VALIDATOR_SOURCE_PATH,
+            "sha": "1" * 40,
+        },
+        {
+            "mode": "100755",
+            "type": "blob",
+            "path": "scripts/required-check.sh",
+            "sha": "2" * 40,
+        },
+    ]
+    source_fingerprint = source_closure_fingerprint(source_fixture)
+    require(
+        source_fingerprint
+        == source_closure_fingerprint(
+            [{**source_fixture[0], "sha": "3" * 40}, source_fixture[1]]
+        ),
+        "release validator exclusion created a self-referential source closure",
+    )
+    require(
+        source_fingerprint
+        != source_closure_fingerprint(
+            [source_fixture[0], {**source_fixture[1], "sha": "3" * 40}]
+        ),
+        "required-check executable drift did not change the source closure",
+    )
     breero_quality_closure = {
         ".github/workflows/backend-production.yml",
         ".github/workflows/frontend-production.yml",
+        ".github/workflows/release-images.yml",
+        "apps/api/Dockerfile",
+        "deploy/frontend/Dockerfile",
+        "deploy/portals/Dockerfile",
         "scripts/ci/classify-quality-scope.sh",
         "scripts/ci/test-classify-quality-scope.sh",
         "scripts/ci/test-validate-breero-scope.sh",
@@ -1916,6 +2192,42 @@ def self_test() -> int:
         pass
     else:
         raise PolicyError("negative duplicate required-check job regression passed")
+    rerun_check = {
+        **workflow_checks[0],
+        "id": 23,
+        "conclusion": None,
+        "details_url": (
+            f"https://github.com/{workflow_repository}/actions/runs/199/job/1990"
+        ),
+    }
+    rerun_latest = workflow_bound_check_conclusions(
+        [{"check_runs": [workflow_checks[0], rerun_check]}],
+        workflow_repository,
+        workflow_sha,
+        ["orchestrator-contract"],
+        {"orchestrator-contract": 15368},
+        {
+            **workflow_runs,
+            199: {
+                "path": ".github/workflows/production-orchestrator-contract.yml",
+                "head_sha": workflow_sha,
+            },
+        },
+        {
+            **jobs,
+            1990: {
+                "id": 1990,
+                "run_id": 199,
+                "run_attempt": 2,
+                "name": "orchestrator-contract",
+                "head_sha": workflow_sha,
+            },
+        },
+    )
+    require(
+        rerun_latest[("orchestrator-contract", 15368)] is None,
+        "newest check identity did not supersede a higher workflow run ID",
+    )
     protected_environment: dict[str, Any] = {
         "name": "production",
         "can_admins_bypass": False,
