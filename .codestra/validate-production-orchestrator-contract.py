@@ -6823,7 +6823,7 @@ def validate_intent_negative_regressions(contract: dict[str, Any]) -> None:
             "read-only governance verification was treated as runtime mutation",
         )
     repository = "appolon1908-hue/Middleware-"
-    control_plane_paths = (
+    control_plane_paths: tuple[str, ...] = (
         ".github/workflows/integration-main-release-authorities.yml",
         ".github/workflows/production-reviewer-access.yml",
     )
