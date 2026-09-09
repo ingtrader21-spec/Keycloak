@@ -33,20 +33,20 @@ RELEASE_VALIDATOR_NON_SELF_REFERENTIAL_BINDINGS = frozenset(
     }
 )
 STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "bf0853bcea3569013b0cce82a610d32e"
-    "8cde58822dcc5b54f2202bfcf03f1884"
+    "05041e31ec14eb04ffcd3b49c9128893"
+    "20ea2248bdb02acb0e53442480c209e6"
 )
 MIDDLEWARE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "9fe8398662e18e2b2f245413c82ce847"
-    "df782865db54ee49f9a1a018687ba45c"
+    "83a00d6d085a482d8ca01022be54f727"
+    "9fc35eaaa2ff9e0dfac299f1eb873648"
 )
 BACKEND_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "6c64259fb4d1e61d644dfd0d172ccf8"
-    "86b809169029e8f0ecc20423c7e59d92d"
+    "05041e31ec14eb04ffcd3b49c9128893"
+    "20ea2248bdb02acb0e53442480c209e6"
 )
 MONEYBEE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "ee06970b285ce2d130bd586b151d26168"
-    "7e5af8ea830c84a1eafdcad11d7c96c"
+    "27a76cca50847a2563c70bf88598c8c1"
+    "04467833f74ce60c67d94888c58e9871"
 )
 EXPECTED_RELEASE_VALIDATOR_SECURITY_SHA256 = {
     "appolon1908-hue/Infustruction-repo": STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256,
@@ -486,10 +486,10 @@ APPROVED_CONTROL_PLANE_WORKFLOW_SHA256: dict[str, dict[str, str]] = {
         ),
     },
     "appolon1908-hue/beyvra-backend": {
-        ".github/workflows/ci.yml": "f10b269e0faf54b23582ca1ee9700de6f2ec9f5481f6b2be20e40b9f6d428945",
+        ".github/workflows/ci.yml": "1c2e654ffd1011f662985d261411502c392789b882b6d089ba18e182e53248d1",
     },
     "appolon1908-hue/beyvra-frontend": {
-        ".github/workflows/ci.yml": "8dfd828f1c50f774d34d22008cc8e5eb3ce4961165b388e058fd3cab6130e2e5",
+        ".github/workflows/ci.yml": "7459a31c6b005e9345661b10ee8df45a570ac652280a2eacbcdfd4673fb115da",
     },
     "appolon1908-hue/scrapper": {
         ".github/workflows/ci.yml": "31d81c5be094a1510bc821ef4359bba591630d2273662f5de0683205d908c60d",
@@ -503,7 +503,7 @@ APPROVED_CONTROL_PLANE_WORKFLOW_SHA256: dict[str, dict[str, str]] = {
         ),
     },
     "appolon1908-hue/Breero.com": {
-        ".github/workflows/quality.yml": "68f066200e3f656c63ecabc1dcb9551d9c669eb5b3f6e5d70ab4f1960bc67043",
+        ".github/workflows/quality.yml": "9e8367e853316594a325fbcb0f22f1e701c35c205b15e66a5228ae8b4ce10ce4",
     },
     "appolon1908-hue/Moneybee-Backend": {
         ".github/workflows/ci.yml": (
@@ -539,8 +539,8 @@ APPROVED_JOB_EXECUTABLE_CONFIGURATION_SHA256: dict[str, dict[str, str]] = {
     },
     "appolon1908-hue/Breero.com": {
         ".github/workflows/backend-production.yml": (
-            "016e56dce8bd0358207f3dc4ac1ba7be"
-            "f7d3a55bbd324983d0e599594c6c08b3"
+            "45b2918627995cb3491f55b3a3b537e"
+            "4a34598d7b32877879b9e2c912c266591"
         ),
     },
 }
@@ -1570,6 +1570,9 @@ def python_source_has_runtime_mutation(source: str) -> bool:
         return "__unresolved_callable__" if seen & destructured_targets else ""
 
     def restricted_callable_name(name: str) -> bool:
+        method = name.rsplit(".", 1)[-1].lower()
+        receiver = name.rsplit(".", 1)[0].lower()
+        receiver_hints = set(re.split(r"[^a-z0-9_]+", receiver))
         return (
             name
             in {
@@ -1594,6 +1597,18 @@ def python_source_has_runtime_mutation(source: str) -> bool:
                 "urllib.request.urlopen",
                 "urllib.request.urlretrieve",
             }
+            or (
+                method in NETWORK_MUTATION_METHODS
+                and bool(receiver_hints & NETWORK_CLIENT_HINTS)
+            )
+            or (
+                method in DATABASE_MUTATION_METHODS
+                and bool(receiver_hints & DATABASE_CLIENT_HINTS)
+            )
+            or (
+                method == "request"
+                and bool(receiver_hints & NETWORK_CLIENT_HINTS)
+            )
         )
 
     def expression_has_restricted_callable(value: ast.expr) -> bool:
@@ -3629,7 +3644,54 @@ def workflow_actions(workflow: str, path: str) -> list[str]:
     return actions
 
 
+def require_immutable_action_references(workflow: str, path: str) -> None:
+    for reference in workflow_actions(workflow, path):
+        if reference.startswith("./"):
+            continue
+        if reference.startswith("docker://"):
+            require(
+                re.fullmatch(
+                    r"docker://[^\s@]+@sha256:[0-9a-f]{64}",
+                    reference,
+                )
+                is not None,
+                f"workflow uses a mutable container action: {path}:{reference}",
+            )
+            continue
+        require(
+            re.fullmatch(r"[^\s@]+@[0-9a-f]{40}", reference) is not None,
+            f"workflow uses a mutable external action: {path}:{reference}",
+        )
+
+
+def require_reachable_signer_workflow(workflow: str, path: str) -> None:
+    jobs = workflow_jobs(workflow, path)
+    publication_jobs = [
+        job
+        for job in jobs.values()
+        if any(contains_image_publication(step) for step in workflow_steps(job, path))
+    ]
+    require(publication_jobs, f"signer workflow has no image publication job: {path}")
+    require(
+        any(job_condition(job) != "${{ false }}" for job in publication_jobs),
+        f"signer workflow image publication is unreachable: {path}",
+    )
+    actions = workflow_actions(workflow, path)
+    require(
+        any(
+            action.startswith(("actions/attest@", "actions/attest-build-provenance@"))
+            for action in actions
+        )
+        or "cosign attest" in workflow,
+        f"signer workflow has no attestation step: {path}",
+    )
+
+
 def validate_intent_source_binding(intent: str) -> None:
+    require_immutable_action_references(
+        intent,
+        ".github/workflows/manual-release-intent.yml",
+    )
     jobs = workflow_jobs(intent, ".github/workflows/manual-release-intent.yml")
     require("verify" in jobs, "release-intent verify job is missing")
     steps = workflow_steps(jobs["verify"], ".github/workflows/manual-release-intent.yml")
@@ -4432,9 +4494,19 @@ def validate_release_validator_operations(source: str) -> None:
                 not (
                     node.attr == "__dict__"
                     or isinstance(node.ctx, (ast.Store, ast.Del))
-                    and node.attr in {"method", "data", "get_method"}
+                    and node.attr
+                    in {
+                        "method",
+                        "data",
+                        "get_method",
+                        "full_url",
+                        "host",
+                        "selector",
+                        "type",
+                        "origin_req_host",
+                    }
                 ),
-                "evidence client mutates request method or body after construction",
+                "evidence client mutates request method, body, or destination after construction",
             )
             self.generic_visit(node)
 
@@ -4594,6 +4666,14 @@ def validate(contract: dict[str, Any]) -> None:
         path = ROOT / value
         require(path.is_file() and not path.is_symlink(), f"native workflow is missing or unsafe: {value}")
         workflow = path.read_text(encoding="utf-8")
+        require_immutable_action_references(workflow, value)
+        if (
+            supply_chain_required
+            and deployment_authority
+            and maximum > 0
+            and value == signer_workflow
+        ):
+            require_reachable_signer_workflow(workflow, value)
         if runtime_mutation_authority is False and workflow_has_runtime_mutation(workflow, value):
             require_mutating_jobs_disabled(workflow, value)
     if runtime_mutation_authority is False:
@@ -4652,6 +4732,49 @@ def validate(contract: dict[str, Any]) -> None:
 
 
 def validate_negative_regressions(contract: dict[str, Any]) -> None:
+    require_immutable_action_references(
+        "jobs:\n  test:\n    uses: owner/repository/.github/workflows/check.yml@"
+        "0123456789012345678901234567890123456789\n",
+        "synthetic-immutable-action.yml",
+    )
+    try:
+        require_immutable_action_references(
+            "jobs:\n  test:\n    uses: owner/repository/.github/workflows/check.yml@v1\n",
+            "synthetic-mutable-action.yml",
+        )
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: mutable action reference"
+        )
+    reachable_signer = """jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/build-push-action@0123456789012345678901234567890123456789
+        with:
+          push: true
+      - uses: actions/attest@0123456789012345678901234567890123456789
+"""
+    require_reachable_signer_workflow(
+        reachable_signer,
+        "synthetic-reachable-signer.yml",
+    )
+    try:
+        require_reachable_signer_workflow(
+            reachable_signer.replace(
+                "    runs-on: ubuntu-latest",
+                "    if: ${{ false }}\n    runs-on: ubuntu-latest",
+            ),
+            "synthetic-disabled-signer.yml",
+        )
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: unreachable signer workflow"
+        )
     mutations = []
 
     missing_check = deepcopy(contract)
@@ -5349,6 +5472,16 @@ PY
     )
     require(
         python_source_has_runtime_mutation(
+            "import requests\n"
+            "class Holder: pass\n"
+            "holder = Holder()\n"
+            "holder.writer = requests.post\n"
+            "holder.writer('https://runtime.example/mutate')\n"
+        ),
+        "negative attribute-stored HTTP writer regression passed",
+    )
+    require(
+        python_source_has_runtime_mutation(
             "import urllib.request\n"
             "request = urllib.request.Request("
             "'https://runtime.example/mutate', method='POST')\n"
@@ -5848,6 +5981,9 @@ open_url("https://runtime.example/mutate")
             "NO_REDIRECT_OPENER.open(request, b'payload')",
             "NO_REDIRECT_OPENER.open(request, **options)",
             "request.method = 'POST'", "request.data = b'payload'",
+            "request.full_url = 'https://runtime.example/mutate'",
+            "request.host = 'runtime.example'",
+            "request.selector = '/mutate'",
             "request.method: str = 'POST'",
             "request.__dict__['method'] = 'POST'",
             "object.__setattr__(request, 'method', 'POST')",

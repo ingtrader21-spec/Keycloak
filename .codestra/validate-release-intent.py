@@ -26,6 +26,7 @@ SCHEMA = "codestra.production-orchestrator-contract.v1"
 WORKFLOW = ".github/workflows/manual-release-intent.yml"
 CONTROLLER_REPOSITORY = "appolon1908-hue/codestra-production-platform"
 CONTROLLER_BRANCH = "release/production-activation"
+INDEPENDENT_REVIEWER_ID = 77101516
 CANDIDATE_SCHEMA = "codestra.manual-production-candidate.v1"
 ZERO64 = "0" * 64
 SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -159,7 +160,7 @@ ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256 = (
 EXPECTED_CHECK_WORKFLOW_SHA256 = {
     "appolon1908-hue/Infustruction-repo": {
         ".github/workflows/production-orchestrator-contract.yml": ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256,
-        ".github/workflows/source-authority-matrix.yml": "1c036a0327b075a00dc57052d6a755ea5af478e1cf9a4c168268b324e4490cd5",
+        ".github/workflows/source-authority-matrix.yml": "1ca826d1f37c06b0ad2bc5a94a5b19516ad24fce486bdaa1b5b384e62f759221",
     },
     "appolon1908-hue/Keycloak": {
         ".github/workflows/production-orchestrator-contract.yml": ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256,
@@ -171,19 +172,19 @@ EXPECTED_CHECK_WORKFLOW_SHA256 = {
     },
     "appolon1908-hue/codestra": {
         ".github/workflows/production-orchestrator-contract.yml": ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256,
-        ".github/workflows/ci.yml": "8ceb79b754b209b88b4052fc3c237c76829f021cd34e0532e17383d64d94b262",
+        ".github/workflows/ci.yml": "7b0a377343c86b1274ecb91c4cc2423d6c045c0197eae9eb1abe775d791a73d1",
     },
     "appolon1908-hue/beyvra-backend": {
         ".github/workflows/production-orchestrator-contract.yml": ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256,
-        ".github/workflows/ci.yml": "f10b269e0faf54b23582ca1ee9700de6f2ec9f5481f6b2be20e40b9f6d428945",
+        ".github/workflows/ci.yml": "1c2e654ffd1011f662985d261411502c392789b882b6d089ba18e182e53248d1",
     },
     "appolon1908-hue/backend2": {
         ".github/workflows/production-orchestrator-contract.yml": ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256,
-        ".github/workflows/ci.yml": "b84ea18e422c3aed1b4020d66bd077048045fbb87d7d027d3c9e85f6494329b9",
+        ".github/workflows/ci.yml": "e27367a06aa79f7adca93d148f7e9c88efe35e77a3893407ffc3988f1b36c217",
     },
     "appolon1908-hue/beyvra-frontend": {
         ".github/workflows/production-orchestrator-contract.yml": ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256,
-        ".github/workflows/ci.yml": "8dfd828f1c50f774d34d22008cc8e5eb3ce4961165b388e058fd3cab6130e2e5",
+        ".github/workflows/ci.yml": "7459a31c6b005e9345661b10ee8df45a570ac652280a2eacbcdfd4673fb115da",
     },
     "appolon1908-hue/scrapper": {
         ".github/workflows/production-orchestrator-contract.yml": ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256,
@@ -191,7 +192,7 @@ EXPECTED_CHECK_WORKFLOW_SHA256 = {
     },
     "appolon1908-hue/Breero.com": {
         ".github/workflows/production-orchestrator-contract.yml": ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256,
-        ".github/workflows/quality.yml": "68f066200e3f656c63ecabc1dcb9551d9c669eb5b3f6e5d70ab4f1960bc67043",
+        ".github/workflows/quality.yml": "9e8367e853316594a325fbcb0f22f1e701c35c205b15e66a5228ae8b4ce10ce4",
     },
     "appolon1908-hue/Moneybee-Backend": {
         ".github/workflows/production-orchestrator-contract.yml": ORCHESTRATOR_CONTRACT_WORKFLOW_SHA256,
@@ -209,20 +210,20 @@ EXPECTED_CHECK_WORKFLOW_SHA256 = {
     },
 }
 SHARED_PRODUCTION_VALIDATOR_SHA256 = (
-    "0248796ff0a0df6a26b37bb2eb78bbad"
-    "f0d56ecdb67d8f7bc4a03d156bcf138b"
+    "e5c09dfe70ae85584a81f02643a51532"
+    "7ef63546bbe05df14570e163c07c746d"
 )
 KEYCLOAK_PRODUCTION_VALIDATOR_SHA256 = (
-    "6abd9d5b666b06bbd15e28fb0310f95f"
-    "e646014cf84e32ee185849a15ae2a567"
+    "059d6daac11f1406fff9c417e72378f6"
+    "52206fdea43800402c8a732a73d3ed5d"
 )
 MIDDLEWARE_PRODUCTION_VALIDATOR_SHA256 = (
-    "1b68f6291fe8aed88cc9046ef482ce81"
-    "c6096cadde172e9fbc41b2c31eda205e"
+    "4352b8c397e52287f05a8f61917350d7"
+    "e8d71e927e7bc1aaad8842171c714df4"
 )
 BACKEND_PRODUCTION_VALIDATOR_SHA256 = (
-    "f2b7b766bcf515dd5af5dcc6556f5e81"
-    "5a58254b34b657c71194009e502a924d"
+    "8d736dcdb2272050be819ecee8746a80"
+    "31c1856fb70ba9e0afbde36390279df0"
 )
 EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
     "appolon1908-hue/Infustruction-repo": {
@@ -327,12 +328,12 @@ EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
         },
         ".github/workflows/quality.yml": {
             ".github/workflows/backend-production.yml": (
-                "016e56dce8bd0358207f3dc4ac1ba7be"
-                "f7d3a55bbd324983d0e599594c6c08b3"
+                "45b2918627995cb3491f55b3a3b537e"
+                "4a34598d7b32877879b9e2c912c266591"
             ),
             ".github/workflows/frontend-production.yml": (
-                "06a3bb42bce76205947ba4c6960d4940"
-                "49b28940895b1dfe51680f5b0032e3ce"
+                "ba5f99dcdbcdb78e4e638153fb740ab1"
+                "04502cb2f8c75923a134d7d5e1e24b8d"
             ),
             ".github/workflows/release-images.yml": (
                 "edf3678604b134a21bc69ba8e793f0bc"
@@ -370,48 +371,48 @@ EXPECTED_CHECK_WORKFLOW_EXECUTABLE_SHA256 = {
 RELEASE_VALIDATOR_SOURCE_PATH = ".codestra/validate-release-intent.py"
 EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256 = {
     "appolon1908-hue/Infustruction-repo": (
-        "c8fc871656945aeed51a4176e368b973"
-        "15eaf232d905fa8fe00b791ee63327bc"
+        "64ea6998d8c8d7de93a3b80577ddd72b"
+        "759b5d0ada2423c6374db58a27e76fee"
     ),
     "appolon1908-hue/Keycloak": (
-        "f11c47018c15d9c61da1e4c61b65f69c"
-        "b16532d8eeb65577a2844c6be17c66c8"
+        "ddc0a86ea01cf6eedb86594aee496212"
+        "c1fb4d81342d38e75bd9dd92f085c6d8"
     ),
     "appolon1908-hue/Middleware-": (
-        "3e11eca623f9b0566a7d07fb09666dad"
-        "0fb040815141a4824d3ad8feaf667d2c"
+        "7ee309f78471d4ed3ee359e2a98cbc1c"
+        "2aab68ed62c48eb1720afc6daa220dec"
     ),
     "appolon1908-hue/codestra": (
-        "6dfd8045d082ac4476850a3658cff764"
-        "21f2a58eb529c1d6c36bd93108727149"
+        "e5c5d7f300be58b0ca0693157903e249"
+        "acb55035e5690ccf7d2e1f90beb273aa"
     ),
     "appolon1908-hue/beyvra-backend": (
-        "b831ea4a647cfaad9593d759cc785292"
-        "66c5fccfb4ac47ba08fabaaa6bed0b7b"
+        "5539310d04ee34d3472209d089650f7e"
+        "0cd1363d2d479cf1f2e699c6080c2c4a"
     ),
     "appolon1908-hue/backend2": (
-        "36b7066db4400856f179451b98594ac0"
-        "49d961b2d2f1494b43064914e3fffc3a"
+        "5c068266b2539fcb765738bbc595cb6dd"
+        "0a7cef6625ecc4c43e63704835d8a15"
     ),
     "appolon1908-hue/beyvra-frontend": (
-        "7b1c0ffa15933b5446d54a3262a66e3c"
-        "3bd3d2fbec153e4fa141f406b5ef655e"
+        "096382bce61e91907e4ac246352fd53d"
+        "6011c361c1691930352210d7277e23bb"
     ),
     "appolon1908-hue/scrapper": (
-        "8d255cfb7e2423ce409b536dacce5f35"
-        "9a14c18b524ca16c39d9417f4a3e8bfd"
+        "5cc329a639cebd4686a7af21b2f9ad00"
+        "0a5f5015b7aa70e0f8b0d361011f3bfd"
     ),
     "appolon1908-hue/Breero.com": (
-        "92b18a3105a2746b0c541eae03ba5fc6"
-        "0aed409ef248ecd73e0021fd32099da3"
+        "71996796eaed49de7b27c7b8a57841a"
+        "45506146c258dda912b0fcd28b5b8ad5b"
     ),
     "appolon1908-hue/Moneybee-Backend": (
-        "d21eaa36be26c5da0cd72103162c437a"
-        "144d71b6c8919d491c55adcdf97c56c8"
+        "23f30308ef2782a5071691fa44a32926"
+        "91630aaf94037953bbb2f118d48d96fc"
     ),
     "appolon1908-hue/Telnexa-web": (
-        "50426a30924dd425252e10a51f5b2802"
-        "30ae130ab08d9c88db88741120fd7131"
+        "05356e4d1731be004123bfb84cc2386a"
+        "2da138a8abd5c21de63764836cbc5206"
     ),
     CONTROLLER_REPOSITORY: (
         "4c7b54aa7cd59ac09703d235a264b830"
@@ -789,6 +790,35 @@ def validate_workflow_definition_bytes(
         hashlib.sha256(raw).hexdigest() == expected,
         f"required check workflow definition drift: {repository}:{path}",
     )
+    validate_workflow_action_references(path, raw)
+
+
+def validate_workflow_action_references(path: str, raw: bytes) -> None:
+    try:
+        source = raw.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise PolicyError(f"required check workflow is not UTF-8: {path}") from error
+    references = re.findall(
+        r"(?m)^\s*(?:-\s*)?uses:\s*([^\s#]+)",
+        source,
+    )
+    for reference in references:
+        if reference.startswith("./"):
+            continue
+        if reference.startswith("docker://"):
+            require(
+                re.fullmatch(
+                    r"docker://[^\s@]+@sha256:[0-9a-f]{64}",
+                    reference,
+                )
+                is not None,
+                f"required check uses a mutable container action: {path}:{reference}",
+            )
+            continue
+        require(
+            re.fullmatch(r"[^\s@]+@[0-9a-f]{40}", reference) is not None,
+            f"required check uses a mutable external action: {path}:{reference}",
+        )
 
 
 def validate_workflow_executable_bytes(
@@ -1059,15 +1089,26 @@ def validate_environment_document(value: object, environment: str) -> None:
     reviewers = reviewer_rule.get("reviewers")
     if not isinstance(reviewers, list) or not reviewers:
         raise PolicyError("protected environment has no required reviewers")
+    reviewer_identities: set[tuple[str, int]] = set()
+    for item in reviewers:
+        reviewer_type = item.get("type") if isinstance(item, dict) else None
+        reviewer = item.get("reviewer") if isinstance(item, dict) else None
+        reviewer_id = reviewer.get("id") if isinstance(reviewer, dict) else None
+        if (
+            reviewer_type not in {"User", "Team"}
+            or not isinstance(reviewer_id, int)
+            or isinstance(reviewer_id, bool)
+            or reviewer_id <= 0
+        ):
+            raise PolicyError("protected environment reviewer identity is invalid")
+        reviewer_identities.add((str(reviewer_type), reviewer_id))
     require(
-        all(
-            isinstance(item, dict)
-            and item.get("type") in {"User", "Team"}
-            and isinstance(item.get("reviewer"), dict)
-            and isinstance(item["reviewer"].get("id"), int)
-            for item in reviewers
-        ),
-        "protected environment reviewer identity is invalid",
+        len(reviewer_identities) == len(reviewers),
+        "protected environment contains duplicate reviewers",
+    )
+    require(
+        reviewer_identities == {("User", INDEPENDENT_REVIEWER_ID)},
+        "protected environment approved reviewer identity drift",
     )
     require(reviewer_rule.get("prevent_self_review") is True, "protected environment permits self-review")
     require(value.get("can_admins_bypass") is False, "protected environment permits administrator bypass")
@@ -1825,6 +1866,30 @@ def self_test() -> int:
         == set(EXPECTED_REQUIRED_CHECK_SOURCE_CLOSURE_SHA256),
         "required source closure catalog is incomplete",
     )
+    validate_workflow_action_references(
+        "synthetic-required-check.yml",
+        (
+            b"steps:\n"
+            b"  - uses: actions/checkout@0123456789012345678901234567890123456789\n"
+            b"  - uses: ./.github/actions/local-check\n"
+            b"  - uses: docker://example/check@sha256:"
+            + b"a" * 64
+            + b"\n"
+        ),
+    )
+    for mutable_reference in (
+        b"actions/checkout@v7",
+        b"docker://example/check:latest",
+    ):
+        try:
+            validate_workflow_action_references(
+                "synthetic-required-check.yml",
+                b"steps:\n  - uses: " + mutable_reference + b"\n",
+            )
+        except PolicyError:
+            pass
+        else:
+            raise PolicyError("negative mutable required-check action regression passed")
     source_fixture = [
         {
             "mode": "100644",
@@ -2237,7 +2302,13 @@ def self_test() -> int:
                 "type": "required_reviewers",
                 "prevent_self_review": True,
                 "reviewers": [
-                    {"type": "User", "reviewer": {"id": 42, "login": "reviewer"}}
+                    {
+                        "type": "User",
+                        "reviewer": {
+                            "id": INDEPENDENT_REVIEWER_ID,
+                            "login": "kazan555",
+                        },
+                    }
                 ],
             }
         ],
@@ -2253,6 +2324,26 @@ def self_test() -> int:
             {
                 **protected_environment,
                 "protection_rules": [],
+            },
+        ),
+        (
+            "substituted environment reviewer",
+            {
+                **protected_environment,
+                "protection_rules": [
+                    {
+                        **protected_environment["protection_rules"][0],
+                        "reviewers": [
+                            {
+                                "type": "User",
+                                "reviewer": {
+                                    "id": INDEPENDENT_REVIEWER_ID + 1,
+                                    "login": "substituted-reviewer",
+                                },
+                            }
+                        ],
+                    }
+                ],
             },
         ),
         (
