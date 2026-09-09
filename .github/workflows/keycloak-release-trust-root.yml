@@ -1,0 +1,36 @@
+name: Keycloak release trust root
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # During this bootstrap PR the implementation is not yet present on
+          # main. After merge, the workflow is protected-main-owned and the
+          # checkout resolves to the protected workflow's own revision.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Verify protected-main bootstrap
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          test -n "$PR_NUMBER"
+          EXPECTED_SHA="$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq .head.sha)"
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          test "$ACTUAL_SHA" = "$EXPECTED_SHA"
+          python3 scripts/bootstrap_release_trust_root.py \
+            --candidate-sha "$ACTUAL_SHA" \
+            --expected-candidate-sha "$EXPECTED_SHA" \
+            --repo "${{ github.repository }}" --pr "$PR_NUMBER" --token "$GH_TOKEN"

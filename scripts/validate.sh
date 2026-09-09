@@ -287,6 +287,9 @@ jq -e '
   and (
     [.rules[] | select(.type == "required_status_checks")][0].parameters.required_status_checks
     | map({context, integration_id}) == [
+        {"context":"validate-source", "integration_id":15368},
+        {"context":"validate-merge-result", "integration_id":15368},
+        {"context":"bootstrap", "integration_id":15368},
         {"context":"validate", "integration_id":15368},
         {"context":"orchestrator-contract", "integration_id":15368}
       ]

@@ -345,6 +345,7 @@ EXPECTED_ARTIFACT_POLICIES: dict[
 APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
     "appolon1908-hue/Keycloak": {
         "scripts/ci/audit_keycloak_pull_requests.py": "fa0c559a3dccfd4ced2a73ebcb2e1858724dcdba654fe84198045a6abbfc358b",
+        "scripts/bootstrap_release_trust_root.py": "265c4d1b9bd365d0cb14d933ec4fa22a269295952874781413befd87a241a294",
         "scripts/review-plan.sh": "65fe10f82d6fdb51ebca45e0453d5288baf05fa78ddce8754946e702432b50c4",
         "scripts/runtime-preflight.sh": "67bff10567f1c9763794f17d378f1dc3785e18569bda7432d0003d872239a052",
         "scripts/runner-systemd-preflight.sh": "d49eec2b037067dbede30aac8b49328025189e6a8883b0b4314ce613a7bd37be",
@@ -355,12 +356,12 @@ APPROVED_COMPLEX_SCRIPT_SHA256: dict[str, dict[str, str]] = {
         ),
         "scripts/test-plan-gate.sh": "a1998a4a92a2535aea09f35c5de369f0675ab4276e86ab92a42f908590c0ca6d",
         "scripts/test-runtime-preflight.sh": "e4fae06b294f0385d6006d35107463eaa65ec1099fae45ef032dffa1d3f65471",
-        "scripts/validate-governance.sh": "cefd59aaba1446e9aa0d8b0fc5370eab90f1d629422a0be25fad675515440c80",
+        "scripts/validate-governance.sh": "d445e3e1b91d945ac7c6d75df3608eb985772c6fae283c161037de50d5da70b2",
         "scripts/validate-workflows.py": (
-            "06b7f5eec4e36d51d9575decf70ce0a2"
-            "12767b563bc0fbdb1b61fa46ae7fc321"
+            "0f2cdde118ebe2e2c97186fa1ae26fb6"
+            "642ba7c14777b5b16796660b74b6ca9c"
         ),
-        "scripts/validate.sh": "0c2924af94d4f0b494cd287e3fe6a52fcc6e20f9e0e80d47671584306b859c95",
+        "scripts/validate.sh": "cf5769f45f154c69f75ee53013efd847c24c1ef57687c84b842009e70f0bb613",
     },
     "appolon1908-hue/Middleware-": {
         "scripts/apply_portfolio_release_reviewer_access.py": (
