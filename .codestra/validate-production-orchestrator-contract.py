@@ -33,20 +33,20 @@ RELEASE_VALIDATOR_NON_SELF_REFERENTIAL_BINDINGS = frozenset(
     }
 )
 STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "1b01e26adee8863b4f8e26e4531bcf51"
-    "2b21bf5456478e0ae14fde4016b8ba4c"
+    "c80de65ea7435ccaf592c712cb482326"
+    "7097a4de22d799a21ce5e8d3c90aac47"
 )
 MIDDLEWARE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "dc82cab6204271d236a558e29556b1eec"
-    "ca1b536e2085695a0ee4229584b4630"
+    "f0a3c7e325c6b11ad960f9a52f1bac38"
+    "ef834591ce866f4621133533373fef39"
 )
 BACKEND_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "1b01e26adee8863b4f8e26e4531bcf51"
-    "2b21bf5456478e0ae14fde4016b8ba4c"
+    "c80de65ea7435ccaf592c712cb482326"
+    "7097a4de22d799a21ce5e8d3c90aac47"
 )
 MONEYBEE_RELEASE_VALIDATOR_SECURITY_SHA256 = (
-    "38c581b0f00b087bbef5992145696d5c"
-    "04ecce6ebd1d7a9caedb14565dc47baa"
+    "20e790bad6d768b9aed2fb2ee394e90f"
+    "6e93e3a7cef1a445eb9008f1fff7dda2"
 )
 EXPECTED_RELEASE_VALIDATOR_SECURITY_SHA256 = {
     "appolon1908-hue/Infustruction-repo": STANDARD_RELEASE_VALIDATOR_SECURITY_SHA256,
@@ -1903,6 +1903,19 @@ def javascript_source_has_runtime_mutation(source: str) -> bool:
         while True:
             while open_index < len(lower) and lower[open_index].isspace():
                 open_index += 1
+            if lower.startswith("//", open_index):
+                comment_end = lower.find("\n", open_index + 2)
+                carriage_return = lower.find("\r", open_index + 2)
+                if carriage_return >= 0 and (
+                    comment_end < 0 or carriage_return < comment_end
+                ):
+                    comment_end = carriage_return
+                if comment_end < 0:
+                    # A loader followed only by a line comment cannot prove a
+                    # static, read-only import.
+                    return True
+                open_index = comment_end + 1
+                continue
             if not lower.startswith("/*", open_index):
                 break
             comment_end = lower.find("*/", open_index + 2)
@@ -3539,6 +3552,26 @@ def strip_condition_parentheses(expression: str) -> str:
     return expression
 
 
+def condition_constant_value(expression: str) -> tuple[bool, object]:
+    value = expression.strip()
+    if value == "true":
+        return True, True
+    if value == "false":
+        return True, False
+    if value == "null":
+        return True, None
+    if re.fullmatch(r"-?\d+", value):
+        return True, int(value)
+    if re.fullmatch(r"""'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"$""", value):
+        try:
+            parsed = ast.literal_eval(value)
+        except (SyntaxError, ValueError):
+            return False, None
+        if isinstance(parsed, str):
+            return True, parsed
+    return False, None
+
+
 def condition_is_statically_false(value: object) -> bool:
     if value is False or type(value) is int and value == 0:
         return True
@@ -3557,10 +3590,18 @@ def condition_is_statically_false(value: object) -> bool:
     compact = re.sub(r"\s+", "", expression)
     if compact in {"false", "!true", "nottrue", "0", "null", "''", '""'}:
         return True
-    comparison = re.fullmatch(r"(-?\d+)\s*(==|!=)\s*(-?\d+)", expression)
+    comparison = re.fullmatch(r"(.+?)\s*(==|!=)\s*(.+)", expression)
     if comparison is not None:
         left, operator, right = comparison.groups()
-        equal = int(left) == int(right)
+        left_is_constant, left_value = condition_constant_value(left)
+        right_is_constant, right_value = condition_constant_value(right)
+        if not (
+            left_is_constant
+            and right_is_constant
+            and type(left_value) is type(right_value)
+        ):
+            return False
+        equal = left_value == right_value
         return equal if operator == "!=" else not equal
     return False
 
@@ -3811,12 +3852,34 @@ def require_immutable_action_references(workflow: str, path: str) -> None:
         )
 
 
+def step_has_reachable_attestation(step: dict[str, Any]) -> bool:
+    if condition_is_statically_false(step.get("if")):
+        return False
+    uses = step.get("uses")
+    if isinstance(uses, str) and uses.startswith(
+        ("actions/attest@", "actions/attest-build-provenance@")
+    ):
+        return True
+    raw_tokens = shell_tokens(str(step.get("run", "")))
+    for index in command_indexes(raw_tokens):
+        if executable_name(raw_tokens[index]).lower() != "cosign":
+            continue
+        arguments = raw_command_arguments(raw_tokens, index)
+        if arguments and arguments[0].lower() == "attest":
+            return True
+    return False
+
+
 def require_reachable_signer_workflow(workflow: str, path: str) -> None:
     jobs = workflow_jobs(workflow, path)
     publication_jobs = [
         job
         for job in jobs.values()
-        if any(contains_image_publication(step) for step in workflow_steps(job, path))
+        if any(
+            not condition_is_statically_false(step.get("if"))
+            and contains_image_publication(step)
+            for step in workflow_steps(job, path)
+        )
     ]
     require(bool(publication_jobs), f"signer workflow has no image publication job: {path}")
     require(
@@ -3829,17 +3892,7 @@ def require_reachable_signer_workflow(workflow: str, path: str) -> None:
     for publication_job in publication_jobs:
         steps = workflow_steps(publication_job, path)
         require(
-            any(
-                not condition_is_statically_false(step.get("if"))
-                and (
-                    isinstance(step.get("uses"), str)
-                    and str(step["uses"]).startswith(
-                        ("actions/attest@", "actions/attest-build-provenance@")
-                    )
-                    or "cosign attest" in str(step.get("run", ""))
-                )
-                for step in steps
-            ),
+            any(step_has_reachable_attestation(step) for step in steps),
             f"signer publication job has no reachable attestation step: {path}",
         )
 
@@ -4929,6 +4982,9 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
         "0",
         "${{ false && true }}",
         "${{ 1 == 2 }}",
+        "${{ false == true }}",
+        "${{ true != true }}",
+        "${{ 'a' == 'b' }}",
         "${{ false && github.ref == 'refs/heads/main' }}",
     ):
         try:
@@ -4945,6 +5001,47 @@ def validate_negative_regressions(contract: dict[str, Any]) -> None:
             raise ContractError(
                 "negative regression unexpectedly passed: unreachable signer workflow"
             )
+    disabled_publication_step = reachable_signer.replace(
+        "      - uses: docker/build-push-action@",
+        "      - if: false\n        uses: docker/build-push-action@",
+        1,
+    )
+    try:
+        require_reachable_signer_workflow(
+            disabled_publication_step,
+            "synthetic-disabled-publication-step.yml",
+        )
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: disabled publication step"
+        )
+    comment_only_attestation = reachable_signer.replace(
+        "      - uses: actions/attest@0123456789012345678901234567890123456789",
+        "      - run: echo done # cosign attest",
+        1,
+    )
+    try:
+        require_reachable_signer_workflow(
+            comment_only_attestation,
+            "synthetic-comment-only-attestation.yml",
+        )
+    except ContractError:
+        pass
+    else:
+        raise ContractError(
+            "negative regression unexpectedly passed: comment-only attestation"
+        )
+    cosign_signer = reachable_signer.replace(
+        "      - uses: actions/attest@0123456789012345678901234567890123456789",
+        "      - run: cosign attest --yes image@example",
+        1,
+    )
+    require_reachable_signer_workflow(
+        cosign_signer,
+        "synthetic-cosign-signer.yml",
+    )
     split_attestation = """jobs:
   publish:
     runs-on: ubuntu-latest
