@@ -14,7 +14,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          # During this bootstrap PR the implementation is not yet present on
+          # main. After merge, the workflow is protected-main-owned and the
+          # checkout resolves to the protected workflow's own revision.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
       - name: Verify protected-main bootstrap
         env:

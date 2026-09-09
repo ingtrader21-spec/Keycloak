@@ -1,6 +1,7 @@
 {
   "schema": "keycloak.bootstrap-closure.v1",
   "files": [
+    {"path": ".github/workflows/keycloak-release-trust-root.yml", "sha256": "c66b7fa61b5de14d637881beb220320e5414b6306a0dcf417510c6b39c347e97"},
     {"path": ".github/workflows/manual-release-intent.yml", "sha256": "7f6b88e0a4a6ded29919d15ef19b4ead8e2269f2794e51fec6cffbce415fb4c9"},
     {"path": ".github/workflows/validate.yml", "sha256": "c208c34950199693bfbbc9db85dc091abd3bdbaedf0b2544ff8b7da4fa63ad70"},
     {"path": "scripts/bootstrap_release_trust_root.py", "sha256": "724f924aef10c2e277369d9b69883a11e82555b5c6e562ca440d29a57ebc1cf0"},
@@ -10,5 +11,5 @@
     {"path": "scripts/validate-workflows.py", "sha256": "cf51492f81c8adcfa3b5c2eb70d831399c90080ce8befa8679f13a4da5dc28f5"},
     {"path": "scripts/validate.sh", "sha256": "55e04d4b8796d3b2cd81ff32a47e7bcf742b1faaecd52d1756489ca83b0f25df"}
   ],
-  "manifest_sha256": "118420ef0b53841c5fcafb02e5b6491becf1c4baf7477b94735d4fff77e4ad1e"
+  "manifest_sha256": "884c9cebb4d70b5de0b841ba03e076eabe3ce10587944365d01b739eb4ad4445"
 }
