@@ -228,6 +228,19 @@ def validate_runtime_preflight_trigger(path: Path, workflow: dict[str, Any]) -> 
         fail(f"{path}: Stage 6 push path is not exact")
 
 
+def validate_smtp_apply_gate(path: Path, workflow: dict[str, Any]) -> None:
+    steps = workflow["jobs"]["reconcile"]["steps"]
+    guards = [index for index, step in enumerate(steps)
+              if step.get("run", "").strip() == "python3 scripts/verify_runtime_smtp.py"]
+    applies = [index for index, step in enumerate(steps)
+               if "./scripts/apply-plan.sh" in step.get("run", "")]
+    if len(guards) != 1 or len(applies) != 1 or guards[0] >= applies[0]:
+        fail(f"{path}: active SMTP runtime verification must precede apply")
+    guard = steps[guards[0]]
+    if guard.get("if") != "${{ inputs.mode == 'apply' }}" or "continue-on-error" in guard:
+        fail(f"{path}: SMTP runtime verification cannot be skipped or ignored during apply")
+
+
 def validate_privileged_workflow(path: Path, workflow: dict[str, Any]) -> None:
     triggers = as_mapping(workflow.get("on"), f"{path}.on")
     if path.name == "runtime-preflight.yml":
@@ -279,6 +292,7 @@ def validate_privileged_workflow(path: Path, workflow: dict[str, Any]) -> None:
             fail(f"{path}: privileged manual authority is incomplete; missing {required_fragment}")
 
     if path.name == "deploy.yml":
+        validate_smtp_apply_gate(path, workflow)
         dispatch = as_mapping(triggers["workflow_dispatch"], f"{path}.on.workflow_dispatch")
         inputs = as_mapping(dispatch.get("inputs"), f"{path}.on.workflow_dispatch.inputs")
         required_inputs = {"environment", "mode", "confirm_sha", "plan_run_id", "approved_plan_sha256", "review_run_id", "approved_review_sha256"}

@@ -102,6 +102,7 @@ if [[ "$DEPLOY_ENVIRONMENT" == production ]]; then
   jq -e '.productionMutationAllowed == true' \
     "$ROOT_DIR/config/certification/service-identity-matrix.json" >/dev/null ||
     die "production_mutation_not_authorized_by_certification_contract"
+  python3 "$ROOT_DIR/scripts/verify_runtime_smtp.py"
 fi
 
 "$ROOT_DIR/scripts/validate.sh"
@@ -677,6 +678,9 @@ if [[ "$realm_action" == "update" ]]; then
       | .smtpServer.password = $smtp_password
     ' "$realm_immediate_live_file" "$realm_desired_file" >"$realm_merged_file"
   chmod 600 "$realm_merged_file"
+  if [[ "$DEPLOY_ENVIRONMENT" == production ]]; then
+    python3 "$ROOT_DIR/scripts/verify_runtime_smtp.py"
+  fi
   keycloak_api PUT "/admin/realms/$(urlencode "$KC_TARGET_REALM")" "$realm_merged_file" >/dev/null
   updated_count=$((updated_count + 1))
   changed_count=$((changed_count + 1))

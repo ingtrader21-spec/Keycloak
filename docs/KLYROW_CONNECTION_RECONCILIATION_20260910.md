@@ -26,6 +26,16 @@ or weakening TLS. The live identity-platform Compose stack is different from
 this repository's dedicated stack; verify runtime paths and carry the hostname
 binding into the approved deployed service before the realm change is applied.
 
+The deployment workflow now runs `scripts/verify_runtime_smtp.py` before apply.
+It selects the active `keycloak` service through the approved Compose/env paths,
+checks the running container's Compose identity and `ExtraHosts`, reads its
+active `/etc/hosts`, and rejects a missing/conflicting binding or a replacement
+container. It uses the local Docker daemon and never restarts a service or
+changes networking. Production `apply-plan.sh` repeats this check before admin
+authentication and immediately before the realm PUT. Source-only `extra_hosts`
+changes cannot satisfy it. Inspection failures report fixed codes rather than
+potentially secret-bearing Compose output.
+
 The live Klyrow gateway lacks the SECURITY tenant/username/sender configuration,
 and the inspected Keycloak secret directory contains no dedicated SMTP credential.
 Provision that identity through Klyrow's reviewed SECURITY stream workflow, bind
@@ -63,3 +73,19 @@ files in the existing declared manifest, derived from immutable source commit
 `27e754ba8f56eaa279cde82ffe1bbc63c9fa0bcc`. It is a review proposal only. The
 legacy declared set does not cover all changed configuration or the new SMS
 files; independent closure review must account for those as well before apply.
+
+## Production attempt — 2026-09-10 02:05 UTC
+
+Odoo #93, Middleware #221 and Klyrow #108 passed their required CI, but GitHub
+rejected normal merges with HTTP 405 because independent approval is missing.
+Middleware explicitly requires code-owner review from `kazan555`. Keycloak #107
+also remains blocked by the active bootstrap validator digests. No branch rule,
+certification stop flag, trust anchor or production workload was changed.
+
+The core Odoo, Middleware and Keycloak containers and the Klyrow gateway remain
+healthy. Fresh read-only checks still find no `odoo-sms` or `klyrow-gateway`
+client in the live Codestra realm, no SMTP settings, and no `mail.klyrow.com`
+binding in the live Keycloak container. Administrative credential directories
+exist, but credential availability does not establish an approved release or
+authorize skipping its reviewed plan. SMS remains disabled; this is not a
+successful production activation or delivery certificate.

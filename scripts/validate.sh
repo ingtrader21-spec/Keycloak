@@ -330,6 +330,7 @@ fi
 
 python3 "$ROOT_DIR/scripts/validate-workflows.py"
 python3 "$ROOT_DIR/scripts/validate-runtime-security.py"
+python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_runtime_smtp.py' -v
 python3 "$ROOT_DIR/scripts/validate-machine-secret-contract.py"
 python3 "$ROOT_DIR/scripts/validate-password-reset-e2e.py"
 python3 "$ROOT_DIR/scripts/validate-realm-security-policy.py"

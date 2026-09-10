@@ -425,6 +425,10 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Verify active Keycloak private SMTP binding before apply
+        if: ${{ inputs.mode == 'apply' }}
+        run: python3 scripts/verify_runtime_smtp.py
+
       - name: Apply exact reviewed plan and verify convergence
         if: ${{ inputs.mode == 'apply' }}
         env:
