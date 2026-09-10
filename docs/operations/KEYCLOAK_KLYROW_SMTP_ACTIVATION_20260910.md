@@ -1,0 +1,70 @@
+# Keycloak / Klyrow SMTP activation: 2026-09-10
+
+Status: **BLOCKED; password-reset delivery has not been activated.**
+
+## Live evidence
+
+- Keycloak on core server `65.109.65.169` is healthy, but its existing CLI
+  administrative session is expired. Live realm SMTP/recovery readback failed.
+- Klyrow on `37.27.128.39` exposes its relay at `10.40.0.4:587`.
+- STARTTLS is advertised. Certificate verification against the IP fails with
+  an identity mismatch. Verification for `mail.klyrow.com` on the same private
+  endpoint succeeds: `Verify return code: 0 (ok)`.
+- Worker and relay image:
+  `sha256:1b0caed0283f03bf3e1f05e8411ca7e28f30ab42c4b854b570471a22671a740b`.
+  Reported source: `da9d85891a4e313748e309aed86662d6c03d26bb`.
+- SECURITY SMTP code is deployed, but no dedicated SECURITY SMTP credential or
+  sender exists. Relay and worker have no SECURITY environment bindings or
+  SECURITY payload-key mount. The existing read-only preflight reports
+  `KLYROW_SECURITY_SMTP_TENANT_ID is required`.
+- The `codestra.co` provider domain is `SENDING_ENABLED`. This alone does not
+  verify a SECURITY sender, credential, or payload encryption.
+- No live realm settings, credentials, passwords, mail flags, or containers
+  were changed. No password-reset email was sent.
+- Earlier Odoo SMTP test messages used a different general Postal credential;
+  they do not certify Keycloak password recovery.
+
+## Source correction
+
+Use `mail.klyrow.com` as the realm SMTP host and TLS certificate identity.
+Keycloak's Compose host mapping pins that name to `10.40.0.4`; port 587,
+authenticated STARTTLS, and the private route are retained.
+
+Validation rejects missing/private-address drift, public DNS fallback,
+bare-IP certificate identity, changed ports, realm endpoint drift, and disabled
+STARTTLS or authentication.
+
+Production currently uses
+`/opt/codestra/identity-platform/deploy/compose.identity.yaml`. The canonical
+Compose has not replaced that runtime. Apply its reviewed host mapping through
+the existing protected deployment, then inspect effective Compose and container
+resolution before updating the realm.
+
+## Remaining activation steps
+
+1. Reauthenticate an existing authorized Keycloak administrator, or bind the
+   approved administration service-account credential through private storage.
+   Do not recover credentials from the database, create a replacement superuser,
+   or disable MFA.
+2. Provision the dedicated Klyrow SECURITY sender and expiring SMTP credential
+   through normal administration. Verify domain, tenant, sender and envelope
+   policy, and payload encryption; retain unrelated delivery settings.
+3. Bind the SECURITY runtime settings and payload key in relay/worker. Run the
+   read-only provider preflight in disabled mode.
+4. Review and apply the exact Keycloak configuration plan. Do not apply the
+   whole canonical realm to the legacy runtime without validating its custom
+   providers, browser flows, and registration prerequisites.
+5. Follow the one-recipient canary in Klyrow's
+   `docs/SECURITY_SMTP_ACTIVATION.md`. Verify Keycloak issuance, Klyrow/Postal
+   delivery, controlled inbox receipt, expiry, replay rejection, and forced
+   reauthentication before production promotion.
+
+No credentials, reset links, authentication tokens, or message bodies are
+included in this evidence.
+
+## Validation
+
+- Full `scripts/validate.sh`: PASS.
+- Password-reset transport regression tests: 7 passed.
+- Realm-security and password-reset contract validation: PASS.
+- `git diff --check`: PASS.

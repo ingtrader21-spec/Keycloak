@@ -16,7 +16,7 @@
     "connectivity": "private-vlan-only",
     "hostEnvironment": "KC_SMTP_HOST",
     "portEnvironment": "KC_SMTP_PORT",
-    "defaultHost": "10.40.0.4",
+    "defaultHost": "mail.klyrow.com",
     "defaultPort": 587,
     "encryption": "starttls",
     "authenticationType": "password",
@@ -28,7 +28,8 @@
     "envelopeFromEnvironment": "KC_SMTP_ENVELOPE_FROM",
     "requiredKlyrowStream": "SECURITY",
     "senderMustBeVerified": true,
-    "credentialsMustBeDedicated": true
+    "credentialsMustBeDedicated": true,
+    "privateAddress": "10.40.0.4"
   },
   "humanApplications": [
     {

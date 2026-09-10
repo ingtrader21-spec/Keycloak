@@ -72,12 +72,19 @@ Mautic, tracking pixels or marketing content.
 The reviewed private endpoint contract is:
 
 ```text
-SMTP_HOST=10.40.0.4
+SMTP_HOST=mail.klyrow.com
+SMTP_PRIVATE_ADDRESS=10.40.0.4
 SMTP_PORT=587
 ENCRYPTION=STARTTLS
 AUTHENTICATION=REQUIRED
 STREAM=SECURITY
 ```
+
+The Keycloak container maps `mail.klyrow.com` to `10.40.0.4` with Compose
+`extra_hosts`. The DNS name matches the verified relay certificate while the
+connection stays on the private VLAN. Do not substitute the IP as the TLS
+identity or disable certificate verification. Check the final rendered Compose
+and runtime address resolution before activation.
 
 The Klyrow credential must be dedicated to Keycloak, restricted to exactly the
 `SECURITY` stream and one reviewed verified sender. The live endpoint,

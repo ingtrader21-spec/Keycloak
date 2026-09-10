@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / "config" / "email" / "keycloak-security-smtp.json"
 DOMAIN_REGISTRY = ROOT / "config" / "identity" / "application-domain-registry.json"
@@ -101,6 +103,30 @@ def load_json(path: Path, label: str) -> dict[str, Any]:
     return object_at(value, label)
 
 
+def validate_private_smtp_transport(
+    smtp: dict[str, Any], realm: dict[str, Any], compose: dict[str, Any]
+) -> None:
+    """Bind the certificate DNS identity to the reviewed private relay."""
+    if smtp.get("defaultHost") != "mail.klyrow.com":
+        fail("SMTP must use the verified mail.klyrow.com certificate identity")
+    if smtp.get("privateAddress") != "10.40.0.4" or smtp.get("defaultPort") != 587:
+        fail("approved private Klyrow SMTP address or port changed")
+    server = object_at(realm.get("smtpServer"), "realm smtpServer")
+    if server.get("host") != smtp["defaultHost"] or server.get("port") != "587":
+        fail("realm SMTP endpoint must match the private transport contract")
+    if any(server.get(k) != v for k, v in
+           {"auth": "true", "starttls": "true", "ssl": "false"}.items()):
+        fail("realm SMTP must require authentication and STARTTLS")
+    service = object_at(
+        object_at(compose.get("services"), "Compose services").get("keycloak"),
+        "Compose Keycloak service",
+    )
+    hosts = service.get("extra_hosts", {})
+    if not isinstance(hosts, dict) or hosts.get(smtp["defaultHost"]) != smtp["privateAddress"]:
+        fail("Keycloak must pin mail.klyrow.com to the private SMTP address")
+    if service.get("network_mode") == "host":
+        fail("Keycloak must retain its isolated container network")
+
 def validate() -> None:
     document = load_json(CONTRACT, "contract")
     exact_keys(
@@ -160,6 +186,7 @@ def validate() -> None:
             "hostEnvironment",
             "portEnvironment",
             "defaultHost",
+            "privateAddress",
             "defaultPort",
             "encryption",
             "authenticationType",
@@ -179,8 +206,11 @@ def validate() -> None:
         fail("SMTP provider must be klyrow-postal")
     if smtp["connectivity"] != "private-vlan-only":
         fail("Keycloak SMTP must remain on the private network")
-    if smtp["defaultHost"] != "10.40.0.4" or smtp["defaultPort"] != 587:
-        fail("approved private Klyrow SMTP endpoint changed")
+    validate_private_smtp_transport(
+        smtp,
+        load_json(ROOT / "config/realms/codestra.json", "realm"),
+        yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8")),
+    )
     if smtp["encryption"] != "starttls" or smtp["authenticationType"] != "password":
         fail("Klyrow SMTP must use authenticated STARTTLS")
     if smtp["requiredKlyrowStream"] != "SECURITY":
