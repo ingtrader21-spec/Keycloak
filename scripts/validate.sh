@@ -252,27 +252,33 @@ for file in "$CONFIG_ROOT"/clients/*.json; do
         and .directAccessGrantsEnabled == false
         and .serviceAccountsEnabled == false
         and .fullScopeAllowed == false
-        and .rootUrl == "https://n8n.codestra.co"
-        and .baseUrl == "https://n8n.codestra.co/"
+        and .attributes["login_theme"] == "codestra"
+        and .rootUrl == "https://n8n.codestra.agency"
+        and .baseUrl == "https://n8n.codestra.agency/"
         and .redirectUris == [
-          "https://n8n.codestra.co/oauth2/callback",
-          "https://n8n-staging.codestra.co/oauth2/callback"
+          "https://n8n.codestra.agency/oauth2/callback",
+          "https://n8n-staging.codestra.agency/oauth2/callback"
         ]
         and .webOrigins == [
-          "https://n8n.codestra.co",
-          "https://n8n-staging.codestra.co"
+          "https://n8n.codestra.agency",
+          "https://n8n-staging.codestra.agency"
         ]
         and .attributes["pkce.code.challenge.method"] == "S256"
         and .attributes["access.token.lifespan"] == "300"
-        and .attributes["post.logout.redirect.uris"] == "https://n8n.codestra.co/##https://n8n-staging.codestra.co/"
+        and .attributes["post.logout.redirect.uris"] == "https://n8n.codestra.agency/##https://n8n-staging.codestra.agency/"
       ' "$file" >/dev/null || fail "n8n editor gateway must be confidential Authorization Code + PKCE only"
       ;;
   esac
 
+  client_allowed_attributes="$allowed_attribute_fields"
+  if [[ "$client_id" == n8n-editor-gateway ]]; then
+    client_allowed_attributes='["pkce.code.challenge.method","post.logout.redirect.uris","oauth2.device.authorization.grant.enabled","oidc.ciba.grant.enabled","access.token.lifespan","login_theme"]'
+  fi
+
   jq -e \
     --arg client_id "$client_id" \
     --argjson allowed_top "$allowed_top_level_fields" \
-    --argjson allowed_attributes "$allowed_attribute_fields" '
+    --argjson allowed_attributes "$client_allowed_attributes" '
       .clientId == $client_id
       and (.topLevelFields | type == "array" and length > 0)
       and (.attributeFields | type == "array")

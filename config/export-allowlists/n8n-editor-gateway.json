@@ -29,6 +29,7 @@
     "post.logout.redirect.uris",
     "oauth2.device.authorization.grant.enabled",
     "oidc.ciba.grant.enabled",
-    "access.token.lifespan"
+    "access.token.lifespan",
+    "login_theme"
   ]
 }
