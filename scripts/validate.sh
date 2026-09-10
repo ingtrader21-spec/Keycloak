@@ -85,6 +85,7 @@ expected_managed='[
   "codestra-ai",
   "codestra-communication",
   "codestra-marketing",
+  "codestra-provisioning-service",
   "codestra-social",
   "klyrow-portal",
   "kong-gateway",
@@ -314,6 +315,8 @@ fi
 python3 "$ROOT_DIR/scripts/validate-workflows.py"
 python3 "$ROOT_DIR/scripts/validate-runtime-security.py"
 python3 "$ROOT_DIR/scripts/validate-machine-secret-contract.py"
+python3 "$ROOT_DIR/scripts/validate-webphone-production-client.py"
+python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_webphone_production_client.py' -v
 python3 "$ROOT_DIR/scripts/validate-password-reset-e2e.py"
 python3 "$ROOT_DIR/scripts/validate-realm-security-policy.py"
 python3 "$ROOT_DIR/scripts/validate-production-certification.py"

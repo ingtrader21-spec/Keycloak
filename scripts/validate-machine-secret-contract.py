@@ -12,6 +12,7 @@ contract = json.loads((ROOT / "config/contracts/machine-secret-destinations.json
 machine = json.loads((ROOT / "config/contracts/machine-clients.json").read_text())
 products = json.loads((ROOT / "config/contracts/product-middleware-clients.json").read_text())
 expected_clients = [item["clientId"] for item in machine["clients"]]
+expected_clients.append("codestra-provisioning-service")
 expected_clients.extend(item["clientId"] for item in products["clients"])
 environment_name = re.compile(r"^KC_CLIENT_SECRET_[A-Z0-9_]+$")
 

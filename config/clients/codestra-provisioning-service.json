@@ -1,0 +1,70 @@
+{
+  "clientId": "codestra-provisioning-service",
+  "name": "Codestra production webphone provisioning client",
+  "description": "Compatibility identity dedicated to the webphone session issuer; read-only Keycloak user lookup.",
+  "enabled": true,
+  "protocol": "openid-connect",
+  "publicClient": false,
+  "bearerOnly": false,
+  "consentRequired": false,
+  "standardFlowEnabled": false,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "serviceAccountsEnabled": true,
+  "authorizationServicesEnabled": false,
+  "frontchannelLogout": false,
+  "fullScopeAllowed": false,
+  "redirectUris": [],
+  "webOrigins": [],
+  "defaultClientScopes": [],
+  "optionalClientScopes": [],
+  "attributes": {
+    "access.token.lifespan": "300",
+    "oauth2.device.authorization.grant.enabled": "false",
+    "oidc.ciba.grant.enabled": "false"
+  },
+  "protocolMappers": [
+    {
+      "name": "audience-codestra-provisioning-service",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "consentRequired": false,
+      "config": {
+        "included.custom.audience": "codestra-provisioning-service",
+        "id.token.claim": "false",
+        "access.token.claim": "true"
+      }
+    },
+    {
+      "name": "reviewed-service-scopes",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-hardcoded-claim-mapper",
+      "consentRequired": false,
+      "config": {
+        "claim.name": "codestra_scopes",
+        "claim.value": "identity:rotate provisioning:execute provisioning:read",
+        "jsonType.label": "String",
+        "id.token.claim": "false",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "false",
+        "access.tokenResponse.claim": "false"
+      }
+    },
+    {
+      "name": "realm-management-read-roles",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-usermodel-client-role-mapper",
+      "consentRequired": false,
+      "config": {
+        "usermodel.clientRoleMapping.clientId": "realm-management",
+        "claim.name": "resource_access.realm-management.roles",
+        "jsonType.label": "String",
+        "multivalued": "true",
+        "access.token.claim": "true",
+        "id.token.claim": "false",
+        "userinfo.token.claim": "false",
+        "introspection.token.claim": "false"
+      }
+    }
+  ]
+}
