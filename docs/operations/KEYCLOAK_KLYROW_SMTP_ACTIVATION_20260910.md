@@ -68,3 +68,11 @@ included in this evidence.
 - Password-reset transport regression tests: 7 passed.
 - Realm-security and password-reset contract validation: PASS.
 - `git diff --check`: PASS.
+
+## Release review
+
+PR #108 is unmerged. The bootstrap check rejected the changed validator
+source digest. `config/bootstrap/proposals/pr108-ca901237.json` records the
+immutable source/policy comparison for independent review. The active trust
+manifest and release checks remain unchanged. Follow the proposal-directory
+README for separate protected-main policy maintenance before release.
