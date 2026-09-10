@@ -1,5 +1,5 @@
 {
-  "clientId": "klyrow-portal",
+  "clientId": "odoo-sms",
   "topLevelFields": [
     "clientId",
     "name",
@@ -13,21 +13,18 @@
     "implicitFlowEnabled",
     "directAccessGrantsEnabled",
     "serviceAccountsEnabled",
+    "authorizationServicesEnabled",
     "frontchannelLogout",
-    "rootUrl",
-    "baseUrl",
+    "fullScopeAllowed",
     "redirectUris",
     "webOrigins",
-    "attributes",
-    "fullScopeAllowed",
     "defaultClientScopes",
     "optionalClientScopes",
+    "attributes",
     "protocolMappers"
   ],
   "attributeFields": [
-    "pkce.code.challenge.method",
     "access.token.lifespan",
-    "post.logout.redirect.uris",
     "oauth2.device.authorization.grant.enabled",
     "oidc.ciba.grant.enabled"
   ]

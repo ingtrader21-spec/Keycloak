@@ -43,6 +43,11 @@ EXPECTED = {
         ["social."],
         ["postly-social"],
     ),
+    "odoo-sms": (
+        ["odoo.sms.command.write", "odoo.sms.status.read"],
+        ["sms."],
+        ["telnexa-sms"],
+    ),
 }
 
 TOP = [

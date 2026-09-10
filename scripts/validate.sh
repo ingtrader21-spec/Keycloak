@@ -19,6 +19,7 @@ python3 -c 'import yaml' >/dev/null 2>&1 || fail "PyYAML is required"
 python3 "$ROOT_DIR/scripts/validate-authority-controls.py"
 python3 "$ROOT_DIR/scripts/validate-provider-control-authority.py"
 python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_provider_control_authority.py' -v
+python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_klyrow_connection_contract.py' -v
 "$ROOT_DIR/scripts/test-backup-contract.sh"
 
 mapfile -t json_files < <(find "$CONFIG_ROOT" -type f -name '*.json' -print | sort)
@@ -102,6 +103,7 @@ expected_managed='[
   "n8n-automation",
   "n8n-editor-gateway",
   "odoo-integration",
+  "odoo-sms",
   "postly-adapter",
   "provisioning-service",
   "sdk-intake",
@@ -216,8 +218,23 @@ for file in "$CONFIG_ROOT"/clients/*.json; do
       ' "$file" >/dev/null || fail "MoneyBee portal must emit the moneybee-api access-token audience: $file"
       ;;
     klyrow-portal)
-      jq -e 'has("protocolMappers") | not' "$file" >/dev/null ||
-        fail "Klyrow desired state changed unexpectedly"
+      jq -e '
+        .rootUrl == "https://app.klyrow.com"
+        and .baseUrl == "https://app.klyrow.com/"
+        and .redirectUris == ["https://app.klyrow.com/auth/callback"]
+        and .webOrigins == ["https://app.klyrow.com"]
+        and .attributes["post.logout.redirect.uris"] == "https://app.klyrow.com/"
+        and .attributes["access.token.lifespan"] == "300"
+        and .fullScopeAllowed == false
+        and .defaultClientScopes == ["profile", "email"]
+        and .optionalClientScopes == []
+        and (.protocolMappers | length == 1)
+        and .protocolMappers[0].name == "klyrow-api-audience"
+        and .protocolMappers[0].protocolMapper == "oidc-audience-mapper"
+        and .protocolMappers[0].config["included.custom.audience"] == "klyrow-api"
+        and .protocolMappers[0].config["access.token.claim"] == "true"
+        and .protocolMappers[0].config["id.token.claim"] == "false"
+      ' "$file" >/dev/null || fail "Klyrow BFF callback/audience contract drifted"
       ;;
     n8n-editor-gateway)
       jq -e '

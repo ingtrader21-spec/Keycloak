@@ -12,18 +12,33 @@
   "directAccessGrantsEnabled": false,
   "serviceAccountsEnabled": false,
   "frontchannelLogout": true,
-  "rootUrl": "https://klyrow.com",
-  "baseUrl": "https://klyrow.com/",
+  "fullScopeAllowed": false,
+  "defaultClientScopes": ["profile", "email"],
+  "optionalClientScopes": [],
+  "rootUrl": "https://app.klyrow.com",
+  "baseUrl": "https://app.klyrow.com/",
   "redirectUris": [
-    "https://klyrow.com/"
+    "https://app.klyrow.com/auth/callback"
   ],
   "webOrigins": [
-    "https://klyrow.com"
+    "https://app.klyrow.com"
   ],
   "attributes": {
     "pkce.code.challenge.method": "S256",
-    "post.logout.redirect.uris": "https://klyrow.com/",
+    "post.logout.redirect.uris": "https://app.klyrow.com/",
+    "access.token.lifespan": "300",
     "oauth2.device.authorization.grant.enabled": "false",
     "oidc.ciba.grant.enabled": "false"
-  }
+  },
+  "protocolMappers": [{
+    "name": "klyrow-api-audience",
+    "protocol": "openid-connect",
+    "protocolMapper": "oidc-audience-mapper",
+    "consentRequired": false,
+    "config": {
+      "included.custom.audience": "klyrow-api",
+      "access.token.claim": "true",
+      "id.token.claim": "false"
+    }
+  }]
 }

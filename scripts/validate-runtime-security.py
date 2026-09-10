@@ -27,6 +27,8 @@ if set(services) != {"postgres", "keycloak-image-policy", "keycloak"}:
 postgres = services["postgres"]
 image_policy = services["keycloak-image-policy"]
 keycloak = services["keycloak"]
+if keycloak.get("extra_hosts") != ["mail.klyrow.com:10.40.0.4"]:
+    fail("SMTP certificate hostname must resolve only to the private Klyrow relay")
 if not DIGEST.fullmatch(str(postgres.get("image", ""))):
     fail("postgres image must use a version and immutable sha256 digest")
 if not GHCR_RUNTIME.fullmatch(str(keycloak.get("image", ""))):

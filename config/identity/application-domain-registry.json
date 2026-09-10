@@ -154,15 +154,15 @@
       "classification": "system-transactional",
       "clientKind": "public-pkce",
       "humanClientId": "klyrow-portal",
-      "apiAudience": "klyrow-gateway",
+      "apiAudience": "klyrow-api",
       "state": "managed",
       "canonicalDomain": "klyrow.com",
       "postalDnsState": "reported-spf-dkim-mx-return-path-ok",
       "redirectUris": [
-        "https://klyrow.com/"
+        "https://app.klyrow.com/auth/callback"
       ],
       "webOrigins": [
-        "https://klyrow.com"
+        "https://app.klyrow.com"
       ],
       "passwordResetDelegatedToKeycloak": true,
       "localPasswordResetAllowed": false,

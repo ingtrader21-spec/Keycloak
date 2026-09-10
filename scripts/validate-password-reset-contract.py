@@ -160,6 +160,7 @@ def validate() -> None:
             "hostEnvironment",
             "portEnvironment",
             "defaultHost",
+            "privateAddress",
             "defaultPort",
             "encryption",
             "authenticationType",
@@ -179,7 +180,8 @@ def validate() -> None:
         fail("SMTP provider must be klyrow-postal")
     if smtp["connectivity"] != "private-vlan-only":
         fail("Keycloak SMTP must remain on the private network")
-    if smtp["defaultHost"] != "10.40.0.4" or smtp["defaultPort"] != 587:
+    if (smtp["defaultHost"] != "mail.klyrow.com" or smtp["privateAddress"] != "10.40.0.4"
+            or smtp["defaultPort"] != 587):
         fail("approved private Klyrow SMTP endpoint changed")
     if smtp["encryption"] != "starttls" or smtp["authenticationType"] != "password":
         fail("Klyrow SMTP must use authenticated STARTTLS")

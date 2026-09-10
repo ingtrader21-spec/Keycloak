@@ -81,7 +81,8 @@ require(POLICY["requiredActions"]["moneybeeEmailOtp"] is True, "MoneyBee email O
 smtp = REALM["smtpServer"]
 smtp_contract = SMTP["smtp"]
 require(set(smtp) == {"host", "port", "from", "fromDisplayName", "replyTo", "envelopeFrom", "auth", "starttls", "ssl"}, "SMTP secret boundary")
-require(smtp["host"] == "10.40.0.4" and smtp["port"] == "587", "SMTP endpoint")
+require(smtp["host"] == "mail.klyrow.com" and smtp["port"] == "587", "SMTP certificate hostname endpoint")
+require(smtp_contract["privateAddress"] == "10.40.0.4", "SMTP private network address")
 require(smtp["auth"] == "true" and smtp["starttls"] == "true" and smtp["ssl"] == "false", "SMTP transport")
 
 recovery = POLICY["accountRecovery"]
