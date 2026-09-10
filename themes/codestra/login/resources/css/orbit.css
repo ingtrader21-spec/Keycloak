@@ -1,50 +1,177 @@
 :root {
-  --codestra-bg: #07111f;
-  --codestra-panel: #0f1d2e;
-  --codestra-border: #29415e;
-  --codestra-text: #f6f8fb;
-  --codestra-muted: #a8b5c5;
-  --codestra-accent: #55d6be;
-  --codestra-accent-hover: #79e3cf;
+  color-scheme: dark;
+  --codestra-bg: #0b0b0b;
+  --codestra-panel: #171717;
+  --codestra-panel-raised: #1f1f1f;
+  --codestra-border: rgba(255, 255, 255, 0.10);
+  --codestra-border-strong: rgba(255, 255, 255, 0.22);
+  --codestra-text: #ffffff;
+  --codestra-muted: #a1a1aa;
+  --codestra-accent: #ffffff;
+  --codestra-accent-hover: #e5e5e5;
+  --codestra-on-accent: #0b0b0b;
   --codestra-danger: #ff6b7a;
 }
 
-body {
-  background:
-    radial-gradient(circle at 15% 10%, rgba(85, 214, 190, 0.14), transparent 34rem),
-    linear-gradient(145deg, #07111f, #0a1727 55%, #07111f);
+html,
+body,
+.login-pf,
+.login-pf body {
+  background: var(--codestra-bg) !important;
   color: var(--codestra-text);
-  min-height: 100vh;
 }
 
-.pf-v5-c-login__container,
-.pf-c-login__container {
-  background: var(--codestra-panel);
-  border: 1px solid var(--codestra-border);
-  border-radius: 18px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.38);
+body {
+  min-height: 100vh;
+  min-height: 100svh;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.pf-v5-c-background-image,
+.pf-c-background-image {
+  display: none !important;
+}
+
+.pf-v5-c-login,
+.pf-c-login {
+  background: transparent !important;
+}
+
+.pf-v5-c-login__main,
+.pf-c-login__main,
+.card-pf {
+  background: var(--codestra-panel) !important;
+  border: 1px solid var(--codestra-border) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.36) !important;
+  color: var(--codestra-text);
+}
+
+.pf-v5-c-login__main-header,
+.pf-v5-c-login__main-body,
+.pf-v5-c-login__main-footer,
+.pf-c-login__main-header,
+.pf-c-login__main-body,
+.pf-c-login__main-footer {
+  color: var(--codestra-text);
+}
+
+#kc-header-wrapper,
+#kc-page-title,
+.pf-v5-c-title,
+.pf-c-title,
+label {
+  color: var(--codestra-text) !important;
+}
+
+#kc-header-wrapper {
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+.instruction,
+.pf-v5-c-helper-text,
+.pf-c-helper-text,
+.pf-v5-c-form__helper-text,
+.pf-c-form__helper-text,
+#kc-info-wrapper,
+#kc-registration,
+#kc-social-providers {
+  color: var(--codestra-muted) !important;
+}
+
+.pf-v5-c-form-control,
+.pf-c-form-control,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"] {
+  background: var(--codestra-bg) !important;
+  border-color: var(--codestra-border-strong) !important;
+  border-radius: 10px !important;
+  color: var(--codestra-text) !important;
+  box-shadow: none !important;
+}
+
+.pf-v5-c-form-control:focus-within,
+.pf-c-form-control:focus-within,
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="tel"]:focus {
+  border-color: var(--codestra-text) !important;
+  outline: 2px solid var(--codestra-text) !important;
+  outline-offset: 2px;
+}
+
+input::placeholder {
+  color: var(--codestra-muted) !important;
+  opacity: 1;
 }
 
 .pf-v5-c-button.pf-m-primary,
 .pf-c-button.pf-m-primary,
 #kc-login {
-  background: var(--codestra-accent);
-  border-color: var(--codestra-accent);
-  color: #04130f;
-  font-weight: 700;
+  background: var(--codestra-accent) !important;
+  border: 1px solid var(--codestra-accent) !important;
+  border-radius: 10px !important;
+  color: var(--codestra-on-accent) !important;
+  font-weight: 600;
+  min-height: 44px;
 }
 
 .pf-v5-c-button.pf-m-primary:hover,
 .pf-c-button.pf-m-primary:hover,
 #kc-login:hover {
-  background: var(--codestra-accent-hover);
-  border-color: var(--codestra-accent-hover);
+  background: var(--codestra-accent-hover) !important;
+  border-color: var(--codestra-accent-hover) !important;
 }
 
-a { color: var(--codestra-accent); }
-a:hover { color: var(--codestra-accent-hover); }
-.instruction, .pf-v5-c-helper-text, .pf-c-helper-text { color: var(--codestra-muted); }
-.pf-v5-c-alert.pf-m-danger, .pf-c-alert.pf-m-danger { border-color: var(--codestra-danger); }
+.pf-v5-c-button.pf-m-secondary,
+.pf-c-button.pf-m-secondary {
+  background: transparent !important;
+  border-color: var(--codestra-border-strong) !important;
+  color: var(--codestra-text) !important;
+  border-radius: 10px !important;
+}
+
+a {
+  color: var(--codestra-text) !important;
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  color: var(--codestra-accent-hover) !important;
+}
+
+a:focus-visible,
+button:focus-visible,
+#kc-login:focus-visible {
+  outline: 2px solid var(--codestra-text) !important;
+  outline-offset: 3px;
+}
+
+.pf-v5-c-divider,
+.pf-c-divider,
+hr {
+  border-color: var(--codestra-border) !important;
+}
+
+.pf-v5-c-alert.pf-m-danger,
+.pf-c-alert.pf-m-danger {
+  background: var(--codestra-panel-raised) !important;
+  border-color: var(--codestra-danger) !important;
+  color: var(--codestra-text) !important;
+}
+
+@media (max-width: 600px) {
+  .pf-v5-c-login__main,
+  .pf-c-login__main,
+  .card-pf {
+    border-radius: 14px !important;
+    margin-inline: 12px;
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
