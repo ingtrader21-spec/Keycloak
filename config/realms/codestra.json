@@ -81,7 +81,7 @@
   "loginTheme": "codestra-identity",
   "emailTheme": "codestra-identity",
   "smtpServer": {
-    "host": "10.40.0.4",
+    "host": "mail.klyrow.com",
     "port": "587",
     "from": "security@codestra.co",
     "fromDisplayName": "Codestra Security",

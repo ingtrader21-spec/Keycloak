@@ -29,6 +29,45 @@ port_file="$test_root/port"
 control_file="$test_root/control.json"
 printf '{}\n' >"$control_file"
 
+# Keep the plan gate test isolated from the real Docker daemon and runtime.
+mkdir -p "$test_root/bin" "$test_root/runtime"
+export RUNTIME_REPO_DIR="$test_root/runtime"
+export RUNTIME_COMPOSE_FILE="$test_root/runtime/compose.yaml"
+export RUNTIME_ENV_FILE="$test_root/runtime/runtime.env"
+export RUNTIME_KEYCLOAK_SERVICE=keycloak
+export MOCK_SMTP_CONTROL_FILE="$control_file"
+printf 'services: {}\n' >"$RUNTIME_COMPOSE_FILE"
+: >"$RUNTIME_ENV_FILE"
+cat >"$test_root/bin/docker" <<'PYSMTP'
+#!/usr/bin/env python3
+import json
+import os
+import sys
+from pathlib import Path
+
+args = sys.argv[1:]
+blocked = json.loads(Path(os.environ["MOCK_SMTP_CONTROL_FILE"]).read_text()).get("smtpRouteBlocked", False)
+if args[0] == "compose" and args[-3:] == ["config", "--format", "json"]:
+    print(json.dumps({
+        "name": "smtp-regression",
+        "services": {"keycloak": {"extra_hosts": {} if blocked else {"mail.klyrow.com": "10.40.0.4"}}},
+    }))
+elif args[0] == "compose" and args[-4:] == ["ps", "--all", "--quiet", "keycloak"]:
+    print("a" * 64)
+elif args == ["inspect", "a" * 64]:
+    print(json.dumps([{
+        "State": {"Running": True},
+        "Config": {"Labels": {"com.docker.compose.project": "smtp-regression", "com.docker.compose.service": "keycloak"}},
+        "HostConfig": {"ExtraHosts": ["mail.klyrow.com:10.40.0.4"], "NetworkMode": "default"},
+    }]))
+elif args == ["exec", "a" * 64, "getent", "ahosts", "mail.klyrow.com"]:
+    print("10.40.0.4 STREAM mail.klyrow.com")
+else:
+    raise SystemExit("Unexpected Docker call in isolated SMTP regression fixture")
+PYSMTP
+chmod 700 "$test_root/bin/docker"
+export PATH="$test_root/bin:$PATH"
+
 jq -S '.rememberMe = true' "$ROOT_DIR/config/realms/codestra.json" >"$realm_state_file"
 
 jq -S -n \
@@ -254,13 +293,13 @@ plan_dir="$test_root/plan"
 [[ "$(jq -er '.api.adminApiBaseUrl' "$plan_dir/plan.json")" == "https://auth-staging.codestra.co" ]]
 [[ "$(jq -er '.api.issuer' "$plan_dir/plan.json")" == "https://auth-staging.codestra.co/realms/codestra" ]]
 
-[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 33 ]]
+[[ "$(jq -er '.driftCount' "$plan_dir/plan.json")" -eq 34 ]]
 [[ "$(jq -er '.blockedCount' "$plan_dir/plan.json")" -eq 0 ]]
-[[ "$(jq -er '.createCount' "$plan_dir/plan.json")" -eq 31 ]]
+[[ "$(jq -er '.createCount' "$plan_dir/plan.json")" -eq 32 ]]
 [[ "$(jq -er '.updateCount' "$plan_dir/plan.json")" -eq 2 ]]
 [[ "$(jq -er '.realmPolicy.action' "$plan_dir/plan.json")" == "update" ]]
 [[ "$(jq -er '.clients[] | select(.clientId == "klyrow-portal") | .action' "$plan_dir/plan.json")" == "update" ]]
-for client_id in moneybee-admin moneybee-borrower moneybee-lender moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra; do
+for client_id in codestra-provisioning-service odoo-web moneybee-admin moneybee-borrower moneybee-lender moneybee-backend breero-backend larim-a-backend transportation-backend beyvra-backend social-codestra; do
   [[ "$(jq -er --arg client_id "$client_id" '.clients[] | select(.clientId == $client_id) | .action' "$plan_dir/plan.json")" == "create" ]]
   jq -e --arg client_id "$client_id" '
     .clients[]
@@ -292,7 +331,7 @@ mapfile -t managed_clients < <(jq -r '.clients[]' "$ROOT_DIR/config/policy/manag
   "${managed_clients[@]}" >/dev/null
 [[ -f "$rollback_dir/config/clients/klyrow-portal.json" ]]
 [[ "$(jq -er '.existingClientCount' "$rollback_dir/rollback-metadata.json")" -eq 1 ]]
-[[ "$(jq -er '.absentCreatableClientCount' "$rollback_dir/rollback-metadata.json")" -eq 31 ]]
+[[ "$(jq -er '.absentCreatableClientCount' "$rollback_dir/rollback-metadata.json")" -eq 32 ]]
 
 # Exercise the apply create path with a non-empty test credential for every
 # managed machine identity. Production values remain supplied only by the
@@ -345,6 +384,28 @@ jq -e '
 
 jq -S 'del(."moneybee-admin")' "$state_file" >"$state_file.tmp"
 mv "$state_file.tmp" "$state_file"
+
+smtp_before_sha="$(sha256sum "$state_file" "$realm_state_file")"
+jq '.smtpRouteBlocked = true' "$control_file" >"$control_file.tmp"
+mv "$control_file.tmp" "$control_file"
+if "$ROOT_DIR/scripts/apply-plan.sh" \
+  --plan "$plan_dir/plan.json" \
+  --expected-plan-sha "$plan_sha256" \
+  --review "$review_file" \
+  --expected-review-sha "$review_sha256" \
+  --expected-deploy-sha "$expected_sha" \
+  --recovery-dir "$test_root/smtp-blocked-recovery" >"$test_root/smtp-blocked.log" 2>&1; then
+  echo 'TEST_ERROR=apply_accepted_missing_runtime_smtp_route' >&2
+  exit 1
+fi
+grep -Fq 'Rendered runtime Compose is missing the private SMTP mapping' "$test_root/smtp-blocked.log"
+[[ "$(sha256sum "$state_file" "$realm_state_file")" == "$smtp_before_sha" ]] || {
+  echo 'TEST_ERROR=blocked_smtp_route_mutated_keycloak' >&2
+  exit 1
+}
+jq 'del(.smtpRouteBlocked)' "$control_file" >"$control_file.tmp"
+mv "$control_file.tmp" "$control_file"
+printf 'APPLY_PRIVATE_SMTP_ROUTE_FAIL_CLOSED=PASS\n'
 
 "$ROOT_DIR/scripts/apply-plan.sh" \
   --plan "$plan_dir/plan.json" \

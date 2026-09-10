@@ -61,6 +61,9 @@ services:
       keycloak-image-policy:
         condition: service_completed_successfully
     command: ["start", "--optimized"]
+    # Use the certificate DNS name while keeping SMTP on the private VLAN.
+    extra_hosts:
+      mail.klyrow.com: "10.40.0.4"
     environment:
       KC_DB: postgres
       KC_DB_URL_HOST: postgres

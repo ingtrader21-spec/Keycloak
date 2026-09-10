@@ -105,6 +105,8 @@ if [[ "$DEPLOY_ENVIRONMENT" == production ]]; then
 fi
 
 "$ROOT_DIR/scripts/validate.sh"
+# Applying cannot omit runtime route verification by leaving runtime variables unset.
+python3 "$ROOT_DIR/scripts/validate-password-reset-contract.py" --runtime
 jq -e . "$PLAN_FILE" >/dev/null || die "Plan is not valid JSON"
 
 canonical_plan_sha256="$(jq -S -c . "$PLAN_FILE" | sha256sum | awk '{print $1}')"
@@ -659,6 +661,8 @@ done <"$apply_manifest"
 # representation is built from this immediate live state so unmanaged realm
 # fields are retained.
 if [[ "$realm_action" == "update" ]]; then
+  # Recheck the active container route immediately before applying SMTP settings.
+  python3 "$ROOT_DIR/scripts/validate-password-reset-contract.py" --runtime
   require_env KC_SMTP_USERNAME
   require_env KC_SMTP_PASSWORD
   realm_immediate_live_file="$tmp_dir/realm-immediate-live.json"
