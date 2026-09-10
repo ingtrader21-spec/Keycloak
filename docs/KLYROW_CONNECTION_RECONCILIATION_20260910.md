@@ -73,6 +73,10 @@ files in the existing declared manifest, derived from immutable source commit
 `27e754ba8f56eaa279cde82ffe1bbc63c9fa0bcc`. It is a review proposal only. The
 legacy declared set does not cover all changed configuration or the new SMS
 files; independent closure review must account for those as well before apply.
+The subsequent deployment-binding repair is recorded by
+`config/bootstrap/proposals/klyrow-production-smtp-binding-20260910.json`, using
+source `454974092dd47a32cb9a47a86f5355fe6df0f8d2`. This newer proposal supersedes
+the earlier validator hashes for review and still grants no release authority.
 
 ## Production attempt — 2026-09-10 02:05 UTC
 
