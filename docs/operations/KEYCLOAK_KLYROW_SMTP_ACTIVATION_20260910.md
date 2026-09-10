@@ -73,8 +73,8 @@ included in this evidence.
 ## Release review
 
 PR #108 is unmerged. The bootstrap check rejected the changed validator
-source digest. `config/bootstrap/proposals/pr108-ca901237.json` records the
-immutable source/policy comparison for independent review. The active trust
+source digest. The immutable source/policy proposals are recorded below for
+independent review; `pr108-ca901237.json` is retained as historical evidence. The active trust
 manifest and release checks remain unchanged. Follow the proposal-directory
 README for separate protected-main policy maintenance before release.
 
@@ -97,3 +97,8 @@ reset/session links are intentionally omitted from this repository record.
 The existing administrative CLI session remains expired. The secure browser
 sign-in request was declined. Live realm changes still require normal
 authentication by an existing authorized administrator.
+
+The revised source is `4b0d97686cd794d3486720bdb4eb5c39384db195`. Its
+immutable proposed digest set is `config/bootstrap/proposals/pr108-4b0d976.json`.
+This replaces the earlier proposal for release review only. The active trust
+manifest and the production mutation stop flag remain unchanged.
