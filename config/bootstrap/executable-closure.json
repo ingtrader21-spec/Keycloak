@@ -14,7 +14,7 @@
     },
     {
       "path": "scripts/bootstrap_release_trust_root.py",
-      "sha256": "265c4d1b9bd365d0cb14d933ec4fa22a269295952874781413befd87a241a294"
+      "sha256": "c9b44f5a258338aa00f66432cf900403c9b85dd3c58840ba54e41c8cd9d30c73"
     },
     {
       "path": "scripts/validate-governance.sh",
@@ -38,9 +38,9 @@
     },
     {
       "path": "scripts/validate.sh",
-      "sha256": "3b1a7a6eca10473d119eca5118dd5ac317166c1394eb09fee65415d02daa5e39"
+      "sha256": "c04f8d0777cb587bfa4ea903b589a6ef679edf99855f988dccb4c29e490c47c6"
     }
   ],
-  "manifest_sha256": "85b54d37c17f16f24d8730e1a2bc9d6a0a5155ac4f03581c1756cc950d738adb",
+  "manifest_sha256": "bc4de8abd9b723cd7b9fb978be624d8f7b8a6838c3d5005a07fd99589a87eca2",
   "schema": "keycloak.bootstrap-closure.v1"
 }
