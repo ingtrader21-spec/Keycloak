@@ -53,3 +53,17 @@ The explicit client-role mapper emits only realm-management roles and does not
 grant them. Its fields follow the [Keycloak mapper API](https://www.keycloak.org/docs-api/latest/javadocs/org/keycloak/protocol/oidc/mappers/UserClientRoleMappingMapper.html)
 and [mapper constants](https://www.keycloak.org/docs-api/latest/javadocs/constant-values.html).
 Empty default client scopes do not implicitly supply this mapper.
+
+## Bootstrap review dependency
+
+The existing bootstrap pins the validator digest. Adding this client changes
+`scripts/validate.sh`, so the bootstrap correctly rejects the former digest.
+`config/bootstrap/proposals/pr106-webphone-production-client.json` records the
+change from immutable Git objects for source commit
+`9b1e37dc4ec00eb330cc4290df8487f5eab4956c`. It is a review proposal only.
+The active manifest, verifier, rulesets and production stop flag are unchanged.
+Complete the independent protected-main maintenance process documented in
+`config/bootstrap/proposals/README.md` before treating bootstrap as passed.
+
+Consumer configuration and the authenticated preflight are in
+[platform PR #336](https://github.com/appolon1908-hue/codestra-production-platform/pull/336).
