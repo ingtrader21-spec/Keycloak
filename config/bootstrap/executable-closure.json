@@ -26,7 +26,7 @@
     },
     {
       "path": "scripts/validate-password-reset-contract.py",
-      "sha256": "241402d098d64d90c4b9abedab9396e8efc08cb660b9cc41d5bdaafb52396b6b"
+      "sha256": "060b0e1dea614d25962dc2efae3656cf36d3e22be378df59b62a20254cff8852"
     },
     {
       "path": "scripts/validate-repository-name-authority.py",
@@ -38,9 +38,9 @@
     },
     {
       "path": "scripts/validate.sh",
-      "sha256": "f992fe7e99539069294ee678f997a807a1b01713c3d3a85a0bdc150194d29856"
+      "sha256": "3b1a7a6eca10473d119eca5118dd5ac317166c1394eb09fee65415d02daa5e39"
     }
   ],
-  "manifest_sha256": "1b878dc88d2a29bd6b12e3a35f63f3484b7937925c34bad0aa33af3a082ad792",
+  "manifest_sha256": "85b54d37c17f16f24d8730e1a2bc9d6a0a5155ac4f03581c1756cc950d738adb",
   "schema": "keycloak.bootstrap-closure.v1"
 }

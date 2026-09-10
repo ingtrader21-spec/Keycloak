@@ -102,3 +102,30 @@ The revised source is `4b0d97686cd794d3486720bdb4eb5c39384db195`. Its
 immutable proposed digest set is `config/bootstrap/proposals/pr108-4b0d976.json`.
 This replaces the earlier proposal for release review only. The active trust
 manifest and the production mutation stop flag remain unchanged.
+
+## Bootstrap digest correction after source approval
+
+The user requested correction of failed bootstrap run `34429780319`.
+Independent collaborator `kazan555` approved source commit
+`ea9f918a4397993a860df54233b5a7a42ddb7a55` on 2026-09-10 after the Odoo
+SSO changes from main `52c9f4c8069d2fa827b66f0f8a49ef864cbca9a0` were merged.
+
+The branch manifest is now refreshed for exactly two independently reviewed
+source files: `scripts/validate-password-reset-contract.py` and
+`scripts/validate.sh`. The other eight file bindings are unchanged. The
+canonical manifest digest is
+`85b54d37c17f16f24d8730e1a2bc9d6a0a5155ac4f03581c1756cc950d738adb`.
+The earlier immutable proposals remain historical records and do not match
+the combined SMTP/Odoo validator.
+
+The local source-hash check and all 17 existing bootstrap/manifest tests pass.
+This corrects source consistency only: it does not establish independent
+protected-main release authority, replace fresh exact-head approval/CI, or
+activate production. The revised commit requires fresh review under GitHub's
+stale-approval protection. No workflow, required check, review rule, or
+production mutation flag is changed by this correction.
+
+The earlier full local plan-gate run exceeded its 550-second execution limit;
+it is not a passing certification result. The isolated missing-route rejection
+and 19 SMTP regression tests passed. CI on the final merged source remains the
+authority for the complete plan-gate test.
