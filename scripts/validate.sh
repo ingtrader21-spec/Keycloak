@@ -16,7 +16,11 @@ done
 python3 -c 'import yaml' >/dev/null 2>&1 || fail "PyYAML is required"
 [[ -d "$CONFIG_ROOT" ]] || fail "Configuration root does not exist: $CONFIG_ROOT"
 
-python3 "$ROOT_DIR/scripts/validate-password-reset-contract.py"
+if [[ -n "${RUNTIME_COMPOSE_FILE:-}" ]]; then
+  python3 "$ROOT_DIR/scripts/validate-password-reset-contract.py" --runtime
+else
+  python3 "$ROOT_DIR/scripts/validate-password-reset-contract.py"
+fi
 python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_password_reset_smtp_transport.py' -v
 python3 "$ROOT_DIR/scripts/validate-authority-controls.py"
 python3 "$ROOT_DIR/scripts/validate-provider-control-authority.py"

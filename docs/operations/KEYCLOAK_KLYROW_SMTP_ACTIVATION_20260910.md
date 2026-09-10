@@ -20,7 +20,7 @@ Status: **BLOCKED; password-reset delivery has not been activated.**
 - The `codestra.co` provider domain is `SENDING_ENABLED`. This alone does not
   verify a SECURITY sender, credential, or payload encryption.
 - No live realm settings, credentials, passwords, mail flags, or containers
-  were changed. No password-reset email was sent.
+  were changed. A later user-authorized reset request failed to send; see below.
 - Earlier Odoo SMTP test messages used a different general Postal credential;
   they do not certify Keycloak password recovery.
 
@@ -65,7 +65,8 @@ included in this evidence.
 ## Validation
 
 - Full `scripts/validate.sh`: PASS.
-- Password-reset transport regression tests: 7 passed.
+- Password-reset transport regression tests: 19 passed (including runtime route
+  checks and environment-example consistency).
 - Realm-security and password-reset contract validation: PASS.
 - `git diff --check`: PASS.
 
@@ -76,3 +77,23 @@ source digest. `config/bootstrap/proposals/pr108-ca901237.json` records the
 immutable source/policy comparison for independent review. The active trust
 manifest and release checks remain unchanged. Follow the proposal-directory
 README for separate protected-main policy maintenance before release.
+
+## Approval follow-up and reset request
+
+An independent GitHub approval was recorded on source head
+`ce4ae5aa1cd4ab4acd9a41b70d7e1749143cd721`. Subsequent corrections address both
+review findings: runtime transport verification before apply and the stale
+SMTP environment example. These changes require a fresh exact-head review and
+a new immutable digest proposal; the old source proposal is historical only.
+
+At 2026-09-10 02:11:47 UTC, one user-requested password-reset attempt through
+the Codestra account login produced Keycloak event `KC-SERVICES0026`:
+`EmailException: Invalid sender address 'null'`. The login page displayed its
+generic confirmation, but server-side delivery failed. The missing sender is
+now confirmed in the live recovery path. No reset email was delivered by this
+attempt, and no account password was changed. The requested mailbox and all
+reset/session links are intentionally omitted from this repository record.
+
+The existing administrative CLI session remains expired. The secure browser
+sign-in request was declined. Live realm changes still require normal
+authentication by an existing authorized administrator.
