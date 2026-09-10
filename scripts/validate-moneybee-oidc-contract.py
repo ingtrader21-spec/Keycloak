@@ -205,11 +205,12 @@ def main() -> int:
     expected_creatable = EXPECTED_CLIENT_IDS | machine_ids | product_ids | {
         "klyrow-portal",
         "n8n-editor-gateway",
+        "odoo-web",
     }
     if set(creatable.get("clients") or []) != expected_creatable:
         fail(
             "creatable clients must be exactly MoneyBee, klyrow portal, "
-            "n8n editor gateway, and reviewed machine identities"
+            "n8n editor gateway, Odoo web, and reviewed machine identities"
         )
 
     registry = load(DOMAIN_REGISTRY)

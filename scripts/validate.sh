@@ -108,6 +108,7 @@ expected_managed='[
   "n8n-automation",
   "n8n-editor-gateway",
   "odoo-integration",
+  "odoo-web",
   "postly-adapter",
   "provisioning-service",
   "sdk-intake",
@@ -224,6 +225,23 @@ for file in "$CONFIG_ROOT"/clients/*.json; do
     klyrow-portal)
       jq -e 'has("protocolMappers") | not' "$file" >/dev/null ||
         fail "Klyrow desired state changed unexpectedly"
+      ;;
+    odoo-web)
+      jq -e '
+        .publicClient == true
+        and .standardFlowEnabled == true
+        and .implicitFlowEnabled == false
+        and .directAccessGrantsEnabled == false
+        and .serviceAccountsEnabled == false
+        and .fullScopeAllowed == false
+        and .rootUrl == "https://crm.codestra.agency"
+        and .baseUrl == "https://crm.codestra.agency/"
+        and .redirectUris == ["https://crm.codestra.agency/codestra/sso/callback"]
+        and .webOrigins == ["https://crm.codestra.agency"]
+        and .attributes["pkce.code.challenge.method"] == "S256"
+        and .attributes["access.token.lifespan"] == "300"
+        and .attributes["post.logout.redirect.uris"] == "https://crm.codestra.agency/web/login?logout=1"
+      ' "$file" >/dev/null || fail "Odoo web client must be public Authorization Code + PKCE S256 only"
       ;;
     n8n-editor-gateway)
       jq -e '

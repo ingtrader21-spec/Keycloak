@@ -1,0 +1,27 @@
+{
+  "clientId": "odoo-web",
+  "name": "Codestra Odoo 19 Web SSO",
+  "description": "Odoo browser sign-in using Authorization Code Flow with PKCE; no client secret is stored in Odoo.",
+  "enabled": true,
+  "protocol": "openid-connect",
+  "publicClient": true,
+  "bearerOnly": false,
+  "consentRequired": false,
+  "standardFlowEnabled": true,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "serviceAccountsEnabled": false,
+  "frontchannelLogout": true,
+  "fullScopeAllowed": false,
+  "rootUrl": "https://crm.codestra.agency",
+  "baseUrl": "https://crm.codestra.agency/",
+  "redirectUris": ["https://crm.codestra.agency/codestra/sso/callback"],
+  "webOrigins": ["https://crm.codestra.agency"],
+  "attributes": {
+    "pkce.code.challenge.method": "S256",
+    "post.logout.redirect.uris": "https://crm.codestra.agency/web/login?logout=1",
+    "oauth2.device.authorization.grant.enabled": "false",
+    "oidc.ciba.grant.enabled": "false",
+    "access.token.lifespan": "300"
+  }
+}
