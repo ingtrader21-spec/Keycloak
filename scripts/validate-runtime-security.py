@@ -59,6 +59,28 @@ def verify_running_login_themes() -> None:
 
     if not any((compose_raw, service, env_raw)):
         return
+
+    # The reviewed plan-gate suite intentionally exercises runtime-aware
+    # validation against a loopback mock.  Keep that fixture isolated from the
+    # real Docker assertion without creating a deploy-time bypass: all four
+    # test-only indicators must be present together and the admin URL must be
+    # loopback.  Any partial test-mode signal fails closed below.
+    allow_insecure = os.environ.get("ALLOW_INSECURE_KC_BASE_URL", "")
+    allow_noncanonical = os.environ.get("ALLOW_NONCANONICAL_KC_BASE_URL_FOR_TESTS", "")
+    mock_control = os.environ.get("MOCK_SMTP_CONTROL_FILE", "")
+    kc_base_url = os.environ.get("KC_BASE_URL", "")
+    test_fixture = (
+        allow_insecure == "true"
+        and allow_noncanonical == "true"
+        and bool(mock_control)
+        and kc_base_url.startswith("http://127.0.0.1:")
+    )
+    if test_fixture:
+        print("N8N_LOGIN_THEME_RUNTIME=SKIPPED_TEST_FIXTURE")
+        return
+    if allow_insecure or allow_noncanonical or mock_control:
+        fail("test-only runtime flags cannot bypass login-theme verification")
+
     if not compose_raw or not service:
         fail("runtime theme verification requires compose file and Keycloak service")
     if SAFE_SERVICE.fullmatch(service) is None:
@@ -78,10 +100,14 @@ def verify_running_login_themes() -> None:
         command.extend(["--env-file", str(env_file)])
     command.extend(["ps", "-q", service])
 
-    container_lines = [line.strip() for line in run_checked(
-        command,
-        "unable to resolve the running Keycloak container",
-    ).splitlines() if line.strip()]
+    container_lines = [
+        line.strip()
+        for line in run_checked(
+            command,
+            "unable to resolve the running Keycloak container",
+        ).splitlines()
+        if line.strip()
+    ]
     if len(container_lines) != 1 or SAFE_CONTAINER_ID.fullmatch(container_lines[0]) is None:
         fail("exactly one canonical Keycloak container must be running")
     container_id = container_lines[0]
