@@ -3,11 +3,16 @@
 
 from __future__ import annotations
 
+import argparse
 import json
+import os
+import subprocess
 import re
 import sys
 from pathlib import Path
 from typing import Any
+
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / "config" / "email" / "keycloak-security-smtp.json"
@@ -101,6 +106,150 @@ def load_json(path: Path, label: str) -> dict[str, Any]:
     return object_at(value, label)
 
 
+def validate_private_smtp_transport(
+    smtp: dict[str, Any], realm: dict[str, Any], compose: dict[str, Any]
+) -> None:
+    """Bind the certificate DNS identity to the reviewed private relay."""
+    if smtp.get("defaultHost") != "mail.klyrow.com":
+        fail("SMTP must use the verified mail.klyrow.com certificate identity")
+    if smtp.get("privateAddress") != "10.40.0.4" or smtp.get("defaultPort") != 587:
+        fail("approved private Klyrow SMTP address or port changed")
+    server = object_at(realm.get("smtpServer"), "realm smtpServer")
+    if server.get("host") != smtp["defaultHost"] or server.get("port") != "587":
+        fail("realm SMTP endpoint must match the private transport contract")
+    if any(server.get(k) != v for k, v in
+           {"auth": "true", "starttls": "true", "ssl": "false"}.items()):
+        fail("realm SMTP must require authentication and STARTTLS")
+    service = object_at(
+        object_at(compose.get("services"), "Compose services").get("keycloak"),
+        "Compose Keycloak service",
+    )
+    hosts = service.get("extra_hosts", {})
+    if smtp_host_addresses(hosts, smtp["defaultHost"]) != {smtp["privateAddress"]}:
+        fail("Keycloak must pin mail.klyrow.com to the private SMTP address")
+    if service.get("network_mode") == "host":
+        fail("Keycloak must retain its isolated container network")
+
+
+def smtp_host_addresses(hosts: Any, hostname: str) -> set[str]:
+    """Normalize both Compose and Docker inspect extra_hosts representations."""
+    if isinstance(hosts, dict):
+        value = hosts.get(hostname)
+        return {value} if isinstance(value, str) else set()
+    if isinstance(hosts, list):
+        addresses = set()
+        for entry in hosts:
+            if not isinstance(entry, str):
+                fail("SMTP host mapping entries must be strings")
+            match = re.fullmatch(r"([^:=]+)[:=](.+)", entry)
+            if not match:
+                fail("SMTP host mapping entry is invalid")
+            if match[1] == hostname:
+                addresses.add(match[2])
+        return addresses
+    fail("SMTP host mapping must be an object or array")
+
+
+def validate_email_environment_example(smtp: dict[str, Any], text: str) -> None:
+    entries = {}
+    for line in text.splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        key, separator, value = line.partition("=")
+        if not separator or key in entries:
+            fail("SMTP environment example has invalid or duplicate variables")
+        entries[key] = value
+    if entries.get(smtp["hostEnvironment"]) != smtp["defaultHost"]:
+        fail("SMTP environment example must use the certificate DNS identity")
+    if entries.get(smtp["portEnvironment"]) != str(smtp["defaultPort"]):
+        fail("SMTP environment example must retain the private relay port")
+
+
+def runtime_command(command: list[str], label: str) -> str:
+    # Compose output and Docker inspection can contain credentials. Capture them
+    # in memory; never echo command output or subprocess exception details.
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired):
+        fail(f"{label} could not complete")
+    if result.returncode:
+        fail(f"{label} failed")
+    return result.stdout
+
+
+def runtime_json(command: list[str], label: str) -> Any:
+    try:
+        return json.loads(runtime_command(command, label))
+    except json.JSONDecodeError:
+        fail(f"{label} did not return valid JSON")
+
+
+def validate_runtime_private_smtp_transport() -> None:
+    """Require the effective Compose service and its running container route."""
+    smtp = load_json(CONTRACT, "contract")["smtp"]
+    runtime_paths = {}
+    for name in ("RUNTIME_REPO_DIR", "RUNTIME_COMPOSE_FILE", "RUNTIME_ENV_FILE"):
+        value = os.environ.get(name, "")
+        path = Path(value)
+        if not value or not path.is_absolute():
+            fail(f"{name} must be an absolute runtime path")
+        if not (path.is_dir() if name == "RUNTIME_REPO_DIR" else path.is_file()):
+            fail(f"{name} is unavailable")
+        runtime_paths[name] = str(path)
+    service_name = os.environ.get("RUNTIME_KEYCLOAK_SERVICE", "") or "keycloak"
+    if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]*", service_name):
+        fail("RUNTIME_KEYCLOAK_SERVICE is invalid")
+    compose_command = [
+        "docker", "compose",
+        "--project-directory", runtime_paths["RUNTIME_REPO_DIR"],
+        "--env-file", runtime_paths["RUNTIME_ENV_FILE"],
+        "-f", runtime_paths["RUNTIME_COMPOSE_FILE"],
+    ]
+    compose = object_at(
+        runtime_json(compose_command + ["config", "--format", "json"], "Runtime Compose rendering"),
+        "runtime Compose",
+    )
+    project = compose.get("name")
+    if not isinstance(project, str) or not project:
+        fail("Runtime Compose project identity is missing")
+    service = object_at(
+        object_at(compose.get("services"), "runtime services").get(service_name),
+        "runtime Keycloak service",
+    )
+    if service.get("network_mode") == "host":
+        fail("Runtime Keycloak must retain its isolated container network")
+    if smtp_host_addresses(service.get("extra_hosts", {}), smtp["defaultHost"]) != {smtp["privateAddress"]}:
+        fail("Rendered runtime Compose is missing the private SMTP mapping")
+
+    container_ids = runtime_command(
+        compose_command + ["ps", "--all", "--quiet", service_name], "Runtime container lookup",
+    ).split()
+    if len(container_ids) != 1 or not re.fullmatch(r"[0-9a-f]{12,64}", container_ids[0]):
+        fail("Expected exactly one runtime Keycloak container")
+    container_id = container_ids[0]
+    containers = runtime_json(["docker", "inspect", container_id], "Runtime container inspection")
+    if not isinstance(containers, list) or len(containers) != 1:
+        fail("Runtime container inspection is ambiguous")
+    container = object_at(containers[0], "runtime container")
+    if object_at(container.get("State"), "runtime state").get("Running") is not True:
+        fail("Runtime Keycloak container is not running")
+    labels = object_at(object_at(container.get("Config"), "container config").get("Labels"), "container labels")
+    if labels.get("com.docker.compose.project") != project or labels.get("com.docker.compose.service") != service_name:
+        fail("Runtime Keycloak container does not match the rendered Compose project/service")
+    host_config = object_at(container.get("HostConfig"), "container host config")
+    if host_config.get("NetworkMode") == "host":
+        fail("Running Keycloak must retain its isolated container network")
+    if smtp_host_addresses(host_config.get("ExtraHosts", []), smtp["defaultHost"]) != {smtp["privateAddress"]}:
+        fail("Running Keycloak has not activated the private SMTP mapping")
+    resolution = runtime_command(
+        ["docker", "exec", container_id, "getent", "ahosts", smtp["defaultHost"]],
+        "Runtime SMTP hostname resolution",
+    )
+    addresses = {line.split()[0] for line in resolution.splitlines() if line.split()}
+    if addresses != {smtp["privateAddress"]}:
+        fail("Running Keycloak SMTP resolution is not exclusively the private relay")
+
+
 def validate() -> None:
     document = load_json(CONTRACT, "contract")
     exact_keys(
@@ -160,6 +309,7 @@ def validate() -> None:
             "hostEnvironment",
             "portEnvironment",
             "defaultHost",
+            "privateAddress",
             "defaultPort",
             "encryption",
             "authenticationType",
@@ -179,8 +329,14 @@ def validate() -> None:
         fail("SMTP provider must be klyrow-postal")
     if smtp["connectivity"] != "private-vlan-only":
         fail("Keycloak SMTP must remain on the private network")
-    if smtp["defaultHost"] != "10.40.0.4" or smtp["defaultPort"] != 587:
-        fail("approved private Klyrow SMTP endpoint changed")
+    validate_private_smtp_transport(
+        smtp,
+        load_json(ROOT / "config/realms/codestra.json", "realm"),
+        yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8")),
+    )
+    validate_email_environment_example(
+        smtp, (ROOT / "deploy/keycloak-email.env.example").read_text(encoding="utf-8"),
+    )
     if smtp["encryption"] != "starttls" or smtp["authenticationType"] != "password":
         fail("Klyrow SMTP must use authenticated STARTTLS")
     if smtp["requiredKlyrowStream"] != "SECURITY":
@@ -275,11 +431,21 @@ def validate() -> None:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        '--runtime', action='store_true',
+        help='also verify rendered runtime Compose and running container SMTP resolution',
+    )
+    args = parser.parse_args()
     try:
         validate()
+        if args.runtime:
+            validate_runtime_private_smtp_transport()
     except ContractError as exc:
         print(f"PASSWORD_RESET_CONTRACT_ERROR={exc}", file=sys.stderr)
         return 1
+    if args.runtime:
+        print("KLYROW_RUNTIME_PRIVATE_SMTP_ROUTE=PASS")
     print("PASSWORD_RESET_CONTRACT=PASS")
     print("KEYCLOAK_PASSWORD_AUTHORITY=PASS")
     print("KLYROW_SECURITY_SMTP_CONTRACT=PASS")
