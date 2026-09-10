@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "clientId": "codestra-provisioning-service",
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "audience": "codestra-provisioning-service",
+  "claimName": "codestra_scopes",
+  "scopes": [
+    "identity:rotate",
+    "provisioning:execute",
+    "provisioning:read"
+  ],
+  "maximumAccessTokenLifetimeSeconds": 300,
+  "realmRoles": [],
+  "realmManagementRoles": [
+    "view-users"
+  ],
+  "applyEnvironment": "KC_CLIENT_SECRET_CODESTRA_PROVISIONING_SERVICE",
+  "consumer": "middleware-webphone-session-issuer",
+  "adapterCredentialSharingAllowed": false
+}

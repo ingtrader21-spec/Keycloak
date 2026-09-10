@@ -16,6 +16,12 @@ done
 python3 -c 'import yaml' >/dev/null 2>&1 || fail "PyYAML is required"
 [[ -d "$CONFIG_ROOT" ]] || fail "Configuration root does not exist: $CONFIG_ROOT"
 
+if [[ -n "${RUNTIME_COMPOSE_FILE:-}" ]]; then
+  python3 "$ROOT_DIR/scripts/validate-password-reset-contract.py" --runtime
+else
+  python3 "$ROOT_DIR/scripts/validate-password-reset-contract.py"
+fi
+python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_password_reset_smtp_transport.py' -v
 python3 "$ROOT_DIR/scripts/validate-authority-controls.py"
 python3 "$ROOT_DIR/scripts/validate-provider-control-authority.py"
 python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_provider_control_authority.py' -v
@@ -85,6 +91,7 @@ expected_managed='[
   "codestra-ai",
   "codestra-communication",
   "codestra-marketing",
+  "codestra-provisioning-service",
   "codestra-social",
   "klyrow-portal",
   "kong-gateway",
@@ -102,6 +109,7 @@ expected_managed='[
   "n8n-automation",
   "n8n-editor-gateway",
   "odoo-integration",
+  "odoo-web",
   "postly-adapter",
   "provisioning-service",
   "sdk-intake",
@@ -219,6 +227,23 @@ for file in "$CONFIG_ROOT"/clients/*.json; do
       jq -e 'has("protocolMappers") | not' "$file" >/dev/null ||
         fail "Klyrow desired state changed unexpectedly"
       ;;
+    odoo-web)
+      jq -e '
+        .publicClient == true
+        and .standardFlowEnabled == true
+        and .implicitFlowEnabled == false
+        and .directAccessGrantsEnabled == false
+        and .serviceAccountsEnabled == false
+        and .fullScopeAllowed == false
+        and .rootUrl == "https://crm.codestra.agency"
+        and .baseUrl == "https://crm.codestra.agency/"
+        and .redirectUris == ["https://crm.codestra.agency/codestra/sso/callback"]
+        and .webOrigins == ["https://crm.codestra.agency"]
+        and .attributes["pkce.code.challenge.method"] == "S256"
+        and .attributes["access.token.lifespan"] == "300"
+        and .attributes["post.logout.redirect.uris"] == "https://crm.codestra.agency/web/login?logout=1"
+      ' "$file" >/dev/null || fail "Odoo web client must be public Authorization Code + PKCE S256 only"
+      ;;
     n8n-editor-gateway)
       jq -e '
         .publicClient == false
@@ -314,6 +339,8 @@ fi
 python3 "$ROOT_DIR/scripts/validate-workflows.py"
 python3 "$ROOT_DIR/scripts/validate-runtime-security.py"
 python3 "$ROOT_DIR/scripts/validate-machine-secret-contract.py"
+python3 "$ROOT_DIR/scripts/validate-webphone-production-client.py"
+python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_webphone_production_client.py' -v
 python3 "$ROOT_DIR/scripts/validate-password-reset-e2e.py"
 python3 "$ROOT_DIR/scripts/validate-realm-security-policy.py"
 python3 "$ROOT_DIR/scripts/validate-production-certification.py"

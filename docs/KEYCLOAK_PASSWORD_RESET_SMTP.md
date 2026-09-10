@@ -72,12 +72,19 @@ Mautic, tracking pixels or marketing content.
 The reviewed private endpoint contract is:
 
 ```text
-SMTP_HOST=10.40.0.4
+SMTP_HOST=mail.klyrow.com
+SMTP_PRIVATE_ADDRESS=10.40.0.4
 SMTP_PORT=587
 ENCRYPTION=STARTTLS
 AUTHENTICATION=REQUIRED
 STREAM=SECURITY
 ```
+
+The Keycloak container maps `mail.klyrow.com` to `10.40.0.4` with Compose
+`extra_hosts`. The DNS name matches the verified relay certificate while the
+connection stays on the private VLAN. Do not substitute the IP as the TLS
+identity or disable certificate verification. Check the final rendered Compose
+and runtime address resolution before activation.
 
 The Klyrow credential must be dedicated to Keycloak, restricted to exactly the
 `SECURITY` stream and one reviewed verified sender. The live endpoint,
@@ -163,3 +170,25 @@ EXACT_WEB_ORIGIN=UNVERIFIED
 PUBLIC_LENDER_REGISTRATION=ENABLED
 PUBLIC_ADMIN_REGISTRATION=ENABLED
 ```
+
+## Runtime transport gate
+
+The canonical Compose mapping is not sufficient evidence of an active private
+route. Before applying a reviewed realm plan, the deployment reads
+`RUNTIME_COMPOSE_FILE` with `RUNTIME_ENV_FILE` and `RUNTIME_REPO_DIR`,
+checks the rendered SMTP mapping, locates the exact Compose project/service
+container, verifies its active mapping, and runs `getent ahosts mail.klyrow.com`
+inside it. Resolution must return only `10.40.0.4`.
+
+Set the deployment environment variable `RUNTIME_KEYCLOAK_SERVICE` to the
+service name in that runtime Compose file (default `keycloak`; the inspected
+legacy staging service is `keycloak-staging`). The workflow passes this
+non-secret variable to the check. Missing runtime bindings, stopped containers,
+ambiguous containers, stale container mappings, or public/mixed resolution
+block application. Deploy the approved Compose mapping and recreate the
+Keycloak service before applying SMTP settings.
+
+`scripts/validate.sh` includes this read-only check when runtime Compose is
+bound. `scripts/apply-plan.sh` requires it even if bindings are omitted and
+rechecks immediately before updating the realm. Runtime rendering/inspection
+output stays in memory and is never printed because it can contain secrets.

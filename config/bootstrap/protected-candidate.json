@@ -1,0 +1,1517 @@
+{
+  "files": [
+    {
+      "mode": "100644",
+      "path": ".codestra/calling-contract.lock.json",
+      "sha256": "bf20f74719cc62957d34b96762a8f083081f75b87ab59d1df8bf706a3f203a32"
+    },
+    {
+      "mode": "100644",
+      "path": ".codestra/production-orchestrator-contract.v1.json",
+      "sha256": "2f332faad3aa75c496ce3568de44e382dbaee29ae2a024aa273f09744270fae0"
+    },
+    {
+      "mode": "100755",
+      "path": ".codestra/validate-production-orchestrator-contract.py",
+      "sha256": "6006bbc7850ce7666de926b6cad2585b83d2fce102104543b871530f11115f20"
+    },
+    {
+      "mode": "100644",
+      "path": ".codestra/validate-release-intent.py",
+      "sha256": "049fc9251308e0a9bee1486a4a7a13a26de074beb5a23c018b240ecc967f2e03"
+    },
+    {
+      "mode": "100644",
+      "path": ".dockerignore",
+      "sha256": "658eddfc63262e4ff4a922be625025bb19eb297fa7a8d81421a3e6d60fe0b1ea"
+    },
+    {
+      "mode": "100644",
+      "path": ".env.example",
+      "sha256": "e7014145c420349d1367ae24e816d3981159ee9645a6d377acda50de71f01ca0"
+    },
+    {
+      "mode": "100644",
+      "path": ".github/CODEOWNERS",
+      "sha256": "2768116fdb142e1800fd652059a31ea5537ad47633ea68d3733d26019fbae750"
+    },
+    {
+      "mode": "100644",
+      "path": ".github/actionlint.yaml",
+      "sha256": "d2d6a339371cf3ccb9efef3871c740ca3e37850f3970ed1977271f1e052e7284"
+    },
+    {
+      "mode": "100644",
+      "path": ".github/workflows/deploy.yml",
+      "sha256": "050940f98c6c66f44e609a69856c9ae9312755beed8a5752a08a674861d2b46f"
+    },
+    {
+      "mode": "100644",
+      "path": ".github/workflows/drift-review.yml",
+      "sha256": "d609b3511a5bf3e9cf2760d58486f8260b8c0a5a0fd8157c7984e2ef8b113bd3"
+    },
+    {
+      "mode": "100644",
+      "path": ".github/workflows/keycloak-pr-authority-audit.yml",
+      "sha256": "030043a65bee3819b1e7f64e560a34d662a5dd8c181d1ff2780b79ad5bdb839d"
+    },
+    {
+      "mode": "100644",
+      "path": ".github/workflows/keycloak-pr-authority-pr.yml",
+      "sha256": "f339815caf244d61c9c9245ffa576e5852c8e2370d1e54a2551c7e807911b45d"
+    },
+    {
+      "mode": "100644",
+      "path": ".github/workflows/keycloak-release-trust-root.yml",
+      "sha256": "3c10c909cdd09792ecb095d06bb3d9f762caecaf3036d02eb2b9fef3da199258"
+    },
+    {
+      "mode": "100644",
+      "path": ".github/workflows/manual-release-intent.yml",
+      "sha256": "2362835ba774c42766bb5da01d72b1842d66ef7a63635971d15378a730e301b5"
+    },
+    {
+      "mode": "100644",
+      "path": ".github/workflows/orbit-theme.yml",
+      "sha256": "14a2572c1e47574dd1e4231502c7e8ebfed0f09ab26bd057c403f4af41afef46"
+    },
+    {
+      "mode": "100644",
+      "path": ".github/workflows/password-reset-staging-e2e.yml",
+      "sha256": "273ea0ceedb667e253e473a1a8c00fc37bca60e86e1722f0eeed067a7f4f1fe2"
+    },
+    {
+      "mode": "100644",
+      "path": ".github/workflows/production-orchestrator-contract.yml",
+      "sha256": "5d5f118c8089a7298cc7439327689f862bf669bad46ec9160a0b5763fa11e869"
+    },
+    {
+      "mode": "100644",
+      "path": ".github/workflows/release-image.yml",
+      "sha256": "9f1f15c0ad23b2edb17cad2efe191c7f1393a7c096543adef1c0fea3cb8ab5b7"
+    },
+    {
+      "mode": "100644",
+      "path": ".github/workflows/repository-name-authority.yml",
+      "sha256": "e5d7944eeb34498774f5386e753af98a9c8bd35d4b31bcfb9fabde6f4ec08242"
+    },
+    {
+      "mode": "100644",
+      "path": ".github/workflows/repository-name-live-authority.yml",
+      "sha256": "570f5679732d5f42a99b92fde71d62dcdc1c6204e94bc972bc50dadb6abf60a3"
+    },
+    {
+      "mode": "100644",
+      "path": ".github/workflows/runtime-preflight.yml",
+      "sha256": "3209e9e8b4424034d02667290765cc014bb86e7700e6b655d40ac2fc2ef8efaa"
+    },
+    {
+      "mode": "100644",
+      "path": ".github/workflows/scrapper-identity-contract.yml",
+      "sha256": "135ca4ab3bb169431e02fad36e62edd26d7404944169a2e5e67594fcc8de9300"
+    },
+    {
+      "mode": "100644",
+      "path": ".github/workflows/validate-password-reset-e2e.yml",
+      "sha256": "72523d263681eaafad3c3d48773e90795ab5ee4175628981eeac848c4c1da12f"
+    },
+    {
+      "mode": "100644",
+      "path": ".github/workflows/validate.yml",
+      "sha256": "34e8692d93f3a30949e1e3de0543d4db93c508ce026538f6b5a8442d1a800f1a"
+    },
+    {
+      "mode": "100644",
+      "path": ".gitignore",
+      "sha256": "ac0900cb33d3c31fb70e1a421dc37f7f1def79a296bf1e8e07aa8de2e9935db6"
+    },
+    {
+      "mode": "100644",
+      "path": ".gitleaks.toml",
+      "sha256": "8ab1833b018ec2b19b1f61e3bebc9e42a1a8912f13c8b8afdf007f1b51159cbe"
+    },
+    {
+      "mode": "100644",
+      "path": ".gitleaksignore",
+      "sha256": "c4576857b24c9a903c4f7f3ddb64cce2be8b5a9ada603ab1615c2066284264a8"
+    },
+    {
+      "mode": "100644",
+      "path": "Dockerfile",
+      "sha256": "43c8c2347e91c23adffbeb01955b7bf3d0fce6c2b1e47b66f8eedc9a172ff86e"
+    },
+    {
+      "mode": "100644",
+      "path": "KEYCLOAK_PRODUCTION_AUTHORITY_COMPLETION_REPORT.md",
+      "sha256": "3855ed635daaa919246c7ccf7b8ad80246d4467b3c6e6d783820c791071f9556"
+    },
+    {
+      "mode": "100644",
+      "path": "Makefile",
+      "sha256": "8b881ebb93ca0d89facfe93a2c06465360f0a244b1f9df8620b05412daa6e769"
+    },
+    {
+      "mode": "100644",
+      "path": "README.md",
+      "sha256": "1f3fe9c4fe56361dc841e10b50ada05881f67acae15958bd5272883400fc9ca1"
+    },
+    {
+      "mode": "100644",
+      "path": "SECURITY.md",
+      "sha256": "5ec6056daccde7b89fe8bf558bb872fe0008d52cfcc3052d61e614cf671b933c"
+    },
+    {
+      "mode": "100644",
+      "path": "compose.yaml",
+      "sha256": "95f1f64a4383bcde88004363860adeb516821e669ca0a473c5e11d5b803c6342"
+    },
+    {
+      "mode": "100644",
+      "path": "config/bootstrap/executable-closure.json",
+      "sha256": "7b613fe546d8eb73b348092055c61f12840137525417c6f80952834c835c5bfa"
+    },
+    {
+      "mode": "100644",
+      "path": "config/bootstrap/proposals/README.md",
+      "sha256": "205664a986932ed1327a3f8305961322443a488eb7b46245885077132d229348"
+    },
+    {
+      "mode": "100644",
+      "path": "config/bootstrap/proposals/pr96-93e6e7f.json",
+      "sha256": "1e6e0b95ba74e3cda3a2b5893c420f1d80479238c48df854f1b97d832ecca7c8"
+    },
+    {
+      "mode": "100644",
+      "path": "config/certification/service-identity-matrix.json",
+      "sha256": "62b41b41d28859cbca9a3d96183f27bbdb91394a2d9d5fcd758aa1216f773d02"
+    },
+    {
+      "mode": "100644",
+      "path": "config/client-scopes/health.read.json",
+      "sha256": "540fa67431c8c5c482acd5fa11a9578d51822b0e80a95d430bc188ccac0f346c"
+    },
+    {
+      "mode": "100644",
+      "path": "config/client-scopes/metrics.read.json",
+      "sha256": "cd46f1a3883d5161e85cb7a9ebaf0c45fab5c06922554c89c7e01f4c94c86bc2"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/ai-provider-adapter.json",
+      "sha256": "104f20430cd9da3b84606a6f307158884a41fa5adda1ac1bdb4022d39dac015f"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/alertmanager.json",
+      "sha256": "4d49303bcc7bcc864a4be7da3bce464a7f17268972d8ab0e97e6f9cf3a09778f"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/beyvra-backend.json",
+      "sha256": "1a65eed6b88d6abb9ec2e1ddf7f6666088bab46312f5269cbda1b9ae0f5b94f3"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/breero-backend.json",
+      "sha256": "f2db5f6578f58c6c16a27ad44cb1ccb8b1ff6c03be51288f4b02bae3811df607"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/codestra-ai.json",
+      "sha256": "04f0b2eaad45aa22856689e1f83e2104e95a9d58509951503686e2b938f7db1c"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/codestra-communication.json",
+      "sha256": "68ba11ee4e2e9c06468546ba7ac8ff48346ab00c40a05989dfe3ef42cccf3aa5"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/codestra-marketing.json",
+      "sha256": "704a84f8c93487b51565bfc58b5ab23490e81ae93fc6d8ad2f4748b0da7182d4"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/codestra-social.json",
+      "sha256": "2578919725d6d9e9e016fe9785ab8a98a89718b5f3220bba18ccf879bf7d38ce"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/klyrow-gateway.json",
+      "sha256": "4f7b5c0d1b7ee7ebafd8b811bcf267c08b39ea2f9a8b21cd6c48a1de37dbf2da"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/klyrow-portal.json",
+      "sha256": "fce56fa994a023f6288f2daf562cf626e0a483f7956e75e56117e9c2eb598e5c"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/kong-gateway.json",
+      "sha256": "359f4f63331d4775aa6dc588580912c7a9e73fd53e9d887b4e99f9b40a743924"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/kyqra-gateway.json",
+      "sha256": "1b1c429e4df065628dad89a413ed6a087af1fd55b4b9b84227a8f8f5f9f12c5e"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/larim-a-backend.json",
+      "sha256": "b3bafb8bab8d4914b2a3bcbec56503b841cc4912fd87bc9057d3f8005d65b0b9"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/marketing-provider-adapter.json",
+      "sha256": "a06409125f575beb50c2a48d8e017da60711f21ff45c0f2d4266f37ce9c3a912"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/middleware-api.json",
+      "sha256": "1f2796e8faf709148ef38e34375c12bed91fbbb9ba36d6a5b5e553c68d24abe3"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/middleware-worker.json",
+      "sha256": "16bb1dc62b05f536dda7d8f051bef8f7b0c97539d9d5a7451dce05eb545edae5"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/moneybee-admin.json",
+      "sha256": "8bfb7cd51437058ea5a06bbb5543ed96da7a3946dc7f22b5171fa3acab3e3f48"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/moneybee-backend.json",
+      "sha256": "b037cce81a0d3c8e73335d77c3089d285d75e8507779db1046537c9033c2bf03"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/moneybee-borrower.json",
+      "sha256": "27d0178094a404a428fffbabf7ebb2086ea6b764e216afe35f791062988a2a7c"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/moneybee-lender.json",
+      "sha256": "36f89f927c492b2ad69d09dbb06ceb7756324ed897524737ccdfe8d17eb2ca2a"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/monitoring-readonly.json",
+      "sha256": "04dfb317ba4df345d4d326d4845d18eb3da8aeda2218e8e3c8bb629888b51f11"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/n8n-automation.json",
+      "sha256": "6fa159cafad4c091319d4769c599e849160db98e64af03da3df579d0ade97fec"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/n8n-editor-gateway.json",
+      "sha256": "d9476872b8d228eb6e41b259e25d23d131779e7ec9a84e3b6ae607dea9bbf7f0"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/odoo-integration.json",
+      "sha256": "ddb88831d393e2413b6ca6e33aa70b0d7e85f83708ac81991b78cea6721bab50"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/postly-adapter.json",
+      "sha256": "03c6c4e4f37a2783a97c28e3461f908c1e8c01ff1065dda3ba53a8cf2cb7de51"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/provisioning-service.json",
+      "sha256": "7fac6936d93d46c6fd813126f797d1d051aecb710110d3edaec717412800e147"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/sdk-intake.json",
+      "sha256": "c677986e0b075afb47caee4ce8f9c7f5d8f6108ad9f8cd9bfd2e5a39adf0ab70"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/social-codestra.json",
+      "sha256": "e0ba4bd8c78e1fca5e3b9a8fe9e971ae4ffa4ef993cc2595010644f2bf5542c0"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/telnexa-gateway.json",
+      "sha256": "a1a8d4afdb20664c1f410dbe694e5db1ec7843d6f820a5f36253e2b4ea5d0192"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/transportation-backend.json",
+      "sha256": "1d83597657abce6187f6675d10375082076612b9ee71e677d02a789fe5440f49"
+    },
+    {
+      "mode": "100644",
+      "path": "config/clients/vicidial-adapter.json",
+      "sha256": "87fc68763b31c36c9471e61f10068a8a4eda873de0215617beb8867275ec3be6"
+    },
+    {
+      "mode": "100644",
+      "path": "config/contracts/machine-clients.json",
+      "sha256": "b2c8709482343e62864f7a0e94138ec3d384003f18bb923bd5c7149b3bb262e5"
+    },
+    {
+      "mode": "100644",
+      "path": "config/contracts/machine-secret-destinations.json",
+      "sha256": "cd5d4796eceda82e61ee5fa8a37725b06cf083346a111988cba45243bb48f4b3"
+    },
+    {
+      "mode": "100644",
+      "path": "config/contracts/moneybee-backend-producer.json",
+      "sha256": "dac74515a3ee1f058328f7cbd199ca262ae173b5c892f7301edf56d881509348"
+    },
+    {
+      "mode": "100644",
+      "path": "config/contracts/observability-browser-clients.json",
+      "sha256": "d337bbd962ee1780a1999241fd47921a310395f1c42d71c83a60d998bf6516a8"
+    },
+    {
+      "mode": "100644",
+      "path": "config/contracts/product-middleware-clients.json",
+      "sha256": "60804f049e1e2cb8500f0efefd2e1fc85471f471fcdeed04926b0ab5bb5875ae"
+    },
+    {
+      "mode": "100644",
+      "path": "config/contracts/service-access-matrix.json",
+      "sha256": "37ebd0d040e476fa3fe249f1b3cbc79ff0bfa483bc3a2f805152fe6a3325568f"
+    },
+    {
+      "mode": "100644",
+      "path": "config/contracts/webhook-contracts.json",
+      "sha256": "9501fa97a73f16dc598b7601a1500b10b195291e2020e3bf8760dc8b7b285172"
+    },
+    {
+      "mode": "100644",
+      "path": "config/desired-state/observability/authentication-flows/observability-browser-mfa.json",
+      "sha256": "8da6b4fac14888bd08ca61bc73d441f7f27be97033cc3ecbe1615fd365c2dadf"
+    },
+    {
+      "mode": "100644",
+      "path": "config/desired-state/observability/clients/grafana-observability.json",
+      "sha256": "5d686d44c10dce6338874cfaf90acbb71a0c0d1a396c6ab6e6d445cda21baa22"
+    },
+    {
+      "mode": "100644",
+      "path": "config/desired-state/observability/clients/openbao-secrets.json",
+      "sha256": "a01876a6ed6e6250e39a79ccf560473b39a535d01b00ac0d9a09e37c6394ea4c"
+    },
+    {
+      "mode": "100644",
+      "path": "config/desired-state/observability/clients/superset-analytics.json",
+      "sha256": "4d1388eae09195bf79f647e1ef085837cdef40f8d6a7f875c96700fabbd5fbf4"
+    },
+    {
+      "mode": "100644",
+      "path": "config/desired-state/observability/realm-roles/observability-admin.json",
+      "sha256": "eed4d1afcd0616cec0c4f490ebb1b58dd7917af605953a5226b0142475b936c5"
+    },
+    {
+      "mode": "100644",
+      "path": "config/desired-state/observability/realm-roles/observability-operator.json",
+      "sha256": "9cb6e716f63da36d64e6c2aa588c61ee0f86aabf29adf139a5e9209612862d6b"
+    },
+    {
+      "mode": "100644",
+      "path": "config/desired-state/observability/realm-roles/observability-viewer.json",
+      "sha256": "d2ea4cc44e0bf096fe58b467bdbfa40714375902b835b43e98a79fb78f6a947b"
+    },
+    {
+      "mode": "100644",
+      "path": "config/desired-state/observability/realm-roles/secrets-admin.json",
+      "sha256": "d73a702a741929154e7d00567a2f7eab364ba605ca1934d4203351979f9cae3b"
+    },
+    {
+      "mode": "100644",
+      "path": "config/desired-state/observability/realm-roles/secrets-operator.json",
+      "sha256": "76ac044b8016e562f6ab69e353a60733e56c0826e291c80ac5773bf841ea8c32"
+    },
+    {
+      "mode": "100644",
+      "path": "config/desired-state/observability/scope-mappings/grafana-observability.json",
+      "sha256": "7750f20641cecdc9718d6e502e9954e3bbf69a0e7fb988eada9106fcea92b2ee"
+    },
+    {
+      "mode": "100644",
+      "path": "config/desired-state/observability/scope-mappings/openbao-secrets.json",
+      "sha256": "c978d5953f922b952b5ed02663b58d572994dd996813cb0c03d008ce74ccf919"
+    },
+    {
+      "mode": "100644",
+      "path": "config/desired-state/observability/scope-mappings/superset-analytics.json",
+      "sha256": "098cb2f3f5d91b5d5f561b508af765efab07710079659328693e36aabffcd74b"
+    },
+    {
+      "mode": "100644",
+      "path": "config/email/keycloak-security-smtp.json",
+      "sha256": "d9ca736bc5f0ceb4040936321900243a088d57ea02105df50732958dd82325f6"
+    },
+    {
+      "mode": "100644",
+      "path": "config/endpoints/codestra-staging.json",
+      "sha256": "28860b696ec5885eba792cd0559960ffbce99a16ec10cee519f7706ffd5c95e2"
+    },
+    {
+      "mode": "100644",
+      "path": "config/endpoints/codestra.json",
+      "sha256": "3502f24bac1ec63f3bb9cc66bfb89703244b5f60f6372e74264d96c09d6a6e7a"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/ai-provider-adapter.json",
+      "sha256": "9313f8c7aa838fef9dc28e8f2265bcfea86cfa98591c936bf4a29fc7de3587b1"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/alertmanager.json",
+      "sha256": "e42a19dc639e5fb7d89c20db8396dfc9625931d0d76199cb513717c919e8d21c"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/beyvra-backend.json",
+      "sha256": "3a6eaa7d3b2aa298c3fa26d19644c924de78e79c118dc1895f3f3bde8dad67eb"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/breero-backend.json",
+      "sha256": "d1551e5c37b13a9ec817f5969f4eee336f330adbf750c0122b23faa43f4b1223"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/codestra-ai.json",
+      "sha256": "fed0df6f6d55d41892be97f6dc9b2cd5656e742db1d554a6bd44d2baa978daa1"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/codestra-communication.json",
+      "sha256": "41cf90a3a0beec01d45ce0a3e12f4b98970ba0af5402180eb68fc3af633c80f0"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/codestra-marketing.json",
+      "sha256": "f9a4b18ee5e58d3c4c791ef89b7b57b8eccace66cb91e578690ea39d417088a8"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/codestra-social.json",
+      "sha256": "97d4eabeadf97c06b54486818d0adeb0d63ba6ab6c24d4b5e9e2dcb4048e66b8"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/klyrow-gateway.json",
+      "sha256": "08e13919a994d86647f53ef74430186790b20145399b9db67992f326f52905b0"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/klyrow-portal.json",
+      "sha256": "37beea38be1203c7535c84303f34b0dfda665f0305004beea0850d1757d7ad91"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/kong-gateway.json",
+      "sha256": "c078ab3ef0ec94e47daa17325ecc4d21d3c1d6d0b7a68fd95057ec5ff2f1c674"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/kyqra-gateway.json",
+      "sha256": "310af65f685f177b22294137f3c9c1fad9393ef51164ed3a436d7a175b3942d9"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/larim-a-backend.json",
+      "sha256": "51ec55c8b4b2a9c90ba98b47e06706506dad677c24e270730c557a084cc8415a"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/marketing-provider-adapter.json",
+      "sha256": "27ac485b4d29adb6f7a22484a39c3389d931cfef029d7dc645c5950203ba53e8"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/middleware-api.json",
+      "sha256": "9fad1bd3de5c25e0a2b2403fcab365b5891ecbbeb982381009f17eabf97e8dbd"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/middleware-worker.json",
+      "sha256": "e9c9dad6481090f081d2fc311eb7d5fe3db6db4c65cb89d50a5ce1a37a16b036"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/moneybee-admin.json",
+      "sha256": "81cc74568b48bf291b32a7e6a1693fdc5380982616d50e6e363e30da2665201c"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/moneybee-backend.json",
+      "sha256": "529c1ffb34ab2ea4811398ed1059fa6a627f52d093bf6017328eed03b6bd2208"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/moneybee-borrower.json",
+      "sha256": "baef92a22abf8e019c1909d03b74044be9f0a04aba8740c90074d1dbcc072482"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/moneybee-lender.json",
+      "sha256": "1a0ab024dae886a7fb0ab9142020361849d58748ec2e4d14ab2b8a2a6568c7fd"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/monitoring-readonly.json",
+      "sha256": "20958fdcef6f56288622b0bb59e0b121f7c38f86b61276942bf8111308987ba4"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/n8n-automation.json",
+      "sha256": "7db2e5da9b61a08daeef35887aa90cea9164fb653c190969cf3a2a92ba239f44"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/n8n-editor-gateway.json",
+      "sha256": "ea7e5d43dbca933447c37d451bfe42585a04bed0593435131f60b35d044414a9"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/odoo-integration.json",
+      "sha256": "f399bf3ee508a33c7b6d50652b3b2641de167683f70915a94d16dfc8fe211648"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/postly-adapter.json",
+      "sha256": "39759b98d092c15d93aa9711235c3bf0748502742a0835979c23994225e8488d"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/provisioning-service.json",
+      "sha256": "a8ca765af0a4622b5e1d514786d518e9eb419283b4eec409f5a59bd329bda5d8"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/sdk-intake.json",
+      "sha256": "b2c3a66f29001366e38052ad8a7db3a23687bb214d6b4dd4be464eddc6b849f5"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/social-codestra.json",
+      "sha256": "f3d041b6fd1c1fc4aba2990a7ac4506c592c0287a19d0d37450231ab0a08c5cc"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/telnexa-gateway.json",
+      "sha256": "d54f52ba2f40d4a97d73e21419838f794f56a77ca6ae3a4bfe8c74b3f38ffc26"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/transportation-backend.json",
+      "sha256": "29d7f1675f75acaa5928a8a821f68d6f1c164c3ab5cf466cb958ea9b6dd76292"
+    },
+    {
+      "mode": "100644",
+      "path": "config/export-allowlists/vicidial-adapter.json",
+      "sha256": "0575ab70e52e26886a94e92759a222c6121522c1d7741619c25d431718d9e33d"
+    },
+    {
+      "mode": "100644",
+      "path": "config/github/bootstrap-main-ruleset.json",
+      "sha256": "51b440842e69e22e25dbd18256f0204e465d1fa6d60117fae2fbbf890cf1848d"
+    },
+    {
+      "mode": "100644",
+      "path": "config/github/main-ruleset.json",
+      "sha256": "bac7774ae80993a7ab2d4add87e0ba7b8b27eb656225fdd130aca0df42cc598e"
+    },
+    {
+      "mode": "100644",
+      "path": "config/github/production-environment.json",
+      "sha256": "f22729fb4bd19d7eae15157e236e336d91bcae89b846eb07546fb436ded11aad"
+    },
+    {
+      "mode": "100644",
+      "path": "config/identity/application-domain-registry.json",
+      "sha256": "a05e80d471035b5beceb85c950fc85ebde4e2de466abd9855cf987eeabf684e6"
+    },
+    {
+      "mode": "100644",
+      "path": "config/identity/beyvra-oidc-client.json",
+      "sha256": "1120e629bc9c339f2f8153d9c0c2b89e23529167d5023fd97714452cc51b8135"
+    },
+    {
+      "mode": "100644",
+      "path": "config/identity/moneybee-enterprise-access-policy.json",
+      "sha256": "bf6bcccda03e90d86fe707d53e7fee3b6a2906f0c89fd1510918df27a61f71d5"
+    },
+    {
+      "mode": "100644",
+      "path": "config/identity/moneybee-oidc-clients.json",
+      "sha256": "abcf983f09bc0617516dd393da2a8d82ffcae570cdede84d7759fca53c49c871"
+    },
+    {
+      "mode": "100644",
+      "path": "config/identity/moneybee-registration.json",
+      "sha256": "8a4626a3110420e4ff6d6095553090c1cd274c5f1a479fdf60be7bd994876bfa"
+    },
+    {
+      "mode": "100644",
+      "path": "config/marketing-stage4-clients.json",
+      "sha256": "f35b5215b4740c6541c8f40d418ad18d957bcc4409f55e9ef9b7a708bc592737"
+    },
+    {
+      "mode": "100644",
+      "path": "config/observability/keycloak-alerts.yaml",
+      "sha256": "d10fd07588485bd9ce4e9059239357a676807b36dd5c8ebe01853d6525a2642f"
+    },
+    {
+      "mode": "100644",
+      "path": "config/policy/creatable-clients.json",
+      "sha256": "c8b08b62b46f24a2e8c4c6bafd99e65442a86375c8bfc78090a946dd191d85a9"
+    },
+    {
+      "mode": "100644",
+      "path": "config/policy/managed-clients.json",
+      "sha256": "c8b08b62b46f24a2e8c4c6bafd99e65442a86375c8bfc78090a946dd191d85a9"
+    },
+    {
+      "mode": "100644",
+      "path": "config/policy/repository-name-aliases.v1.json",
+      "sha256": "10971979dd411c7a3407e2daa86203d13649968d5db64407826e270a2f0e491a"
+    },
+    {
+      "mode": "100644",
+      "path": "config/realms/codestra.json",
+      "sha256": "a8213dddf865b03b2d36cca9e754747a0bcb8b128709589509ade53870d71f4f"
+    },
+    {
+      "mode": "100644",
+      "path": "config/security/realm-security-policy.json",
+      "sha256": "ed2a6bc6aa3c7fef5535874ba9b297defa76e30216193420114926aff9f1fe86"
+    },
+    {
+      "mode": "100644",
+      "path": "contracts/scrapper-turnkey-identity-v1.json",
+      "sha256": "fab1caf6897e40e0902f0eaa06e0e600db5c6491fc6006a3f9a5816c724abc37"
+    },
+    {
+      "mode": "100644",
+      "path": "deploy/caddy/auth.codestra.co.caddy",
+      "sha256": "0e890dd8f98089315e39c3ca9c08c76d658fd904d975cc21955055354f4f678c"
+    },
+    {
+      "mode": "100644",
+      "path": "deploy/keycloak-email.env.example",
+      "sha256": "0f3dc1b579915844d4da7af6a5900cecb5c7764f6305d6f700887653dfaf18a0"
+    },
+    {
+      "mode": "100644",
+      "path": "deploy/runtime-paths.env.example",
+      "sha256": "9d0ac13566e7cba6d53009fe71d03123a39c5138cfe7737611e6b457ce74daa2"
+    },
+    {
+      "mode": "100644",
+      "path": "deploy/secrets/admin-api.env.example",
+      "sha256": "4a111a2475a3e32e768a89953db15fa29bb79eefffeeaec520aa44896a396dc3"
+    },
+    {
+      "mode": "100644",
+      "path": "deploy/secrets/bootstrap-admin.env.example",
+      "sha256": "514fe0a8f9bb72f9e2e89983d4608bb726b24dc54915fb821477977060981ee1"
+    },
+    {
+      "mode": "100644",
+      "path": "deploy/secrets/moneybee-otp.env.example",
+      "sha256": "6fd2e1e75e851929f326f356563ea7e0976bbc0daf9cc34a75bd81aa51c1aa64"
+    },
+    {
+      "mode": "100644",
+      "path": "deploy/secrets/monitoring.env.example",
+      "sha256": "8647c3f02b05bfe24edad2989bfd8e2873254e651c51bc9c7de4f06454f27364"
+    },
+    {
+      "mode": "100644",
+      "path": "deploy/secrets/postgres.env.example",
+      "sha256": "0cdfd8b598c5bd703d15c6f2d5356a2a52c8319917b4a258df310dad11a516bf"
+    },
+    {
+      "mode": "100644",
+      "path": "deploy/secrets/runtime-ssh.env.example",
+      "sha256": "ed4f7b65a5ca070f16ee113aa852e5a148daf776f45a017bc98dc445472fe507"
+    },
+    {
+      "mode": "100644",
+      "path": "deploy/secrets/smtp.env.example",
+      "sha256": "7cca6b5e516094e57dfdbb6592f3264edc2d80f56f33fde1f4a6239e0caf7839"
+    },
+    {
+      "mode": "100644",
+      "path": "deploy/systemd/codestra-keycloak-backup.service",
+      "sha256": "27354f1fdbae9d593d48c065b6c19252782a295c45fdb8c90bd224c445779750"
+    },
+    {
+      "mode": "100644",
+      "path": "deploy/systemd/codestra-keycloak-backup.timer",
+      "sha256": "3df572a87a5299bcb7b93098d07426af541e035f95a5d14ac42af8c9f712649c"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/BEYVRA_OIDC_CLIENT.md",
+      "sha256": "4afb2926f891332c24d294f5f10e32147f018ccc13f5c7ac0b1fe2bf59031384"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/CODESTRA_MISSION_PLAN.md",
+      "sha256": "fe3c18c18f277931220d8eed2901e6b588d2ea792f004b60752ef9c8eabb6142"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/COMMUNICATIONS_PLATFORM_AUTHORITY.md",
+      "sha256": "c260dcc5337e5c91197e639759357f38292b98fc638d19cbc214b72c902841ed"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/GITHUB_SECURITY.md",
+      "sha256": "fc0bdcb8b123fcbcf43e7d6b9f335f60abfdd50a24b6af9299cd513182f4d5ca"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/GITOPS.md",
+      "sha256": "a5b557c4a2f981c9a3e8bead405a2a988353fdb691ca428072668ecd8e84b21f"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/KEYCLOAK_PASSWORD_RESET_SMTP.md",
+      "sha256": "2a417a67f6fd1dcd71d69e92098252b6f5ec8753dc2c1ef4a5930211eb0c18e5"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/KEYCLOAK_REPOSITORY_AUTHORITY.md",
+      "sha256": "1146a25cea261ce9cb4e78c99dfa2e083e3f77b73f707763f2e3f5c0b15f6e0b"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/MARKETING-PLATFORM-IDENTITY-CONTRACT.md",
+      "sha256": "c92e7c52a9ec72c76146087c38fb51acbb737a8536cda5037858986b7d1cc862"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/MARKETING_IDENTITY_MODEL.md",
+      "sha256": "ca98aeaae993bee81cd21fc7f44d56cda5073c05fb10c5d4e4b968c9c04863c2"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/MONEYBEE_OIDC_CLIENTS.md",
+      "sha256": "32ad4c684fe195c3ba7eb952673102823a9d6b7a70e1858782caca01ec600781"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/MONEYBEE_SECURITY_SENDER_POLICY.md",
+      "sha256": "e2904f57e5515a2bac62ad21eeed52753d3f472a53cb4e7647007557bf443897"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/OBSERVABILITY-DESIRED-STATE.md",
+      "sha256": "3542495cb404971b5ed3e2e9096e8bb73709cd80bfa95601636bbe1443162895"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/PASSWORD_RESET_E2E_ACCEPTANCE.md",
+      "sha256": "10b04fee273c6fa9ade9a4271682b016b98905272aad412d19518a1ef53ff28c"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/PLATFORM-API-IDENTITIES-V3.md",
+      "sha256": "16cf5c8b000bc26bf8d98e9af509932295be337989a3dbb09777a59a1f71fd7f"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/REPOSITORY_NAME_MIGRATION.md",
+      "sha256": "b154fd52c961a7161c79a6ef0b88b81a50e95742d6061e42a8e5def57be8b188"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/SCRAPPER_TURNKEY_IDENTITY.md",
+      "sha256": "235e028dff4d10560a3b35bd0678a90fd2393033f0386d3bb779c91f6b36b99b"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/SERVER_GIT_SSH.md",
+      "sha256": "d3379928f466b460e8455e334a28ceb3f2ba625ef8713ee9eed6d2593b90e48c"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/SERVICE-INTEGRATION-CONTRACTS.md",
+      "sha256": "2ba9b47f38046c8362a61d16d4bbb133af3975b1d4be80cf43d93be1eb4a0e88"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/VICIDIAL_CALL_LIFECYCLE_EVENT_CONTRACT.md",
+      "sha256": "ab57673eda99bd8e790c0bb2afd82e3f783f4db5ffa9e89b0ba3d000db890a37"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/architecture/KEYCLOAK_AUTHORITY_ARCHITECTURE.md",
+      "sha256": "f8778a277a0d6d0a7d82ec8e0491ea29f0617fb91016defe6d015a7ea59dfa68"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/audits/KEYCLOAK_BASELINE_AUDIT.md",
+      "sha256": "e4cd87f61f92fd440937bd4153189080405d1b7b202a3789c1394e713bcfeb1b"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/audits/KEYCLOAK_OPEN_PR_RECONCILIATION_2026-09-03.json",
+      "sha256": "428d76c7b303468e08666220605e2a10730063beb3faf505f3b054477469a154"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/audits/KEYCLOAK_OPEN_PR_RECONCILIATION_2026-09-03.md",
+      "sha256": "44b85e33c9c2f72c296f47afa89f4293a33c081c5b639972ebe70efdc21e2da6"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/audits/KEYCLOAK_RUNTIME_GAP_ANALYSIS.md",
+      "sha256": "eb84899a6081fa76a985bc04c09400a8a62ca62962255fc1ccfb4fc79fb5b12b"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/evidence/KEYCLOAK_OBSERVABILITY_REPOSITORY_EVIDENCE.md",
+      "sha256": "6d1050c2c994a69dd481ca38a0fa6cf3c26b7a0823e3b1d76b4609187eec3abf"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/evidence/RELEASE_EVIDENCE_TEMPLATE.md",
+      "sha256": "63cf63ce025a9444af11743f4774e32a39e9056be960f9c28117ade1e8b5ff40"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/governance/KEYCLOAK-PULL-REQUEST-RECONCILIATION-2026-09-03.md",
+      "sha256": "f4372f6948d2edd4ce3e8aa654a2309794958cbce028048281f74d04b05522bc"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/governance/KEYCLOAK_BRANCH_TOPOLOGY_2026-09-03.md",
+      "sha256": "24a50cc8194eaa7996f006f021e82782a5cc4028b332d4e6df043724552e3e09"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/governance/KEYCLOAK_MAIN_DEVELOPMENT_RECONCILIATION_2026-09-03.md",
+      "sha256": "a96fb9a73faa7fbb521d313febf54207ae58dbc10ad591885bdc691adb807740"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/kong-integration.md",
+      "sha256": "788422ede1bfc706da99e457e37b08ceb125a14e55357a79001693f9dc369ddd"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/operations/BACKUP_RESTORE.md",
+      "sha256": "d1498878816749dc46464cd53423db721f2e969de7ad6007cf955134d8337f45"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/operations/CHECK_AND_APPLY.md",
+      "sha256": "eab7427a6c9e51962e3f0723985c67ca0bfcb33b995e5103a934dbfaed6331c5"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/operations/CLIENT_PROVISIONING.md",
+      "sha256": "d05211decd12218bb72c67d6f557bf8dce6a148fddff7d73004512b4734afd10"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/operations/DISASTER_RECOVERY.md",
+      "sha256": "2cebf67fa0d5e55637209716640dd44e726ef626fe9d1d06848b37f2a9813f41"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/operations/INCIDENT_RECOVERY.md",
+      "sha256": "06c9ac56fe2bd8de79bd016070954075a882554cc10c0df60749f70676c04151"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/operations/OBSERVABILITY.md",
+      "sha256": "b0e41787b844e521bfbec0244eb4738d04a06961b5d9e664fb1d1a7ef8bd5d62"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/operations/OLD_RUNTIME_RETIREMENT.md",
+      "sha256": "c9a21ceea218f5016bc6b680e3b119affdf7858b358e91efdbf781ae5bd14532"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/operations/PRODUCTION_DEPLOYMENT.md",
+      "sha256": "fe6bb5cd58a36516788fb4ce2d6ef199fa5d0cd2d55233692d0ede86dca24870"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/operations/RELEASE_RECOVERY_GATE.md",
+      "sha256": "b5c73a79319c16229d962fb38f9cbb3b7b8a0e293f6c2e9c8662e218cbdc8fdb"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/operations/SECRET_ROTATION.md",
+      "sha256": "eafe2150f65c52795e651b46bfc804c29bd346b496e1a6b419880c5f5b9a171b"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/security/ACCESS_CONTRACTS.md",
+      "sha256": "8f521700615e53ba887f3745b36b9e8d085550d9256e7aab747e51642a000a35"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/security/BROWSER_CLIENT_POLICY.md",
+      "sha256": "457e0bfff5a217c2db749662a7802b547d06c978e93f7958b8d802cf417713e5"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/security/CONTAINER_SUPPLY_CHAIN.md",
+      "sha256": "b3c15ffb736f1a7173c2aba8a6497ca562d1af0886e6fb3dfcc73f04322b31d9"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/security/MACHINE_IDENTITY_POLICY.md",
+      "sha256": "a388f58810ae473ffd051ff5dacbd6fa662f8f12c159dac4471612810d2f852b"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/security/REALM_SECURITY_POLICY.md",
+      "sha256": "932f54daf6ba191aa56e1f369519cbcef241379e70f3c21835366404316e21bf"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/security/SECURITY_TEST_MATRIX.md",
+      "sha256": "b56aa8f8dd0febaec5097d4768c890eb6705b86afc9114e89c1328c83f38594d"
+    },
+    {
+      "mode": "100644",
+      "path": "docs/security/TOKEN_POLICY.md",
+      "sha256": "f23e5f7dd5dcdaf5973c698391bd26d79b0dee91d950c545c4eee8bd2922f1a2"
+    },
+    {
+      "mode": "100644",
+      "path": "extensions/moneybee-email-otp/pom.xml",
+      "sha256": "938d5c8529c96116d8c8f944d57bb2043809807c3eb302e6d94bffb70cb78bee"
+    },
+    {
+      "mode": "100644",
+      "path": "extensions/moneybee-email-otp/src/main/java/co/codestra/keycloak/moneybee/MoneyBeeEmailOtpRequiredAction.java",
+      "sha256": "0058800b3e79ace20eac30a7d3c1d1702a70f6e830175d7398e14da8279b5751"
+    },
+    {
+      "mode": "100644",
+      "path": "extensions/moneybee-email-otp/src/main/java/co/codestra/keycloak/moneybee/MoneyBeeRegistrationGate.java",
+      "sha256": "7d850025765afb049d63d0a1a88566205d23d456fab276cdb1033e2ca3703031"
+    },
+    {
+      "mode": "100644",
+      "path": "extensions/moneybee-email-otp/src/main/resources/META-INF/services/org.keycloak.authentication.FormActionFactory",
+      "sha256": "2c6b612d42a63b765be08be6d82d755e66a14b7206cb3c0369ebac4304936ccb"
+    },
+    {
+      "mode": "100644",
+      "path": "extensions/moneybee-email-otp/src/main/resources/META-INF/services/org.keycloak.authentication.RequiredActionFactory",
+      "sha256": "1b4985116568238754bc34ebc4c51010b6467da29235af897b6edc972dd559d5"
+    },
+    {
+      "mode": "100644",
+      "path": "orbit/adoption-manifest.json",
+      "sha256": "b844bed240a463a0aa76da342fd788de100b86bd706a4f3d4f6e4b66864049ca"
+    },
+    {
+      "mode": "100644",
+      "path": "release/intents/README.md",
+      "sha256": "cd586b3d806e663fee933b24bf66f3c68355773aa4e6ebefc57354dd0b5e5ac8"
+    },
+    {
+      "mode": "100644",
+      "path": "release/intents/keycloak-20260909.json",
+      "sha256": "113073c53c4a7144163ac8aee67f312cef17dc4c913eb4f25549b51bf2d021bb"
+    },
+    {
+      "mode": "100644",
+      "path": "release/observability/keycloak-observability-desired-state-plan.json",
+      "sha256": "02aeadabe999f48867339a85ca30117d64bf725ba8a605e256e7274bd7a7b837"
+    },
+    {
+      "mode": "100644",
+      "path": "release/observability/keycloak-observability-desired-state-plan.sha256",
+      "sha256": "1b49e38df9636164a3fc902f804db12b6c85ea616db6c1c8ae115e1c11a9e050"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/__pycache__/observability_desired_state.cpython-310.pyc",
+      "sha256": "259a07b6ac64399d95a7d6111857623b44d08b767fe7ee7655066d37e9ffc9fc"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/__pycache__/service_integration_validator.cpython-310.pyc",
+      "sha256": "522a4737564983643b4a10fdb88722f64936e825f6e77a2a9d1662e586c56163"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/__pycache__/validate-provider-control-authority.cpython-310.pyc",
+      "sha256": "1be90d3df2191596b3aa59f1ab98a94ad89f1886f8de13c638fe5f820f5e902e"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/__pycache__/validate-service-integrations.cpython-310.pyc",
+      "sha256": "6a28091c9e0197f3c034e7cdd6b4318d577c44a446ed353fcab2ece62dd43387"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/__pycache__/validate-workflows-core.cpython-310.pyc",
+      "sha256": "84590a9b9f7f3d1cc271d46037942fd727cdf78905d4a2d31363e75f96bf4303"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/apply-plan.sh",
+      "sha256": "bc7e8e4d2f890765dfc6faff52e4ac46cf7948a491dad3260d200a989acbd766"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/backup-postgres.sh",
+      "sha256": "57585ae920b99cb554da76668cccb9551f1a7623579b4dec1af8ec45f60c1513"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/bootstrap_manifest.py",
+      "sha256": "951daba0cb9b884728ae90276301ffdfb04cbf50d9605eb3a8869b3d73332e05"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/bootstrap_release_trust_root.py",
+      "sha256": "265c4d1b9bd365d0cb14d933ec4fa22a269295952874781413befd87a241a294"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/certify-kong.sh",
+      "sha256": "6e7ce773446a2582e1c97dc3b64e3752fd58c819808ba665e12c5f98e94842af"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/certify_disabled_client.py",
+      "sha256": "fd833fe685816af3e01db4485086a8797c0b67c4b6f3f15f5ce31a39b5fa9876"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/check-recovery-freshness.sh",
+      "sha256": "6d732b63b58958e0f603d421bf4193dd290f2a8b83a846c8e4b5f85ae9ae2da7"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/ci/audit_keycloak_pull_requests.py",
+      "sha256": "fa0c559a3dccfd4ced2a73ebcb2e1858724dcdba654fe84198045a6abbfc358b"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/create-runtime-git-ssh-wrapper.sh",
+      "sha256": "16b32ed252d9a82e5571ba381f7ada50616da6664b249b50a570e928c1bdfdc1"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/ephemeral-docker-auth.sh",
+      "sha256": "8f941d46725343cd1b262dfc9bdad6241ef76c2f395155fe9171f85c2157dac5"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/export-client.sh",
+      "sha256": "58fd606016eceb15c9ef0a3195c25974f996233ca434a979b1d0f54a7b285dcd"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/lib/keycloak-admin.sh",
+      "sha256": "0ab715d676dca58c8fb5e264dd1080d9e3c7d1193428421709cb7990af71b731"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/observability_desired_state.py",
+      "sha256": "6471f9826636fa0bf588e8702049b195e0cf464cea3d6054c4e045051824f168"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/password-reset-e2e.py",
+      "sha256": "b0159fa2f46a570dcb29c13ae2855f1da4d831fe0fb4ba126951f30606c45477"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/plan-moneybee-registration.sh",
+      "sha256": "adfa61b58203bbf7c97130f97181371a4f22ff6128af9114b8936a548b41b487"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/plan.sh",
+      "sha256": "0a795295a3c137244e00be7f6286ef3d5c1a572946b1740294bcf61c367aff87"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/prepare-rollback-evidence.sh",
+      "sha256": "3946fb8b4a95fecf46902c57afa4874bd3ce0ba3659d359b20051d9a7e84cd20"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/reconcile-moneybee-oidc.sh",
+      "sha256": "3101b8706fa117e7b960a7eb2ecca412d6b090720715944fdf118779fedf1aca"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/reconcile.sh",
+      "sha256": "c41b161b58c03c3abcd5d209a4137a5b2ab2f779b73b68f3b913653f8b913f99"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/reconcile_monitoring_readonly_staging.py",
+      "sha256": "0edc7903a66c569f995c9e9b24ee9903c08eedcc4806bf62892b5310b63777d3"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/rehearse-release-pg17.py",
+      "sha256": "fffb85f493bc415e0f897516a15b8a7a20b26dfb75eee70c19602610d82169e3"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/release/test_validate_aggregate.py",
+      "sha256": "33845a35bbb994285b1d1ff49b3ebd17538457cb6e35725452dc677f318121eb"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/release/test_verify_intent.py",
+      "sha256": "7e1a10e346267fb2d82f48e110cc60f0fa7d563ee51848fbf931e265f91a8c84"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/release/verify_intent.py",
+      "sha256": "9b69dd659a08c2e5b20956c00c329c0dec749d77553e0056658c43aad41569cb"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/render-machine-client-overlays.py",
+      "sha256": "e43a3d60bf921c526462333e70611678db9aab885dd91c610909f9fc26bc8a82"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/review-plan.sh",
+      "sha256": "65fe10f82d6fdb51ebca45e0453d5288baf05fa78ddce8754946e702432b50c4"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/runner-systemd-preflight.sh",
+      "sha256": "d49eec2b037067dbede30aac8b49328025189e6a8883b0b4314ce613a7bd37be"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/runtime-preflight.sh",
+      "sha256": "67bff10567f1c9763794f17d378f1dc3785e18569bda7432d0003d872239a052"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/service_integration_validator.py",
+      "sha256": "e8c6816c155ef27011859e284625a6a4ee7344b53a5d0074854219c88c4d3f70"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/smoke-test.sh",
+      "sha256": "a6db87e1160af45cf24f4e230c4d6d613c87b079040fb937162e757b1bb2e861"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/sync-runtime-repository.sh",
+      "sha256": "81fdfcf27bc139659b5896ef94c0b6ce7f9902ab123dc292ae6a4441e7c91d39"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/test-backup-contract.sh",
+      "sha256": "48ac288ce0e2eb29f220b5e701ef6a11a5a6cfe3eb058c89ac74b505d3c62d62"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/test-ephemeral-docker-auth.sh",
+      "sha256": "44ed657edf1d82b7aa1d2508d75955ae30b71399c30055db198e2ea8a62ca277"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/test-plan-gate.sh",
+      "sha256": "a1998a4a92a2535aea09f35c5de369f0675ab4276e86ab92a42f908590c0ca6d"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/test-runtime-preflight.sh",
+      "sha256": "e4fae06b294f0385d6006d35107463eaa65ec1099fae45ef032dffa1d3f65471"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/validate-authority-controls.py",
+      "sha256": "f80bba95fb3b9c31cff24272a0d1890814289350d025a710f55cbd6029e83f72"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/validate-beyvra-oidc-contract.py",
+      "sha256": "eadda864c4d4c2391fae9efb80cabb5ce5f1843665b1a893e1dc39a130aae5ea"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/validate-domain-application-registry.py",
+      "sha256": "d609c1b28367e410cf225a2be1b0b1c5666f354c4a0df1e7d0696a0dbd6bb359"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/validate-governance.sh",
+      "sha256": "8e2fb48c36e849f61c838699726e29a6a57ba5d73e6c6e8048737b1627ec5823"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/validate-kong-oidc-contract.py",
+      "sha256": "a86d956b56ff50fcd726f39db68d3e533eb9a0e90a6de24f358a814adee1d835"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/validate-machine-secret-contract.py",
+      "sha256": "aff14940f1d9633ed097bed9910ca70269d5b51a3e498fed60c19b1821d6b2b2"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/validate-moneybee-oidc-contract.py",
+      "sha256": "dc35b23edf24b9ee2ec5f1b434787603cfe6261e6146e8b6bd374f7568ebb60d"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/validate-moneybee-registration.py",
+      "sha256": "bb4dde96459a4bd6d8c8303600c7421b76e7bdc9ac618cf5bfa9487a8982f96a"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/validate-n8n-flow.py",
+      "sha256": "5533e6fc45f94af13f2a60ece6957d07646acf7dd0f65163bb52c5bbc70065a0"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/validate-orbit-theme.py",
+      "sha256": "83bf1884be6b2af9d9736caa851ead73b99c75417261873718dca6b1ab0804de"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/validate-password-reset-contract.py",
+      "sha256": "241402d098d64d90c4b9abedab9396e8efc08cb660b9cc41d5bdaafb52396b6b"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/validate-password-reset-e2e.py",
+      "sha256": "3719ae9d1b1d8ab119fef7cee455408c04ab8b1d5f0956bce05dac35a0784864"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/validate-pr-authority-workflows.py",
+      "sha256": "0f262ecb2c56b6d4f311cac16092e2f6408334076f9591bbf68a48b295838be8"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/validate-product-middleware-clients.py",
+      "sha256": "0786869bab9720958ce16892c58a7fc9594468d795cd6a072aa116de1451438e"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/validate-production-certification.py",
+      "sha256": "e93446daef6e3171099afb2f095ed5955ba40c72b4c9d653d516e45b0fdaefcf"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/validate-provider-control-authority.py",
+      "sha256": "9315bec947eb763ebc9d6cac6055bf275a3bd053c7a617d4eec927b0ae3b312a"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/validate-realm-security-policy.py",
+      "sha256": "3223894746cfa1962afc614a4260bef2cd4aad8b565a8965d118a6d8e57c0b33"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/validate-repository-name-authority.py",
+      "sha256": "d56d85a41734dc468efecb99d590d0d33267dcd1c84f4ff4dd3fa93c2076bd96"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/validate-runtime-security.py",
+      "sha256": "63274b8147012d8ab7cba5d6a295d00aa20ee5323f00bf5f9914886c785f1341"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/validate-service-integrations.py",
+      "sha256": "8063ee5e69b6dd3da7682f56e76a8b9e92c1b0dab785a961b4e05372d9f9d132"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/validate-workflows-core.py",
+      "sha256": "4f909a6302944c1c996490ab6e12450c10410467d680b82bd5a5f45d91e3918d"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/validate-workflows.py",
+      "sha256": "946687f92f5f437c3b2beebd3bc3e4b02e494375846f03c0f9c8ee9a7b88fd80"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/validate.sh",
+      "sha256": "3783706062b23eb83b6323aae3be9d5b568de57eac81e3d557cca8c13bba2ace"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/validate_marketing_identity.py",
+      "sha256": "f2faef27d460076bfe631da88634c9b804358aa394dc18feb1dbeecb588f356b"
+    },
+    {
+      "mode": "100644",
+      "path": "scripts/validate_stage6_intake_observability_source.py",
+      "sha256": "67b31ccc5e960f5d052947ed56ab4f18988a7776dd5f6559e73cebbc9015be70"
+    },
+    {
+      "mode": "100755",
+      "path": "scripts/verify-backup.sh",
+      "sha256": "d778689ffcdbbc53e3b9a44a88e8ae9817806ff9b10b65942ea1940c0d3b6b41"
+    },
+    {
+      "mode": "100644",
+      "path": "staging/marketing-platform-identity-bindings.v1.yaml",
+      "sha256": "b3339aa6384090849d61b3787dcbef226f9ac6ec268c95ba04a4c91e9fc55d69"
+    },
+    {
+      "mode": "100644",
+      "path": "tests/__pycache__/test_observability_desired_state.cpython-310.pyc",
+      "sha256": "f8d58b635d648811ce32314ce94ee0ba1ac163826f41e7a58e15d76bfd85934a"
+    },
+    {
+      "mode": "100644",
+      "path": "tests/__pycache__/test_platform_api_identities.cpython-310.pyc",
+      "sha256": "1f2f7afebaffe8dcfd908e9d4547a488aa0f9b612b56afa04497e2c977a1f482"
+    },
+    {
+      "mode": "100644",
+      "path": "tests/__pycache__/test_provider_control_authority.cpython-310.pyc",
+      "sha256": "2476b1f79475daf0c1f19d9c8cf0bb755678228646287256134f36263c48828a"
+    },
+    {
+      "mode": "100644",
+      "path": "tests/test_audit_keycloak_pull_requests.py",
+      "sha256": "0d1065ef132a324ab52694c61e2f47c24fa0787e1a92334f6d34ba0f9b952325"
+    },
+    {
+      "mode": "100644",
+      "path": "tests/test_bootstrap_manifest.py",
+      "sha256": "63053c8ec24f2ddbf44f4bf40397feaa6fcbc86864c3a13c8b56710e4130f7de"
+    },
+    {
+      "mode": "100644",
+      "path": "tests/test_bootstrap_release_trust_root.py",
+      "sha256": "fc4205197010763333c868b1c01df530c35bc84dc0b160c80a0c5cf89764ba39"
+    },
+    {
+      "mode": "100644",
+      "path": "tests/test_disabled_client_certification.py",
+      "sha256": "6a5ea3cced383fa67388cba3e12581108d001e07ccab8d957f269a439fca1288"
+    },
+    {
+      "mode": "100644",
+      "path": "tests/test_kong_oidc_contract.py",
+      "sha256": "ebeabf913282b2c95d946f7bfee260e36965302f9e75dbd8d5177013045d065a"
+    },
+    {
+      "mode": "100644",
+      "path": "tests/test_observability_desired_state.py",
+      "sha256": "cad338a67b22526b99a12cd24ab2d87568badfdb98bf91e188167d98c5e9f88d"
+    },
+    {
+      "mode": "100644",
+      "path": "tests/test_platform_api_identities.py",
+      "sha256": "2fa111c02f482eef2ff738f88d7a5847d22362a953b4c54b8cdf107baf13a0f0"
+    },
+    {
+      "mode": "100644",
+      "path": "tests/test_production_certification_contract.py",
+      "sha256": "b4a7b5c4c8909f58646185f3a6b1afac33c484174ff932befb81ed4fcee12082"
+    },
+    {
+      "mode": "100644",
+      "path": "tests/test_provider_control_authority.py",
+      "sha256": "36f9b57142bab9f807c206a7e96bd1f92b9ce1b4346f8489ccc32eb98c5a785f"
+    },
+    {
+      "mode": "100644",
+      "path": "tests/test_repository_name_authority.py",
+      "sha256": "0d20feec6656d01ff7bc4a5fc18b728d1a7b24007b19775b04a8aab0c0a83c41"
+    },
+    {
+      "mode": "100644",
+      "path": "tests/test_stage6_monitoring_reconcile.py",
+      "sha256": "e4814d920bde32e7247cbf5484b29754360344b8720bc6efba0596cd1a43ed5d"
+    },
+    {
+      "mode": "100644",
+      "path": "tests/test_vicidial_call_lifecycle_contract.py",
+      "sha256": "469257b6639445f6a3f4982fa63ca7d3e1de506da5aabc907655bf4ce86c8a25"
+    },
+    {
+      "mode": "100644",
+      "path": "themes/codestra-identity/email/html/moneybee-email-otp.ftl",
+      "sha256": "39266d8e5dcda1e1d442b83326b4de4581eb9e87005c80d66f1d8a4c49ffe9cf"
+    },
+    {
+      "mode": "100644",
+      "path": "themes/codestra-identity/email/messages/messages_en.properties",
+      "sha256": "8aeee61886bcd143c7056d36d6f41818d175f9e60f33d17b2ab84a80c3efe5b7"
+    },
+    {
+      "mode": "100644",
+      "path": "themes/codestra-identity/email/messages/messages_es.properties",
+      "sha256": "4f8ca680c8dfcfbe91612e8c35908bd8d580ecb73c8fefe1f89abc51c0c5d277"
+    },
+    {
+      "mode": "100644",
+      "path": "themes/codestra-identity/email/text/moneybee-email-otp.ftl",
+      "sha256": "108250547fda273974901f34350f136e90c5c20f23ee34aba8ca960343b48d11"
+    },
+    {
+      "mode": "100644",
+      "path": "themes/codestra-identity/email/theme.properties",
+      "sha256": "59c3c4df65c41438bdab642feb710cc53ea166faae8e94c3e848f4e6ce215cce"
+    },
+    {
+      "mode": "100644",
+      "path": "themes/codestra-identity/login/moneybee-email-otp.ftl",
+      "sha256": "89d7c848fb5e8df329d05373eff6db6cb477534be0b4d5659bdd77098d45a37d"
+    },
+    {
+      "mode": "100644",
+      "path": "themes/codestra-identity/login/theme.properties",
+      "sha256": "2a0ed2b2f6281277cd68d912d09973de1ff7ce69fc00b0c57f3bf0dfac832f20"
+    },
+    {
+      "mode": "100644",
+      "path": "themes/codestra/login/messages/messages_en.properties",
+      "sha256": "38744985b7b4143f1f8f464514d8a664c3437003a8b1081e6f5ce6b1eff7bc5b"
+    },
+    {
+      "mode": "100644",
+      "path": "themes/codestra/login/messages/messages_es.properties",
+      "sha256": "2d4f6c83e58ab0f02b2a3fcd82137deab2ac48fc2bcf974716d0504588428988"
+    },
+    {
+      "mode": "100644",
+      "path": "themes/codestra/login/messages/messages_fr.properties",
+      "sha256": "a0e5b2bd52816243d5f2fb35008e784cb463c730dc06b2b249cc9d8f21078db1"
+    },
+    {
+      "mode": "100644",
+      "path": "themes/codestra/login/resources/css/orbit.css",
+      "sha256": "6b07277c7ddde43ef12fb0a6222bc68674c489ea53f027f154a38d7cf65029a4"
+    },
+    {
+      "mode": "100644",
+      "path": "themes/codestra/login/theme.properties",
+      "sha256": "80d959129222cd346fa9d1348379e6901bb3500fc7c36558896a24bc143084d4"
+    }
+  ],
+  "manifest_sha256": "af31f6c9be8db5864308a6dbd311e75bcc1f1a7848a5b1a2c8008c8fcead4966",
+  "reviewed_source_sha": "8258715f8cb36970151606b1c299f832cf912e21",
+  "schema": "keycloak.protected-candidate.v1"
+}

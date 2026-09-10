@@ -1,5 +1,4 @@
 {
-  "schema": "keycloak.bootstrap-closure.v1",
   "files": [
     {
       "path": ".github/workflows/keycloak-release-trust-root.yml",
@@ -27,7 +26,7 @@
     },
     {
       "path": "scripts/validate-password-reset-contract.py",
-      "sha256": "241402d098d64d90c4b9abedab9396e8efc08cb660b9cc41d5bdaafb52396b6b"
+      "sha256": "060b0e1dea614d25962dc2efae3656cf36d3e22be378df59b62a20254cff8852"
     },
     {
       "path": "scripts/validate-repository-name-authority.py",
@@ -39,8 +38,9 @@
     },
     {
       "path": "scripts/validate.sh",
-      "sha256": "0345d3d59c445e47dc63093c6e31a0ebf2ec2e538a187bfe4a40ac5f4778a33c"
+      "sha256": "c04f8d0777cb587bfa4ea903b589a6ef679edf99855f988dccb4c29e490c47c6"
     }
   ],
-  "manifest_sha256": "10098932b7ebc71fd71f60bc78b9e0e98a525c15e1479caf94087ba9b7fd9a89"
+  "manifest_sha256": "bc4de8abd9b723cd7b9fb978be624d8f7b8a6838c3d5005a07fd99589a87eca2",
+  "schema": "keycloak.bootstrap-closure.v1"
 }
