@@ -58,10 +58,15 @@ Empty default client scopes do not implicitly supply this mapper.
 
 The existing bootstrap pins the validator digest. Adding this client changes
 `scripts/validate.sh`, so the bootstrap correctly rejects the former digest.
-`config/bootstrap/proposals/pr106-webphone-production-client.json` records the
-change from immutable Git objects for source commit
-`9b1e37dc4ec00eb330cc4290df8487f5eab4956c`. It is a review proposal only.
-The active manifest, verifier, rulesets and production stop flag are unchanged.
+`config/bootstrap/proposals/pr106-reconciled-faa840a9.json` records the current
+change from immutable Git objects for reconciled source commit
+`faa840a94405c8f00aedbe8f3a2e9b0b7b6767a2` against protected-main policy
+`ec74dc3fd3854e10502c73aa015a962db884277a`. It preserves the Odoo client and SMTP
+transport updates from main. The earlier
+`config/bootstrap/proposals/pr106-webphone-production-client.json` remains
+historical evidence for the original source and must not authorize this revision.
+Both files are review proposals only. The active manifest matches protected main;
+the verifier, rulesets and production stop flag are unchanged by this repair.
 Complete the independent protected-main maintenance process documented in
 `config/bootstrap/proposals/README.md` before treating bootstrap as passed.
 
