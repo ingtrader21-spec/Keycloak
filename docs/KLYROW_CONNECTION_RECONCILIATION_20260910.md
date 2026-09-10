@@ -56,3 +56,10 @@ for changed executable/configuration files. This PR does not change its own trus
 root or create an approval status. Full human login, signup, logout propagation,
 service token issuance, SMTP AUTH and end-to-end delivery remain runtime
 certification work after the reviewed deployment prerequisites are satisfied.
+
+`config/bootstrap/proposals/klyrow-odoo-sms-20260910.json` records the two changed
+files in the existing declared manifest, derived from immutable source commit
+`fea8a3c48d2ca39a9c8f27e29814c7a5a1d5f8b5` and protected-main policy
+`27e754ba8f56eaa279cde82ffe1bbc63c9fa0bcc`. It is a review proposal only. The
+legacy declared set does not cover all changed configuration or the new SMS
+files; independent closure review must account for those as well before apply.
