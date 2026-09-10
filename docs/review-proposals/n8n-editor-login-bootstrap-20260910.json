@@ -56,7 +56,7 @@
   "policy_commit_sha": "5ee6077338936b43e4c771bb5729cb3b479a3f80",
   "previous_manifest_sha256": "bc4de8abd9b723cd7b9fb978be624d8f7b8a6838c3d5005a07fd99589a87eca2",
   "repository": "appolon1908-hue/Keycloak",
-  "reviewed_source_sha": "83002ef2829fb2e51d4c624ece01012e53e0bc18",
+  "reviewed_source_sha": "dd4858cd66ca95d206bd4b0d711ed9824517662c",
   "schema": "keycloak.bootstrap-manifest-proposal.v1",
   "scope": "EXISTING_DECLARED_FILES_ONLY"
 }
