@@ -3,20 +3,132 @@
 
 from __future__ import annotations
 
+import os
 import re
+import subprocess
 from pathlib import Path
 
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 DIGEST = re.compile(r"^[a-z0-9./_-]+:[A-Za-z0-9._-]+@sha256:[0-9a-f]{64}$")
-GHCR_RUNTIME = re.compile(
-    r"^\$\{KEYCLOAK_IMAGE:\?[^}]+\}$"
-)
+GHCR_RUNTIME = re.compile(r"^\$\{KEYCLOAK_IMAGE:\?[^}]+\}$")
+SAFE_SERVICE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+SAFE_CONTAINER_ID = re.compile(r"^[0-9a-f]{12,64}$")
 
 
 def fail(message: str) -> None:
     raise SystemExit(f"RUNTIME_SECURITY_ERROR={message}")
+
+
+def require_runtime_file(raw: str, label: str) -> Path:
+    path = Path(raw)
+    if not path.is_absolute():
+        fail(f"{label} must be an absolute path")
+    if path.is_symlink() or not path.is_file():
+        fail(f"{label} must be a direct regular file")
+    try:
+        resolved = path.resolve(strict=True)
+    except OSError:
+        fail(f"{label} does not resolve")
+    if resolved != path:
+        fail(f"{label} must use its canonical real path")
+    return path
+
+
+def run_checked(command: list[str], error: str) -> str:
+    try:
+        result = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        fail(error)
+    if result.returncode != 0:
+        fail(error)
+    return result.stdout.strip()
+
+
+def verify_running_login_themes() -> None:
+    compose_raw = os.environ.get("RUNTIME_COMPOSE_FILE", "")
+    service = os.environ.get("RUNTIME_KEYCLOAK_SERVICE", "")
+    env_raw = os.environ.get("RUNTIME_ENV_FILE", "")
+
+    if not any((compose_raw, service, env_raw)):
+        return
+
+    # The reviewed plan-gate suite intentionally exercises runtime-aware
+    # validation against a loopback mock.  Keep that fixture isolated from the
+    # real Docker assertion without creating a deploy-time bypass: all four
+    # test-only indicators must be present together and the admin URL must be
+    # loopback.  Any partial test-mode signal fails closed below.
+    allow_insecure = os.environ.get("ALLOW_INSECURE_KC_BASE_URL", "")
+    allow_noncanonical = os.environ.get("ALLOW_NONCANONICAL_KC_BASE_URL_FOR_TESTS", "")
+    mock_control = os.environ.get("MOCK_SMTP_CONTROL_FILE", "")
+    kc_base_url = os.environ.get("KC_BASE_URL", "")
+    test_fixture = (
+        allow_insecure == "true"
+        and allow_noncanonical == "true"
+        and bool(mock_control)
+        and kc_base_url.startswith("http://127.0.0.1:")
+    )
+    if test_fixture:
+        print("N8N_LOGIN_THEME_RUNTIME=SKIPPED_TEST_FIXTURE")
+        return
+    if allow_insecure or allow_noncanonical or mock_control:
+        fail("test-only runtime flags cannot bypass login-theme verification")
+
+    if not compose_raw or not service:
+        fail("runtime theme verification requires compose file and Keycloak service")
+    if SAFE_SERVICE.fullmatch(service) is None:
+        fail("runtime Keycloak service name is invalid")
+
+    compose_file = require_runtime_file(compose_raw, "runtime compose file")
+    command = [
+        "docker",
+        "compose",
+        "--project-directory",
+        str(compose_file.parent),
+        "-f",
+        str(compose_file),
+    ]
+    if env_raw:
+        env_file = require_runtime_file(env_raw, "runtime environment file")
+        command.extend(["--env-file", str(env_file)])
+    command.extend(["ps", "-q", service])
+
+    container_lines = [
+        line.strip()
+        for line in run_checked(
+            command,
+            "unable to resolve the running Keycloak container",
+        ).splitlines()
+        if line.strip()
+    ]
+    if len(container_lines) != 1 or SAFE_CONTAINER_ID.fullmatch(container_lines[0]) is None:
+        fail("exactly one canonical Keycloak container must be running")
+    container_id = container_lines[0]
+
+    running = run_checked(
+        ["docker", "inspect", "--format", "{{.State.Running}}", container_id],
+        "unable to inspect the Keycloak container",
+    )
+    if running != "true":
+        fail("Keycloak container is not running")
+
+    required_theme_files = (
+        "/opt/keycloak/themes/codestra/login/theme.properties",
+        "/opt/keycloak/themes/codestra-identity/login/theme.properties",
+    )
+    for theme_file in required_theme_files:
+        run_checked(
+            ["docker", "exec", container_id, "test", "-f", theme_file],
+            f"running Keycloak image is missing required login theme: {theme_file}",
+        )
+    print("N8N_LOGIN_THEME_RUNTIME=PASS")
 
 
 compose = yaml.safe_load((ROOT / "compose.yaml").read_text())
@@ -152,6 +264,8 @@ for filename, expected_names in secret_examples.items():
     names = {line.split("=", 1)[0] for line in lines}
     if names != expected_names:
         fail(f"secret boundary is invalid in {filename}")
+
+verify_running_login_themes()
 
 print("IMMUTABLE_IMAGE_POLICY=PASS")
 print("RUNTIME_HARDENING_POLICY=PASS")
