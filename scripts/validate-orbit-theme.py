@@ -18,6 +18,9 @@ def main() -> None:
     assert "styles=css/orbit.css" in properties
     css = (THEME / "resources" / "css" / "orbit.css").read_text()
     assert "prefers-reduced-motion" in css
+    assert "--codestra-accent: #f4c223" in css
+    assert "--codestra-bg: #07080a" in css
+    assert "#55d6be" not in css
     assert "javascript:" not in css.lower()
     for locale in ("en", "es", "fr"):
         messages = (THEME / "messages" / f"messages_{locale}.properties").read_text()

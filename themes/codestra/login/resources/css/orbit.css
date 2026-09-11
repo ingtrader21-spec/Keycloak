@@ -1,50 +1,159 @@
 :root {
-  --codestra-bg: #07111f;
-  --codestra-panel: #0f1d2e;
-  --codestra-border: #29415e;
-  --codestra-text: #f6f8fb;
-  --codestra-muted: #a8b5c5;
-  --codestra-accent: #55d6be;
-  --codestra-accent-hover: #79e3cf;
-  --codestra-danger: #ff6b7a;
+  --codestra-bg: #07080a;
+  --codestra-bg-soft: #0b0d0f;
+  --codestra-panel: #111316;
+  --codestra-panel-raised: #171a1f;
+  --codestra-border: #262b33;
+  --codestra-border-strong: #2a2f35;
+  --codestra-text: #f8fafc;
+  --codestra-text-soft: #e6e7ea;
+  --codestra-muted: #a3a8b3;
+  --codestra-accent: #f4c223;
+  --codestra-accent-hover: #ffd85c;
+  --codestra-danger: #ff8f8f;
 }
 
-body {
-  background:
-    radial-gradient(circle at 15% 10%, rgba(85, 214, 190, 0.14), transparent 34rem),
-    linear-gradient(145deg, #07111f, #0a1727 55%, #07111f);
-  color: var(--codestra-text);
+* { box-sizing: border-box; }
+
+body,
+#keycloak-bg {
   min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 15% 10%, rgba(244, 194, 35, 0.12), transparent 34rem),
+    linear-gradient(145deg, var(--codestra-bg), var(--codestra-bg-soft) 55%, var(--codestra-panel));
+  color: var(--codestra-text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.pf-v5-c-login,
+.pf-c-login {
+  min-height: 100vh;
+  background: transparent;
 }
 
 .pf-v5-c-login__container,
 .pf-c-login__container {
-  background: var(--codestra-panel);
-  border: 1px solid var(--codestra-border);
-  border-radius: 18px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.38);
+  width: min(100% - 2rem, 34rem);
+  margin: 2rem auto;
+  overflow: hidden;
+  background: rgba(17, 19, 22, 0.96);
+  border: 1px solid var(--codestra-border-strong);
+  border-radius: 0.9rem;
+  box-shadow: 0 2rem 5rem rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+#kc-header-wrapper {
+  padding: 2rem 2rem 0.25rem;
+  color: var(--codestra-text) !important;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+
+.pf-v5-c-login__main-header,
+.pf-c-login__main-header {
+  border-top: 3px solid var(--codestra-accent);
+}
+
+.pf-v5-c-login__main-title,
+.pf-v5-c-title,
+#kc-page-title {
+  color: var(--codestra-text) !important;
+  letter-spacing: -0.045em;
+}
+
+.pf-v5-c-form__label,
+.pf-v5-c-form__label-text,
+.pf-c-form__label,
+.pf-c-form__label-text {
+  color: var(--codestra-text-soft) !important;
+}
+
+.pf-v5-c-form-control,
+.pf-v5-c-form-control input,
+.pf-c-form-control,
+.pf-c-form-control input,
+select {
+  min-height: 3rem;
+  border-color: var(--codestra-border-strong) !important;
+  border-radius: 0.7rem;
+  background: var(--codestra-bg) !important;
+  color: var(--codestra-text) !important;
+  box-shadow: none !important;
+}
+
+.pf-v5-c-form-control:focus-within,
+.pf-c-form-control:focus-within,
+select:focus-visible {
+  border-color: var(--codestra-accent) !important;
+  outline: 3px solid rgba(244, 194, 35, 0.14);
 }
 
 .pf-v5-c-button.pf-m-primary,
 .pf-c-button.pf-m-primary,
 #kc-login {
+  min-height: 3.15rem;
+  border: 1px solid var(--codestra-accent);
+  border-radius: 0.7rem;
   background: var(--codestra-accent);
-  border-color: var(--codestra-accent);
-  color: #04130f;
-  font-weight: 700;
+  color: var(--codestra-bg);
+  font-weight: 800;
+  box-shadow: 0 1rem 2rem rgba(244, 194, 35, 0.12);
 }
 
 .pf-v5-c-button.pf-m-primary:hover,
 .pf-c-button.pf-m-primary:hover,
-#kc-login:hover {
-  background: var(--codestra-accent-hover);
+#kc-login:hover,
+.pf-v5-c-button.pf-m-primary:focus-visible,
+.pf-c-button.pf-m-primary:focus-visible,
+#kc-login:focus-visible {
   border-color: var(--codestra-accent-hover);
+  background: var(--codestra-accent-hover);
+  color: var(--codestra-bg);
 }
 
-a { color: var(--codestra-accent); }
-a:hover { color: var(--codestra-accent-hover); }
-.instruction, .pf-v5-c-helper-text, .pf-c-helper-text { color: var(--codestra-muted); }
-.pf-v5-c-alert.pf-m-danger, .pf-c-alert.pf-m-danger { border-color: var(--codestra-danger); }
+.pf-v5-c-button.pf-m-primary:focus-visible,
+.pf-c-button.pf-m-primary:focus-visible,
+#kc-login:focus-visible,
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(244, 194, 35, 0.35);
+  outline-offset: 0.2rem;
+}
+
+a,
+.pf-v5-c-button.pf-m-link,
+.pf-c-button.pf-m-link { color: var(--codestra-accent); }
+a:hover,
+.pf-v5-c-button.pf-m-link:hover,
+.pf-c-button.pf-m-link:hover { color: var(--codestra-accent-hover); }
+
+.instruction,
+.pf-v5-c-helper-text,
+.pf-c-helper-text,
+.pf-v5-c-login__main-footer,
+.pf-c-login__main-footer { color: var(--codestra-muted) !important; }
+
+.pf-v5-c-alert.pf-m-danger,
+.pf-c-alert.pf-m-danger {
+  border-color: rgba(255, 143, 143, 0.32);
+  background: rgba(255, 143, 143, 0.08);
+  color: var(--codestra-danger);
+}
+
+.pf-v5-c-login__main-footer,
+.pf-c-login__main-footer {
+  border-top: 1px solid var(--codestra-border);
+}
+
+@media (max-width: 575.98px) {
+  .pf-v5-c-login__container,
+  .pf-c-login__container { width: min(100% - 1.25rem, 34rem); margin: 0.625rem auto; }
+  #kc-header-wrapper { padding-inline: 1.4rem; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
