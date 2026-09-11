@@ -14,23 +14,28 @@
   "authorizationServicesEnabled": false,
   "frontchannelLogout": true,
   "fullScopeAllowed": false,
-  "rootUrl": "https://n8n.codestra.co",
-  "baseUrl": "https://n8n.codestra.co/",
+  "rootUrl": "https://n8n.codestra.agency",
+  "baseUrl": "https://n8n.codestra.agency/",
   "redirectUris": [
-    "https://n8n.codestra.co/oauth2/callback",
-    "https://n8n-staging.codestra.co/oauth2/callback"
+    "https://n8n.codestra.agency/oauth2/callback",
+    "https://n8n-staging.codestra.agency/oauth2/callback"
   ],
   "webOrigins": [
-    "https://n8n.codestra.co",
-    "https://n8n-staging.codestra.co"
+    "https://n8n.codestra.agency",
+    "https://n8n-staging.codestra.agency"
   ],
-  "defaultClientScopes": ["profile", "email", "roles"],
+  "defaultClientScopes": [
+    "profile",
+    "email",
+    "roles"
+  ],
   "optionalClientScopes": [],
   "attributes": {
     "pkce.code.challenge.method": "S256",
-    "post.logout.redirect.uris": "https://n8n.codestra.co/##https://n8n-staging.codestra.co/",
+    "post.logout.redirect.uris": "https://n8n.codestra.agency/##https://n8n-staging.codestra.agency/",
     "oauth2.device.authorization.grant.enabled": "false",
     "oidc.ciba.grant.enabled": "false",
-    "access.token.lifespan": "300"
+    "access.token.lifespan": "300",
+    "login_theme": "codestra"
   }
 }
