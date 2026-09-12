@@ -31,6 +31,7 @@ AUTHORITY_WORKFLOW = "repository-name-authority.yml"
 LIVE_AUTHORITY_WORKFLOW = "repository-name-live-authority.yml"
 MANUAL_RELEASE_WORKFLOW = "manual-release-intent.yml"
 IMAGE_RELEASE_WORKFLOW = "release-image.yml"
+ACTIVATION_READBACK_WORKFLOW = "keycloak-activation-readback.yml"
 ADDITIONAL_REVIEWED_WORKFLOWS = {
     "orbit-theme.yml",
     "scrapper-identity-contract.yml",
@@ -45,7 +46,13 @@ PR_AUTHORITY_WORKFLOWS = {
 }
 EXPECTED_WORKFLOWS = (
     LEGACY_WORKFLOWS
-    | {AUTHORITY_WORKFLOW, LIVE_AUTHORITY_WORKFLOW, MANUAL_RELEASE_WORKFLOW, IMAGE_RELEASE_WORKFLOW}
+    | {
+        AUTHORITY_WORKFLOW,
+        LIVE_AUTHORITY_WORKFLOW,
+        MANUAL_RELEASE_WORKFLOW,
+        IMAGE_RELEASE_WORKFLOW,
+        ACTIVATION_READBACK_WORKFLOW,
+    }
     | PR_AUTHORITY_WORKFLOWS
     | ADDITIONAL_REVIEWED_WORKFLOWS
     | PASSWORD_RESET_WORKFLOWS
@@ -276,6 +283,87 @@ def validate_password_reset_workflows() -> None:
         fail(f"password-reset workflow validation failed: {detail}")
     if "PASSWORD_RESET_E2E_WORKFLOW_POLICY=PASS" not in completed.stdout:
         fail("password-reset workflow validator did not emit its PASS marker")
+
+
+def validate_activation_readback_workflow(path: Path, workflow: dict[str, Any]) -> None:
+    triggers = CORE.as_mapping(workflow.get("on"), f"{path}.on")
+    if set(triggers) != {"workflow_dispatch"}:
+        fail(f"{path}: activation read-back must be workflow_dispatch-only")
+
+    dispatch = CORE.as_mapping(
+        triggers["workflow_dispatch"], f"{path}.on.workflow_dispatch"
+    )
+    inputs = CORE.as_mapping(dispatch.get("inputs"), f"{path}.on.workflow_dispatch.inputs")
+    if set(inputs) != {"environment", "expected_repository_sha"}:
+        fail(f"{path}: activation read-back inputs must remain exact")
+
+    environment_input = CORE.as_mapping(inputs["environment"], f"{path}.inputs.environment")
+    if environment_input.get("required") != "true" or environment_input.get("type") != "choice":
+        fail(f"{path}: environment must be a required choice")
+    if CORE.as_sequence(
+        environment_input.get("options"), f"{path}.inputs.environment.options"
+    ) != ["staging", "production"]:
+        fail(f"{path}: environment choices must remain staging then production")
+
+    sha_input = CORE.as_mapping(
+        inputs["expected_repository_sha"], f"{path}.inputs.expected_repository_sha"
+    )
+    if sha_input.get("required") != "true" or sha_input.get("type") != "string":
+        fail(f"{path}: expected_repository_sha must be a required string")
+
+    CORE.validate_permissions(
+        workflow.get("permissions"), f"{path}.permissions", {"contents": "read"}
+    )
+    jobs = CORE.as_mapping(workflow.get("jobs"), f"{path}.jobs")
+    if set(jobs) != {"readback"}:
+        fail(f"{path}: activation read-back must contain only the readback job")
+    job = CORE.as_mapping(jobs["readback"], f"{path}.jobs.readback")
+    if "permissions" in job:
+        fail(f"{path}: activation read-back job cannot override permissions")
+    if str(job.get("if", "")) != "github.ref == 'refs/heads/main'":
+        fail(f"{path}: activation read-back must be restricted to protected main")
+    if str(job.get("environment", "")) != "${{ inputs.environment }}":
+        fail(f"{path}: activation read-back must bind the selected protected Environment")
+    if CORE.normalize_runs_on(job.get("runs-on")) != [
+        "self-hosted", "linux", "x64", "keycloak-deploy"
+    ]:
+        fail(f"{path}: activation read-back must use only the restricted keycloak-deploy runner")
+
+    secret_values = {
+        text
+        for text in CORE.recursive_strings(job)
+        if CORE.SECRET_EXPRESSION.search(text)
+    }
+    if secret_values != {
+        "${{ secrets.KC_ADMIN_CLIENT_ID }}",
+        "${{ secrets.KC_ADMIN_CLIENT_SECRET }}",
+    }:
+        fail(f"{path}: activation read-back may reference only the two read-back identity secrets")
+
+    CORE.validate_steps(job, f"{path}.jobs.readback")
+    text = workflow_text(workflow)
+    for required in (
+        "github.sha",
+        "inputs.expected_repository_sha",
+        "git rev-parse HEAD",
+        "scripts/certify-activation-readback.py",
+        "evidence/keycloak-activation-readback.json",
+        "KC_BASE_URL",
+        "KC_PUBLIC_URL",
+        "KC_TARGET_REALM",
+        "KC_ADMIN_REALM",
+    ):
+        if required not in text:
+            fail(f"{path}: activation read-back is missing {required}")
+
+    prohibited = re.compile(
+        r"(?i)(pull_request_target|ssh\s|scp\s|rsync\s|docker\s|kubectl|"
+        r"helm\s|terraform|tofu\s|keycloak-config-cli|apply-plan|plan\.sh\s+--apply|"
+        r"curl\s+[^\n]*-[Xx]\s*(PUT|PATCH|DELETE))"
+    )
+    if any(prohibited.search(value) for value in CORE.recursive_strings(workflow)):
+        fail(f"{path}: activation read-back must remain read-only")
+
 
 def validate_release_contract() -> None:
     if not RELEASE_CONTRACT.is_file() or RELEASE_CONTRACT.is_symlink():
@@ -520,6 +608,10 @@ def validate() -> None:
     )
     validate_pr_authority_workflows()
     validate_password_reset_workflows()
+    validate_activation_readback_workflow(
+        WORKFLOW_DIR / ACTIVATION_READBACK_WORKFLOW,
+        CORE.load_workflow(WORKFLOW_DIR / ACTIVATION_READBACK_WORKFLOW),
+    )
     validate_manual_release_intent(
         WORKFLOW_DIR / MANUAL_RELEASE_WORKFLOW,
         CORE.load_workflow(WORKFLOW_DIR / MANUAL_RELEASE_WORKFLOW),
@@ -534,6 +626,7 @@ def validate() -> None:
     print("REPOSITORY_NAME_WORKFLOW_POLICY=PASS")
     print("PR_AUTHORITY_WORKFLOW_POLICY=PASS")
     print("PASSWORD_RESET_E2E_WORKFLOW_POLICY=PASS")
+    print("ACTIVATION_READBACK_WORKFLOW_POLICY=PASS")
     print("MANUAL_RELEASE_INTENT_POLICY=PASS")
     print("RELEASE_INTENT_CONTRACT=PASS")
     print("IMMUTABLE_IMAGE_RELEASE_WORKFLOW=PASS")
