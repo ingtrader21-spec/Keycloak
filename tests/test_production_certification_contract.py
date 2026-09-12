@@ -15,19 +15,31 @@ class ProductionContractTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
-        for path in ("scripts/validate-production-certification.py", "scripts/certify-kong.sh",
-                     "scripts/apply-plan.sh", ".github/workflows/deploy.yml",
-                     "config/certification/service-identity-matrix.json",
-                     "config/github/production-environment.json",
-                     "config/contracts/machine-secret-destinations.json",
-                     "config/endpoints/codestra.json", "config/endpoints/codestra-staging.json"):
+        for path in (
+            "scripts/validate-production-certification.py",
+            "scripts/certify-kong.sh",
+            "scripts/certify-activation-readback.py",
+            "scripts/apply-plan.sh",
+            ".github/workflows/deploy.yml",
+            ".github/workflows/keycloak-activation-readback.yml",
+            "config/certification/service-identity-matrix.json",
+            "config/certification/activation-readback.json",
+            "config/github/production-environment.json",
+            "config/contracts/machine-secret-destinations.json",
+            "config/endpoints/codestra.json",
+            "config/endpoints/codestra-staging.json",
+            "config/clients/klyrow-portal.json",
+        ):
             destination = self.root / path
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(ROOT / path, destination)
 
     def run_validator(self):
-        return subprocess.run([sys.executable, "-O", str(self.root / "scripts/validate-production-certification.py")],
-                              text=True, capture_output=True)
+        return subprocess.run(
+            [sys.executable, "-O", str(self.root / "scripts/validate-production-certification.py")],
+            text=True,
+            capture_output=True,
+        )
 
     def test_valid_contract_under_optimized_python(self):
         result = self.run_validator()
