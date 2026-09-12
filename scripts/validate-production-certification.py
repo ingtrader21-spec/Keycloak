@@ -94,6 +94,61 @@ require('.productionMutationAllowed == true' in apply_script,
 require('production_mutation_not_authorized_by_certification_contract' in apply_script,
         "direct apply must fail when production certification is blocked")
 
+activation = load("config/certification/activation-readback.json")
+require(activation["schemaVersion"] == 1, "unsupported activation read-back schema")
+require(activation["issues"] == [2, 84], "activation read-back must remain scoped to issues #2 and #84")
+require(activation["clientId"] == "klyrow-portal", "activation target must remain klyrow-portal")
+require(activation["desiredClientPath"] == "config/clients/klyrow-portal.json", "activation desired client path changed")
+require(activation["exportAllowlistPath"] == "config/export-allowlists/klyrow-portal.json", "activation allowlist path changed")
+require(activation["mutationAllowed"] is False, "activation read-back must never authorize mutation")
+require(activation["environments"] == {
+    "staging": {
+        "endpointContractPath": "config/endpoints/codestra-staging.json",
+        "githubEnvironment": "staging",
+    },
+    "production": {
+        "endpointContractPath": "config/endpoints/codestra.json",
+        "githubEnvironment": "production",
+    },
+}, "activation environment bindings changed")
+required_activation_evidence = {
+    "repository_sha", "environment", "issuer", "discovery_sha256", "jwks_fingerprint",
+    "klyrow_desired_projection_sha256", "klyrow_live_projection_sha256",
+    "klyrow_projection_matches", "klyrow_redirect_uris", "collected_at_utc",
+    "mutation_attempted",
+}
+require(set(activation["requiredEvidence"]) == required_activation_evidence,
+        "activation read-back evidence is incomplete")
+klyrow = load(activation["desiredClientPath"])
+require(klyrow["redirectUris"] == ["https://klyrow.com/"], "Klyrow redirect must remain exact")
+require(klyrow["webOrigins"] == ["https://klyrow.com"], "Klyrow origin must remain exact")
+require(klyrow["publicClient"] is True and klyrow["standardFlowEnabled"] is True,
+        "Klyrow browser client must remain public authorization-code flow")
+require(klyrow["implicitFlowEnabled"] is False and klyrow["directAccessGrantsEnabled"] is False,
+        "Klyrow browser client must not enable implicit or password grants")
+require(klyrow["attributes"]["pkce.code.challenge.method"] == "S256",
+        "Klyrow browser client must require PKCE S256")
+
+activation_script = (ROOT / "scripts/certify-activation-readback.py").read_text(encoding="utf-8")
+activation_workflow = (ROOT / ".github/workflows/keycloak-activation-readback.yml").read_text(encoding="utf-8")
+require('if method not in {"GET", "POST"}' in activation_script,
+        "activation collector must reject mutation HTTP methods")
+require('"mutation_attempted": False' in activation_script,
+        "activation evidence must record that no mutation was attempted")
+require("workflow_dispatch:" in activation_workflow, "activation read-back must remain manual")
+require("permissions:\n  contents: read" in activation_workflow,
+        "activation read-back must have read-only repository permissions")
+require("runs-on: [self-hosted, linux, x64, keycloak-deploy]" in activation_workflow,
+        "activation read-back must use the restricted keycloak-deploy runner")
+require("environment: ${{ inputs.environment }}" in activation_workflow,
+        "activation read-back must bind the selected protected GitHub Environment")
+require("scripts/certify-activation-readback.py" in activation_workflow,
+        "activation workflow must execute the protected collector")
+for forbidden in ("apply-plan.sh", "plan.sh --apply", "kubectl apply", "docker compose up", "curl -X PUT"):
+    require(forbidden not in activation_workflow,
+            f"activation read-back workflow contains forbidden mutation primitive: {forbidden}")
+
 print("SERVICE_IDENTITY_CERTIFICATION_CONTRACT=PASS")
 print("PRODUCTION_ENVIRONMENT_CONTRACT=PASS")
+print("ACTIVATION_READBACK_CONTRACT=PASS")
 print("PRODUCTION_MUTATION_ALLOWED=NO")
