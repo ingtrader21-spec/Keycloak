@@ -144,8 +144,8 @@ def repository_sha(explicit: str | None = None) -> str:
 
 def certify(
     environment: str,
-    admin_client_id: str,
-    admin_client_secret: str,
+    readback_client_id: str,
+    readback_client_secret: str,
     repo_sha: str,
     *,
     transport: Callable[..., tuple[int, Any]] = request_json,
@@ -154,8 +154,8 @@ def certify(
     contract = load_json("config/certification/activation-readback.json")
     if environment not in {"staging", "production"} or environment not in contract.get("environments", {}):
         raise CertificationError("environment must be exactly staging or production")
-    if not admin_client_id or not admin_client_secret:
-        raise CertificationError("read-back credentials are required")
+    if not readback_client_id or not readback_client_secret:
+        raise CertificationError("dedicated read-back credentials are required")
     if contract.get("mutationAllowed") is not False:
         raise CertificationError("activation read-back contract must remain mutation-disabled")
 
@@ -197,8 +197,8 @@ def certify(
         token_url,
         form={
             "grant_type": "client_credentials",
-            "client_id": admin_client_id,
-            "client_secret": admin_client_secret,
+            "client_id": readback_client_id,
+            "client_secret": readback_client_secret,
         },
     )
     if status != 200 or not isinstance(token_response, dict):
@@ -257,7 +257,7 @@ def certify(
     if set(evidence) - {"schemaVersion"} != required:
         raise CertificationError("activation evidence fields do not match the protected contract")
     serialized = json.dumps(evidence, sort_keys=True)
-    for sensitive in (admin_client_secret, access_token):
+    for sensitive in (readback_client_secret, access_token):
         if sensitive and sensitive in serialized:
             raise CertificationError("sensitive material reached activation evidence")
     return evidence
@@ -291,8 +291,8 @@ def main() -> int:
         validate_runtime_environment(args.environment)
         evidence = certify(
             args.environment,
-            os.environ.get("KC_ADMIN_CLIENT_ID", ""),
-            os.environ.get("KC_ADMIN_CLIENT_SECRET", ""),
+            os.environ.get("KC_READBACK_CLIENT_ID", ""),
+            os.environ.get("KC_READBACK_CLIENT_SECRET", ""),
             repository_sha(args.repository_sha),
         )
         output = Path(args.output)
