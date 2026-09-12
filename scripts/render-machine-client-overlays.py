@@ -17,6 +17,7 @@ ALLOWLIST_DIR = ROOT / "config/export-allowlists"
 MONITORING_CLIENT_ID = "monitoring-readonly"
 MONITORING_OPTIONAL_SCOPES = ("health.read", "metrics.read")
 MONITORING_TARGET = "middleware-api"
+TENANT_ATTRIBUTE_CLIENTS = frozenset({"telnexa-gateway"})
 
 
 def canonical(value: object) -> str:
@@ -110,6 +111,22 @@ def render() -> dict[Path, str]:
                         "access.token.claim": "true",
                         "userinfo.token.claim": "false",
                         "access.tokenResponse.claim": "false",
+                    },
+                )
+            )
+        if client_id in TENANT_ATTRIBUTE_CLIENTS:
+            mappers.append(
+                mapper(
+                    "tenant-ids-from-service-account",
+                    "oidc-usermodel-attribute-mapper",
+                    {
+                        "user.attribute": "tenant_ids",
+                        "claim.name": "tenant_ids",
+                        "jsonType.label": "String",
+                        "id.token.claim": "false",
+                        "access.token.claim": "true",
+                        "userinfo.token.claim": "false",
+                        "multivalued": "true",
                     },
                 )
             )

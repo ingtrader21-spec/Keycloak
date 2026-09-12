@@ -95,11 +95,16 @@
       "consumerClientId": "middleware-api",
       "audience": "middleware-api",
       "requiredScope": "sms.events.publish",
-      "path": "/api/v1/telnexa/events",
+      "path": "/api/v1/events/telnexa",
       "eventTypes": [
+        "codestra.sms.help_requested",
         "codestra.sms.inbound.received",
         "codestra.sms.message.delivered",
-        "codestra.sms.message.failed"
+        "codestra.sms.message.failed",
+        "codestra.sms.message.provider_accepted",
+        "codestra.sms.message.sent",
+        "codestra.sms.recipient.opted_in",
+        "codestra.sms.recipient.opted_out"
       ],
       "delivery": "at_least_once"
     },

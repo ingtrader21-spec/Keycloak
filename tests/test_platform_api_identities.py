@@ -29,7 +29,13 @@ class PlatformApiIdentityTests(unittest.TestCase):
             client_id: json.loads(
                 (ROOT / f"config/clients/{client_id}.json").read_text(encoding="utf-8")
             )
-            for client_id in ("sdk-intake", "alertmanager", "kong-gateway", "n8n-automation")
+            for client_id in (
+                "sdk-intake",
+                "alertmanager",
+                "kong-gateway",
+                "n8n-automation",
+                "telnexa-gateway",
+            )
         }
 
     def test_canonical_machine_and_access_contracts_pass(self) -> None:
@@ -173,6 +179,66 @@ class PlatformApiIdentityTests(unittest.TestCase):
             )
             with self.assertRaises(VALIDATOR.ContractError):
                 VALIDATOR.validate_client_document(client_id, client)
+
+    def test_telnexa_tenant_claim_is_service_account_attribute_bound(self) -> None:
+        client = copy.deepcopy(self.clients["telnexa-gateway"])
+        tenant = next(
+            mapper
+            for mapper in client["protocolMappers"]
+            if mapper["name"] == "tenant-ids-from-service-account"
+        )
+        self.assertEqual(
+            tenant,
+            {
+                "name": "tenant-ids-from-service-account",
+                "protocol": "openid-connect",
+                "protocolMapper": "oidc-usermodel-attribute-mapper",
+                "consentRequired": False,
+                "config": {
+                    "user.attribute": "tenant_ids",
+                    "claim.name": "tenant_ids",
+                    "jsonType.label": "String",
+                    "id.token.claim": "false",
+                    "access.token.claim": "true",
+                    "userinfo.token.claim": "false",
+                    "multivalued": "true",
+                },
+            },
+        )
+        VALIDATOR.validate_client_document(
+            "telnexa-gateway",
+            client,
+            {"sms.events.publish", "sms.inbound.publish"},
+        )
+
+    def test_telnexa_hardcoded_or_missing_tenant_claim_is_rejected(self) -> None:
+        client = copy.deepcopy(self.clients["telnexa-gateway"])
+        tenant = next(
+            mapper
+            for mapper in client["protocolMappers"]
+            if mapper["name"] == "tenant-ids-from-service-account"
+        )
+        tenant["protocolMapper"] = "oidc-hardcoded-claim-mapper"
+        tenant["config"]["claim.value"] = "tenant-1"
+        with self.assertRaises(VALIDATOR.ContractError):
+            VALIDATOR.validate_client_document(
+                "telnexa-gateway",
+                client,
+                {"sms.events.publish", "sms.inbound.publish"},
+            )
+
+        client = copy.deepcopy(self.clients["telnexa-gateway"])
+        client["protocolMappers"] = [
+            mapper
+            for mapper in client["protocolMappers"]
+            if mapper["name"] != "tenant-ids-from-service-account"
+        ]
+        with self.assertRaises(VALIDATOR.ContractError):
+            VALIDATOR.validate_client_document(
+                "telnexa-gateway",
+                client,
+                {"sms.events.publish", "sms.inbound.publish"},
+            )
 
 
 if __name__ == "__main__":
