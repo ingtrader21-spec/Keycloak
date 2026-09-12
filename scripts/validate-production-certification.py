@@ -135,6 +135,10 @@ require('if method not in {"GET", "POST"}' in activation_script,
         "activation collector must reject mutation HTTP methods")
 require('"mutation_attempted": False' in activation_script,
         "activation evidence must record that no mutation was attempted")
+require('os.environ.get("KC_READBACK_CLIENT_ID", "")' in activation_script,
+        "activation collector must consume the dedicated read-back client id")
+require('os.environ.get("KC_READBACK_CLIENT_SECRET", "")' in activation_script,
+        "activation collector must consume the dedicated read-back client secret")
 require("workflow_dispatch:" in activation_workflow, "activation read-back must remain manual")
 require("permissions:\n  contents: read" in activation_workflow,
         "activation read-back must have read-only repository permissions")
@@ -142,6 +146,14 @@ require("runs-on: [self-hosted, linux, x64, keycloak-deploy]" in activation_work
         "activation read-back must use the restricted keycloak-deploy runner")
 require("environment: ${{ inputs.environment }}" in activation_workflow,
         "activation read-back must bind the selected protected GitHub Environment")
+require("${{ secrets.KC_READBACK_CLIENT_ID }}" in activation_workflow,
+        "activation read-back must bind a dedicated read-back client id secret")
+require("${{ secrets.KC_READBACK_CLIENT_SECRET }}" in activation_workflow,
+        "activation read-back must bind a dedicated read-back client secret")
+require("${{ secrets.KC_ADMIN_CLIENT_ID }}" not in activation_workflow,
+        "activation read-back must not reuse the mutation-capable admin client id")
+require("${{ secrets.KC_ADMIN_CLIENT_SECRET }}" not in activation_workflow,
+        "activation read-back must not reuse the mutation-capable admin client secret")
 require("scripts/certify-activation-readback.py" in activation_workflow,
         "activation workflow must execute the protected collector")
 for forbidden in ("apply-plan.sh", "plan.sh --apply", "kubectl apply", "docker compose up", "curl -X PUT"):
