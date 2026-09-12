@@ -150,6 +150,10 @@ class ActivationCertificationTests(unittest.TestCase):
         self.assertIn("workflow_dispatch:", workflow)
         self.assertIn("permissions:\n  contents: read", workflow)
         self.assertIn("runs-on: [self-hosted, linux, x64, keycloak-deploy]", workflow)
+        self.assertIn("${{ secrets.KC_READBACK_CLIENT_ID }}", workflow)
+        self.assertIn("${{ secrets.KC_READBACK_CLIENT_SECRET }}", workflow)
+        self.assertNotIn("${{ secrets.KC_ADMIN_CLIENT_ID }}", workflow)
+        self.assertNotIn("${{ secrets.KC_ADMIN_CLIENT_SECRET }}", workflow)
         self.assertIn("scripts/certify-activation-readback.py", workflow)
         for forbidden in ("apply-plan.sh", "plan.sh --apply", "kubectl apply", "docker compose up", "curl -X PUT"):
             self.assertNotIn(forbidden, workflow)
