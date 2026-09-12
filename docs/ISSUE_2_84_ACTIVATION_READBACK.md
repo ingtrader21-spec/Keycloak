@@ -29,20 +29,21 @@ KC_BASE_URL
 KC_PUBLIC_URL
 KC_TARGET_REALM
 KC_ADMIN_REALM
-KC_ADMIN_CLIENT_ID
-KC_ADMIN_CLIENT_SECRET
+KC_READBACK_CLIENT_ID
+KC_READBACK_CLIENT_SECRET
 ```
 
-The first four values must exactly match the selected canonical endpoint contract. The two credentials must belong to the dedicated least-privilege read-back identity; do not reuse a human administrator credential and do not commit either secret.
+The first four values must exactly match the selected canonical endpoint contract. `KC_READBACK_CLIENT_ID` and `KC_READBACK_CLIENT_SECRET` must belong to a **dedicated least-privilege service identity that can read/query the target client but cannot create, update, or delete clients or realm state**. Do not reuse `KC_ADMIN_CLIENT_ID` / `KC_ADMIN_CLIENT_SECRET`, a human administrator credential, or any other mutation-capable deployment principal. Do not commit either read-back secret.
 
 ## Running the evidence workflow
 
 1. Merge this PR through the existing protected checks and independent review.
-2. Confirm the `keycloak-deploy` runner is online and scoped to the intended Keycloak host/network.
-3. Open **Actions → Keycloak activation read-back → Run workflow** from `main`.
-4. Select `staging` first and paste the exact protected-main SHA into `expected_repository_sha`.
-5. Preserve the emitted `keycloak-activation-readback-<environment>-<run_id>` artifact with the issue evidence.
-6. Repeat for `production` only as a read-only canary after staging passes.
+2. Configure the dedicated `KC_READBACK_CLIENT_ID` / `KC_READBACK_CLIENT_SECRET` in each protected Environment and keep the deploy/admin principal separate.
+3. Confirm the `keycloak-deploy` runner is online and scoped to the intended Keycloak host/network.
+4. Open **Actions → Keycloak activation read-back → Run workflow** from `main`.
+5. Select `staging` first and paste the exact protected-main SHA into `expected_repository_sha`.
+6. Preserve the emitted `keycloak-activation-readback-<environment>-<run_id>` artifact with the issue evidence.
+7. Repeat for `production` only as a read-only canary after staging passes.
 
 ## Evidence boundary
 
