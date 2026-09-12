@@ -335,8 +335,8 @@ def validate_activation_readback_workflow(path: Path, workflow: dict[str, Any]) 
         if CORE.SECRET_EXPRESSION.search(text)
     }
     if secret_values != {
-        "${{ secrets.KC_ADMIN_CLIENT_ID }}",
-        "${{ secrets.KC_ADMIN_CLIENT_SECRET }}",
+        "${{ secrets.KC_READBACK_CLIENT_ID }}",
+        "${{ secrets.KC_READBACK_CLIENT_SECRET }}",
     }:
         fail(f"{path}: activation read-back may reference only the two read-back identity secrets")
 
