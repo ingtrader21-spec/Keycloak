@@ -136,7 +136,7 @@ def repository_sha(explicit: str | None = None) -> str:
             ).strip()
         except (OSError, subprocess.CalledProcessError) as exc:
             raise CertificationError("repository SHA is required") from exc
-    candidate = candidate.strip().lower()
+    candidate = candidate.strip()
     if not SHA_RE.fullmatch(candidate):
         raise CertificationError("repository SHA must be an exact 40-character lowercase commit SHA")
     return candidate
@@ -177,7 +177,6 @@ def certify(
     jwks_url = endpoints["jwksUri"]
     issuer = endpoints["issuer"]
     admin_base = endpoints["adminApiBaseUrl"].rstrip("/")
-    realm = endpoints["realm"]
     admin_realm = endpoints["adminAuthenticationRealm"]
     for url in (discovery_url, jwks_url, issuer, admin_base):
         require_https(url)
