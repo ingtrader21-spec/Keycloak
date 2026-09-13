@@ -1,0 +1,82 @@
+name: Keycloak activation read-back
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Protected Keycloak environment to inspect without mutation
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      expected_repository_sha:
+        description: Exact reviewed protected-main SHA to certify
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keycloak-activation-readback-${{ inputs.environment }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  readback:
+    if: github.ref == 'refs/heads/main'
+    name: keycloak-activation-readback
+    runs-on: [self-hosted, linux, x64, keycloak-deploy]
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 10
+    env:
+      EXPECTED_REPOSITORY_SHA: ${{ inputs.expected_repository_sha }}
+      DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
+      KC_BASE_URL: ${{ vars.KC_BASE_URL }}
+      KC_PUBLIC_URL: ${{ vars.KC_PUBLIC_URL }}
+      KC_TARGET_REALM: ${{ vars.KC_TARGET_REALM }}
+      KC_ADMIN_REALM: ${{ vars.KC_ADMIN_REALM }}
+      KC_READBACK_CLIENT_ID: ${{ secrets.KC_READBACK_CLIENT_ID }}
+      KC_READBACK_CLIENT_SECRET: ${{ secrets.KC_READBACK_CLIENT_SECRET }}
+
+    steps:
+      - name: Check out exact protected workflow SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Verify exact protected-main identity
+        env:
+          CONTROL_SHA: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$CONTROL_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$EXPECTED_REPOSITORY_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CONTROL_SHA" == "$EXPECTED_REPOSITORY_SHA" ]]
+          [[ "$(git rev-parse HEAD)" == "$CONTROL_SHA" ]]
+          [[ "$DEPLOY_ENVIRONMENT" == staging || "$DEPLOY_ENVIRONMENT" == production ]]
+          install -d -m 0700 evidence
+
+      - name: Collect credential-free activation evidence
+        run: |
+          set -Eeuo pipefail
+          umask 077
+          python3 scripts/certify-activation-readback.py \
+            --environment "$DEPLOY_ENVIRONMENT" \
+            --repository-sha "$EXPECTED_REPOSITORY_SHA" \
+            --output evidence/keycloak-activation-readback.json
+
+      - name: Preserve read-only activation evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: keycloak-activation-readback-${{ inputs.environment }}-${{ github.run_id }}
+          path: evidence/keycloak-activation-readback.json
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: false

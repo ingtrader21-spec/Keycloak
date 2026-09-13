@@ -34,13 +34,13 @@
     },
     {
       "path": "scripts/validate-workflows.py",
-      "sha256": "fddf958c7c56cbbe8a5aa30acfad9e4a4c9ec7b637a2e9708139ea74302ccc6c"
+      "sha256": "0db2642d56f62de36bddc70f6c4a3127c2779e3ff2abd1d20746ccd6526b5af1"
     },
     {
       "path": "scripts/validate.sh",
       "sha256": "dd9093d08d7e6a044a289897c6f6d23fe1a6ee362ed62950e28bfe1949bc6284"
     }
   ],
-  "manifest_sha256": "7d5225ed382aae85301a9e58fc683032feeb50e43310d90694034e7b0d6510c7",
+  "manifest_sha256": "c47a3f92a7dba0c0e547651d322cec9d4a756edf55525937f7bcc448f9df81a0",
   "schema": "keycloak.bootstrap-closure.v1"
 }
