@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "issues": [2, 84],
+  "clientId": "klyrow-portal",
+  "desiredClientPath": "config/clients/klyrow-portal.json",
+  "exportAllowlistPath": "config/export-allowlists/klyrow-portal.json",
+  "environments": {
+    "staging": {
+      "endpointContractPath": "config/endpoints/codestra-staging.json",
+      "githubEnvironment": "staging"
+    },
+    "production": {
+      "endpointContractPath": "config/endpoints/codestra.json",
+      "githubEnvironment": "production"
+    }
+  },
+  "requiredEvidence": [
+    "repository_sha",
+    "environment",
+    "issuer",
+    "discovery_sha256",
+    "jwks_fingerprint",
+    "klyrow_desired_projection_sha256",
+    "klyrow_live_projection_sha256",
+    "klyrow_projection_matches",
+    "klyrow_redirect_uris",
+    "collected_at_utc",
+    "mutation_attempted"
+  ],
+  "mutationAllowed": false
+}
