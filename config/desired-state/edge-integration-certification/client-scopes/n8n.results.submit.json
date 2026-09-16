@@ -1,0 +1,10 @@
+{
+  "name": "n8n.results.submit",
+  "description": "Codestra shared-edge ingress scope managed by protected Keycloak GitOps. n8n submits automation results to Middleware: POST /api/v1/integrations/n8n/results. Attached only as an explicit per-client default scope; never a realm default or optional scope.",
+  "protocol": "openid-connect",
+  "attributes": {
+    "display.on.consent.screen": "false",
+    "include.in.token.scope": "true"
+  },
+  "protocolMappers": []
+}

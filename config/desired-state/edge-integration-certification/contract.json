@@ -1,0 +1,197 @@
+{
+  "schemaVersion": 1,
+  "kind": "CodestraKeycloakEdgeIntegrationCertificationContract",
+  "mission": "Keycloak token -> Caddy -> Kong -> deployed Middleware integration_api certification for campaign TEST_SYN",
+  "environment": "staging",
+  "realm": "codestra",
+  "issuer": "https://auth-staging.codestra.co/realms/codestra",
+  "tokenEndpoint": "https://auth-staging.codestra.co/realms/codestra/protocol/openid-connect/token",
+  "jwksUri": "https://auth-staging.codestra.co/realms/codestra/protocol/openid-connect/certs",
+  "audience": "middleware-api",
+  "canonicalMiddlewareAudience": "middleware-api",
+  "campaign": "TEST_SYN",
+  "tenant": "TEST_SYN_TENANT",
+  "businessUnit": "TEST_SYN",
+  "ingressScopes": [
+    "n8n.results.submit",
+    "n8n.results.read",
+    "odoo.campaigns.read"
+  ],
+  "outboundScope": {
+    "name": "odoo.campaign.control.read",
+    "direction": "middleware_to_odoo",
+    "note": "Separate Middleware -> Odoo outbound scope; never granted to a certification identity."
+  },
+  "forbiddenScopes": [
+    "odoo.campaign.control.write"
+  ],
+  "edgeContract": {
+    "repository": "appolon1908-hue/Middleware-",
+    "path": "deploy/public-api-route-contract.json",
+    "pinnedIn": "deploy/public-api-route-contract.sha256",
+    "hashRule": "sha256 over json.dumps(contract, sort_keys=True, separators=(',', ':')).encode('utf-8')",
+    "sha256": "7580123dead97ea342c704a57a3c8eed9f5dce69aab247d4b693db96bc7334d5"
+  },
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/v1/integrations/n8n/results",
+      "scope": "n8n.results.submit",
+      "classification": "shared_edge"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/integrations/n8n/results/{event_id}",
+      "scope": "n8n.results.read",
+      "classification": "shared_edge"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/integrations/odoo/campaigns/{campaign_id}",
+      "scope": "odoo.campaigns.read",
+      "classification": "shared_edge"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/integrations/odoo/campaigns/{campaign_id}/desired-state",
+      "scope": "odoo.campaigns.read",
+      "classification": "shared_edge"
+    }
+  ],
+  "retiredPaths": [
+    {
+      "path": "/api/v1/integration/campaign-actions",
+      "classification": "denied"
+    },
+    {
+      "path": "/api/v1/odoo/campaign-actions",
+      "classification": "denied"
+    },
+    {
+      "path": "/api/v1/integrations/odoo/campaign-actions",
+      "classification": "denied"
+    },
+    {
+      "path": "/api/v1/integrations/odoo/campaign-commands",
+      "classification": "denied"
+    }
+  ],
+  "identities": [
+    {
+      "clientId": "test-syn-n8n-submit",
+      "role": "n8n_submit",
+      "scopes": [
+        "n8n.results.submit"
+      ],
+      "audience": "middleware-api",
+      "tenant": "TEST_SYN_TENANT",
+      "businessUnits": [
+        "TEST_SYN"
+      ],
+      "campaigns": [
+        "TEST_SYN"
+      ],
+      "purpose": "Submits one safe TEST_SYN n8n result through the shared edge; expected 202.",
+      "secretReference": "secret://staging/keycloak/edge-certification/test-syn-n8n-submit"
+    },
+    {
+      "clientId": "test-syn-n8n-read",
+      "role": "n8n_read",
+      "scopes": [
+        "n8n.results.read"
+      ],
+      "audience": "middleware-api",
+      "tenant": "TEST_SYN_TENANT",
+      "businessUnits": [
+        "TEST_SYN"
+      ],
+      "campaigns": [
+        "TEST_SYN"
+      ],
+      "purpose": "Reads the seeded TEST_SYN n8n result back; expected 200, missing 404, and 403 on the submit route.",
+      "secretReference": "secret://staging/keycloak/edge-certification/test-syn-n8n-read"
+    },
+    {
+      "clientId": "test-syn-odoo-reader",
+      "role": "odoo_reader",
+      "scopes": [
+        "odoo.campaigns.read"
+      ],
+      "audience": "middleware-api",
+      "tenant": "TEST_SYN_TENANT",
+      "businessUnits": [
+        "TEST_SYN"
+      ],
+      "campaigns": [
+        "TEST_SYN"
+      ],
+      "purpose": "Reads campaign TEST_SYN and its desired state; expected 200 from staging Odoo through Middleware.",
+      "secretReference": "secret://staging/keycloak/edge-certification/test-syn-odoo-reader"
+    },
+    {
+      "clientId": "test-syn-wrong-audience",
+      "role": "wrong_audience",
+      "scopes": [],
+      "audience": "test-syn-wrong-audience",
+      "tenant": "TEST_SYN_TENANT",
+      "businessUnits": [
+        "TEST_SYN"
+      ],
+      "campaigns": [
+        "TEST_SYN"
+      ],
+      "purpose": "Valid staging token whose audience is not the Middleware/Kong audience; expected 401 on every route.",
+      "secretReference": "secret://staging/keycloak/edge-certification/test-syn-wrong-audience"
+    },
+    {
+      "clientId": "test-syn-wrong-tenant",
+      "role": "wrong_tenant",
+      "scopes": [
+        "n8n.results.read",
+        "odoo.campaigns.read"
+      ],
+      "audience": "middleware-api",
+      "tenant": "TEST_SYN_OTHER_TENANT",
+      "businessUnits": [
+        "TEST_SYN_OTHER"
+      ],
+      "campaigns": [
+        "TEST_SYN_OTHER"
+      ],
+      "purpose": "Valid audience and scopes bound to another tenant; expected the same 404 body as a missing result and an indistinguishable campaign denial.",
+      "secretReference": "secret://staging/keycloak/edge-certification/test-syn-wrong-tenant"
+    }
+  ],
+  "tokenPolicy": {
+    "grantType": "client_credentials",
+    "scopeParameterRequired": false,
+    "maximumAccessTokenLifetimeSeconds": 300,
+    "refreshTokensAllowed": false,
+    "fullScopeAllowed": false,
+    "secretStorage": "external-secret-store-only",
+    "requiredClaims": [
+      "iss",
+      "sub",
+      "aud",
+      "azp",
+      "iat",
+      "exp",
+      "jti",
+      "typ",
+      "scope",
+      "environment",
+      "tenant_id",
+      "business_units",
+      "campaigns"
+    ],
+    "environmentClaim": "staging"
+  },
+  "boundary": {
+    "productionActivationAuthorized": false,
+    "managedClientPolicyMembership": false,
+    "liveApplyFromRepositoryCi": false,
+    "providerWritesEnabled": false,
+    "odooWritesEnabled": false,
+    "tokensOrSecretsCommitted": false
+  }
+}

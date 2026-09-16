@@ -1,0 +1,274 @@
+{
+  "schema": "codestra.keycloak.canonical-service-authority.v2",
+  "contract": {
+    "schema": "codestra.middleware.public-api-route-contract.v2",
+    "sha256": "7580123dead97ea342c704a57a3c8eed9f5dce69aab247d4b693db96bc7334d5"
+  },
+  "productionActivationAuthorized": false,
+  "providerEffectsEnabled": false,
+  "secretsCommitted": false,
+  "realmDefaultClientScopes": [],
+  "clients": [
+    {
+      "clientId": "middleware-api",
+      "audiences": [
+        "middleware-api"
+      ],
+      "scopes": [
+        "telephony.commands.write"
+      ],
+      "serviceAccountsEnabled": true,
+      "fullScopeAllowed": false,
+      "defaultClientScopes": [],
+      "optionalClientScopes": [],
+      "secretReference": "secret://keycloak/middleware-api",
+      "productionActivationAuthorized": false
+    },
+    {
+      "clientId": "middleware-worker",
+      "audiences": [
+        "codestra-odoo"
+      ],
+      "scopes": [
+        "odoo.campaign.actual_state.write",
+        "odoo.integration.automation_results.write"
+      ],
+      "serviceAccountsEnabled": true,
+      "fullScopeAllowed": false,
+      "defaultClientScopes": [],
+      "optionalClientScopes": [],
+      "secretReference": "secret://keycloak/middleware-worker",
+      "productionActivationAuthorized": false
+    },
+    {
+      "clientId": "n8n-automation",
+      "audiences": [
+        "middleware-api"
+      ],
+      "scopes": [
+        "automation.approval.read",
+        "automation.approval.request",
+        "automation.capability.read",
+        "automation.command.read",
+        "automation.job.claim",
+        "automation.job.complete",
+        "automation.job.fail",
+        "automation.job.heartbeat",
+        "automation.job.read",
+        "automation.job.step.write",
+        "automation.operations.reconcile",
+        "automation.operations.replay.request",
+        "n8n.policy.check",
+        "n8n.results.read",
+        "n8n.results.submit",
+        "resolved_from_command_prefix"
+      ],
+      "serviceAccountsEnabled": true,
+      "fullScopeAllowed": false,
+      "defaultClientScopes": [],
+      "optionalClientScopes": [],
+      "secretReference": "secret://keycloak/n8n-automation",
+      "productionActivationAuthorized": false
+    },
+    {
+      "clientId": "odoo-integration",
+      "audiences": [
+        "middleware-api"
+      ],
+      "scopes": [
+        "odoo.campaigns.read",
+        "odoo.events.publish"
+      ],
+      "serviceAccountsEnabled": true,
+      "fullScopeAllowed": false,
+      "defaultClientScopes": [],
+      "optionalClientScopes": [],
+      "secretReference": "secret://keycloak/odoo-integration",
+      "productionActivationAuthorized": false
+    }
+  ],
+  "routeGrants": [
+    {
+      "operation_id": "deliver_automation_result_to_odoo",
+      "method": "POST",
+      "path": "/api/v1/integration/automation-results",
+      "audience": "codestra-odoo",
+      "scope": "odoo.integration.automation_results.write",
+      "azp": "middleware-worker"
+    },
+    {
+      "operation_id": "report_campaign_actual_state_to_odoo",
+      "method": "POST",
+      "path": "/api/v1/integration/campaigns/actual-state",
+      "audience": "codestra-odoo",
+      "scope": "odoo.campaign.actual_state.write",
+      "azp": "middleware-worker"
+    },
+    {
+      "operation_id": "check_automation_policy",
+      "method": "POST",
+      "path": "/api/v1/automation/policy-check",
+      "audience": "middleware-api",
+      "scope": "n8n.policy.check",
+      "azp": "n8n-automation"
+    },
+    {
+      "operation_id": "submit_n8n_result",
+      "method": "POST",
+      "path": "/api/v1/integrations/n8n/results",
+      "audience": "middleware-api",
+      "scope": "n8n.results.submit",
+      "azp": "n8n-automation"
+    },
+    {
+      "operation_id": "read_n8n_result",
+      "method": "GET",
+      "path": "/api/v1/integrations/n8n/results/{event_id}",
+      "audience": "middleware-api",
+      "scope": "n8n.results.read",
+      "azp": "n8n-automation"
+    },
+    {
+      "operation_id": "read_odoo_campaign",
+      "method": "GET",
+      "path": "/api/v1/integrations/odoo/campaigns/{campaign_id}",
+      "audience": "middleware-api",
+      "scope": "odoo.campaigns.read",
+      "azp": "odoo-integration"
+    },
+    {
+      "operation_id": "read_odoo_campaign_desired_state",
+      "method": "GET",
+      "path": "/api/v1/integrations/odoo/campaigns/{campaign_id}/desired-state",
+      "audience": "middleware-api",
+      "scope": "odoo.campaigns.read",
+      "azp": "odoo-integration"
+    },
+    {
+      "operation_id": "ingress_odoo_integration_events_api_v1_odoo_events_post",
+      "method": "POST",
+      "path": "/api/v1/odoo/events",
+      "audience": "middleware-api",
+      "scope": "odoo.events.publish",
+      "azp": "odoo-integration"
+    },
+    {
+      "operation_id": "request_automation_approval_v2_automation_approvals_post",
+      "method": "POST",
+      "path": "/v2/automation/approvals",
+      "audience": "middleware-api",
+      "scope": "automation.approval.request",
+      "azp": "n8n-automation"
+    },
+    {
+      "operation_id": "read_automation_approval_v2_automation_approvals__approval_id__get",
+      "method": "GET",
+      "path": "/v2/automation/approvals/{approval_id}",
+      "audience": "middleware-api",
+      "scope": "automation.approval.read",
+      "azp": "n8n-automation"
+    },
+    {
+      "operation_id": "read_automation_capability_v2_automation_capabilities__capability__get",
+      "method": "GET",
+      "path": "/v2/automation/capabilities/{capability}",
+      "audience": "middleware-api",
+      "scope": "automation.capability.read",
+      "azp": "n8n-automation"
+    },
+    {
+      "operation_id": "submit_automation_command_v2_automation_commands_post",
+      "method": "POST",
+      "path": "/v2/automation/commands",
+      "audience": "middleware-api",
+      "scope": "resolved_from_command_prefix",
+      "azp": "n8n-automation"
+    },
+    {
+      "operation_id": "read_automation_command_v2_automation_commands__command_id__get",
+      "method": "GET",
+      "path": "/v2/automation/commands/{command_id}",
+      "audience": "middleware-api",
+      "scope": "automation.command.read",
+      "azp": "n8n-automation"
+    },
+    {
+      "operation_id": "replay_automation_dead_letter_v2_automation_dead_letters__dead_letter_id__replay_post",
+      "method": "POST",
+      "path": "/v2/automation/dead-letters/{dead_letter_id}/replay",
+      "audience": "middleware-api",
+      "scope": "automation.operations.replay.request",
+      "azp": "n8n-automation"
+    },
+    {
+      "operation_id": "claim_automation_job_v2_automation_jobs_claim_post",
+      "method": "POST",
+      "path": "/v2/automation/jobs/claim",
+      "audience": "middleware-api",
+      "scope": "automation.job.claim",
+      "azp": "n8n-automation"
+    },
+    {
+      "operation_id": "reconcile_automation_jobs_v2_automation_jobs_reconcile_post",
+      "method": "POST",
+      "path": "/v2/automation/jobs/reconcile",
+      "audience": "middleware-api",
+      "scope": "automation.operations.reconcile",
+      "azp": "n8n-automation"
+    },
+    {
+      "operation_id": "read_automation_job_v2_automation_jobs__job_id__get",
+      "method": "GET",
+      "path": "/v2/automation/jobs/{job_id}",
+      "audience": "middleware-api",
+      "scope": "automation.job.read",
+      "azp": "n8n-automation"
+    },
+    {
+      "operation_id": "complete_automation_job_v2_automation_jobs__job_id__complete_post",
+      "method": "POST",
+      "path": "/v2/automation/jobs/{job_id}/complete",
+      "audience": "middleware-api",
+      "scope": "automation.job.complete",
+      "azp": "n8n-automation"
+    },
+    {
+      "operation_id": "fail_automation_job_v2_automation_jobs__job_id__fail_post",
+      "method": "POST",
+      "path": "/v2/automation/jobs/{job_id}/fail",
+      "audience": "middleware-api",
+      "scope": "automation.job.fail",
+      "azp": "n8n-automation"
+    },
+    {
+      "operation_id": "heartbeat_automation_job_v2_automation_jobs__job_id__heartbeat_post",
+      "method": "POST",
+      "path": "/v2/automation/jobs/{job_id}/heartbeat",
+      "audience": "middleware-api",
+      "scope": "automation.job.heartbeat",
+      "azp": "n8n-automation"
+    },
+    {
+      "operation_id": "record_automation_step_v2_automation_jobs__job_id__steps_post",
+      "method": "POST",
+      "path": "/v2/automation/jobs/{job_id}/steps",
+      "audience": "middleware-api",
+      "scope": "automation.job.step.write",
+      "azp": "n8n-automation"
+    }
+  ],
+  "unresolvedHumanOrDelegatedAzpSelectors": [
+    "authorized-provisioning-client",
+    "browser-session",
+    "callback-ui",
+    "github-app",
+    "observability-collector",
+    "platform-operator",
+    "production-operator"
+  ],
+  "notes": [
+    "Repository-only desired state; no realm apply is authorized.",
+    "The n8n-automation grant intentionally resolves every /v2/automation operation to the canonical automation identity.",
+    "Human/operator and delegated client-family selectors remain unresolved until separately reviewed Keycloak clients are named."
+  ]
+}

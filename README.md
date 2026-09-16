@@ -90,6 +90,8 @@ config/
   identity/                   Canonical application/domain and portal contracts
   policy/                     Managed and separately creatable client boundaries
   realms/                     Read-only realm invariant
+  desired-state/              Repository-only desired state outside the managed policies
+    edge-integration-certification/  TEST_SYN staging identities, ingress scopes, edge-contract pin
 scripts/
   validate-workflows.py       Parsed YAML Actions policy validator
   validate.sh                 Desired-state, endpoint, secret, and syntax policy
@@ -147,4 +149,6 @@ client, that credential change requires a separate security review and approval.
 
 See `docs/GITOPS.md`, `docs/GITHUB_SECURITY.md`,
 `docs/MONEYBEE_OIDC_CLIENTS.md`, and `docs/SERVER_GIT_SSH.md` for operating
-procedures.
+procedures. The staging edge-certification identities and the Keycloak half of the
+Keycloak → Caddy → Kong → Middleware certification are described in
+`docs/EDGE_INTEGRATION_CERTIFICATION.md`.
