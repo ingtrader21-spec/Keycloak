@@ -1,6 +1,6 @@
 SHELL := /usr/bin/env bash
 
-.PHONY: validate test-runtime-preflight build up down logs check plan review-plan apply-plan export-klyrow smoke runtime-preflight backup verify-backup check-recovery-freshness certify-kong edge-certification-check certify-edge-identity reconcile-edge-certification
+.PHONY: validate test-runtime-preflight build up down logs check plan review-plan apply-plan export-klyrow smoke runtime-preflight backup verify-backup check-recovery-freshness certify-kong edge-certification-check certify-edge-identity reconcile-edge-certification openbao-workload-identity-check reconcile-openbao-workload-identity
 
 validate:
 	./scripts/validate.sh
@@ -69,6 +69,12 @@ check-recovery-freshness:
 
 certify-kong:
 	./scripts/certify-kong.sh
+
+openbao-workload-identity-check:
+	python3 scripts/openbao_workload_identity_desired_state.py --check --require-cross-check
+
+reconcile-openbao-workload-identity:
+	python3 scripts/reconcile_openbao_workload_identity_staging.py --mode $(MODE) --output-dir $(OUTPUT_DIR)
 
 edge-certification-check:
 	python3 scripts/edge_certification_desired_state.py --check --require-cross-check
