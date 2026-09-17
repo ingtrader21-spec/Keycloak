@@ -50,11 +50,11 @@ tests/test_edge_integration_certification.py  discovered by validate.sh (test_*c
 
 | Client ID | Scope claim | Audience | tenant_id | business_units | campaigns | Purpose |
 | --- | --- | --- | --- | --- | --- | --- |
-| `test-syn-n8n-submit` | `n8n.results.submit` | `codestra-middleware` | `TEST_SYN_TENANT` | `["TEST_SYN"]` | `["TEST_SYN"]` | submit one safe result, expected `202` |
-| `test-syn-n8n-read` | `n8n.results.read` | `codestra-middleware` | `TEST_SYN_TENANT` | `["TEST_SYN"]` | `["TEST_SYN"]` | read the seeded result, `200` / `404`; `403` on submit |
-| `test-syn-odoo-reader` | `odoo.campaigns.read` | `codestra-middleware` | `TEST_SYN_TENANT` | `["TEST_SYN"]` | `["TEST_SYN"]` | campaign and desired-state reads, `200` |
+| `test-syn-n8n-submit` | `n8n.results.submit` | `middleware-api` | `TEST_SYN_TENANT` | `["TEST_SYN"]` | `["TEST_SYN"]` | submit one safe result, expected `202` |
+| `test-syn-n8n-read` | `n8n.results.read` | `middleware-api` | `TEST_SYN_TENANT` | `["TEST_SYN"]` | `["TEST_SYN"]` | read the seeded result, `200` / `404`; `403` on submit |
+| `test-syn-odoo-reader` | `odoo.campaigns.read` | `middleware-api` | `TEST_SYN_TENANT` | `["TEST_SYN"]` | `["TEST_SYN"]` | campaign and desired-state reads, `200` |
 | `test-syn-wrong-audience` | *(none)* | `test-syn-wrong-audience` | `TEST_SYN_TENANT` | `["TEST_SYN"]` | `["TEST_SYN"]` | valid token, wrong audience, `401` everywhere |
-| `test-syn-wrong-tenant` | `n8n.results.read odoo.campaigns.read` | `codestra-middleware` | `TEST_SYN_OTHER_TENANT` | `["TEST_SYN_OTHER"]` | `["TEST_SYN_OTHER"]` | cross-tenant rows: same `404` as missing, indistinguishable denial |
+| `test-syn-wrong-tenant` | `n8n.results.read odoo.campaigns.read` | `middleware-api` | `TEST_SYN_OTHER_TENANT` | `["TEST_SYN_OTHER"]` | `["TEST_SYN_OTHER"]` | cross-tenant rows: same `404` as missing, indistinguishable denial |
 
 Every client is a confidential service-account client with five-minute access
 tokens, `fullScopeAllowed=false`, browser/password/device/CIBA flows disabled,
@@ -69,30 +69,46 @@ carries `environment=staging`.
 No identity holds `odoo.campaign.control.write`, and none holds the separate
 Middleware → Odoo outbound scope `odoo.campaign.control.read`.
 
-Audience note: the deployed Kong campaign-automation routes and Middleware's
-`N8N_SERVICE_AUDIENCE` expect `codestra-middleware`, while
-`config/contracts/service-access-matrix.json` declares `middleware-api` as the
-canonical Middleware audience. The certification identities emit
-`codestra-middleware` so the deployed path is tested as it exists. The
-divergence is recorded in `contract.json` and must be reconciled before any
-production activation.
+Audience note: the certification identities emit the canonical
+`middleware-api` audience declared by
+`config/contracts/service-access-matrix.json`. The `codestra-middleware`
+compatibility audience the deployed staging edge used to expect is retired:
+Middleware branch `codex/cross-repo-authority-20260916` defaults
+`N8N_SERVICE_AUDIENCE` to `middleware-api` and its
+`deploy/keycloak/campaign-control-service-clients.v1.json` declares the five
+identities above with `middleware-api` and no compatibility audience; the Kong
+branch of the same name sets the staging campaign-automation routes to
+`middleware-api`. Until staging Kong and Middleware are deployed from those
+aligned sources, these tokens are rejected with `401` and the certification
+stays `NO_GO`.
 
 ## Edge-contract pin
 
 `contract.json` pins the Middleware edge contract
-(`deploy/public-api-route-contract.json`, hash rule
+(`deploy/public-api-route-contract.json`, schema
+`codestra.middleware.public-api-route-contract.v2`, 92 routes, hash rule
 `sha256(json.dumps(contract, sort_keys=True, separators=(',', ':')))`):
 
 ```text
-af984cbaa41d1e3602ceb40be6fe383c0030a3c10cbea772efab7ff95d602d36
+7580123dead97ea342c704a57a3c8eed9f5dce69aab247d4b693db96bc7334d5
 ```
+
+The pin was taken from Middleware branch `codex/cross-repo-authority-20260916`
+(contract commit `4c353df`, verified at `bd6adaf`). It supersedes the v1 pin
+`af984cbaa41d1e3602ceb40be6fe383c0030a3c10cbea772efab7ff95d602d36`; the four
+TEST_SYN route/scope rows are unchanged between v1 and v2, and v2 adds the
+denied `GET /api/v1/integrations/odoo/campaign-commands/{command_id}` surface
+to the retired list.
 
 `scripts/edge_certification_desired_state.py --check` recomputes the hash and
 compares the four route/scope rows whenever a Middleware checkout is available
 (`--middleware-repo`, `CERTIFY_MIDDLEWARE_REPO`, or the sibling `../Middleware-`);
-`--require-cross-check` turns an absent checkout into a failure. When the
-Middleware contract changes, its new digest must be pinned here, in Kong, and
-in Caddy in the same change window, or the certification stays `NO_GO`.
+`--require-cross-check` turns an absent checkout into a failure. Until the v2
+contract is merged, the sibling checkout must be on that branch or
+`CERTIFY_MIDDLEWARE_REPO` must point at a worktree of it, or the cross-check
+fails closed on the v1 digest. When the Middleware contract changes, its new
+digest must be pinned here, in Kong, and in Caddy in the same change window,
+or the certification stays `NO_GO`.
 
 ## Validation
 

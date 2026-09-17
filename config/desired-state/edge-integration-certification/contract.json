@@ -9,6 +9,7 @@
   "jwksUri": "https://auth-staging.codestra.co/realms/codestra/protocol/openid-connect/certs",
   "audience": "middleware-api",
   "canonicalMiddlewareAudience": "middleware-api",
+  "audienceReconciliation": "Certification identities emit the canonical middleware-api audience declared by config/contracts/service-access-matrix.json. The earlier codestra-middleware compatibility audience is retired: Middleware branch codex/cross-repo-authority-20260916 defaults N8N_SERVICE_AUDIENCE to middleware-api and deploy/keycloak/campaign-control-service-clients.v1.json accepts no compatibility audience, and the Kong branch of the same name sets the staging campaign-automation routes to middleware-api. The live certification stays NO_GO until staging Kong and Middleware are deployed from those aligned sources; a codestra-middleware runtime rejects these tokens with 401.",
   "campaign": "TEST_SYN",
   "tenant": "TEST_SYN_TENANT",
   "businessUnit": "TEST_SYN",
@@ -29,8 +30,18 @@
     "repository": "appolon1908-hue/Middleware-",
     "path": "deploy/public-api-route-contract.json",
     "pinnedIn": "deploy/public-api-route-contract.sha256",
+    "schema": "codestra.middleware.public-api-route-contract.v2",
     "hashRule": "sha256 over json.dumps(contract, sort_keys=True, separators=(',', ':')).encode('utf-8')",
-    "sha256": "7580123dead97ea342c704a57a3c8eed9f5dce69aab247d4b693db96bc7334d5"
+    "sha256": "7580123dead97ea342c704a57a3c8eed9f5dce69aab247d4b693db96bc7334d5",
+    "source": {
+      "branch": "codex/cross-repo-authority-20260916",
+      "contractCommit": "4c353df",
+      "verifiedAtCommit": "bd6adaf"
+    },
+    "supersedes": {
+      "schema": "codestra.middleware.public-api-route-contract.v1",
+      "sha256": "af984cbaa41d1e3602ceb40be6fe383c0030a3c10cbea772efab7ff95d602d36"
+    }
   },
   "routes": [
     {
@@ -73,6 +84,10 @@
     },
     {
       "path": "/api/v1/integrations/odoo/campaign-commands",
+      "classification": "denied"
+    },
+    {
+      "path": "/api/v1/integrations/odoo/campaign-commands/{command_id}",
       "classification": "denied"
     }
   ],
