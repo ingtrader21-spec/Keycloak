@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "kind": "middleware-v3-route-authorization",
+  "status": "V3_PENDING_FINAL_MIDDLEWARE_CONTRACT",
+  "V3_PENDING_FINAL_MIDDLEWARE_CONTRACT": true,
+  "runtimeApplyAuthorized": false,
+  "extendsAccessMatrix": "service-access-matrix.json",
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "targetClientId": "middleware-api",
+  "audience": "middleware-api",
+  "grantType": "client_credentials",
+  "maximumAccessTokenLifetimeSeconds": 300,
+  "refreshTokensAllowed": false,
+  "tokenExchange": false,
+  "edge": {
+    "publicEdge": "Caddy -> Kong -> middleware-integration-api:8095",
+    "kongContract": "ingtrader21-spec/Kong:config/kong-middleware-v3-command-routes.v1.json",
+    "kongEnforces": ["issuer", "audience", "azp-to-consumer", "scope", "rate-limit", "request-size", "correlation", "idempotency-key-presence"],
+    "middlewareEnforces": ["tenant authorization", "actor authorization", "realm role", "command registry", "capability registry", "policy engine", "safety gate", "idempotency semantics"],
+    "notes": "Keycloak issues the scopes and realm roles named here. Kong checks issuer, audience, azp and scope only. Business authorization (tenant, campaign, capability, provider selection, command state) stays in Middleware. The realm role on replay is read by Middleware from the verified token; Kong never authorizes on roles."
+  },
+  "scopePolicy": {
+    "realmDefaultAllowed": false,
+    "clientDefaultAllowed": false,
+    "attachmentMode": "optional-client-scope-on-confidential-service-account-only",
+    "browserClientsAllowed": false,
+    "prerequisite": "MIDDLEWARE_V3_FINAL_SHA frozen; the six /platform/v1 kernel operations present in Middleware deploy/public-api-route-contract.json; Kong re-vendored at that digest"
+  },
+  "routes": [
+    {
+      "operation": "submit_command",
+      "method": "POST",
+      "path": "/platform/v1/commands",
+      "requiredScope": "platform.command",
+      "requiredRealmRole": null,
+      "principalClasses": ["SERVICE"],
+      "idempotencyKeyRequired": true,
+      "effectful": true,
+      "allowedCallerClientIds": [],
+      "activation": "PREPARED_DISABLED"
+    },
+    {
+      "operation": "read_operation",
+      "method": "GET",
+      "path": "/platform/v1/operations/{operation_id}",
+      "requiredScope": "platform.command.read",
+      "requiredRealmRole": null,
+      "principalClasses": ["SERVICE"],
+      "idempotencyKeyRequired": false,
+      "effectful": false,
+      "allowedCallerClientIds": [],
+      "activation": "PREPARED_DISABLED"
+    },
+    {
+      "operation": "read_operation_timeline",
+      "method": "GET",
+      "path": "/platform/v1/operations/{operation_id}/timeline",
+      "requiredScope": "platform.command.read",
+      "requiredRealmRole": null,
+      "principalClasses": ["SERVICE"],
+      "idempotencyKeyRequired": false,
+      "effectful": false,
+      "allowedCallerClientIds": [],
+      "activation": "PREPARED_DISABLED"
+    },
+    {
+      "operation": "cancel_operation",
+      "method": "POST",
+      "path": "/platform/v1/operations/{operation_id}/cancel",
+      "requiredScope": "platform.command",
+      "requiredRealmRole": null,
+      "principalClasses": ["SERVICE"],
+      "idempotencyKeyRequired": true,
+      "effectful": true,
+      "allowedCallerClientIds": [],
+      "activation": "PREPARED_DISABLED"
+    },
+    {
+      "operation": "replay_operation",
+      "method": "POST",
+      "path": "/platform/v1/operations/{operation_id}/replay",
+      "requiredScope": "platform.command.replay",
+      "requiredRealmRole": "platform-operator",
+      "principalClasses": ["SERVICE"],
+      "idempotencyKeyRequired": true,
+      "effectful": true,
+      "allowedCallerClientIds": [],
+      "activation": "PREPARED_DISABLED",
+      "notes": "Replay re-drives a provider-facing effect; besides the replay scope the verified token must carry the platform-operator realm role. Middleware enforces the role; the role is prepared under config/desired-state/platform-kernel/realm-roles and is not provisioned by any planner yet."
+    },
+    {
+      "operation": "describe_kernel",
+      "method": "GET",
+      "path": "/platform/v1/kernel/describe",
+      "requiredScope": "platform.command.read",
+      "requiredRealmRole": null,
+      "principalClasses": ["SERVICE"],
+      "idempotencyKeyRequired": false,
+      "effectful": false,
+      "allowedCallerClientIds": [],
+      "activation": "PREPARED_DISABLED"
+    }
+  ],
+  "privateRoutes": [
+    {
+      "operation": "scrape_metrics",
+      "method": "GET",
+      "path": "/metrics",
+      "exposure": "private-network-only",
+      "throughKong": false,
+      "throughCaddy": false,
+      "callerClientId": "monitoring-readonly",
+      "requiredScope": "metrics.read",
+      "requiredRealmRole": null,
+      "principalClasses": ["SERVICE"],
+      "effectful": false,
+      "activation": "PREPARED_DISABLED",
+      "notes": "Prometheus scrapes Middleware /metrics on the private network with a monitoring-readonly service-account token carrying metrics.read (optional client scope, already defined). Caddy and Kong must not route /metrics."
+    }
+  ],
+  "realmRoles": [
+    {
+      "name": "platform-operator",
+      "definition": "config/desired-state/platform-kernel/realm-roles/platform-operator.json",
+      "provisioned": false,
+      "usedBy": ["replay_operation"]
+    }
+  ]
+}

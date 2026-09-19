@@ -1,0 +1,14 @@
+{
+  "name": "platform-operator",
+  "description": "Middleware V3 platform-kernel operator: required, together with the platform.command.replay scope, to replay an operation (POST /platform/v1/operations/{operation_id}/replay). Never grants provider, secrets, identity or business administration. V3_PENDING_FINAL_MIDDLEWARE_CONTRACT: prepared only, provisioned by no planner until the Middleware V3 route contract is frozen.",
+  "composite": false,
+  "clientRole": false,
+  "attributes": {
+    "codestra.role.family": ["platform-kernel"],
+    "codestra.role.level": ["operator"],
+    "codestra.mfa.required": ["true"],
+    "codestra.assignment.independent_approval": ["true"],
+    "codestra.cross_family_grant": ["false"],
+    "codestra.activation": ["PREPARED_DISABLED"]
+  }
+}
