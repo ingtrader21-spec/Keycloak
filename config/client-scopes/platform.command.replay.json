@@ -1,0 +1,10 @@
+{
+  "name": "platform.command.replay",
+  "description": "Codestra optional Middleware V3 scope managed by protected Keycloak GitOps: replay a Middleware V3 platform-kernel operation (POST /platform/v1/operations/{operation_id}/replay). Requested explicitly per short-lived service-account token; never a realm default. V3_PENDING_FINAL_MIDDLEWARE_CONTRACT: attached to no client until the Middleware V3 route contract is frozen.",
+  "protocol": "openid-connect",
+  "attributes": {
+    "display.on.consent.screen": "false",
+    "include.in.token.scope": "true"
+  },
+  "protocolMappers": []
+}

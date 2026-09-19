@@ -1,0 +1,10 @@
+{
+  "name": "platform.command",
+  "description": "Codestra optional Middleware V3 scope managed by protected Keycloak GitOps: submit, cancel or otherwise drive a Middleware V3 platform-kernel command (POST /platform/v1/commands, POST /platform/v1/operations/{operation_id}/cancel). Requested explicitly per short-lived service-account token; never a realm default. V3_PENDING_FINAL_MIDDLEWARE_CONTRACT: attached to no client until the Middleware V3 route contract is frozen.",
+  "protocol": "openid-connect",
+  "attributes": {
+    "display.on.consent.screen": "false",
+    "include.in.token.scope": "true"
+  },
+  "protocolMappers": []
+}
