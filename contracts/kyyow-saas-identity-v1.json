@@ -1,0 +1,93 @@
+{
+  "contract_version": "1.0",
+  "realm": "kyyow",
+  "issuer": "https://auth.kyyow.com/realms/kyyow",
+  "status": "prepared-not-applied",
+  "identity_owner": "appolon1908-hue/Keycloak",
+  "tenant_model": {
+    "organization_group_pattern": "/kyyow/enterprises/{tenant_id}",
+    "workspace_group_pattern": "/kyyow/enterprises/{tenant_id}/workspaces/{workspace_id}",
+    "access_token_claims": ["tenant_id", "workspace_ids", "roles"],
+    "id_token_claims": ["tenant_id", "workspace_ids", "roles"],
+    "single_tenant_per_session": true,
+    "tenant_claim_required": true
+  },
+  "realm_roles": [
+    "organization-owner",
+    "administrator",
+    "data-engineer",
+    "researcher",
+    "sales-analyst",
+    "compliance-officer",
+    "developer",
+    "viewer",
+    "platform-superadmin"
+  ],
+  "clients": [
+    {
+      "client_id": "kyyow-portal",
+      "type": "public-browser",
+      "authorization_code_flow": true,
+      "pkce_method": "S256",
+      "implicit_flow": false,
+      "direct_access_grants": false,
+      "service_accounts": false,
+      "redirect_uris": ["https://app.kyyow.com/auth/callback"],
+      "web_origins": ["https://app.kyyow.com"],
+      "audiences": ["kyyow-api"]
+    },
+    {
+      "client_id": "kyyow-api-service",
+      "type": "confidential-service",
+      "authorization_code_flow": false,
+      "direct_access_grants": false,
+      "service_accounts": true,
+      "preferred_authentication": ["tls_client_auth", "private_key_jwt"],
+      "audiences": ["kyyow-api"],
+      "scopes": ["search.read", "datasets.read", "datasets.write", "exports.write"]
+    },
+    {
+      "client_id": "kyyow-middleware-odoo",
+      "type": "confidential-service",
+      "authorization_code_flow": false,
+      "direct_access_grants": false,
+      "service_accounts": true,
+      "preferred_authentication": ["tls_client_auth", "private_key_jwt"],
+      "audiences": ["kyyow-middleware"],
+      "scopes": ["odoo.kpi.write", "odoo.incident.write"]
+    },
+    {
+      "client_id": "kyyow-observability-readonly",
+      "type": "confidential-service",
+      "authorization_code_flow": false,
+      "direct_access_grants": false,
+      "service_accounts": true,
+      "preferred_authentication": ["tls_client_auth", "private_key_jwt"],
+      "audiences": ["kyyow-observability"],
+      "scopes": ["metrics.read", "logs.read", "traces.read"]
+    }
+  ],
+  "admin_boundary": {
+    "admin_console_public_to_all_networks": false,
+    "mfa_required": true,
+    "platform_superadmin_separate_from_tenant_admin": true,
+    "service_accounts_cannot_receive_human_roles": true,
+    "break_glass_accounts_externally_governed": true
+  },
+  "token_policy": {
+    "access_token_lifespan_seconds": 300,
+    "service_token_lifespan_seconds": 300,
+    "refresh_token_rotation": true,
+    "reuse_refresh_tokens": false,
+    "implicit_flow_enabled": false,
+    "password_grant_enabled": false
+  },
+  "security": {
+    "browser_tokens_in_local_storage": false,
+    "wildcard_redirect_uris": false,
+    "wildcard_web_origins": false,
+    "client_secrets_in_repository": false,
+    "tenant_claim_derived_from_request_headers": false,
+    "deployment_authorized": false
+  }
+}

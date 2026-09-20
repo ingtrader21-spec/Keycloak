@@ -184,6 +184,25 @@ EXPECTED_ADMIN_BOUNDARIES = {
         ],
     }
 }
+TENANT_ATTRIBUTE_CLIENTS = frozenset({"telnexa-gateway"})
+TENANT_CLAIM_NAMES = frozenset(
+    {"tenant_id", "tenant_ids", "tenant-id", "tenant-ids", "tenant.id", "tenant"}
+)
+TENANT_ATTRIBUTE_MAPPER = {
+    "name": "tenant-ids-from-service-account",
+    "protocol": "openid-connect",
+    "protocolMapper": "oidc-usermodel-attribute-mapper",
+    "consentRequired": False,
+    "config": {
+        "user.attribute": "tenant_ids",
+        "claim.name": "tenant_ids",
+        "jsonType.label": "String",
+        "id.token.claim": "false",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "false",
+        "multivalued": "true",
+    },
+}
 
 EXPECTED_REQUIRED_CLAIMS = ["iss", "sub", "aud", "azp", "iat", "exp", "jti", "scope"]
 
@@ -221,7 +240,9 @@ WEBHOOK_SIGNATURE_FIELDS = [
 ]
 
 SCOPE_RE = re.compile(r"^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$")
-EVENT_RE = re.compile(r"^[a-z][a-z0-9]*(?:\.[a-z0-9]+){2,}$")
+EVENT_RE = re.compile(
+    r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*(?:\.[a-z0-9]+(?:_[a-z0-9]+)*){2,}$"
+)
 BASE_URL_ENV_RE = re.compile(r"^[A-Z][A-Z0-9_]*_BASE_URL$")
 SECRET_KEY_RE = re.compile(
     r"(?:secret|password|private[_-]?key|access[_-]?token|refresh[_-]?token|credential)",
@@ -555,6 +576,7 @@ def validate_client_document(
     mappers = document.get("protocolMappers", [])
     if not isinstance(mappers, list):
         fail(f"{client_id}: protocolMappers must be an array")
+    tenant_mappers: list[dict[str, Any]] = []
     for mapper in mappers:
         if not isinstance(mapper, dict):
             fail(f"{client_id}: invalid mapper shape")
@@ -562,8 +584,17 @@ def validate_client_document(
         if not isinstance(config, dict):
             fail(f"{client_id}: invalid mapper config")
         claim_name = str(config.get("claim.name", "")).strip().lower()
-        if claim_name in {"tenant_id", "tenant-id", "tenant.id", "tenant"}:
-            fail(f"{client_id}: static tenant mapper is prohibited")
+        if claim_name in TENANT_CLAIM_NAMES:
+            tenant_mappers.append(mapper)
+
+    if client_id in TENANT_ATTRIBUTE_CLIENTS:
+        if tenant_mappers != [TENANT_ATTRIBUTE_MAPPER]:
+            fail(
+                f"{client_id}: tenant claim must come from the service-account "
+                "tenant_ids attribute"
+            )
+    elif tenant_mappers:
+        fail(f"{client_id}: static tenant mapper is prohibited")
 
     if scopes is None:
         return
