@@ -1,0 +1,31 @@
+{
+  "clientId": "otel-gateway",
+  "name": "Codestra service identity: otel-gateway",
+  "description": "Confidential machine identity for the monitoring plane. Reads the central OpenTelemetry gateway receiver and Tempo/Loki exporter credentials. Repository-only desired state applied to staging by the narrow OpenBao workload-identity reconciler; production binding requires the protected managed-client process.",
+  "enabled": true,
+  "protocol": "openid-connect",
+  "publicClient": false,
+  "bearerOnly": false,
+  "consentRequired": false,
+  "standardFlowEnabled": false,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "serviceAccountsEnabled": true,
+  "authorizationServicesEnabled": false,
+  "frontchannelLogout": false,
+  "fullScopeAllowed": false,
+  "redirectUris": [],
+  "webOrigins": [],
+  "defaultClientScopes": [
+    "basic"
+  ],
+  "optionalClientScopes": [
+    "openbao.workload"
+  ],
+  "attributes": {
+    "access.token.lifespan": "300",
+    "oauth2.device.authorization.grant.enabled": "false",
+    "oidc.ciba.grant.enabled": "false"
+  },
+  "protocolMappers": []
+}

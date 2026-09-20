@@ -1,0 +1,177 @@
+{
+  "activationPreconditions": [
+    "protected merge SHA recorded",
+    "identical edge-contract SHA-256 pinned by Middleware, Kong, Caddy, and Keycloak",
+    "staging-only reconciliation with the protected staging administrator credential",
+    "client secrets handed to the certification runner only through 0600 secret files",
+    "Odoo and provider writes disabled for the whole certification"
+  ],
+  "audience": "middleware-api",
+  "campaign": "TEST_SYN",
+  "configurationChecksum": "d8e45d665c1dbad14484af898bee21aa04a93d97c2cf07d72986f7cbf644ca7b",
+  "edgeContract": {
+    "hashRule": "sha256 over json.dumps(contract, sort_keys=True, separators=(',', ':')).encode('utf-8')",
+    "path": "deploy/public-api-route-contract.json",
+    "pinnedIn": "deploy/public-api-route-contract.sha256",
+    "repository": "appolon1908-hue/Middleware-",
+    "schema": "codestra.middleware.public-api-route-contract.v2",
+    "sha256": "7580123dead97ea342c704a57a3c8eed9f5dce69aab247d4b693db96bc7334d5",
+    "source": {
+      "branch": "codex/cross-repo-authority-20260916",
+      "contractCommit": "4c353df",
+      "verifiedAtCommit": "bd6adaf"
+    },
+    "supersedes": {
+      "schema": "codestra.middleware.public-api-route-contract.v1",
+      "sha256": "af984cbaa41d1e3602ceb40be6fe383c0030a3c10cbea772efab7ff95d602d36"
+    }
+  },
+  "environment": "staging",
+  "ingressScopes": [
+    "n8n.results.submit",
+    "n8n.results.read",
+    "odoo.campaigns.read"
+  ],
+  "issuer": "https://auth-staging.codestra.co/realms/codestra",
+  "kind": "CodestraKeycloakEdgeCertificationDesiredStatePlan",
+  "operations": [
+    {
+      "action": "RECONCILE_IN_STAGING_ONLY_AUTHORIZED_MISSION",
+      "desiredSha256": "f3d6a4beca7e509b8f86d31521db667dcb1472bb656f4bd3e9b9ec97845c9d0a",
+      "resourceId": "n8n.results.submit",
+      "resourceType": "client-scope"
+    },
+    {
+      "action": "RECONCILE_IN_STAGING_ONLY_AUTHORIZED_MISSION",
+      "desiredSha256": "5bfb7b8bfcd89ea7c487ee648e902cac0ef30e810f613ae7427ac87644d3ec6e",
+      "resourceId": "n8n.results.read",
+      "resourceType": "client-scope"
+    },
+    {
+      "action": "RECONCILE_IN_STAGING_ONLY_AUTHORIZED_MISSION",
+      "desiredSha256": "be3ec417a3d4b5b820d8e7533b06550cd06e48a6390e75d40d6e9626d47d80d0",
+      "resourceId": "odoo.campaigns.read",
+      "resourceType": "client-scope"
+    },
+    {
+      "action": "RECONCILE_IN_STAGING_ONLY_AUTHORIZED_MISSION",
+      "desiredSha256": "baf1f6d50d93c788a254c25f02348488ba48c5177d8f26688c54bdc0165d106a",
+      "resourceId": "test-syn-n8n-submit",
+      "resourceType": "client"
+    },
+    {
+      "action": "RECONCILE_IN_STAGING_ONLY_AUTHORIZED_MISSION",
+      "desiredSha256": "577ae3375292e9e5ca78f4429a635bb8b1e216c42d29061ca7fdb52af46a3b28",
+      "resourceId": "test-syn-n8n-submit",
+      "resourceType": "client-default-scope-links"
+    },
+    {
+      "action": "RECONCILE_IN_STAGING_ONLY_AUTHORIZED_MISSION",
+      "desiredSha256": "b7283c85613dcbe99026638b1b8978015787987196772fe2084e308e34ba4558",
+      "resourceId": "test-syn-n8n-read",
+      "resourceType": "client"
+    },
+    {
+      "action": "RECONCILE_IN_STAGING_ONLY_AUTHORIZED_MISSION",
+      "desiredSha256": "0ec87f06149021b8bc39255b4480de73c6e782ca5ae1ccd6c920f74a98775522",
+      "resourceId": "test-syn-n8n-read",
+      "resourceType": "client-default-scope-links"
+    },
+    {
+      "action": "RECONCILE_IN_STAGING_ONLY_AUTHORIZED_MISSION",
+      "desiredSha256": "f9768e048a5429a8be7eaaeb780a8260bf95ce260243286a044c5a3c696a7122",
+      "resourceId": "test-syn-odoo-reader",
+      "resourceType": "client"
+    },
+    {
+      "action": "RECONCILE_IN_STAGING_ONLY_AUTHORIZED_MISSION",
+      "desiredSha256": "a9e3d9817b651a0c376c067845c4dfc83c8e45717c6d43426b4b9cf947194814",
+      "resourceId": "test-syn-odoo-reader",
+      "resourceType": "client-default-scope-links"
+    },
+    {
+      "action": "RECONCILE_IN_STAGING_ONLY_AUTHORIZED_MISSION",
+      "desiredSha256": "0134c02cdb626da05da17d46429b1188255a9ec4d8d16c1aca9df5e66651ef0c",
+      "resourceId": "test-syn-wrong-audience",
+      "resourceType": "client"
+    },
+    {
+      "action": "RECONCILE_IN_STAGING_ONLY_AUTHORIZED_MISSION",
+      "desiredSha256": "8d5435b748d703d6888b971f359a1f550ddc47699ee9999780201d4fada0ac5e",
+      "resourceId": "test-syn-wrong-audience",
+      "resourceType": "client-default-scope-links"
+    },
+    {
+      "action": "RECONCILE_IN_STAGING_ONLY_AUTHORIZED_MISSION",
+      "desiredSha256": "a1e14847ffcdf37d9a44c9751121943269d749f7acb0e7ce50e2880fa6a19fc9",
+      "resourceId": "test-syn-wrong-tenant",
+      "resourceType": "client"
+    },
+    {
+      "action": "RECONCILE_IN_STAGING_ONLY_AUTHORIZED_MISSION",
+      "desiredSha256": "6d3b67d23e6f89ca61330cd8fa5883aa912d1a3e50717322c6c2fdb65dc91608",
+      "resourceId": "test-syn-wrong-tenant",
+      "resourceType": "client-default-scope-links"
+    }
+  ],
+  "realm": "codestra",
+  "repositoryBoundary": {
+    "liveApplyAuthorized": false,
+    "liveApplyPerformed": false,
+    "productionTargetAllowed": false,
+    "runtimeStateRead": false,
+    "secretsGenerated": false,
+    "tokensMinted": false
+  },
+  "rollback": {
+    "newClientScopeSequence": [
+      "unlink from every client",
+      "verify zero links",
+      "separately approve deletion"
+    ],
+    "newClientSequence": [
+      "disable",
+      "verify no active use",
+      "separately approve deletion"
+    ]
+  },
+  "schemaVersion": 1,
+  "sourceFiles": [
+    {
+      "path": "config/desired-state/edge-integration-certification/client-scopes/n8n.results.read.json",
+      "sha256": "5bfb7b8bfcd89ea7c487ee648e902cac0ef30e810f613ae7427ac87644d3ec6e"
+    },
+    {
+      "path": "config/desired-state/edge-integration-certification/client-scopes/n8n.results.submit.json",
+      "sha256": "f3d6a4beca7e509b8f86d31521db667dcb1472bb656f4bd3e9b9ec97845c9d0a"
+    },
+    {
+      "path": "config/desired-state/edge-integration-certification/client-scopes/odoo.campaigns.read.json",
+      "sha256": "be3ec417a3d4b5b820d8e7533b06550cd06e48a6390e75d40d6e9626d47d80d0"
+    },
+    {
+      "path": "config/desired-state/edge-integration-certification/clients/test-syn-n8n-read.json",
+      "sha256": "b7283c85613dcbe99026638b1b8978015787987196772fe2084e308e34ba4558"
+    },
+    {
+      "path": "config/desired-state/edge-integration-certification/clients/test-syn-n8n-submit.json",
+      "sha256": "baf1f6d50d93c788a254c25f02348488ba48c5177d8f26688c54bdc0165d106a"
+    },
+    {
+      "path": "config/desired-state/edge-integration-certification/clients/test-syn-odoo-reader.json",
+      "sha256": "f9768e048a5429a8be7eaaeb780a8260bf95ce260243286a044c5a3c696a7122"
+    },
+    {
+      "path": "config/desired-state/edge-integration-certification/clients/test-syn-wrong-audience.json",
+      "sha256": "0134c02cdb626da05da17d46429b1188255a9ec4d8d16c1aca9df5e66651ef0c"
+    },
+    {
+      "path": "config/desired-state/edge-integration-certification/clients/test-syn-wrong-tenant.json",
+      "sha256": "a1e14847ffcdf37d9a44c9751121943269d749f7acb0e7ce50e2880fa6a19fc9"
+    },
+    {
+      "path": "config/desired-state/edge-integration-certification/contract.json",
+      "sha256": "352868f9a459c09f9f5dd9b2acb48d4e67d6cb452b14d83b1df3535765e3d676"
+    }
+  ]
+}

@@ -1,0 +1,441 @@
+{
+  "schemaVersion": 1,
+  "kind": "CodestraKeycloakOpenBaoWorkloadIdentityContract",
+  "mission": "Keycloak workload JWT -> OpenBao JWT auth (jwt-codestra) for the monitoring plane and the platform workloads",
+  "realm": "codestra",
+  "issuers": {
+    "staging": "https://auth-staging.codestra.co/realms/codestra",
+    "production": "https://auth.codestra.co/realms/codestra"
+  },
+  "audience": "openbao",
+  "scope": "openbao.workload",
+  "environmentClaim": "codestra_environment",
+  "environmentClaimPlaceholder": "${CODESTRA_ENVIRONMENT}",
+  "reconcilerEnvironments": [
+    "staging"
+  ],
+  "openbaoAuthority": {
+    "repository": "appolon1908-hue/Codestra-OpenBao",
+    "branch": "remediation/monitoring-openbao-integration-20260916",
+    "path": "config/workload-secret-authority.v1.json",
+    "vendoredCopy": "config/desired-state/openbao-workload-identity/openbao-workload-secret-authority.v1.json",
+    "pinnedIn": "config/desired-state/openbao-workload-identity/openbao-workload-secret-authority.sha256",
+    "hashRule": "sha256 over json.dumps(authority, sort_keys=True, separators=(',', ':')).encode('utf-8')",
+    "sha256": "0dd53c17b1668bb0488c579cb5d128d64c185ee8923d9b2a9712485609d214bd",
+    "maximumTokenLifetimeSeconds": 300,
+    "requiredClaims": [
+      "iss",
+      "sub",
+      "aud",
+      "azp",
+      "iat",
+      "exp",
+      "jti",
+      "codestra_environment"
+    ]
+  },
+  "newClients": [
+    {
+      "clientId": "prometheus-openbao",
+      "openbaoIdentity": "prometheus-openbao",
+      "environments": [
+        "development",
+        "production",
+        "staging",
+        "test"
+      ],
+      "pathPrefixes": {
+        "development": [
+          "codestra/development/observability/openbao/metrics-client/",
+          "codestra/development/observability/prometheus/scrape-credentials/"
+        ],
+        "production": [
+          "codestra/production/observability/openbao/metrics-client/",
+          "codestra/production/observability/prometheus/scrape-credentials/"
+        ],
+        "staging": [
+          "codestra/staging/observability/openbao/metrics-client/",
+          "codestra/staging/observability/prometheus/scrape-credentials/"
+        ],
+        "test": [
+          "codestra/test/observability/openbao/metrics-client/",
+          "codestra/test/observability/prometheus/scrape-credentials/"
+        ]
+      },
+      "middlewareAudience": false,
+      "purpose": "Reads the private OpenBao metrics-client material and the reviewed scrape credentials; the only OpenBao role with sys/metrics read.",
+      "secretReference": "secret://staging/keycloak/openbao-workload-identity/prometheus-openbao"
+    },
+    {
+      "clientId": "grafana-runtime",
+      "openbaoIdentity": "grafana-runtime",
+      "environments": [
+        "production",
+        "staging"
+      ],
+      "pathPrefixes": {
+        "production": [
+          "codestra/production/observability/grafana/"
+        ],
+        "staging": [
+          "codestra/staging/observability/grafana/"
+        ]
+      },
+      "middlewareAudience": true,
+      "purpose": "Reads Grafana datasource credentials, the Middleware observability read token and the Grafana OIDC client secret; reads Middleware operational views.",
+      "secretReference": "secret://staging/keycloak/openbao-workload-identity/grafana-runtime"
+    },
+    {
+      "clientId": "alloy-collector",
+      "openbaoIdentity": "alloy-collector",
+      "environments": [
+        "production",
+        "staging"
+      ],
+      "pathPrefixes": {
+        "production": [
+          "codestra/production/observability/alloy/"
+        ],
+        "staging": [
+          "codestra/staging/observability/alloy/"
+        ]
+      },
+      "middlewareAudience": false,
+      "purpose": "Reads Loki push and OTLP gateway client credentials for the local Alloy collector.",
+      "secretReference": "secret://staging/keycloak/openbao-workload-identity/alloy-collector"
+    },
+    {
+      "clientId": "otel-gateway",
+      "openbaoIdentity": "otel-gateway",
+      "environments": [
+        "production",
+        "staging"
+      ],
+      "pathPrefixes": {
+        "production": [
+          "codestra/production/observability/otel-gateway/"
+        ],
+        "staging": [
+          "codestra/staging/observability/otel-gateway/"
+        ]
+      },
+      "middlewareAudience": false,
+      "purpose": "Reads the central OpenTelemetry gateway receiver and Tempo/Loki exporter credentials.",
+      "secretReference": "secret://staging/keycloak/openbao-workload-identity/otel-gateway"
+    },
+    {
+      "clientId": "loki-runtime",
+      "openbaoIdentity": "loki-runtime",
+      "environments": [
+        "production",
+        "staging"
+      ],
+      "pathPrefixes": {
+        "production": [
+          "codestra/production/observability/loki/"
+        ],
+        "staging": [
+          "codestra/staging/observability/loki/"
+        ]
+      },
+      "middlewareAudience": false,
+      "purpose": "Reads Loki object-storage and ingestion authentication material.",
+      "secretReference": "secret://staging/keycloak/openbao-workload-identity/loki-runtime"
+    },
+    {
+      "clientId": "tempo-runtime",
+      "openbaoIdentity": "tempo-runtime",
+      "environments": [
+        "production",
+        "staging"
+      ],
+      "pathPrefixes": {
+        "production": [
+          "codestra/production/observability/tempo/"
+        ],
+        "staging": [
+          "codestra/staging/observability/tempo/"
+        ]
+      },
+      "middlewareAudience": false,
+      "purpose": "Reads Tempo object-storage and ingestion authentication material.",
+      "secretReference": "secret://staging/keycloak/openbao-workload-identity/tempo-runtime"
+    },
+    {
+      "clientId": "redis-exporter",
+      "openbaoIdentity": "redis-exporter",
+      "environments": [
+        "production",
+        "staging"
+      ],
+      "pathPrefixes": {
+        "production": [
+          "codestra/production/observability/exporters/redis/"
+        ],
+        "staging": [
+          "codestra/staging/observability/exporters/redis/"
+        ]
+      },
+      "middlewareAudience": false,
+      "purpose": "Reads the monitoring-only Redis ACL credential for the Redis exporter.",
+      "secretReference": "secret://staging/keycloak/openbao-workload-identity/redis-exporter"
+    },
+    {
+      "clientId": "postgres-exporter",
+      "openbaoIdentity": "postgres-exporter",
+      "environments": [
+        "production",
+        "staging"
+      ],
+      "pathPrefixes": {
+        "production": [
+          "codestra/production/observability/exporters/postgres/"
+        ],
+        "staging": [
+          "codestra/staging/observability/exporters/postgres/"
+        ]
+      },
+      "middlewareAudience": false,
+      "purpose": "Reads the monitoring-only PostgreSQL role credential for the Postgres exporter.",
+      "secretReference": "secret://staging/keycloak/openbao-workload-identity/postgres-exporter"
+    },
+    {
+      "clientId": "superset-analytics",
+      "openbaoIdentity": "superset-analytics",
+      "environments": [
+        "production",
+        "staging"
+      ],
+      "pathPrefixes": {
+        "production": [
+          "codestra/production/analytics/superset/"
+        ],
+        "staging": [
+          "codestra/staging/analytics/superset/"
+        ]
+      },
+      "middlewareAudience": false,
+      "purpose": "Reads the read-only analytics projection database, metadata database and Superset OIDC client secret.",
+      "secretReference": "secret://staging/keycloak/openbao-workload-identity/superset-analytics"
+    }
+  ],
+  "existingClientBindings": [
+    {
+      "clientId": "alertmanager",
+      "openbaoIdentity": "alertmanager",
+      "managedByProtectedPolicy": true,
+      "environments": [
+        "production",
+        "staging"
+      ],
+      "binding": "optional client scope openbao.workload linked by the reconciler in staging; production linking follows the protected managed-client process"
+    },
+    {
+      "clientId": "kong-gateway",
+      "openbaoIdentity": "kong-gateway",
+      "managedByProtectedPolicy": true,
+      "environments": [
+        "development",
+        "production",
+        "staging",
+        "test"
+      ],
+      "binding": "optional client scope openbao.workload linked by the reconciler in staging; production linking follows the protected managed-client process"
+    },
+    {
+      "clientId": "middleware-api",
+      "openbaoIdentity": "middleware-api",
+      "managedByProtectedPolicy": true,
+      "environments": [
+        "development",
+        "production",
+        "staging",
+        "test"
+      ],
+      "binding": "optional client scope openbao.workload linked by the reconciler in staging; production linking follows the protected managed-client process"
+    },
+    {
+      "clientId": "middleware-worker",
+      "openbaoIdentity": "middleware-worker",
+      "managedByProtectedPolicy": true,
+      "environments": [
+        "development",
+        "production",
+        "staging",
+        "test"
+      ],
+      "binding": "optional client scope openbao.workload linked by the reconciler in staging; production linking follows the protected managed-client process"
+    },
+    {
+      "clientId": "n8n-automation",
+      "openbaoIdentity": "n8n-automation",
+      "managedByProtectedPolicy": true,
+      "environments": [
+        "development",
+        "production",
+        "staging",
+        "test"
+      ],
+      "binding": "optional client scope openbao.workload linked by the reconciler in staging; production linking follows the protected managed-client process"
+    },
+    {
+      "clientId": "odoo-integration",
+      "openbaoIdentity": "odoo-integration",
+      "managedByProtectedPolicy": true,
+      "environments": [
+        "development",
+        "production",
+        "staging",
+        "test"
+      ],
+      "binding": "optional client scope openbao.workload linked by the reconciler in staging; production linking follows the protected managed-client process"
+    },
+    {
+      "clientId": "vicidial-adapter",
+      "openbaoIdentity": "vicidial-adapter",
+      "managedByProtectedPolicy": true,
+      "environments": [
+        "production",
+        "staging"
+      ],
+      "binding": "optional client scope openbao.workload linked by the reconciler in staging; production linking follows the protected managed-client process"
+    }
+  ],
+  "unresolvedOpenBaoIdentities": [
+    {
+      "openbaoIdentity": "beyvra-api",
+      "environments": [
+        "development",
+        "production",
+        "staging",
+        "test"
+      ],
+      "reason": "No Keycloak confidential client carries this exact clientId; the owning application repository must register one (or the OpenBao identity must be renamed to the existing client) before any OpenBao binding is possible. Outside the monitoring-plane scope."
+    },
+    {
+      "openbaoIdentity": "beyvra-funding",
+      "environments": [
+        "development",
+        "production",
+        "staging",
+        "test"
+      ],
+      "reason": "No Keycloak confidential client carries this exact clientId; the owning application repository must register one (or the OpenBao identity must be renamed to the existing client) before any OpenBao binding is possible. Outside the monitoring-plane scope."
+    },
+    {
+      "openbaoIdentity": "beyvra-market-data",
+      "environments": [
+        "development",
+        "production",
+        "staging",
+        "test"
+      ],
+      "reason": "No Keycloak confidential client carries this exact clientId; the owning application repository must register one (or the OpenBao identity must be renamed to the existing client) before any OpenBao binding is possible. Outside the monitoring-plane scope."
+    },
+    {
+      "openbaoIdentity": "beyvra-trading-executor",
+      "environments": [
+        "development",
+        "production",
+        "staging",
+        "test"
+      ],
+      "reason": "No Keycloak confidential client carries this exact clientId; the owning application repository must register one (or the OpenBao identity must be renamed to the existing client) before any OpenBao binding is possible. Outside the monitoring-plane scope."
+    },
+    {
+      "openbaoIdentity": "breero-api",
+      "environments": [
+        "development",
+        "production",
+        "staging",
+        "test"
+      ],
+      "reason": "No Keycloak confidential client carries this exact clientId; the owning application repository must register one (or the OpenBao identity must be renamed to the existing client) before any OpenBao binding is possible. Outside the monitoring-plane scope."
+    },
+    {
+      "openbaoIdentity": "crawler-adapter",
+      "environments": [
+        "production",
+        "staging"
+      ],
+      "reason": "No Keycloak confidential client carries this exact clientId; the owning application repository must register one (or the OpenBao identity must be renamed to the existing client) before any OpenBao binding is possible. Outside the monitoring-plane scope."
+    },
+    {
+      "openbaoIdentity": "klyrow-email-adapter",
+      "environments": [
+        "production",
+        "staging"
+      ],
+      "reason": "No Keycloak confidential client carries this exact clientId; the owning application repository must register one (or the OpenBao identity must be renamed to the existing client) before any OpenBao binding is possible. Outside the monitoring-plane scope."
+    },
+    {
+      "openbaoIdentity": "larimia-api",
+      "environments": [
+        "development",
+        "production",
+        "staging",
+        "test"
+      ],
+      "reason": "No Keycloak confidential client carries this exact clientId; the owning application repository must register one (or the OpenBao identity must be renamed to the existing client) before any OpenBao binding is possible. Outside the monitoring-plane scope."
+    },
+    {
+      "openbaoIdentity": "moneybee-api",
+      "environments": [
+        "development",
+        "production",
+        "staging",
+        "test"
+      ],
+      "reason": "No Keycloak confidential client carries this exact clientId; the owning application repository must register one (or the OpenBao identity must be renamed to the existing client) before any OpenBao binding is possible. Outside the monitoring-plane scope."
+    },
+    {
+      "openbaoIdentity": "telnexa-sms-adapter",
+      "environments": [
+        "production",
+        "staging"
+      ],
+      "reason": "No Keycloak confidential client carries this exact clientId; the owning application repository must register one (or the OpenBao identity must be renamed to the existing client) before any OpenBao binding is possible. Outside the monitoring-plane scope."
+    }
+  ],
+  "neverBound": [
+    {
+      "clientId": "monitoring-readonly",
+      "reason": "scrapes Middleware /metrics and health only; receives health.read and metrics.read and no secret-reading scope"
+    },
+    {
+      "clientId": "odoo-web",
+      "reason": "public browser client; browsers never hold OpenBao material"
+    },
+    {
+      "clientId": "n8n-editor-gateway",
+      "reason": "browser login gateway; not a workload"
+    }
+  ],
+  "tokenPolicy": {
+    "grantType": "client_credentials",
+    "scopeParameterRequired": true,
+    "maximumAccessTokenLifetimeSeconds": 300,
+    "refreshTokensAllowed": false,
+    "fullScopeAllowed": false,
+    "secretStorage": "external-secret-store-only",
+    "requiredClaims": [
+      "iss",
+      "sub",
+      "aud",
+      "azp",
+      "iat",
+      "exp",
+      "jti",
+      "codestra_environment"
+    ]
+  },
+  "boundary": {
+    "productionActivationAuthorized": false,
+    "managedClientPolicyMembership": false,
+    "liveApplyFromRepositoryCi": false,
+    "realmDefaultScope": false,
+    "browserClientsBound": false,
+    "secretReadingScopesOnMonitoringReadonly": false,
+    "tokensOrSecretsCommitted": false
+  }
+}

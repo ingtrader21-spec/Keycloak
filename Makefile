@@ -1,6 +1,6 @@
 SHELL := /usr/bin/env bash
 
-.PHONY: validate test-runtime-preflight build up down logs check plan review-plan apply-plan export-klyrow smoke runtime-preflight backup verify-backup check-recovery-freshness certify-kong
+.PHONY: validate test-runtime-preflight build up down logs check plan review-plan apply-plan export-klyrow smoke runtime-preflight backup verify-backup check-recovery-freshness certify-kong edge-certification-check certify-edge-identity reconcile-edge-certification openbao-workload-identity-check reconcile-openbao-workload-identity
 
 validate:
 	./scripts/validate.sh
@@ -69,3 +69,26 @@ check-recovery-freshness:
 
 certify-kong:
 	./scripts/certify-kong.sh
+
+openbao-workload-identity-check:
+	python3 scripts/openbao_workload_identity_desired_state.py --check --require-cross-check
+
+reconcile-openbao-workload-identity:
+	python3 scripts/reconcile_openbao_workload_identity_staging.py --mode $(MODE) --output-dir $(OUTPUT_DIR)
+
+edge-certification-check:
+	python3 scripts/edge_certification_desired_state.py --check --require-cross-check
+	python3 -m unittest discover -s tests -p 'test_edge_integration_certification.py' -v
+
+certify-edge-identity:
+	: "$${CERTIFY_ENVIRONMENT:?Set CERTIFY_ENVIRONMENT=staging}"
+	: "$${CERTIFY_CAMPAIGN_ID:?Set CERTIFY_CAMPAIGN_ID=TEST_SYN}"
+	: "$${EDGE_IDENTITY_REPORT:?Set EDGE_IDENTITY_REPORT to an absolute path outside the checkout}"
+	python3 scripts/certify_edge_identity_staging.py --output "$${EDGE_IDENTITY_REPORT}"
+
+reconcile-edge-certification:
+	: "$${CERTIFY_ENVIRONMENT:?Set CERTIFY_ENVIRONMENT=staging}"
+	: "$${CERTIFY_CAMPAIGN_ID:?Set CERTIFY_CAMPAIGN_ID=TEST_SYN}"
+	: "$${EDGE_CERTIFICATION_MODE:?Set EDGE_CERTIFICATION_MODE to plan, apply, or disable}"
+	: "$${EDGE_CERTIFICATION_DIR:?Set EDGE_CERTIFICATION_DIR to an absolute 0700 directory outside the checkout}"
+	python3 scripts/reconcile_edge_certification_staging.py --mode "$${EDGE_CERTIFICATION_MODE}" --output-dir "$${EDGE_CERTIFICATION_DIR}"

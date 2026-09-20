@@ -1,0 +1,10 @@
+{
+  "name": "odoo.campaigns.read",
+  "description": "Codestra shared-edge ingress scope managed by protected Keycloak GitOps. Reads a campaign and its desired state through Middleware: GET /api/v1/integrations/odoo/campaigns/{campaign_id}[/desired-state]. Attached only as an explicit per-client default scope; never a realm default or optional scope.",
+  "protocol": "openid-connect",
+  "attributes": {
+    "display.on.consent.screen": "false",
+    "include.in.token.scope": "true"
+  },
+  "protocolMappers": []
+}

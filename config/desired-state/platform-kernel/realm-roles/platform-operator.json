@@ -1,0 +1,14 @@
+{
+  "name": "platform-operator",
+  "description": "Middleware V3 platform-kernel operator: required, together with the platform.command.replay scope, to replay an operation (POST /platform/v1/operations/{operation_id}/replay). Never grants provider, secrets, identity or business administration. Pinned to Middleware V3 route digest 9c32daecd4a15104c6f9ff60ce19c8f7e78707fb31d9fd9fcb55b1b8dfa3512b; prepared only, provisioned by no planner, and not assigned until PAS-157 caller/token certification is complete.",
+  "composite": false,
+  "clientRole": false,
+  "attributes": {
+    "codestra.role.family": ["platform-kernel"],
+    "codestra.role.level": ["operator"],
+    "codestra.mfa.required": ["true"],
+    "codestra.assignment.independent_approval": ["true"],
+    "codestra.cross_family_grant": ["false"],
+    "codestra.activation": ["PREPARED_DISABLED"]
+  }
+}
