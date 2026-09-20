@@ -23,6 +23,8 @@ else
 fi
 python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_password_reset_smtp_transport.py' -v
 python3 "$ROOT_DIR/scripts/validate-authority-controls.py"
+python3 "$ROOT_DIR/scripts/validate-kyyow-identity.py"
+python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_kyyow_identity.py' -v
 python3 "$ROOT_DIR/scripts/validate-provider-control-authority.py"
 python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_provider_control_authority.py' -v
 "$ROOT_DIR/scripts/test-backup-contract.sh"
