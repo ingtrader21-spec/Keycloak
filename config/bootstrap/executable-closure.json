@@ -38,9 +38,9 @@
     },
     {
       "path": "scripts/validate.sh",
-      "sha256": "dd9093d08d7e6a044a289897c6f6d23fe1a6ee362ed62950e28bfe1949bc6284"
+      "sha256": "db937dfa99ef4c76f5251d44992e3c4d6d1018c4084a594fb90aa590fb841951"
     }
   ],
-  "manifest_sha256": "c47a3f92a7dba0c0e547651d322cec9d4a756edf55525937f7bcc448f9df81a0",
+  "manifest_sha256": "f6a69b3602c1de98439c8f69d36f79a4eabc70bc1e7808989745273fc29823b3",
   "schema": "keycloak.bootstrap-closure.v1"
 }
