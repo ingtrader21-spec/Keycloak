@@ -1,0 +1,79 @@
+# PAS-157 — Caller + token certification
+
+PAS-157 defines the Keycloak-side identity boundary for callers of the Middleware V3 API. It is a repository-only certification lane: it does **not** create live clients, mint production tokens, grant scopes, modify realm defaults, or authorize a Keycloak apply.
+
+## Authority
+
+The caller authority is:
+
+`config/desired-state/caller-token-certification/caller-identity-authority.v1.json`
+
+Every Middleware caller is classified as one of four types:
+
+- `concrete_service_client` — short-lived `client_credentials` workload identity.
+- `human_client` — Authorization Code + PKCE; MFA is required for privileged use.
+- `client_family` — a logical selector that must resolve to a separately reviewed concrete member.
+- `symbolic_selector` — a fail-closed policy selector such as `none` or a reviewed automation family; never a wildcard AZP.
+
+The authority explicitly resolves the previously open caller vocabulary including `callback-ui`, `n8n-operations-automation`, `github-app`, `observability-collector`, `production-operator`, and the V3 `platform-command-client` family. `platform-command-family` is an explicit alias of `platform-command-client`.
+
+`service-or-user-jwt` is allowed only where the caller rule names the permitted actor kinds. Workloads use `client_credentials`; humans use Authorization Code + PKCE. Privileged human actions require MFA.
+
+The V3 replay boundary is compound and fail-closed:
+
+- scope: `platform.command.replay`
+- realm role: `platform-operator`
+- actor: human user
+- grant: Authorization Code
+- PKCE: required
+- MFA: required
+
+The dirty desktop client `codestra-agent-desktop` is explicitly protected from automatic Middleware access. PAS-157 does not enroll it in any caller family.
+
+## Token matrix
+
+`config/desired-state/caller-token-certification/token-certification-matrix.v1.json` contains synthetic positive and negative cases for all required dimensions: issuer, audience, AZP/reviewed family membership, tenant, scope, role, expiry/bounded lifetime, and replay.
+
+The validator refuses wildcard caller/scopes, privileged scopes leaked into default client scopes, an unresolved caller identity, a service identity using a human grant, a human identity without PKCE/MFA handling, and replay without all required controls.
+
+## Middleware contract pin
+
+PAS-157 targets the final Middleware V3 public route contract:
+
+- repository: `ingtrader21-spec/Middleware-`
+- contract: `deploy/public-api-route-contract.json`
+- route count: `117`
+- digest: `9c32daecd4a15104c6f9ff60ce19c8f7e78707fb31d9fd9fcb55b1b8dfa3512b`
+
+The PR #118 base still carries the previous 92-route contract. Running against that base is useful for regression coverage and reports `TARGET_ROUTE_CONTRACT_MATCH=PENDING_BASE_INTEGRATION`. Final integration certification must run against the exact 117-route contract with `--require-target-contract`.
+
+## Commands
+
+Current stacked-base regression:
+
+```powershell
+py -3.12 scripts/caller_token_certification.py --check
+py -3.12 -m pytest -q tests/test_caller_token_certification.py
+```
+
+Final V3 contract certification:
+
+```powershell
+py -3.12 scripts/caller_token_certification.py --check --route-contract <path-to-final-public-api-route-contract.json> --require-target-contract
+```
+
+Required success evidence includes:
+
+```text
+PAS157_CALLER_TOKEN_CERTIFICATION=PASS
+TARGET_ROUTE_CONTRACT_MATCH=PASS
+ROUTE_COUNT=117
+UNKNOWN_CALLER_IDENTITIES=0
+HUMAN_SERVICE_BOUNDARY=PASS
+TOKEN_MATRIX_DIMENSIONS=8
+PRIVILEGED_DEFAULT_SCOPE_LEAKS=0
+DIRTY_DESKTOP_AUTO_GRANT=PROHIBITED
+KEYCLOAK_LIVE_APPLY=PROHIBITED
+```
+
+PAS-157 does not authorize staging or production activation. PAS-158 owns exact-head cross-repository identity parity and the subsequent integration gate.
