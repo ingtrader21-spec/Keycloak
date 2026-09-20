@@ -8,7 +8,7 @@ from unittest import mock
 
 import pytest
 
-from scripts import caller_token_certification as cert
+from scripts import validate_middleware_caller_classification as cert
 
 
 AUTHORITY = cert.load_json(cert.AUTHORITY_PATH)
@@ -34,12 +34,12 @@ def test_default_pr118_contract_has_zero_unknown_callers_and_complete_token_matr
 def test_known_identity_vocabulary_is_explicitly_classified() -> None:
     callers = AUTHORITY["callers"]
     expected = {
-        "callback-ui": "human_client",
-        "n8n-operations-automation": "concrete_service_client",
-        "github-app": "concrete_service_client",
-        "observability-collector": "concrete_service_client",
-        "production-operator": "human_client",
-        "platform-command-client": "client_family",
+        "callback-ui": "CONCRETE_HUMAN_CLIENT",
+        "n8n-operations-automation": "CONCRETE_SERVICE_CLIENT",
+        "github-app": "CONCRETE_SERVICE_CLIENT",
+        "observability-collector": "CONCRETE_SERVICE_CLIENT",
+        "production-operator": "CONCRETE_HUMAN_CLIENT",
+        "platform-command-client": "CLIENT_FAMILY",
     }
     for caller, klass in expected.items():
         assert callers[caller]["class"] == klass

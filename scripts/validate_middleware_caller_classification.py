@@ -18,9 +18,8 @@ from pathlib import Path
 from typing import Any, Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
-DESIRED_ROOT = ROOT / "config" / "desired-state" / "caller-token-certification"
-AUTHORITY_PATH = DESIRED_ROOT / "caller-identity-authority.v1.json"
-MATRIX_PATH = DESIRED_ROOT / "token-certification-matrix.v1.json"
+AUTHORITY_PATH = ROOT / "config" / "contracts" / "middleware-caller-classification.v1.json"
+MATRIX_PATH = ROOT / "config" / "certification" / "v3-token-matrix.v1.json"
 DEFAULT_ROUTE_CONTRACT = (
     ROOT
     / "config"
@@ -30,10 +29,10 @@ DEFAULT_ROUTE_CONTRACT = (
 )
 
 CALLER_CLASSES = {
-    "concrete_service_client",
-    "human_client",
-    "client_family",
-    "symbolic_selector",
+    "CONCRETE_SERVICE_CLIENT",
+    "CONCRETE_HUMAN_CLIENT",
+    "CLIENT_FAMILY",
+    "SYMBOLIC_RUNTIME_SELECTOR",
 }
 ACTOR_KINDS = {"service", "user"}
 EXPECTED_DIMENSIONS = {
@@ -187,12 +186,12 @@ def validate_authority_shape(authority: dict[str, Any]) -> None:
         if not isinstance(lifetime, int) or lifetime <= 0 or lifetime > maximum:
             raise CertificationError(f"caller {caller} access-token lifetime exceeds policy")
 
-        if klass == "concrete_service_client":
+        if klass == "CONCRETE_SERVICE_CLIENT":
             if actors != ["service"] or grants != ["client_credentials"]:
                 raise CertificationError(
                     f"service client {caller} must be service + client_credentials only"
                 )
-        if klass == "human_client":
+        if klass == "CONCRETE_HUMAN_CLIENT":
             if actors != ["user"] or grants != ["authorization_code"]:
                 raise CertificationError(
                     f"human client {caller} must be user + authorization_code only"
@@ -201,7 +200,7 @@ def validate_authority_shape(authority: dict[str, Any]) -> None:
                 raise CertificationError(f"human client {caller} must require PKCE")
             if rule.get("humanMfaPolicy") not in {"required", "required-for-privileged"}:
                 raise CertificationError(f"human client {caller} must define an MFA policy")
-        if klass == "client_family" and rule.get("familyMembershipRequired") is not True:
+        if klass == "CLIENT_FAMILY" and rule.get("familyMembershipRequired") is not True:
             raise CertificationError(f"client family {caller} must require reviewed membership")
 
         if "service" in actors and "client_credentials" not in grants:
@@ -371,12 +370,12 @@ def evaluate_token_fixture(
     klass = rule.get("class")
     if not azp or azp != resolved_azp:
         failures.append("azp")
-    elif klass in {"client_family", "symbolic_selector"}:
+    elif klass in {"CLIENT_FAMILY", "SYMBOLIC_RUNTIME_SELECTOR"}:
         if rule.get("familyMembershipRequired") and fixture.get("familyMembershipVerified") is not True:
             failures.append("azp")
         if azp == caller:
             failures.append("azp")
-    elif klass == "concrete_service_client" and azp != caller:
+    elif klass == "CONCRETE_SERVICE_CLIENT" and azp != caller:
         failures.append("azp")
 
     if claims.get("tenant_id") != fixture.get("expectedTenant"):

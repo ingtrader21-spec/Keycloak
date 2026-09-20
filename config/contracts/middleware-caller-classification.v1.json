@@ -46,7 +46,7 @@
   },
   "callers": {
     "none": {
-      "class": "symbolic_selector",
+      "class": "SYMBOLIC_RUNTIME_SELECTOR",
       "actorKinds": [],
       "grantTypes": [],
       "authModes": [
@@ -59,7 +59,7 @@
       "description": "Denied-route sentinel. It never represents an authenticated principal."
     },
     "all_declared_clients": {
-      "class": "symbolic_selector",
+      "class": "SYMBOLIC_RUNTIME_SELECTOR",
       "actorKinds": [
         "service"
       ],
@@ -79,7 +79,7 @@
       "description": "Symbolic selector resolved only against the reviewed automation client registry; never a wildcard azp."
     },
     "approval_job_family_client_only": {
-      "class": "client_family",
+      "class": "CLIENT_FAMILY",
       "actorKinds": [
         "service"
       ],
@@ -98,7 +98,7 @@
       "maxAccessTokenLifetimeSeconds": 300
     },
     "authorized-provisioning-client": {
-      "class": "client_family",
+      "class": "CLIENT_FAMILY",
       "actorKinds": [
         "service",
         "user"
@@ -122,7 +122,7 @@
       "description": "Logical family. A token azp must resolve to a reviewed concrete member; the selector string is not itself an azp grant."
     },
     "browser-session": {
-      "class": "human_client",
+      "class": "CONCRETE_HUMAN_CLIENT",
       "actorKinds": [
         "user"
       ],
@@ -142,7 +142,7 @@
       "description": "Browser user session. Authorization Code + PKCE is mandatory; privileged operations additionally require MFA."
     },
     "callback-ui": {
-      "class": "human_client",
+      "class": "CONCRETE_HUMAN_CLIENT",
       "actorKinds": [
         "user"
       ],
@@ -165,7 +165,7 @@
       "description": "Callback browser UI logical identity; no service-account grant is authorized by PAS-157."
     },
     "command_family_client_only": {
-      "class": "client_family",
+      "class": "CLIENT_FAMILY",
       "actorKinds": [
         "service"
       ],
@@ -184,7 +184,7 @@
       "maxAccessTokenLifetimeSeconds": 300
     },
     "command_prefix_client_only": {
-      "class": "client_family",
+      "class": "CLIENT_FAMILY",
       "actorKinds": [
         "service"
       ],
@@ -203,7 +203,7 @@
       "maxAccessTokenLifetimeSeconds": 300
     },
     "github-app": {
-      "class": "concrete_service_client",
+      "class": "CONCRETE_SERVICE_CLIENT",
       "actorKinds": [
         "service"
       ],
@@ -221,7 +221,7 @@
       "description": "Concrete workload identity for GitHub integration events."
     },
     "job_family_client_only": {
-      "class": "client_family",
+      "class": "CLIENT_FAMILY",
       "actorKinds": [
         "service"
       ],
@@ -240,7 +240,7 @@
       "maxAccessTokenLifetimeSeconds": 300
     },
     "middleware-worker": {
-      "class": "concrete_service_client",
+      "class": "CONCRETE_SERVICE_CLIENT",
       "actorKinds": [
         "service"
       ],
@@ -257,7 +257,7 @@
       "maxAccessTokenLifetimeSeconds": 300
     },
     "n8n-automation": {
-      "class": "concrete_service_client",
+      "class": "CONCRETE_SERVICE_CLIENT",
       "actorKinds": [
         "service"
       ],
@@ -274,7 +274,7 @@
       "maxAccessTokenLifetimeSeconds": 300
     },
     "n8n-operations-automation": {
-      "class": "concrete_service_client",
+      "class": "CONCRETE_SERVICE_CLIENT",
       "actorKinds": [
         "service"
       ],
@@ -292,7 +292,7 @@
       "description": "Dedicated operations automation workload; never a human/browser principal."
     },
     "observability-collector": {
-      "class": "concrete_service_client",
+      "class": "CONCRETE_SERVICE_CLIENT",
       "actorKinds": [
         "service"
       ],
@@ -309,7 +309,7 @@
       "maxAccessTokenLifetimeSeconds": 300
     },
     "odoo-integration": {
-      "class": "concrete_service_client",
+      "class": "CONCRETE_SERVICE_CLIENT",
       "actorKinds": [
         "service"
       ],
@@ -326,7 +326,7 @@
       "maxAccessTokenLifetimeSeconds": 300
     },
     "platform-command-client": {
-      "class": "client_family",
+      "class": "CLIENT_FAMILY",
       "actorKinds": [
         "service",
         "user"
@@ -358,7 +358,7 @@
       "description": "V3 command-kernel caller family. Workload members use client_credentials; privileged human replay uses Authorization Code + PKCE + MFA."
     },
     "platform-operator": {
-      "class": "human_client",
+      "class": "CONCRETE_HUMAN_CLIENT",
       "actorKinds": [
         "user"
       ],
@@ -380,7 +380,7 @@
       "maxAccessTokenLifetimeSeconds": 300
     },
     "production-operator": {
-      "class": "human_client",
+      "class": "CONCRETE_HUMAN_CLIENT",
       "actorKinds": [
         "user"
       ],

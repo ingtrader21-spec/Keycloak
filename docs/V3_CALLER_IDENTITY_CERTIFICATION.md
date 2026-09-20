@@ -6,14 +6,14 @@ PAS-157 defines the Keycloak-side identity boundary for callers of the Middlewar
 
 The caller authority is:
 
-`config/desired-state/caller-token-certification/caller-identity-authority.v1.json`
+`config/contracts/middleware-caller-classification.v1.json`
 
 Every Middleware caller is classified as one of four types:
 
-- `concrete_service_client` — short-lived `client_credentials` workload identity.
-- `human_client` — Authorization Code + PKCE; MFA is required for privileged use.
-- `client_family` — a logical selector that must resolve to a separately reviewed concrete member.
-- `symbolic_selector` — a fail-closed policy selector such as `none` or a reviewed automation family; never a wildcard AZP.
+- `CONCRETE_SERVICE_CLIENT` — short-lived `client_credentials` workload identity.
+- `CONCRETE_HUMAN_CLIENT` — Authorization Code + PKCE; MFA is required for privileged use.
+- `CLIENT_FAMILY` — a logical selector that must resolve to a separately reviewed concrete member.
+- `SYMBOLIC_RUNTIME_SELECTOR` — a fail-closed policy selector such as `none` or a reviewed automation family; never a wildcard AZP.
 
 The authority explicitly resolves the previously open caller vocabulary including `callback-ui`, `n8n-operations-automation`, `github-app`, `observability-collector`, `production-operator`, and the V3 `platform-command-client` family. `platform-command-family` is an explicit alias of `platform-command-client`.
 
@@ -32,7 +32,7 @@ The dirty desktop client `codestra-agent-desktop` is explicitly protected from a
 
 ## Token matrix
 
-`config/desired-state/caller-token-certification/token-certification-matrix.v1.json` contains synthetic positive and negative cases for all required dimensions: issuer, audience, AZP/reviewed family membership, tenant, scope, role, expiry/bounded lifetime, and replay.
+`config/certification/v3-token-matrix.v1.json` contains synthetic positive and negative cases for all required dimensions: issuer, audience, AZP/reviewed family membership, tenant, scope, role, expiry/bounded lifetime, and replay.
 
 The validator refuses wildcard caller/scopes, privileged scopes leaked into default client scopes, an unresolved caller identity, a service identity using a human grant, a human identity without PKCE/MFA handling, and replay without all required controls.
 
@@ -52,14 +52,15 @@ The PR #118 base still carries the previous 92-route contract. Running against t
 Current stacked-base regression:
 
 ```powershell
-py -3.12 scripts/caller_token_certification.py --check
-py -3.12 -m pytest -q tests/test_caller_token_certification.py
+py -3.12 scripts/validate_middleware_caller_classification.py --check
+py -3.12 scripts/validate_v3_token_matrix.py --check
+py -3.12 -m pytest -q tests/test_middleware_caller_classification.py tests/test_v3_token_matrix.py
 ```
 
 Final V3 contract certification:
 
 ```powershell
-py -3.12 scripts/caller_token_certification.py --check --route-contract <path-to-final-public-api-route-contract.json> --require-target-contract
+py -3.12 scripts/validate_middleware_caller_classification.py --check --route-contract <path-to-final-public-api-route-contract.json> --require-target-contract
 ```
 
 Required success evidence includes:
