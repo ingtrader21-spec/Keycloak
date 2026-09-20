@@ -1,0 +1,280 @@
+{
+  "blockers": [
+    "KONG_MIDDLEWARE_ROUTE_COVERAGE",
+    "CADDY_KONG_PLATFORM_V1_BOUNDARY"
+  ],
+  "caddyKong": {
+    "identityBoundary": {
+      "authorizationHeaderForwardedToKong": true,
+      "caddyAuthenticatesUsersOrServices": false,
+      "caddyCreatesTrustedApplicationIdentityHeaders": false,
+      "kongPerformsOidcJwtAndScopePolicy": true,
+      "middlewareRevalidatesPrivilegedAuthorization": true
+    },
+    "kongManagedPathPrefixes": [
+      "/api/v1/control",
+      "/api/v1/messages",
+      "/api/v1/events",
+      "/api/v1/results",
+      "/api/v1/reconciliation",
+      "/api/v1/health",
+      "/api/v1/callbacks",
+      "/api/v1/automation/policy-check",
+      "/api/v1/integrations/n8n/results",
+      "/v1/integrations/n8n",
+      "/v1/admin/system",
+      "/v1/crm",
+      "/v1/email",
+      "/v1/sms",
+      "/v1/webhooks",
+      "/v1/intake"
+    ],
+    "platformV1MatcherPresent": false,
+    "platformV1PrefixDeclared": false,
+    "productionCutoverAuthorizedBySource": false,
+    "status": "BLOCKED"
+  },
+  "expected": {
+    "audience": "middleware-api",
+    "middlewareRouteDigest": "9c32daecd4a15104c6f9ff60ce19c8f7e78707fb31d9fd9fcb55b1b8dfa3512b",
+    "middlewareUpstream": "middleware-integration-api:8095"
+  },
+  "keycloakMiddleware": {
+    "extraRoutes": [],
+    "keycloakRoutes": 117,
+    "middlewareDigest": "9c32daecd4a15104c6f9ff60ce19c8f7e78707fb31d9fd9fcb55b1b8dfa3512b",
+    "middlewareRoutes": 117,
+    "missingRoutes": [],
+    "status": "PASS"
+  },
+  "kongMiddleware": {
+    "extraRouteCount": 0,
+    "extraRoutes": [],
+    "fieldMismatchCount": 0,
+    "fieldMismatches": [],
+    "kongRoutes": 80,
+    "matchingRoutes": 80,
+    "middlewareSharedEdgeRoutes": 105,
+    "missingRouteCount": 25,
+    "missingRoutes": [
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "authorized-provisioning-client",
+        "method": "GET",
+        "path": "/platform/v1/contacts",
+        "scope": "identity.request"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "authorized-provisioning-client",
+        "method": "GET",
+        "path": "/platform/v1/contacts/{contact_id}",
+        "scope": "identity.request"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "authorized-provisioning-client",
+        "method": "GET",
+        "path": "/platform/v1/contacts/{contact_id}/notes",
+        "scope": "identity.request"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "authorized-provisioning-client",
+        "method": "GET",
+        "path": "/platform/v1/contacts/{contact_id}/tasks",
+        "scope": "identity.request"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "platform-command-client",
+        "method": "GET",
+        "path": "/platform/v1/kernel/describe",
+        "scope": "platform.command.read"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "platform-command-client",
+        "method": "GET",
+        "path": "/platform/v1/operations/{operation_id}",
+        "scope": "platform.command.read"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "platform-command-client",
+        "method": "GET",
+        "path": "/platform/v1/operations/{operation_id}/timeline",
+        "scope": "platform.command.read"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "authorized-provisioning-client",
+        "method": "GET",
+        "path": "/platform/v1/opportunities",
+        "scope": "identity.request"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "authorized-provisioning-client",
+        "method": "GET",
+        "path": "/platform/v1/opportunities/{opportunity_id}",
+        "scope": "identity.request"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "authorized-provisioning-client",
+        "method": "GET",
+        "path": "/platform/v1/tickets",
+        "scope": "identity.request"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "authorized-provisioning-client",
+        "method": "GET",
+        "path": "/platform/v1/tickets/{ticket_id}",
+        "scope": "identity.request"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "authorized-provisioning-client",
+        "method": "PATCH",
+        "path": "/platform/v1/contacts/{contact_id}",
+        "scope": "identity.request"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "authorized-provisioning-client",
+        "method": "PATCH",
+        "path": "/platform/v1/contacts/{contact_id}/notes/{note_id}",
+        "scope": "identity.request"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "authorized-provisioning-client",
+        "method": "PATCH",
+        "path": "/platform/v1/opportunities/{opportunity_id}",
+        "scope": "identity.request"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "authorized-provisioning-client",
+        "method": "PATCH",
+        "path": "/platform/v1/tasks/{task_id}",
+        "scope": "identity.request"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "authorized-provisioning-client",
+        "method": "PATCH",
+        "path": "/platform/v1/tickets/{ticket_id}",
+        "scope": "identity.request"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "platform-command-client",
+        "method": "POST",
+        "path": "/platform/v1/commands",
+        "scope": "platform.command"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "authorized-provisioning-client",
+        "method": "POST",
+        "path": "/platform/v1/contacts",
+        "scope": "identity.request"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "authorized-provisioning-client",
+        "method": "POST",
+        "path": "/platform/v1/contacts/{contact_id}/notes",
+        "scope": "identity.request"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "authorized-provisioning-client",
+        "method": "POST",
+        "path": "/platform/v1/contacts/{contact_id}/tasks",
+        "scope": "identity.request"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "platform-command-client",
+        "method": "POST",
+        "path": "/platform/v1/operations/{operation_id}/cancel",
+        "scope": "platform.command"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "platform-command-client",
+        "method": "POST",
+        "path": "/platform/v1/operations/{operation_id}/replay",
+        "scope": "platform.command.replay"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "authorized-provisioning-client",
+        "method": "POST",
+        "path": "/platform/v1/opportunities",
+        "scope": "identity.request"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "authorized-provisioning-client",
+        "method": "POST",
+        "path": "/platform/v1/tasks/{task_id}/complete",
+        "scope": "identity.request"
+      },
+      {
+        "audience": "middleware-api",
+        "auth": "service-or-user-jwt",
+        "callingClient": "authorized-provisioning-client",
+        "method": "POST",
+        "path": "/platform/v1/tickets",
+        "scope": "identity.request"
+      }
+    ],
+    "platformV1KongRoutes": 59,
+    "platformV1MiddlewareRoutes": 84,
+    "status": "BLOCKED"
+  },
+  "mission": "PAS-158",
+  "pins": {
+    "caddy": "84c2b7b3bce6d90764eac5eab362aed973f56056",
+    "keycloak": "45a487d71a516ae3039b00c250752897469ffe7a",
+    "kong": "5ac254c6fb04579615e4d60d25efcc911d42a2e3",
+    "middleware": "2862af0aa97367b18cb360af69212abe4243a1ac"
+  },
+  "productionEffectsEnabled": false,
+  "releaseGovernance": {
+    "lastKnownPreMergeTrustRoot": "BOOTSTRAP_REJECTED=missing-independent-approval",
+    "note": "Tracked separately from implementation parity. The merged code state does not by itself establish production certification.",
+    "status": "SEPARATE_BLOCKER"
+  },
+  "schema": "codestra.keycloak.pas158-cross-repo-certification.v1",
+  "verdict": "BLOCKED_CROSS_REPO_PARITY"
+}
