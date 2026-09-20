@@ -1,0 +1,249 @@
+{
+  "schemaVersion": 1,
+  "kind": "CodestraCallerTokenCertificationMatrix",
+  "mission": "PAS-157",
+  "description": "Offline positive/negative token-policy matrix. Fixtures are synthetic and do not authorize or create live clients.",
+  "requiredDimensions": [
+    "issuer",
+    "audience",
+    "azp",
+    "tenant",
+    "scope",
+    "role",
+    "expiry",
+    "replay"
+  ],
+  "fixtures": {
+    "service": {
+      "caller": "n8n-automation",
+      "actorKind": "service",
+      "requiredScope": "n8n.results.read",
+      "requiredRole": null,
+      "expectedTenant": "TEST_SYN_TENANT",
+      "privileged": false,
+      "replay": false,
+      "familyMembershipVerified": false,
+      "resolvedAzp": "n8n-automation",
+      "grant": {
+        "type": "client_credentials",
+        "pkce": false
+      },
+      "now": 1800000000,
+      "claims": {
+        "iss": "https://auth-staging.codestra.co/realms/codestra",
+        "aud": "middleware-api",
+        "azp": "n8n-automation",
+        "tenant_id": "TEST_SYN_TENANT",
+        "scope": "n8n.results.read",
+        "realm_access": {
+          "roles": []
+        },
+        "amr": [
+          "client_credentials"
+        ],
+        "iat": 1800000000,
+        "exp": 1800000300
+      }
+    },
+    "privilegedHuman": {
+      "caller": "platform-operator",
+      "actorKind": "user",
+      "requiredScope": "platform.sync.reconcile",
+      "requiredRole": "platform-operator",
+      "expectedTenant": "TEST_SYN_TENANT",
+      "privileged": true,
+      "replay": false,
+      "familyMembershipVerified": false,
+      "resolvedAzp": "platform-operator",
+      "grant": {
+        "type": "authorization_code",
+        "pkce": true
+      },
+      "now": 1800000000,
+      "claims": {
+        "iss": "https://auth-staging.codestra.co/realms/codestra",
+        "aud": "middleware-api",
+        "azp": "platform-operator",
+        "tenant_id": "TEST_SYN_TENANT",
+        "scope": "platform.sync.reconcile",
+        "realm_access": {
+          "roles": [
+            "platform-operator"
+          ]
+        },
+        "amr": [
+          "pwd",
+          "mfa"
+        ],
+        "iat": 1800000000,
+        "exp": 1800000300
+      }
+    },
+    "privilegedHumanReplay": {
+      "caller": "platform-command-client",
+      "actorKind": "user",
+      "requiredScope": "platform.command.replay",
+      "requiredRole": "platform-operator",
+      "expectedTenant": "TEST_SYN_TENANT",
+      "privileged": true,
+      "replay": true,
+      "familyMembershipVerified": true,
+      "resolvedAzp": "test-syn-platform-operator-ui",
+      "grant": {
+        "type": "authorization_code",
+        "pkce": true
+      },
+      "now": 1800000000,
+      "claims": {
+        "iss": "https://auth-staging.codestra.co/realms/codestra",
+        "aud": "middleware-api",
+        "azp": "test-syn-platform-operator-ui",
+        "tenant_id": "TEST_SYN_TENANT",
+        "scope": "platform.command.replay",
+        "realm_access": {
+          "roles": [
+            "platform-operator"
+          ]
+        },
+        "amr": [
+          "pwd",
+          "mfa"
+        ],
+        "iat": 1800000000,
+        "exp": 1800000300
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "issuer-positive",
+      "dimension": "issuer",
+      "fixture": "service",
+      "expect": "ACCEPT"
+    },
+    {
+      "id": "issuer-negative",
+      "dimension": "issuer",
+      "fixture": "service",
+      "mutations": {
+        "claims.iss": "https://issuer.invalid/realms/codestra"
+      },
+      "expect": "REJECT",
+      "mustFail": "issuer"
+    },
+    {
+      "id": "audience-positive",
+      "dimension": "audience",
+      "fixture": "service",
+      "expect": "ACCEPT"
+    },
+    {
+      "id": "audience-negative",
+      "dimension": "audience",
+      "fixture": "service",
+      "mutations": {
+        "claims.aud": "not-middleware-api"
+      },
+      "expect": "REJECT",
+      "mustFail": "audience"
+    },
+    {
+      "id": "azp-positive",
+      "dimension": "azp",
+      "fixture": "privilegedHumanReplay",
+      "expect": "ACCEPT"
+    },
+    {
+      "id": "azp-negative",
+      "dimension": "azp",
+      "fixture": "privilegedHumanReplay",
+      "mutations": {
+        "familyMembershipVerified": false
+      },
+      "expect": "REJECT",
+      "mustFail": "azp"
+    },
+    {
+      "id": "tenant-positive",
+      "dimension": "tenant",
+      "fixture": "service",
+      "expect": "ACCEPT"
+    },
+    {
+      "id": "tenant-negative",
+      "dimension": "tenant",
+      "fixture": "service",
+      "mutations": {
+        "claims.tenant_id": "OTHER_TENANT"
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant"
+    },
+    {
+      "id": "scope-positive",
+      "dimension": "scope",
+      "fixture": "service",
+      "expect": "ACCEPT"
+    },
+    {
+      "id": "scope-negative",
+      "dimension": "scope",
+      "fixture": "service",
+      "mutations": {
+        "claims.scope": "n8n.results.submit"
+      },
+      "expect": "REJECT",
+      "mustFail": "scope"
+    },
+    {
+      "id": "role-positive",
+      "dimension": "role",
+      "fixture": "privilegedHuman",
+      "expect": "ACCEPT"
+    },
+    {
+      "id": "role-negative",
+      "dimension": "role",
+      "fixture": "privilegedHuman",
+      "mutations": {
+        "claims.realm_access.roles": []
+      },
+      "expect": "REJECT",
+      "mustFail": "role"
+    },
+    {
+      "id": "expiry-positive",
+      "dimension": "expiry",
+      "fixture": "service",
+      "expect": "ACCEPT"
+    },
+    {
+      "id": "expiry-negative",
+      "dimension": "expiry",
+      "fixture": "service",
+      "mutations": {
+        "claims.exp": 1799999999
+      },
+      "expect": "REJECT",
+      "mustFail": "expiry"
+    },
+    {
+      "id": "replay-positive",
+      "dimension": "replay",
+      "fixture": "privilegedHumanReplay",
+      "expect": "ACCEPT"
+    },
+    {
+      "id": "replay-negative",
+      "dimension": "replay",
+      "fixture": "privilegedHumanReplay",
+      "mutations": {
+        "claims.amr": [
+          "pwd"
+        ]
+      },
+      "expect": "REJECT",
+      "mustFail": "replay"
+    }
+  ]
+}
