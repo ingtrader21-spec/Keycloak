@@ -96,6 +96,7 @@ expected_managed='[
   "codestra-provisioning-service",
   "codestra-social",
   "klyrow-portal",
+  "klyrow-staging-portal",
   "kong-gateway",
   "klyrow-gateway",
   "kyqra-gateway",
@@ -228,6 +229,30 @@ for file in "$CONFIG_ROOT"/clients/*.json; do
     klyrow-portal)
       jq -e 'has("protocolMappers") | not' "$file" >/dev/null ||
         fail "Klyrow desired state changed unexpectedly"
+      ;;
+    klyrow-staging-portal)
+      jq -e '
+        .publicClient == true
+        and .standardFlowEnabled == true
+        and .implicitFlowEnabled == false
+        and .directAccessGrantsEnabled == false
+        and .serviceAccountsEnabled == false
+        and .rootUrl == "https://staging.klyrow.com"
+        and .baseUrl == "https://staging.klyrow.com/"
+        and .redirectUris == ["https://staging.klyrow.com/auth/callback"]
+        and .webOrigins == ["https://staging.klyrow.com"]
+        and .attributes["pkce.code.challenge.method"] == "S256"
+        and .attributes["post.logout.redirect.uris"] == "https://staging.klyrow.com/logged-out"
+        and (.protocolMappers | type == "array" and length == 1)
+        and .protocolMappers[0].name == "audience-klyrow-api"
+        and .protocolMappers[0].protocol == "openid-connect"
+        and .protocolMappers[0].protocolMapper == "oidc-audience-mapper"
+        and .protocolMappers[0].consentRequired == false
+        and .protocolMappers[0].config["included.custom.audience"] == "klyrow-api"
+        and .protocolMappers[0].config["access.token.claim"] == "true"
+        and .protocolMappers[0].config["id.token.claim"] == "false"
+      ' "$file" >/dev/null ||
+        fail "Klyrow staging portal must use the isolated staging host, PKCE S256, and klyrow-api audience"
       ;;
     odoo-web)
       jq -e '
