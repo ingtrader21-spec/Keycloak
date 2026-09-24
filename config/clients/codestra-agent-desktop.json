@@ -1,0 +1,50 @@
+{
+  "clientId": "codestra-agent-desktop",
+  "name": "Codestra Agent Desktop",
+  "description": "Browser client for the Middleware realtime agent desktop and webphone.",
+  "enabled": true,
+  "protocol": "openid-connect",
+  "publicClient": true,
+  "bearerOnly": false,
+  "consentRequired": false,
+  "standardFlowEnabled": true,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "serviceAccountsEnabled": false,
+  "frontchannelLogout": true,
+  "fullScopeAllowed": false,
+  "rootUrl": "https://crm.codestra.agency",
+  "baseUrl": "https://crm.codestra.agency/",
+  "redirectUris": [
+    "https://crm.codestra.agency/codestra/realtime/callback",
+    "https://phone.codestra.agency/codestra/realtime/callback",
+    "https://dialer.codestra.agency/codestra/realtime/callback"
+  ],
+  "webOrigins": [
+    "https://crm.codestra.agency",
+    "https://phone.codestra.agency",
+    "https://dialer.codestra.agency"
+  ],
+  "defaultClientScopes": ["profile","email","roles"],
+  "optionalClientScopes": [],
+  "attributes": {
+    "pkce.code.challenge.method": "S256",
+    "post.logout.redirect.uris": "https://crm.codestra.agency/##https://phone.codestra.agency/##https://dialer.codestra.agency/",
+    "oauth2.device.authorization.grant.enabled": "false",
+    "oidc.ciba.grant.enabled": "false",
+    "access.token.lifespan": "300"
+  },
+  "protocolMappers": [
+    {
+      "name": "audience-codestra-agent-desktop",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "consentRequired": false,
+      "config": {
+        "included.custom.audience": "codestra-agent-desktop",
+        "id.token.claim": "false",
+        "access.token.claim": "true"
+      }
+    }
+  ]
+}
