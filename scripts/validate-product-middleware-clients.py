@@ -43,6 +43,16 @@ EXPECTED = {
         ["social."],
         ["postly-social"],
     ),
+    "odoo-email": (
+        ["odoo.email.command.write", "odoo.email.status.read"],
+        ["email."],
+        ["klyrow-email"],
+    ),
+    "production-operator": (
+        ["email.production.read", "email.production.write"],
+        [],
+        [],
+    ),
 }
 
 TOP = [
