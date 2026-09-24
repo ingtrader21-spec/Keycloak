@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "mission": "MCR-H",
+  "status": "PREPARED_DISABLED",
+  "runtimeApplyAuthorized": false,
+  "sourcePins": {
+    "config/contracts/middleware-caller-classification.v1.json": "083066e5eb58139b404bf5f18139ee3e6ad3a132802eaeb58b1386c0d8e13ff9",
+    "config/contracts/middleware-api-access.v3.json": "51dae50f9bc779cba66d2a2ec589ce8009ba4bf91447ac25005021e07fe15756"
+  },
+  "issuers": {
+    "staging": "https://auth-staging.codestra.co/realms/codestra",
+    "production": "https://auth.codestra.co/realms/codestra"
+  },
+  "audience": "middleware-api",
+  "callerFamily": "platform-command-client",
+  "aliases": {
+    "platform-command-family": "platform-command-client"
+  },
+  "protectedClients": [
+    "codestra-agent-desktop"
+  ],
+  "allowedScopes": [
+    "platform.command",
+    "platform.command.read",
+    "platform.command.replay"
+  ],
+  "requiredClaims": [
+    "iss",
+    "sub",
+    "aud",
+    "azp",
+    "typ",
+    "iat",
+    "nbf",
+    "exp",
+    "jti",
+    "scope",
+    "tenant_id",
+    "realm_access"
+  ],
+  "operations": {
+    "read": {
+      "scope": "platform.command.read",
+      "role": null,
+      "actors": [
+        "user",
+        "service"
+      ]
+    },
+    "command": {
+      "scope": "platform.command",
+      "role": null,
+      "actors": [
+        "user",
+        "service"
+      ]
+    },
+    "replay": {
+      "scope": "platform.command.replay",
+      "role": "platform-operator",
+      "actors": [
+        "user"
+      ]
+    }
+  },
+  "tokenPolicy": {
+    "algorithm": "RS256",
+    "maximumLifetimeSeconds": 300,
+    "clockSkewSeconds": 0,
+    "humanGrant": "authorization_code",
+    "pkce": "S256",
+    "privilegedHumanMfaRequired": true,
+    "maximumMfaAgeSeconds": 300,
+    "serviceGrant": "client_credentials",
+    "serviceRefreshTokensEnabled": false
+  },
+  "tenantBinding": {
+    "source": "reviewed-per-tenant",
+    "requestHeadersAuthorize": false,
+    "sharedStaticTenantMappersAllowed": false
+  },
+  "replayBoundary": {
+    "independentApprovalRequired": true,
+    "reservation": "atomic-issuer-tenant-subject-jti-operation",
+    "retainUntil": "token-expiry",
+    "storeFailure": "deny",
+    "businessOperationTenantMustMatch": true,
+    "ordinaryBearerTokensAreSingleUse": false
+  },
+  "serviceAccounts": {
+    "subjectBinding": "Keycloak-service-account-user-id",
+    "fullScopeAllowed": false,
+    "humanRolesAllowed": false,
+    "secretsInRepository": false,
+    "privilegedDefaultScopesAllowed": false
+  },
+  "liveBindings": []
+}

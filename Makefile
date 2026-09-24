@@ -2,7 +2,7 @@ SHELL := /usr/bin/env bash
 
 .PHONY: validate test-runtime-preflight build up down logs check plan review-plan apply-plan export-klyrow smoke runtime-preflight backup verify-backup check-recovery-freshness certify-kong edge-certification-check certify-edge-identity reconcile-edge-certification openbao-workload-identity-check reconcile-openbao-workload-identity
 
-validate:
+validate: mcr-identity-check
 	./scripts/validate.sh
 
 test-runtime-preflight:
@@ -92,3 +92,8 @@ reconcile-edge-certification:
 	: "$${EDGE_CERTIFICATION_MODE:?Set EDGE_CERTIFICATION_MODE to plan, apply, or disable}"
 	: "$${EDGE_CERTIFICATION_DIR:?Set EDGE_CERTIFICATION_DIR to an absolute 0700 directory outside the checkout}"
 	python3 scripts/reconcile_edge_certification_staging.py --mode "$${EDGE_CERTIFICATION_MODE}" --output-dir "$${EDGE_CERTIFICATION_DIR}"
+
+.PHONY: mcr-identity-check
+mcr-identity-check:
+	python3 scripts/validate_mcr_identity.py
+	python3 -m unittest discover -s tests -p 'test_mcr_identity.py' -v

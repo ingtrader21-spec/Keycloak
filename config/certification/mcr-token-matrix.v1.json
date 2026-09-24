@@ -1,0 +1,684 @@
+{
+  "schemaVersion": 1,
+  "mission": "MCR-H",
+  "syntheticOnly": true,
+  "fixtures": {
+    "serviceRead": {
+      "claims": {
+        "iss": "https://auth-staging.codestra.co/realms/codestra",
+        "aud": "middleware-api",
+        "azp": "test-syn-mcr-service",
+        "sub": "TEST_SYN_SERVICE_UUID",
+        "typ": "Bearer",
+        "iat": 1800000000,
+        "nbf": 1800000000,
+        "exp": 1800000300,
+        "jti": "TEST_SYN_JTI",
+        "tenant_id": "TEST_SYN_TENANT",
+        "scope": "platform.command.read",
+        "realm_access": {
+          "roles": []
+        }
+      },
+      "environment": "staging",
+      "operation": "read",
+      "callerFamily": "platform-command-client",
+      "actorKind": "service",
+      "expectedTenant": "TEST_SYN_TENANT",
+      "now": 1800000000,
+      "signatureVerified": true,
+      "algorithm": "RS256",
+      "bindings": [
+        {
+          "azp": "test-syn-mcr-service",
+          "environment": "staging",
+          "tenant": "TEST_SYN_TENANT",
+          "family": "platform-command-client",
+          "reviewed": true,
+          "enabled": true,
+          "actorKind": "service",
+          "scopes": [
+            "platform.command.read",
+            "platform.command"
+          ],
+          "roles": [],
+          "fullScopeAllowed": false,
+          "defaultPrivilegedScopes": [],
+          "implicitFlowEnabled": false,
+          "directAccessGrantsEnabled": false,
+          "serviceAccountsEnabled": true,
+          "publicClient": false,
+          "standardFlowEnabled": false,
+          "refreshTokensEnabled": false,
+          "serviceAccountSubject": "TEST_SYN_SERVICE_UUID",
+          "tenantBinding": "reviewed-per-tenant"
+        }
+      ],
+      "grant": {
+        "type": "client_credentials",
+        "pkce": false
+      }
+    },
+    "humanCommand": {
+      "claims": {
+        "iss": "https://auth-staging.codestra.co/realms/codestra",
+        "aud": "middleware-api",
+        "azp": "test-syn-mcr-human",
+        "sub": "TEST_SYN_USER_UUID",
+        "typ": "Bearer",
+        "iat": 1800000000,
+        "nbf": 1800000000,
+        "exp": 1800000300,
+        "jti": "TEST_SYN_JTI",
+        "tenant_id": "TEST_SYN_TENANT",
+        "scope": "platform.command",
+        "realm_access": {
+          "roles": []
+        },
+        "amr": [
+          "pwd",
+          "mfa"
+        ],
+        "auth_time": 1800000000
+      },
+      "environment": "staging",
+      "operation": "command",
+      "callerFamily": "platform-command-client",
+      "actorKind": "user",
+      "expectedTenant": "TEST_SYN_TENANT",
+      "now": 1800000000,
+      "signatureVerified": true,
+      "algorithm": "RS256",
+      "bindings": [
+        {
+          "azp": "test-syn-mcr-human",
+          "environment": "staging",
+          "tenant": "TEST_SYN_TENANT",
+          "family": "platform-command-client",
+          "reviewed": true,
+          "enabled": true,
+          "actorKind": "user",
+          "scopes": [
+            "platform.command",
+            "platform.command.read",
+            "platform.command.replay"
+          ],
+          "roles": [
+            "platform-operator"
+          ],
+          "fullScopeAllowed": false,
+          "defaultPrivilegedScopes": [],
+          "implicitFlowEnabled": false,
+          "directAccessGrantsEnabled": false,
+          "serviceAccountsEnabled": false,
+          "publicClient": false,
+          "standardFlowEnabled": true,
+          "refreshTokensEnabled": false,
+          "serviceAccountSubject": "TEST_SYN_SERVICE_UUID",
+          "tenantBinding": "reviewed-per-tenant"
+        }
+      ],
+      "grant": {
+        "type": "authorization_code",
+        "pkce": "S256"
+      }
+    },
+    "humanReplay": {
+      "claims": {
+        "iss": "https://auth-staging.codestra.co/realms/codestra",
+        "aud": "middleware-api",
+        "azp": "test-syn-mcr-human",
+        "sub": "TEST_SYN_USER_UUID",
+        "typ": "Bearer",
+        "iat": 1800000000,
+        "nbf": 1800000000,
+        "exp": 1800000300,
+        "jti": "TEST_SYN_JTI",
+        "tenant_id": "TEST_SYN_TENANT",
+        "scope": "platform.command.replay",
+        "realm_access": {
+          "roles": [
+            "platform-operator"
+          ]
+        },
+        "amr": [
+          "pwd",
+          "mfa"
+        ],
+        "auth_time": 1800000000
+      },
+      "environment": "staging",
+      "operation": "replay",
+      "callerFamily": "platform-command-client",
+      "actorKind": "user",
+      "expectedTenant": "TEST_SYN_TENANT",
+      "now": 1800000000,
+      "signatureVerified": true,
+      "algorithm": "RS256",
+      "bindings": [
+        {
+          "azp": "test-syn-mcr-human",
+          "environment": "staging",
+          "tenant": "TEST_SYN_TENANT",
+          "family": "platform-command-client",
+          "reviewed": true,
+          "enabled": true,
+          "actorKind": "user",
+          "scopes": [
+            "platform.command",
+            "platform.command.read",
+            "platform.command.replay"
+          ],
+          "roles": [
+            "platform-operator"
+          ],
+          "fullScopeAllowed": false,
+          "defaultPrivilegedScopes": [],
+          "implicitFlowEnabled": false,
+          "directAccessGrantsEnabled": false,
+          "serviceAccountsEnabled": false,
+          "publicClient": false,
+          "standardFlowEnabled": true,
+          "refreshTokensEnabled": false,
+          "serviceAccountSubject": "TEST_SYN_SERVICE_UUID",
+          "tenantBinding": "reviewed-per-tenant"
+        }
+      ],
+      "grant": {
+        "type": "authorization_code",
+        "pkce": "S256"
+      },
+      "independentApprovalVerified": true,
+      "replayReservation": "reserved",
+      "replayStoreHealthy": true,
+      "operationTenant": "TEST_SYN_TENANT"
+    }
+  },
+  "cases": [
+    {
+      "id": "serviceRead-positive",
+      "fixture": "serviceRead",
+      "expect": "ACCEPT"
+    },
+    {
+      "id": "humanCommand-positive",
+      "fixture": "humanCommand",
+      "expect": "ACCEPT"
+    },
+    {
+      "id": "humanReplay-positive",
+      "fixture": "humanReplay",
+      "expect": "ACCEPT"
+    },
+    {
+      "id": "wrong-issuer",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.iss": "https://auth.codestra.co/realms/codestra"
+      },
+      "expect": "REJECT",
+      "mustFail": "issuer"
+    },
+    {
+      "id": "wrong-audience",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.aud": "other"
+      },
+      "expect": "REJECT",
+      "mustFail": "audience"
+    },
+    {
+      "id": "extra-audience",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.aud": [
+          "middleware-api",
+          "other"
+        ]
+      },
+      "expect": "REJECT",
+      "mustFail": "audience"
+    },
+    {
+      "id": "wrong-azp",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.azp": "unknown"
+      },
+      "expect": "REJECT",
+      "mustFail": "binding"
+    },
+    {
+      "id": "unreviewed-member",
+      "fixture": "humanReplay",
+      "mutations": {
+        "bindings.0.reviewed": false
+      },
+      "expect": "REJECT",
+      "mustFail": "binding"
+    },
+    {
+      "id": "disabled-member",
+      "fixture": "humanReplay",
+      "mutations": {
+        "bindings.0.enabled": false
+      },
+      "expect": "REJECT",
+      "mustFail": "binding"
+    },
+    {
+      "id": "wrong-family",
+      "fixture": "humanReplay",
+      "mutations": {
+        "callerFamily": "other"
+      },
+      "expect": "REJECT",
+      "mustFail": "family"
+    },
+    {
+      "id": "cross-family",
+      "fixture": "humanReplay",
+      "mutations": {
+        "bindings.0.family": "other"
+      },
+      "expect": "REJECT",
+      "mustFail": "binding"
+    },
+    {
+      "id": "tenant-mismatch",
+      "fixture": "humanReplay",
+      "mutations": {
+        "expectedTenant": "other"
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant"
+    },
+    {
+      "id": "missing-tenant",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.tenant_id": ""
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant"
+    },
+    {
+      "id": "scope-missing",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.scope": ""
+      },
+      "expect": "REJECT",
+      "mustFail": "scope"
+    },
+    {
+      "id": "wildcard-scope",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.scope": "*"
+      },
+      "expect": "REJECT",
+      "mustFail": "scope"
+    },
+    {
+      "id": "scope-leak",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.scope": "platform.command.replay provider.dispatch"
+      },
+      "expect": "REJECT",
+      "mustFail": "scope"
+    },
+    {
+      "id": "role-missing",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.realm_access.roles": []
+      },
+      "expect": "REJECT",
+      "mustFail": "role"
+    },
+    {
+      "id": "role-string",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.realm_access.roles": "platform-operator"
+      },
+      "expect": "REJECT",
+      "mustFail": "role"
+    },
+    {
+      "id": "role-leak",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.realm_access.roles": [
+          "platform-operator",
+          "realm-admin"
+        ]
+      },
+      "expect": "REJECT",
+      "mustFail": "role"
+    },
+    {
+      "id": "expired",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.exp": 1800000000
+      },
+      "expect": "REJECT",
+      "mustFail": "expiry"
+    },
+    {
+      "id": "future-iat",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.iat": 1800000001
+      },
+      "expect": "REJECT",
+      "mustFail": "expiry"
+    },
+    {
+      "id": "future-nbf",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.nbf": 1800000001
+      },
+      "expect": "REJECT",
+      "mustFail": "expiry"
+    },
+    {
+      "id": "long-life",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.exp": 1800000301
+      },
+      "expect": "REJECT",
+      "mustFail": "expiry"
+    },
+    {
+      "id": "boolean-time",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.iat": true
+      },
+      "expect": "REJECT",
+      "mustFail": "expiry"
+    },
+    {
+      "id": "unsigned",
+      "fixture": "humanReplay",
+      "mutations": {
+        "signatureVerified": false
+      },
+      "expect": "REJECT",
+      "mustFail": "signature"
+    },
+    {
+      "id": "wrong-algorithm",
+      "fixture": "humanReplay",
+      "mutations": {
+        "algorithm": "none"
+      },
+      "expect": "REJECT",
+      "mustFail": "signature"
+    },
+    {
+      "id": "id-token",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.typ": "ID"
+      },
+      "expect": "REJECT",
+      "mustFail": "token_type"
+    },
+    {
+      "id": "missing-jti",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.jti": ""
+      },
+      "expect": "REJECT",
+      "mustFail": "jti"
+    },
+    {
+      "id": "no-pkce",
+      "fixture": "humanReplay",
+      "mutations": {
+        "grant.pkce": false
+      },
+      "expect": "REJECT",
+      "mustFail": "human_grant"
+    },
+    {
+      "id": "password-grant",
+      "fixture": "humanReplay",
+      "mutations": {
+        "grant.type": "password"
+      },
+      "expect": "REJECT",
+      "mustFail": "human_grant"
+    },
+    {
+      "id": "no-mfa",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.amr": [
+          "pwd"
+        ]
+      },
+      "expect": "REJECT",
+      "mustFail": "mfa"
+    },
+    {
+      "id": "stale-mfa",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.auth_time": 1799999699
+      },
+      "expect": "REJECT",
+      "mustFail": "mfa_freshness"
+    },
+    {
+      "id": "future-mfa",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.auth_time": 1800000001
+      },
+      "expect": "REJECT",
+      "mustFail": "mfa_freshness"
+    },
+    {
+      "id": "unapproved-replay",
+      "fixture": "humanReplay",
+      "mutations": {
+        "independentApprovalVerified": false
+      },
+      "expect": "REJECT",
+      "mustFail": "approval"
+    },
+    {
+      "id": "duplicate-replay",
+      "fixture": "humanReplay",
+      "mutations": {
+        "replayReservation": "already-used"
+      },
+      "expect": "REJECT",
+      "mustFail": "replay"
+    },
+    {
+      "id": "replay-store-down",
+      "fixture": "humanReplay",
+      "mutations": {
+        "replayStoreHealthy": false
+      },
+      "expect": "REJECT",
+      "mustFail": "replay"
+    },
+    {
+      "id": "full-scope",
+      "fixture": "humanReplay",
+      "mutations": {
+        "bindings.0.fullScopeAllowed": true
+      },
+      "expect": "REJECT",
+      "mustFail": "client_policy"
+    },
+    {
+      "id": "default-privilege",
+      "fixture": "humanReplay",
+      "mutations": {
+        "bindings.0.defaultPrivilegedScopes": [
+          "platform.command"
+        ]
+      },
+      "expect": "REJECT",
+      "mustFail": "client_policy"
+    },
+    {
+      "id": "implicit",
+      "fixture": "humanReplay",
+      "mutations": {
+        "bindings.0.implicitFlowEnabled": true
+      },
+      "expect": "REJECT",
+      "mustFail": "client_policy"
+    },
+    {
+      "id": "direct-grants",
+      "fixture": "humanReplay",
+      "mutations": {
+        "bindings.0.directAccessGrantsEnabled": true
+      },
+      "expect": "REJECT",
+      "mustFail": "client_policy"
+    },
+    {
+      "id": "service-human-grant",
+      "fixture": "serviceRead",
+      "mutations": {
+        "grant.type": "authorization_code"
+      },
+      "expect": "REJECT",
+      "mustFail": "service_account"
+    },
+    {
+      "id": "service-refresh",
+      "fixture": "serviceRead",
+      "mutations": {
+        "bindings.0.refreshTokensEnabled": true
+      },
+      "expect": "REJECT",
+      "mustFail": "service_account"
+    },
+    {
+      "id": "service-public",
+      "fixture": "serviceRead",
+      "mutations": {
+        "bindings.0.publicClient": true
+      },
+      "expect": "REJECT",
+      "mustFail": "service_account"
+    },
+    {
+      "id": "service-disabled",
+      "fixture": "serviceRead",
+      "mutations": {
+        "bindings.0.serviceAccountsEnabled": false
+      },
+      "expect": "REJECT",
+      "mustFail": "service_account"
+    },
+    {
+      "id": "service-subject",
+      "fixture": "serviceRead",
+      "mutations": {
+        "claims.sub": "other"
+      },
+      "expect": "REJECT",
+      "mustFail": "subject"
+    },
+    {
+      "id": "service-human-role",
+      "fixture": "serviceRead",
+      "mutations": {
+        "claims.realm_access.roles": [
+          "platform-operator"
+        ]
+      },
+      "expect": "REJECT",
+      "mustFail": "service_privilege"
+    },
+    {
+      "id": "service-replay",
+      "fixture": "serviceRead",
+      "mutations": {
+        "operation": "replay",
+        "claims.scope": "platform.command.replay",
+        "independentApprovalVerified": true,
+        "replayReservation": "reserved",
+        "replayStoreHealthy": true,
+        "operationTenant": "TEST_SYN_TENANT"
+      },
+      "expect": "REJECT",
+      "mustFail": "actor"
+    },
+    {
+      "id": "shared-static-tenant",
+      "fixture": "serviceRead",
+      "mutations": {
+        "claims.azp": "n8n-automation",
+        "bindings.0.azp": "n8n-automation"
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant"
+    },
+    {
+      "id": "header-tenant",
+      "fixture": "serviceRead",
+      "mutations": {
+        "bindings.0.tenantBinding": "request-header"
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant"
+    },
+    {
+      "id": "protected-desktop",
+      "fixture": "serviceRead",
+      "mutations": {
+        "claims.azp": "codestra-agent-desktop",
+        "bindings.0.azp": "codestra-agent-desktop"
+      },
+      "expect": "REJECT",
+      "mustFail": "azp"
+    },
+    {
+      "id": "cross-tenant-replay",
+      "fixture": "humanReplay",
+      "mutations": {
+        "operationTenant": "OTHER_TENANT"
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant"
+    },
+    {
+      "id": "human-header-tenant",
+      "fixture": "humanReplay",
+      "mutations": {
+        "bindings.0.tenantBinding": "request-header"
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant"
+    },
+    {
+      "id": "family-alias-azp",
+      "fixture": "humanReplay",
+      "mutations": {
+        "claims.azp": "platform-command-family",
+        "bindings.0.azp": "platform-command-family"
+      },
+      "expect": "REJECT",
+      "mustFail": "azp"
+    }
+  ]
+}
