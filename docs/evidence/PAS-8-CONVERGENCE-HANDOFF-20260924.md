@@ -191,3 +191,49 @@ only `klyrow-portal`. **No readback contract exists yet for the V3 identity**
 3. Close or refresh PR #123 with the parity result above.
 4. After merge, run PAS-159 staging: plan-only `reconcile_edge_certification_staging.py`,
    review, apply to staging only, then `certify_edge_identity_staging.py` for TEST_SYN.
+
+## Review-finding continuation — 2026-09-24
+
+`PRODUCTION_GO=NO`. Branch `mission/pas8-fresh-20260924` was fast-forwarded from
+`45a487d` to `31beb0d` (no reset, rebase or history rewrite). This continuation
+answers the independent read-only review of `31beb0d`, using its findings as
+acceptance criteria. Only locally actionable items were changed.
+
+Added negative parity tests (`tests/test_cross_repo_identity_parity_certification.py`):
+wrong Kong issuer; Kong exposing a `private_only` or `denied` route; Caddy
+missing a `shared_edge` route; each `private_only` route routed by Caddy; Kong
+`audience` and `azp` drift. Each asserts the exact certifier problem string. The
+certifier itself needed no change: every case already failed closed.
+
+`platform-command-client` blocker, fail-closed: the only membership authority
+named by the caller classification is Middleware `config/control-plane-callers.v1.json`
+plus a reviewed Keycloak client mapping. At Middleware `origin/main` `0606b0d`
+that file names 24 callers and none is a `platform-command-client` member; no
+Keycloak mapping exists. There is no canonical named-client contract, so no
+client was invented or granted. `test_platform_command_family_stays_fail_closed_until_named`
+pins the state: the family stays `CLIENT_FAMILY`, membership-required, with no
+wildcards and no members. It stays in `unresolvedHumanOrDelegatedAzpSelectors`, and
+no `config/clients/platform-command-client.json` exists. The six family routes are
+uncertifiable live until a reviewed mapping lands.
+
+Cross-repo pins: re-read from local `origin/main` refs (fetched 2026-09-24):
+Middleware `0606b0d`, Kong `3e68cb2`, Caddy `0feae8a`. The certifier gave
+`CROSS_REPO_IDENTITY_PARITY=PASS`: digest `9c32dae…`, 117 routes, 105 shared_edge
+and 0 mismatches on every surface. No pin refresh was needed, so none was made.
+These are local fetched refs, not a live GitHub readback. The
+`appolon1908-hue/Middleware-` owner spelling (review finding 7) is left
+unchanged: it is enforced by `edge_certification_desired_state.py` and baked into
+the plan digest, so changing it needs its own reviewed change.
+
+| Check | Result |
+| --- | --- |
+| Focused V3 identity pytest (freeze, parity, token matrix, caller classification, access v3) | 44 passed, 175 subtests passed |
+| `python3 -B -m pytest -q -p no:cacheprovider tests` | 263 passed, 352 subtests passed |
+| `bash scripts/validate.sh </dev/null` | exit 0, `VALIDATION=PASS`; all six new tests ran |
+| `validate_middleware_api_access_v3.py` / caller classification `--check --require-target-contract` / `validate_v3_token_matrix.py --check` | PASS / PASS (target match PASS) / PASS |
+
+Not addressed here (out of scope or external): the Caddy matcher looseness and
+traversal samples (review finding 4), the token-matrix negative cases, and the
+live Middleware cross-check in CI (finding 6). These external gates remain
+blocked: hosted Actions billing, exact-head independent approval, staging
+readback, TEST_SYN, restore rehearsal, and rotation/revocation.

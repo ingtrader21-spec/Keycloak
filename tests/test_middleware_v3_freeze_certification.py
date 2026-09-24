@@ -153,6 +153,25 @@ class MiddlewareV3FreezeCertificationTests(unittest.TestCase):
         self.assertNotIn("codestra-agent-desktop", granted)
         self.assertFalse(authority["productionActivationAuthorized"])
 
+    def test_platform_command_family_stays_fail_closed_until_named(self) -> None:
+        # No reviewed Keycloak client mapping names the family's members yet, so
+        # the platform command routes must stay uncertifiable rather than guessed.
+        family = self.callers["callers"]["platform-command-client"]
+        self.assertEqual(family["class"], "CLIENT_FAMILY")
+        self.assertTrue(family["familyMembershipRequired"])
+        self.assertFalse(family["wildcardsAllowed"])
+        self.assertNotIn("members", family)
+        self.assertIn(
+            "platform-command-client",
+            load(SERVICE_AUTHORITY)["unresolvedHumanOrDelegatedAzpSelectors"],
+        )
+        self.assertFalse((CONFIG / "clients" / "platform-command-client.json").exists())
+        family_routes = {k for k, r in self.routes.items() if r["calling_client"] == "platform-command-client"}
+        self.assertTrue(family_routes)
+        for key in family_routes:
+            with self.subTest(route=key):
+                self.assertEqual(self.access_routes[key]["callingClient"], "platform-command-client")
+
 
 if __name__ == "__main__":
     unittest.main()
