@@ -205,6 +205,7 @@ def main() -> int:
     expected_creatable = EXPECTED_CLIENT_IDS | machine_ids | product_ids | {
         "klyrow-portal",
         "n8n-editor-gateway",
+        "codestra-agent-desktop",
         "codestra-provisioning-service",
         "odoo-web",
     }
