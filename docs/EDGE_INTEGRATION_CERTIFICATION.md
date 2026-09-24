@@ -86,15 +86,20 @@ stays `NO_GO`.
 
 `contract.json` pins the Middleware edge contract
 (`deploy/public-api-route-contract.json`, schema
-`codestra.middleware.public-api-route-contract.v2`, 92 routes, hash rule
+`codestra.middleware.public-api-route-contract.v2`, 117 routes, hash rule
 `sha256(json.dumps(contract, sort_keys=True, separators=(',', ':')))`):
 
 ```text
-7580123dead97ea342c704a57a3c8eed9f5dce69aab247d4b693db96bc7334d5
+9c32daecd4a15104c6f9ff60ce19c8f7e78707fb31d9fd9fcb55b1b8dfa3512b
 ```
 
-The pin was taken from Middleware branch `codex/cross-repo-authority-20260916`
-(contract commit `4c353df`, verified at `bd6adaf`). It supersedes the v1 pin
+The pin was taken from Middleware `main` at `0606b0d` (2026-09-24, PAS-8), the
+same digest pinned by Kong `main` (`3e68cb2`), Caddy `main` (`0feae8a`) and
+`config/contracts/middleware-api-access.v3.json`. The four TEST_SYN route/scope
+rows and five retired denied paths are unchanged from the earlier 92-route v2
+pin `7580123dead97ea342c704a57a3c8eed9f5dce69aab247d4b693db96bc7334d5`
+(branch `codex/cross-repo-authority-20260916`, contract commit `4c353df`).
+That 92-route pin superseded the v1 pin
 `af984cbaa41d1e3602ceb40be6fe383c0030a3c10cbea772efab7ff95d602d36`; the four
 TEST_SYN route/scope rows are unchanged between v1 and v2, and v2 adds the
 denied `GET /api/v1/integrations/odoo/campaign-commands/{command_id}` surface

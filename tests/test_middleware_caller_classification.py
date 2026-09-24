@@ -16,11 +16,13 @@ MATRIX = cert.load_json(cert.MATRIX_PATH)
 ROUTES = cert.load_json(cert.DEFAULT_ROUTE_CONTRACT)
 
 
-def test_default_pr118_contract_has_zero_unknown_callers_and_complete_token_matrix() -> None:
-    report = cert.certify()
+def test_default_contract_is_the_frozen_target_with_zero_unknown_callers() -> None:
+    report = cert.certify(require_target_contract=True)
     assert report["verdict"] == "PASS"
+    assert report["routeContract"]["targetMatch"] is True
+    assert report["routeContract"]["routeCount"] == AUTHORITY["middleware"]["targetRouteCount"]
     assert report["callerAuthority"]["unknownCallerIdentities"] == 0
-    assert report["callerAuthority"]["uniqueCallerSelectors"] == 17
+    assert report["callerAuthority"]["uniqueCallerSelectors"] == 18
     assert report["callerAuthority"]["serviceOrUserServiceBindings"] > 0
     assert report["callerAuthority"]["serviceOrUserHumanBindings"] > 0
     assert report["tokenMatrix"]["dimensions"] == 8
@@ -154,6 +156,11 @@ def test_privileged_default_scope_leak_is_detected() -> None:
     assert leaks == ["config/leaked.json:platform.command"]
 
 
-def test_old_base_contract_cannot_be_misreported_as_final_target() -> None:
-    with pytest.raises(cert.CertificationError, match="target Middleware route contract mismatch"):
-        cert.certify(require_target_contract=True)
+def test_drifted_contract_cannot_be_misreported_as_final_target() -> None:
+    drifted = copy.deepcopy(ROUTES)
+    drifted["routes"] = drifted["routes"][:-1]
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "route-contract.json"
+        path.write_text(json.dumps(drifted), encoding="utf-8")
+        with pytest.raises(cert.CertificationError, match="target Middleware route contract mismatch"):
+            cert.certify(route_contract_path=path, require_target_contract=True)

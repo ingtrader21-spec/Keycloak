@@ -32,11 +32,11 @@
     "pinnedIn": "deploy/public-api-route-contract.sha256",
     "schema": "codestra.middleware.public-api-route-contract.v2",
     "hashRule": "sha256 over json.dumps(contract, sort_keys=True, separators=(',', ':')).encode('utf-8')",
-    "sha256": "7580123dead97ea342c704a57a3c8eed9f5dce69aab247d4b693db96bc7334d5",
+    "sha256": "9c32daecd4a15104c6f9ff60ce19c8f7e78707fb31d9fd9fcb55b1b8dfa3512b",
     "source": {
-      "branch": "codex/cross-repo-authority-20260916",
-      "contractCommit": "4c353df",
-      "verifiedAtCommit": "bd6adaf"
+      "branch": "main",
+      "contractCommit": "0606b0d",
+      "verifiedAtCommit": "0606b0d"
     },
     "supersedes": {
       "schema": "codestra.middleware.public-api-route-contract.v1",

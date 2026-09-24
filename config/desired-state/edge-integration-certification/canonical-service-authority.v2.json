@@ -2,7 +2,7 @@
   "schema": "codestra.keycloak.canonical-service-authority.v2",
   "contract": {
     "schema": "codestra.middleware.public-api-route-contract.v2",
-    "sha256": "7580123dead97ea342c704a57a3c8eed9f5dce69aab247d4b693db96bc7334d5"
+    "sha256": "9c32daecd4a15104c6f9ff60ce19c8f7e78707fb31d9fd9fcb55b1b8dfa3512b"
   },
   "productionActivationAuthorized": false,
   "providerEffectsEnabled": false,
@@ -145,7 +145,7 @@
       "azp": "odoo-integration"
     },
     {
-      "operation_id": "ingress_odoo_integration_events_api_v1_odoo_events_post",
+      "operation_id": "ingress_odoo_event",
       "method": "POST",
       "path": "/api/v1/odoo/events",
       "audience": "middleware-api",
@@ -263,6 +263,7 @@
     "callback-ui",
     "github-app",
     "observability-collector",
+    "platform-command-client",
     "platform-operator",
     "production-operator"
   ],

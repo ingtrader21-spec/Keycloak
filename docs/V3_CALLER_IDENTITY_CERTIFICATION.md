@@ -45,7 +45,7 @@ PAS-157 targets the final Middleware V3 public route contract:
 - route count: `117`
 - digest: `9c32daecd4a15104c6f9ff60ce19c8f7e78707fb31d9fd9fcb55b1b8dfa3512b`
 
-The PR #118 base still carries the previous 92-route contract. Running against that base is useful for regression coverage and reports `TARGET_ROUTE_CONTRACT_MATCH=PENDING_BASE_INTEGRATION`. Final integration certification must run against the exact 117-route contract with `--require-target-contract`.
+Since PAS-8 (2026-09-24) the repository's default route contract (`config/desired-state/edge-integration-certification/middleware-public-api-route-contract.v2.json`) is the 117-route contract read from Middleware `main` at `0606b0d`, so `--check` reports `TARGET_ROUTE_CONTRACT_MATCH=PASS` and `tests/test_middleware_v3_freeze_certification.py` enforces `--require-target-contract` on every `scripts/validate.sh` run. A contract that drifts from the frozen digest fails with `target Middleware route contract mismatch`.
 
 ## Commands
 
