@@ -1,0 +1,10 @@
+{
+  "name": "crm.handoff.read",
+  "description": "Codestra MCR-E scope managed by protected Keycloak GitOps: Read tenant-bound MCR CRM handoff state from Middleware.",
+  "protocol": "openid-connect",
+  "attributes": {
+    "display.on.consent.screen": "false",
+    "include.in.token.scope": "true"
+  },
+  "protocolMappers": []
+}

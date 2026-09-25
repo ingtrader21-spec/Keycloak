@@ -74,6 +74,9 @@ EXPECTED_GRANTS: dict[tuple[str, str], set[str]] = {
         "middleware.status.read",
     },
     ("middleware-worker", "middleware-api"): {
+        "crm.handoff.read",
+        "crm.handoff.reconcile",
+        "crm.handoff.write",
         "delivery.retry",
         "dlq.replay",
         "inbox.process",

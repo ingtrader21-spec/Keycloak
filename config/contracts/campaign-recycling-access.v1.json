@@ -11,6 +11,9 @@
     "campaign.engine.plan",
     "campaign.engine.read",
     "campaign.suppressions.write",
+    "crm.handoff.read",
+    "crm.handoff.reconcile",
+    "crm.handoff.write",
     "leads.journey.read"
   ],
   "operations": {
@@ -21,7 +24,10 @@
     "GET /platform/v1/campaigns/{campaign_id}/eligible-leads": "campaign.engine.read",
     "POST /platform/v1/delivery-events": "campaign.delivery_events.publish",
     "POST /platform/v1/suppressions": "campaign.suppressions.write",
-    "GET /platform/v1/campaign-engine/status": "campaign.engine.read"
+    "GET /platform/v1/campaign-engine/status": "campaign.engine.read",
+    "POST /platform/v1/crm/handoffs": "crm.handoff.write",
+    "GET /platform/v1/crm/handoffs/{command_id}": "crm.handoff.read",
+    "POST /platform/v1/crm/handoffs/{command_id}/reconcile": "crm.handoff.reconcile"
   },
   "optional_scopes": {
     "campaign.engine.candidates.read": "May disclose candidate detail on next-action reads; absence must redact, not deny the decision."
@@ -39,7 +45,11 @@
       "leads.journey.read"
     ],
     "n8n-automation": [],
-    "middleware-worker": []
+    "middleware-worker": [
+      "crm.handoff.read",
+      "crm.handoff.reconcile",
+      "crm.handoff.write"
+    ]
   },
   "forbidden_grants": {
     "campaign.engine.execute": "no client until separate production-effect approval",

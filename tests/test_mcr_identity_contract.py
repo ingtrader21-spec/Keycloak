@@ -43,6 +43,9 @@ def test_mcr_operation_scope_contract_is_exact_and_execute_stays_closed() -> Non
         "POST /platform/v1/delivery-events": "campaign.delivery_events.publish",
         "POST /platform/v1/suppressions": "campaign.suppressions.write",
         "GET /platform/v1/campaign-engine/status": "campaign.engine.read",
+        "POST /platform/v1/crm/handoffs": "crm.handoff.write",
+        "GET /platform/v1/crm/handoffs/{command_id}": "crm.handoff.read",
+        "POST /platform/v1/crm/handoffs/{command_id}/reconcile": "crm.handoff.reconcile",
     }
 
 
@@ -79,6 +82,16 @@ def test_automation_workers_do_not_gain_mcr_decision_authority() -> None:
     }
     for client in ("n8n-automation", "middleware-worker"):
         assert not (_client_scopes(client) & forbidden)
+
+
+def test_middleware_worker_has_only_post_decision_mcr_crm_handoff_authority():
+    scopes = _client_scopes("middleware-worker")
+    assert {
+        "crm.handoff.write",
+        "crm.handoff.read",
+        "crm.handoff.reconcile",
+    } <= scopes
+    assert "campaign.engine.execute" not in scopes
 
 
 def test_contract_grants_match_client_files() -> None:
