@@ -29,6 +29,10 @@ python3 "$ROOT_DIR/scripts/validate-provider-control-authority.py"
 python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_provider_control_authority.py' -v
 "$ROOT_DIR/scripts/test-backup-contract.sh"
 
+# MCR identity contract is part of the protected source/merge-result gate.
+python3 "$ROOT_DIR/scripts/validate_mcr_identity.py"
+python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_mcr_identity.py' -v
+
 mapfile -t json_files < <(find "$CONFIG_ROOT" -type f -name '*.json' -print | sort)
 ((${#json_files[@]} > 0)) || fail "No JSON configuration files were found under $CONFIG_ROOT"
 for file in "${json_files[@]}"; do

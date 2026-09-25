@@ -97,10 +97,12 @@ def _evaluate(contract, f):
     actor = b['actorKind']
     require(actor in op['actors'] and f['actorKind'] == actor, 'actor')
     scopes = c['scope'].split() if type(c['scope']) is str else []
+    require(strings(b.get('scopes')), 'scope')
     require(strings(scopes) and op['scope'] in scopes
             and set(scopes) <= set(b['scopes'])
             and set(scopes) <= set(contract['allowedScopes']), 'scope')
     roles = c['realm_access']['roles']
+    require(strings(b.get('roles')), 'role')
     require(strings(roles) and set(roles) <= set(b['roles'])
             and set(roles) <= {'platform-operator'}, 'role')
     require(op['role'] is None or op['role'] in roles, 'role')

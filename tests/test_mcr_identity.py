@@ -122,3 +122,21 @@ class McrIdentityTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+def test_binding_scopes_and_roles_must_be_string_arrays():
+    import copy, json
+    from pathlib import Path
+    from scripts import validate_mcr_identity as mcr
+
+    root = Path(__file__).resolve().parents[1]
+    contract = json.loads((root / "contracts/mcr-identity-v1.json").read_text())
+    matrix = json.loads((root / "config/certification/mcr-token-matrix.v1.json").read_text())
+    fixture = copy.deepcopy(matrix["positive"][0])
+
+    for field, value in (
+        ("scopes", {"platform.command.replay": False}),
+        ("roles", {"platform-operator": False}),
+    ):
+        changed = copy.deepcopy(fixture)
+        changed["bindings"][0][field] = value
+        assert mcr.evaluate(contract, changed)
