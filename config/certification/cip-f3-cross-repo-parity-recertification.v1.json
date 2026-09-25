@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "kind": "CodestraKeycloakCrossRepoParityRecertification",
+  "mission": "CIP Foundation 3 / Agent I1 step 1",
+  "recordedAt": "2026-09-25",
+  "keycloakBase": {
+    "repository": "ingtrader21-spec/Keycloak",
+    "pullRequest": 127,
+    "head": "521403d518b78e625eba5c2394131548819cd5ab"
+  },
+  "certifier": "scripts/certify_cross_repo_identity_parity.py",
+  "method": "Read-only snapshots: `git show <sha>:<path>` from the sibling CIP worktrees for the mission heads and `gh api repos/ingtrader21-spec/<repo>/contents/<path>?ref=<main sha>` for current main. No sibling repository was modified and Keycloak was not contacted.",
+  "frozen": {
+    "routeContractSha256": "9c32daecd4a15104c6f9ff60ce19c8f7e78707fb31d9fd9fcb55b1b8dfa3512b",
+    "routeCount": 117,
+    "issuer": "https://auth.codestra.co/realms/codestra",
+    "audience": "middleware-api",
+    "middlewareUpstream": "middleware-integration-api:8095"
+  },
+  "inputs": {
+    "middlewareMain": {
+      "repository": "ingtrader21-spec/Middleware-",
+      "ref": "main",
+      "commit": "0606b0db9ff59802f8da3824d209d2effc13f87d",
+      "path": "deploy/public-api-route-contract.json",
+      "fileSha256": "0724a0c6a67a570d5ca2bbaca736804b831a3a5c9ea3df17d5cd81762ca588ba",
+      "canonicalSha256": "9c32daecd4a15104c6f9ff60ce19c8f7e78707fb31d9fd9fcb55b1b8dfa3512b"
+    },
+    "kongMain": {
+      "repository": "ingtrader21-spec/Kong",
+      "ref": "main",
+      "commit": "3e68cb2a4955bd71ddb3e839f4d9e3770465fc08",
+      "path": "config/kong-middleware-authority.v2.json",
+      "fileSha256": "33ed6175205d36504840ec8a10d1acb87d8fed6d779ea1a663663a613077147e"
+    },
+    "kongMissionHead": {
+      "repository": "ingtrader21-spec/Kong",
+      "pullRequest": 120,
+      "commit": "12b25dc7ea7894def0f976f329ca02e37407e85f",
+      "path": "config/kong-middleware-authority.v2.json",
+      "fileSha256": "33ed6175205d36504840ec8a10d1acb87d8fed6d779ea1a663663a613077147e"
+    },
+    "caddyMain": {
+      "repository": "ingtrader21-spec/Caddy",
+      "ref": "main",
+      "commit": "64b2992050589e8da7d7b861b1f0d6ca7401d7b3",
+      "path": "sites/api.codestra.co.caddy",
+      "fileSha256": "545ef6ad9f2d43ca3c9caa0923c79046078fb90c59a5bf06146ccb88d176fdb9"
+    },
+    "caddyMissionHead": {
+      "repository": "ingtrader21-spec/Caddy",
+      "pullRequest": 186,
+      "commit": "1c28b8f571b8ad596bbf9757c58f665acf909da2",
+      "path": "sites/api.codestra.co.caddy",
+      "fileSha256": "545ef6ad9f2d43ca3c9caa0923c79046078fb90c59a5bf06146ccb88d176fdb9"
+    },
+    "middlewareKernelDraft": {
+      "repository": "ingtrader21-spec/Middleware-",
+      "branch": "product/cip-kernel-control-20260924",
+      "commit": "0bc8d07ad15dd7e6c550deffcd7a955fda43981f",
+      "path": "deploy/public-api-route-contract.json",
+      "fileSha256": "0a5e7ee74804a9064665da7000be41dfa37547b5afdce9fb4de127dd8a06bfb0",
+      "canonicalSha256": "e5e71fe63e329d55fa884315cfe89bd53be0bafbf9fc6f72054b9a4b4483c28e",
+      "routeCount": 128
+    }
+  },
+  "results": {
+    "currentMains": {
+      "verdict": "PASS",
+      "exitCode": 0,
+      "routeContractSha256": "9c32daecd4a15104c6f9ff60ce19c8f7e78707fb31d9fd9fcb55b1b8dfa3512b",
+      "routeCount": 117,
+      "sharedEdgeRoutes": 105,
+      "mismatches": {
+        "caddy": 0,
+        "keycloakAccessAuthority": 0,
+        "keycloakEdgeContract": 0,
+        "kong": 0
+      }
+    },
+    "missionHeads": {
+      "verdict": "PASS",
+      "exitCode": 0,
+      "routeContractSha256": "9c32daecd4a15104c6f9ff60ce19c8f7e78707fb31d9fd9fcb55b1b8dfa3512b",
+      "routeCount": 117,
+      "sharedEdgeRoutes": 105,
+      "mismatches": {
+        "caddy": 0,
+        "keycloakAccessAuthority": 0,
+        "keycloakEdgeContract": 0,
+        "kong": 0
+      }
+    },
+    "middlewareKernelDraft": {
+      "verdict": "FAIL",
+      "exitCode": 1,
+      "routeContractSha256": "e5e71fe63e329d55fa884315cfe89bd53be0bafbf9fc6f72054b9a4b4483c28e",
+      "routeCount": 128,
+      "sharedEdgeRoutes": 116,
+      "mismatches": {
+        "caddy": 11,
+        "keycloakAccessAuthority": 12,
+        "keycloakEdgeContract": 1,
+        "kong": 12
+      }
+    }
+  },
+  "middlewareKernelDraftAssessment": {
+    "status": "NOT_ADOPTED_FAIL_CLOSED",
+    "addedRoutes": 11,
+    "addedRouteAudience": "middleware-api",
+    "addedRouteScope": "identity.request",
+    "addedRouteCallingClient": "authorized-provisioning-client",
+    "callerClassificationAgainstDraft": "PASS (0 unknown callers; target match PENDING_BASE_INTEGRATION)",
+    "rule": "The draft is unmerged Middleware work (PAS-64). Keycloak stays frozen on 9c32dae\u2026 until Middleware main publishes a new digest; adopting it requires a reviewed repin of every pinned artifact, and until then parity fails closed exactly as recorded here."
+  },
+  "audienceFreeze": {
+    "audience": "middleware-api",
+    "middlewareApiRoutes": 113,
+    "explicitExceptions": {
+      "codestra-callback-api": 2,
+      "codestra-odoo": 2
+    },
+    "kongMiddlewareApiRoutes": 103,
+    "kongCallbackRoutes": 2
+  },
+  "liveApplyAuthorized": false,
+  "productionGo": false
+}
