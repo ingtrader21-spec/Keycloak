@@ -46,13 +46,13 @@
     },
     {
       "path": "scripts/validate.sh",
-      "sha256": "15800a99e6a3fe2bced5a2797b483464c42da13247ce8992414f21f0680f604a"
+      "sha256": "cf9883aa25030d0260292f7cc1159fb71fa4356f49648abf7f7b41e570980868"
     },
     {
       "path": "tests/test_kyyow_identity.py",
       "sha256": "f1133e8b04226a854b3484ded27149995d54dfceb8b1ff9dfbf062a9140d33e6"
     }
   ],
-  "manifest_sha256": "c3c065e752ddd8152e1bfe0713b3dffd6e616b27ee65f1ebf9f4340576f1f1e2",
+  "manifest_sha256": "467591e128a8f281bc3e4b76f8bffdc719939405a7362ccc0fd4dc297ec60a50",
   "schema": "keycloak.bootstrap-closure.v1"
 }
