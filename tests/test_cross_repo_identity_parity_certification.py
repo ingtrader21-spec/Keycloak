@@ -48,7 +48,17 @@ def caddy_fixture(contract: dict, extra: tuple[dict, ...] = ()) -> str:
             by_method.setdefault(r["method"], []).append("/".join(parts))
     blocks = []
     for method, paths in sorted(by_method.items()):
-        blocks.append(f"\t@canonical_{method.lower()} {{\n\t\tmethod {method}\n\t\tpath_regexp ^({'|'.join(paths)})$\n\t}}")
+        name = f"canonical_{method.lower()}"
+        blocks.append(
+            f"\t@{name} {{\n"
+            f"\t\tmethod {method}\n"
+            f"\t\tpath_regexp ^({'|'.join(paths)})$\n"
+            f"\t}}\n"
+            f"\thandle @{name} {{\n"
+            f"\t\treverse_proxy {{$CADDY_KONG_UPSTREAM}} {{\n"
+            f"\t\t}}\n"
+            f"\t}}"
+        )
     return "\n".join(blocks) + "\n"
 
 
@@ -166,6 +176,57 @@ class CrossRepoIdentityParityCertificationTests(unittest.TestCase):
         self.assertEqual(report["verdict"], "FAIL")
         self.assertTrue(report["problems"]["keycloakEdgeContract"])
         self.assertTrue(report["problems"]["keycloakAccessAuthority"])
+
+
+    def test_duplicate_kong_route_declaration_fails(self) -> None:
+        kong = kong_fixture(CONTRACT)
+        kong["routes"].append(copy.deepcopy(kong["routes"][0]))
+        report = self.run_certify(CONTRACT, kong, caddy_fixture(CONTRACT))
+        self.assertEqual(report["verdict"], "FAIL")
+        self.assertTrue(
+            any(
+                "duplicate kong route declaration" in problem
+                for problem in report["problems"]["kong"]
+            )
+        )
+
+    def test_caddy_matcher_without_kong_handler_fails(self) -> None:
+        caddy = caddy_fixture(CONTRACT).replace(
+            "reverse_proxy {$CADDY_KONG_UPSTREAM}",
+            "reverse_proxy {$CADDY_LEGACY_API_UPSTREAM}",
+            1,
+        )
+        report = self.run_certify(CONTRACT, kong_fixture(CONTRACT), caddy)
+        self.assertEqual(report["verdict"], "FAIL")
+        self.assertTrue(report["problems"]["caddy"])
+
+    def test_parameterized_caddy_route_requires_multiple_values(self) -> None:
+        route = next(
+            row
+            for row in CONTRACT["routes"]
+            if row["classification"] == "shared_edge" and "{" in row["path"]
+        )
+        caddy = caddy_fixture(CONTRACT)
+        method = route["method"].lower()
+        block = re.search(
+            rf"(@canonical_{method} \{{.*?path_regexp )(.*?)(\n\t\}})",
+            caddy,
+            flags=re.S,
+        )
+        self.assertIsNotNone(block)
+        assert block is not None
+        hardcoded = re.escape(parity.PATH_PARAMETER.sub("abc123", route["path"]))
+        caddy = (
+            caddy[: block.start(2)]
+            + f"^({hardcoded})$"
+            + caddy[block.end(2) :]
+        )
+        report = self.run_certify(CONTRACT, kong_fixture(CONTRACT), caddy)
+        self.assertEqual(report["verdict"], "FAIL")
+        self.assertIn(
+            f"shared_edge route not routed to kong by caddy: {parity.route_key(route)}",
+            report["problems"]["caddy"],
+        )
 
 
 if __name__ == "__main__":
