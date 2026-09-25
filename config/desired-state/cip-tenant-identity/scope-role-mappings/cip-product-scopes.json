@@ -1,0 +1,48 @@
+{
+  "kind": "CodestraKeycloakClientScopeRoleMappings",
+  "rule": "Keycloak issues a CIP product scope only when (1) the client lists it as an optional client scope, (2) the token request names it in the scope parameter, and (3) the principal holds at least one realm role in the scope's role scope-mappings (Keycloak permits a client scope that has role scope-mappings only to users holding one of those roles). CIP roles are non-composite and never default roles. No CIP client carries the roles client scope (defaults are exactly basic, plus cip.user.context for browser clients), so realm_access is never emitted: the scope claim is the authority, not a role. The mappings on platform.command and platform.command.read are overlays; the frozen scope definitions are unchanged, and any future non-CIP holder needs its own reviewed mapping.",
+  "scopeMappings": [
+    {
+      "clientScope": "cip.tenant.admin",
+      "roles": [
+        "cip-tenant-admin"
+      ]
+    },
+    {
+      "clientScope": "cip.connector.admin",
+      "roles": [
+        "cip-connector-admin"
+      ]
+    },
+    {
+      "clientScope": "platform.command",
+      "roles": [
+        "cip-command-operator",
+        "cip-svc-command-submitter"
+      ]
+    },
+    {
+      "clientScope": "platform.command.read",
+      "roles": [
+        "cip-command-operator",
+        "cip-command-viewer",
+        "cip-svc-command-reader"
+      ]
+    },
+    {
+      "clientScope": "cip.usage.read",
+      "roles": [
+        "cip-svc-usage-reader",
+        "cip-tenant-admin",
+        "cip-usage-viewer"
+      ]
+    },
+    {
+      "clientScope": "cip.audit.read",
+      "roles": [
+        "cip-audit-viewer",
+        "cip-svc-audit-reader"
+      ]
+    }
+  ]
+}

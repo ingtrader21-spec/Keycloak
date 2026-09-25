@@ -24,7 +24,14 @@
     "basic",
     "cip.user.context"
   ],
-  "optionalClientScopes": [],
+  "optionalClientScopes": [
+    "cip.audit.read",
+    "cip.connector.admin",
+    "cip.tenant.admin",
+    "cip.usage.read",
+    "platform.command",
+    "platform.command.read"
+  ],
   "attributes": {
     "access.token.lifespan": "300",
     "oauth2.device.authorization.grant.enabled": "false",

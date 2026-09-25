@@ -45,6 +45,18 @@ ACTOR_CLAIM = "codestra_actor_kind"
 ACTOR_KINDS = ("user", "service")
 REQUIRED_CLAIMS = ["iss", "sub", "aud", "azp", "iat", "exp", "jti", "scope", TENANT_CLAIM, ACTOR_CLAIM]
 PROHIBITED_TENANT_CLAIMS = ["tenant_ids", "tenant", "org_id", "tid", "organization"]
+PRODUCT_SCOPES = [
+    "cip.tenant.admin",
+    "cip.connector.admin",
+    "platform.command",
+    "platform.command.read",
+    "cip.usage.read",
+    "cip.audit.read",
+]
+HUMAN_ONLY_SCOPES = {"cip.tenant.admin", "cip.connector.admin"}
+FROZEN_KERNEL_SCOPES = {"platform.command", "platform.command.read"}
+MUST_PROHIBIT_SCOPES = {"platform.command.replay", "platform.tenants.read", "identity.request", "middleware.request.forward"}
+FROZEN_SCOPE_DIR = ROOT / "config" / "client-scopes"
 ADMIN_ONLY = {"view": ["admin"], "edit": ["admin"]}
 IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 SECRET_SHAPED = re.compile(r"(-----BEGIN [A-Z ]*PRIVATE KEY-----|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.)")
@@ -257,6 +269,10 @@ def validate_contract(contract: dict[str, Any]) -> None:
                 f"{client_id}: secretReference must point at the staging secret store",
             )
 
+    validate_product_scopes(contract, access)
+    validate_realm_roles(contract)
+    validate_client_grants(contract, callers)
+
     boundary = contract.get("boundary") or {}
     for key in (
         "managedClientPolicyMembership",
@@ -268,6 +284,150 @@ def validate_contract(contract: dict[str, Any]) -> None:
     ):
         _require(boundary.get(key) is False, f"boundary.{key} must be false")
     _require(contract.get("reconcilerEnvironments") == ["staging"], "the CIP reconciler may target staging only")
+
+
+# --- product scopes, roles and grants (least privilege) ----------------------------------
+
+
+def product_scopes(contract: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {scope["name"]: scope for scope in contract.get("productScopes") or []}
+
+
+def roles_by_name(contract: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {role["name"]: role for role in contract.get("realmRoles") or []}
+
+
+def scope_role_mappings(contract: dict[str, Any]) -> dict[str, list[str]]:
+    mappings: dict[str, list[str]] = {name: [] for name in PRODUCT_SCOPES}
+    for role in contract.get("realmRoles") or []:
+        for scope in role["grantsScopes"]:
+            mappings[scope].append(role["name"])
+    return {scope: sorted(roles) for scope, roles in mappings.items()}
+
+
+def bound_routes(access: dict[str, Any], scope: str) -> list[dict[str, str]]:
+    return sorted(
+        (
+            {
+                "method": route["method"],
+                "path": route["path"],
+                "operationId": route["operationId"],
+                "callingClient": route["callingClient"],
+            }
+            for route in access["routes"]
+            if route.get("requiredScope") == scope
+        ),
+        key=lambda route: (route["path"], route["method"]),
+    )
+
+
+def validate_product_scopes(contract: dict[str, Any], access: dict[str, Any]) -> None:
+    scopes = contract.get("productScopes") or []
+    _require([scope.get("name") for scope in scopes] == PRODUCT_SCOPES, "product scopes must be exactly the six CIP capabilities")
+    prohibited = set((contract.get("prohibitedOnCipPrincipals") or {}).get("scopes") or [])
+    _require(MUST_PROHIBIT_SCOPES <= prohibited, "replay, cross-tenant, provisioning and gateway scopes must be prohibited")
+    _require(not prohibited & set(PRODUCT_SCOPES), "a product scope cannot also be prohibited")
+    _require(
+        (contract.get("prohibitedOnCipPrincipals") or {}).get("realmRoles") == ["platform-operator"],
+        "platform-operator must be prohibited on CIP principals",
+    )
+    required_by_middleware = set(access.get("requiredScopes") or [])
+    for scope in scopes:
+        name = scope["name"]
+        kinds = scope.get("actorKinds")
+        _require(isinstance(kinds, list) and kinds and set(kinds) <= set(ACTOR_KINDS), f"{name}: invalid actorKinds")
+        if name in HUMAN_ONLY_SCOPES:
+            _require(kinds == ["user"], f"{name}: administration scopes are human-only")
+        _require(isinstance(scope.get("write"), bool), f"{name}: write must be declared")
+        binding = scope.get("routeBinding") or {}
+        if name in FROZEN_KERNEL_SCOPES:
+            _require(scope.get("definitionOwner") == "frozen-platform-kernel", f"{name}: must reuse the frozen kernel scope")
+            _require(scope.get("keycloakDefinition") == relative(FROZEN_SCOPE_DIR / f"{name}.json"), f"{name}: definition path drifted")
+            _require(load_json(FROZEN_SCOPE_DIR / f"{name}.json").get("name") == name, f"{name}: frozen definition missing")
+            _require(binding.get("status") == "BOUND", f"{name}: kernel scope must be route-bound")
+            _require(binding.get("routes") == bound_routes(access, name), f"{name}: bound routes drifted from access v3")
+            _require(binding["routes"], f"{name}: a bound scope needs at least one route")
+        else:
+            _require(scope.get("definitionOwner") == "cip-tenant-identity", f"{name}: new product scopes are owned here")
+            _require(
+                scope.get("keycloakDefinition") == relative(DESIRED_ROOT / "client-scopes" / f"{name}.json"),
+                f"{name}: definition path drifted",
+            )
+            _require(name.startswith("cip."), f"{name}: new product scopes live in the cip namespace")
+            _require(binding.get("status") == "UNBOUND_PENDING_MIDDLEWARE_ROUTE", f"{name}: no Middleware route binds it yet")
+            _require(binding.get("routes") == [], f"{name}: an unbound scope lists no routes")
+            _require(name not in required_by_middleware, f"{name}: Middleware now requires it; bind it explicitly")
+
+
+def validate_realm_roles(contract: dict[str, Any]) -> None:
+    scopes = product_scopes(contract)
+    roles = contract.get("realmRoles") or []
+    names = [role.get("name") for role in roles]
+    _require(len(names) == len(set(names)), "duplicate CIP realm role")
+    prohibited = set(contract["prohibitedOnCipPrincipals"]["scopes"])
+    for role in roles:
+        name, kind = role["name"], role.get("actorKind")
+        _require(kind in ACTOR_KINDS, f"{name}: invalid actorKind")
+        _require(name.startswith("cip-svc-" if kind == "service" else "cip-"), f"{name}: role prefix does not match its actor kind")
+        _require(not (kind == "user" and name.startswith("cip-svc-")), f"{name}: human role uses the service prefix")
+        _require(name not in contract["prohibitedOnCipPrincipals"]["realmRoles"], f"{name}: prohibited role")
+        grants = role.get("grantsScopes") or []
+        _require(grants and len(grants) == len(set(grants)), f"{name}: grantsScopes must be a non-empty unique list")
+        for scope in grants:
+            _require(scope in scopes, f"{name}: grants unknown scope {scope}")
+            _require(scope not in prohibited, f"{name}: grants prohibited scope {scope}")
+            _require(kind in scopes[scope]["actorKinds"], f"{name}: {kind} role cannot grant {scope}")
+        for pair in contract.get("separationOfDuties") or []:
+            _require(not set(pair) <= set(grants), f"{name}: violates separation of duties {pair}")
+    mappings = scope_role_mappings(contract)
+    for scope_name, scope in scopes.items():
+        for kind in scope["actorKinds"]:
+            _require(
+                any(roles_by_name(contract)[role]["actorKind"] == kind for role in mappings[scope_name]),
+                f"{scope_name}: no {kind} role can obtain it",
+            )
+    sod = contract.get("separationOfDuties") or []
+    _require(["cip.tenant.admin", "cip.connector.admin"] in sod, "tenant and connector administration must stay separated")
+    _require(["cip.tenant.admin", "cip.audit.read"] in sod, "tenant administration and audit read must stay separated")
+
+
+def validate_client_grants(contract: dict[str, Any], callers: dict[str, Any]) -> None:
+    scopes = product_scopes(contract)
+    roles = roles_by_name(contract)
+    for entry in rendered_clients(contract):
+        client_id, kind = entry["clientId"], entry["actorKind"]
+        optional = entry.get("optionalClientScopes")
+        _require(isinstance(optional, list) and optional == sorted(set(optional)), f"{client_id}: optional scopes must be sorted and unique")
+        _require(optional, f"{client_id}: a CIP client needs at least one product scope")
+        for scope in optional:
+            _require(scope in scopes, f"{client_id}: {scope} is not a CIP product scope")
+            _require(kind in scopes[scope]["actorKinds"], f"{client_id}: a {kind} client cannot hold {scope}")
+        if kind == "user":
+            _require("serviceAccountRealmRoles" not in entry, f"{client_id}: a browser client has no service account")
+            continue
+        assigned = entry.get("serviceAccountRealmRoles")
+        _require(isinstance(assigned, list) and assigned == sorted(set(assigned)), f"{client_id}: service roles must be sorted and unique")
+        for role in assigned:
+            _require(role in roles and roles[role]["actorKind"] == "service", f"{client_id}: {role} is not a CIP service role")
+        obtainable = {scope for role in assigned for scope in roles[role]["grantsScopes"]}
+        _require(obtainable == set(optional), f"{client_id}: service roles must grant exactly the client's optional scopes")
+        for pair in contract.get("separationOfDuties") or []:
+            _require(not set(pair) <= set(optional), f"{client_id}: violates separation of duties {pair}")
+
+    family = contract.get("platformCommandClientFamily") or {}
+    _require(family.get("status") == "PROPOSED_PENDING_MIDDLEWARE_REGISTRY", "platform-command-client membership is proposed only")
+    frozen_family = callers["callers"]["platform-command-client"]
+    _require(
+        frozen_family.get("class") == "CLIENT_FAMILY" and "members" not in frozen_family,
+        "the frozen caller authority must keep platform-command-client unresolved",
+    )
+    rendered = {entry["clientId"]: entry for entry in rendered_clients(contract)}
+    expected = sorted(
+        client_id
+        for client_id, entry in rendered.items()
+        if FROZEN_KERNEL_SCOPES & set(entry["optionalClientScopes"])
+    )
+    _require(sorted(family.get("proposedMembers") or []) == expected, "proposed family members must be exactly the command-capable CIP clients")
 
 
 # --- rendering -------------------------------------------------------------------------
@@ -387,8 +547,60 @@ def render_user_profile(contract: dict[str, Any]) -> dict[str, Any]:
 
 
 def optional_scopes_for(contract: dict[str, Any], entry: dict[str, Any]) -> list[str]:
-    """Product scopes a client may request. Step 3 of the mission defines them."""
+    """Product scopes a client may request; never defaults, so every token asks for them explicitly."""
     return list(entry.get("optionalClientScopes") or [])
+
+
+def render_product_scope(scope: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "name": scope["name"],
+        "description": (
+            f"Codestra CIP optional product scope ({scope['capability']}) managed by protected Keycloak GitOps. "
+            f"{scope['description']} Requested explicitly per short-lived token, issued only to holders of its "
+            "mapped CIP realm roles, bound to the token tenant_id, and never a realm or client default."
+        ),
+        "protocol": "openid-connect",
+        "attributes": {
+            "display.on.consent.screen": "false",
+            "include.in.token.scope": "true",
+        },
+        "protocolMappers": [],
+    }
+
+
+def render_realm_role(role: dict[str, Any]) -> dict[str, Any]:
+    kind = role["actorKind"]
+    holder = "human user" if kind == "user" else "dedicated single-tenant CIP service account"
+    return {
+        "name": role["name"],
+        "description": (
+            f"Codestra CIP {holder} role: lets its holder obtain {', '.join(role['grantsScopes'])} for the "
+            "holder's own tenant only. Non-composite, never a default role, never copied into the access token; "
+            "prepared only and assigned by no planner."
+        ),
+        "composite": False,
+        "clientRole": False,
+        "attributes": {
+            "codestra.role.family": ["cip-product"],
+            "codestra.actor.kind": [kind],
+            "codestra.grants.scopes": list(role["grantsScopes"]),
+            "codestra.tenant.bound": ["true"],
+            "codestra.mfa.required": ["true" if kind == "user" else "false"],
+            "codestra.default_role": ["false"],
+            "codestra.cross_family_grant": ["false"],
+            "codestra.activation": ["PREPARED_DISABLED"],
+        },
+    }
+
+
+def render_scope_role_mappings(contract: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "kind": "CodestraKeycloakClientScopeRoleMappings",
+        "rule": contract["scopeIssuanceRule"],
+        "scopeMappings": [
+            {"clientScope": scope, "roles": roles} for scope, roles in scope_role_mappings(contract).items()
+        ],
+    }
 
 
 def render_client(contract: dict[str, Any], entry: dict[str, Any]) -> dict[str, Any]:
@@ -459,6 +671,12 @@ def render_desired_state(contract: dict[str, Any]) -> dict[Path, dict[str, Any]]
         DESIRED_ROOT / "client-scopes" / f"{USER_CONTEXT_SCOPE}.json": render_user_context_scope(contract),
         DESIRED_ROOT / "user-profile" / "cip-tenant-attributes.json": render_user_profile(contract),
     }
+    for scope in contract["productScopes"]:
+        if scope["definitionOwner"] == "cip-tenant-identity":
+            rendered[DESIRED_ROOT / "client-scopes" / f"{scope['name']}.json"] = render_product_scope(scope)
+    for role in contract["realmRoles"]:
+        rendered[DESIRED_ROOT / "realm-roles" / f"{role['name']}.json"] = render_realm_role(role)
+    rendered[DESIRED_ROOT / "scope-role-mappings" / "cip-product-scopes.json"] = render_scope_role_mappings(contract)
     for entry in rendered_clients(contract):
         rendered[DESIRED_ROOT / "clients" / f"{entry['clientId']}.json"] = render_client(contract, entry)
     return rendered
@@ -512,6 +730,13 @@ def validate_client_document(contract: dict[str, Any], entry: dict[str, Any], cl
     optional = client.get("optionalClientScopes") or []
     _require(not set(defaults) & set(optional), f"{client_id}: a scope is both default and optional")
     _require(not any("*" in scope for scope in defaults + optional), f"{client_id}: wildcard scope")
+    prohibited = set(contract["prohibitedOnCipPrincipals"]["scopes"])
+    _require(not prohibited & set(defaults + optional), f"{client_id}: prohibited platform scope attached")
+    _require(not set(PRODUCT_SCOPES) & set(defaults), f"{client_id}: product scopes are optional-only, never defaults")
+    _require("roles" not in defaults + optional, f"{client_id}: the roles scope would copy CIP roles into the token")
+    _require(set(optional) <= set(PRODUCT_SCOPES), f"{client_id}: only CIP product scopes may be optional")
+    if entry["actorKind"] == "service":
+        _require(not HUMAN_ONLY_SCOPES & set(optional), f"{client_id}: administration scopes are human-only")
 
     if entry["actorKind"] == "user":
         _require(
@@ -592,13 +817,27 @@ def validate_rendered(contract: dict[str, Any], rendered: dict[Path, dict[str, A
     }
     _require(len(set(tenants_by_client.values())) >= 2, "certification needs service clients in at least two tenants")
 
+    for scope in contract["productScopes"]:
+        if scope["definitionOwner"] != "cip-tenant-identity":
+            continue
+        document = rendered[DESIRED_ROOT / "client-scopes" / f"{scope['name']}.json"]
+        _require(document.get("protocolMappers") == [], f"{scope['name']}: a product scope must not add claims or audiences")
+        _require(document["attributes"].get("include.in.token.scope") == "true", f"{scope['name']}: must appear in the scope claim")
+    for role in contract["realmRoles"]:
+        document = rendered[DESIRED_ROOT / "realm-roles" / f"{role['name']}.json"]
+        _require(document.get("composite") is False and document.get("clientRole") is False, f"{role['name']}: roles are non-composite realm roles")
+        _require(document["attributes"]["codestra.default_role"] == ["false"], f"{role['name']}: never a default role")
+    mappings = rendered[DESIRED_ROOT / "scope-role-mappings" / "cip-product-scopes.json"]["scopeMappings"]
+    _require([m["clientScope"] for m in mappings] == PRODUCT_SCOPES, "every product scope needs role scope-mappings")
+    _require(all(m["roles"] for m in mappings), "an unmapped product scope would be issued to every principal")
+
 
 # --- write / check ---------------------------------------------------------------------
 
 
 def managed_paths() -> set[Path]:
     paths: set[Path] = set()
-    for folder in ("client-scopes", "user-profile", "clients"):
+    for folder in ("client-scopes", "user-profile", "realm-roles", "scope-role-mappings", "clients"):
         paths.update((DESIRED_ROOT / folder).glob("*.json"))
     return paths
 
@@ -650,6 +889,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"CIP_RENDERED_CLIENTS={len(clients)}")
     print(f"CIP_USER_CLIENTS={sum(1 for c in clients if c['actorKind'] == 'user')}")
     print(f"CIP_SERVICE_CLIENTS={sum(1 for c in clients if c['actorKind'] == 'service')}")
+    print(f"CIP_PRODUCT_SCOPES={len(contract['productScopes'])}")
+    print(f"CIP_REALM_ROLES={len(contract['realmRoles'])}")
+    print("CIP_UNMAPPED_PRODUCT_SCOPES=0")
     print("CIP_TENANT_BODY_SELF_ASSERTION=PROHIBITED")
     print("KEYCLOAK_LIVE_APPLY=PROHIBITED")
     return 0

@@ -175,7 +175,7 @@ class CipRenderedClientInvariantTests(unittest.TestCase):
     def test_service_client_cannot_read_user_attributes(self) -> None:
         entry, client = self.doc("test-syn-cip-tenant-a-automation")
         client["optionalClientScopes"].append("cip.user.context")
-        self.assert_client_rejected(entry, client, "must not read user attributes")
+        self.assert_client_rejected(entry, client, "must not read user attributes|only CIP product scopes")
 
     def test_actor_kind_claim_must_match_the_client_shape(self) -> None:
         entry, client = self.doc("test-syn-cip-tenant-a-automation")
@@ -213,3 +213,125 @@ class CipRenderedClientInvariantTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CipProductScopeLeastPrivilegeTests(unittest.TestCase):
+    """Step 3: API-product scopes for tenant admin, connector admin, command submit/read, usage and audit."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.contract, cls.rendered = cip.build()
+
+    def mutated(self) -> dict:
+        return copy.deepcopy(self.contract)
+
+    def role(self, contract: dict, name: str) -> dict:
+        return next(role for role in contract["realmRoles"] if role["name"] == name)
+
+    def assert_contract_rejected(self, contract: dict, message: str) -> None:
+        with self.assertRaisesRegex(cip.IdentityError, message):
+            cip.validate_contract(contract)
+
+    def test_the_six_product_capabilities_are_defined_once(self) -> None:
+        scopes = {scope["name"]: scope for scope in self.contract["productScopes"]}
+        self.assertEqual(list(scopes), cip.PRODUCT_SCOPES)
+        capabilities = {scope["capability"] for scope in scopes.values()}
+        self.assertEqual(
+            capabilities,
+            {"tenant administration", "connector administration", "command submit", "command read", "usage read", "audit read"},
+        )
+        self.assertEqual(scopes["cip.tenant.admin"]["actorKinds"], ["user"])
+        self.assertEqual(scopes["cip.connector.admin"]["actorKinds"], ["user"])
+
+    def test_command_scopes_reuse_the_frozen_route_bound_kernel_scopes(self) -> None:
+        access = cip.load_json(cip.ACCESS_V3)
+        for name in ("platform.command", "platform.command.read"):
+            scope = next(s for s in self.contract["productScopes"] if s["name"] == name)
+            with self.subTest(scope=name):
+                self.assertEqual(scope["routeBinding"]["status"], "BOUND")
+                self.assertEqual(scope["routeBinding"]["routes"], cip.bound_routes(access, name))
+                self.assertFalse((cip.DESIRED_ROOT / "client-scopes" / f"{name}.json").exists())
+        replay = [r for r in access["routes"] if r["requiredScope"] == "platform.command.replay"]
+        self.assertEqual(len(replay), 1)
+        self.assertIn("platform.command.replay", self.contract["prohibitedOnCipPrincipals"]["scopes"])
+
+    def test_new_scopes_stay_unbound_until_middleware_publishes_routes(self) -> None:
+        contract = self.mutated()
+        scope = next(s for s in contract["productScopes"] if s["name"] == "cip.usage.read")
+        scope["routeBinding"]["routes"] = [{"method": "GET", "path": "/platform/v1/tenants/{tenant_id}"}]
+        self.assert_contract_rejected(contract, "unbound scope lists no routes")
+
+    def test_bound_route_drift_is_rejected(self) -> None:
+        contract = self.mutated()
+        scope = next(s for s in contract["productScopes"] if s["name"] == "platform.command.read")
+        scope["routeBinding"]["routes"].pop()
+        self.assert_contract_rejected(contract, "bound routes drifted")
+
+    def test_every_scope_is_role_gated(self) -> None:
+        mappings = self.rendered[cip.DESIRED_ROOT / "scope-role-mappings" / "cip-product-scopes.json"]["scopeMappings"]
+        self.assertTrue(all(mapping["roles"] for mapping in mappings))
+        contract = self.mutated()
+        contract["realmRoles"] = [r for r in contract["realmRoles"] if "cip.audit.read" not in r["grantsScopes"]]
+        self.assert_contract_rejected(contract, "cip.audit.read: no (user|service) role can obtain it")
+
+    def test_administration_scopes_never_reach_service_accounts(self) -> None:
+        contract = self.mutated()
+        self.role(contract, "cip-svc-command-submitter")["grantsScopes"].append("cip.tenant.admin")
+        self.assert_contract_rejected(contract, "service role cannot grant cip.tenant.admin")
+        contract = self.mutated()
+        entry = client_entry(contract, "test-syn-cip-tenant-a-automation")
+        entry["optionalClientScopes"] = sorted(entry["optionalClientScopes"] + ["cip.connector.admin"])
+        self.assert_contract_rejected(contract, "service client cannot hold cip.connector.admin")
+
+    def test_separation_of_duties_is_enforced_for_roles_and_clients(self) -> None:
+        for extra, pair in (("cip.connector.admin", "cip.connector.admin"), ("cip.audit.read", "cip.audit.read")):
+            contract = self.mutated()
+            self.role(contract, "cip-tenant-admin")["grantsScopes"].append(extra)
+            with self.subTest(extra=extra):
+                self.assert_contract_rejected(contract, f"separation of duties.*{pair}")
+        contract = self.mutated()
+        entry = client_entry(contract, "test-syn-cip-tenant-a-automation")
+        entry["optionalClientScopes"] = sorted(entry["optionalClientScopes"] + ["cip.audit.read"])
+        entry["serviceAccountRealmRoles"] = sorted(entry["serviceAccountRealmRoles"] + ["cip-svc-audit-reader"])
+        self.assert_contract_rejected(contract, "separation of duties")
+
+    def test_platform_operator_scopes_and_role_are_never_grantable(self) -> None:
+        for scope in ("platform.command.replay", "platform.tenants.read", "identity.request"):
+            contract = self.mutated()
+            self.role(contract, "cip-command-operator")["grantsScopes"].append(scope)
+            with self.subTest(scope=scope):
+                self.assert_contract_rejected(contract, "grants (unknown|prohibited) scope")
+        contract = self.mutated()
+        contract["realmRoles"].append({"name": "platform-operator", "actorKind": "user", "grantsScopes": ["platform.command"]})
+        self.assert_contract_rejected(contract, "platform-operator|prohibited role")
+
+    def test_service_roles_grant_exactly_the_client_scopes(self) -> None:
+        contract = self.mutated()
+        client_entry(contract, "test-syn-cip-tenant-a-auditor")["serviceAccountRealmRoles"].append("cip-svc-usage-reader")
+        self.assert_contract_rejected(contract, "grant exactly the client's optional scopes")
+        contract = self.mutated()
+        client_entry(contract, "test-syn-cip-tenant-a-automation")["serviceAccountRealmRoles"].remove("cip-svc-usage-reader")
+        self.assert_contract_rejected(contract, "grant exactly the client's optional scopes")
+
+    def test_product_scopes_are_optional_only_in_rendered_clients(self) -> None:
+        for entry in cip.rendered_clients(self.contract):
+            client = copy.deepcopy(self.rendered[cip.DESIRED_ROOT / "clients" / f"{entry['clientId']}.json"])
+            with self.subTest(client=entry["clientId"]):
+                self.assertFalse(set(cip.PRODUCT_SCOPES) & set(client["defaultClientScopes"]))
+                client["defaultClientScopes"].append(client["optionalClientScopes"].pop())
+                with self.assertRaisesRegex(cip.IdentityError, "optional-only"):
+                    cip.validate_client_document(self.contract, entry, client)
+
+    def test_roles_scope_would_leak_roles_and_is_rejected(self) -> None:
+        entry = client_entry(self.contract, "test-syn-cip-portal")
+        client = copy.deepcopy(self.rendered[cip.DESIRED_ROOT / "clients" / "test-syn-cip-portal.json"])
+        client["optionalClientScopes"].append("roles")
+        with self.assertRaisesRegex(cip.IdentityError, "roles scope"):
+            cip.validate_client_document(self.contract, entry, client)
+
+    def test_frozen_platform_command_family_is_untouched(self) -> None:
+        callers = cip.load_json(cip.CALLERS)
+        self.assertNotIn("members", callers["callers"]["platform-command-client"])
+        family = self.contract["platformCommandClientFamily"]
+        self.assertEqual(family["status"], "PROPOSED_PENDING_MIDDLEWARE_REGISTRY")
+        self.assertNotIn("test-syn-cip-tenant-a-auditor", family["proposedMembers"])

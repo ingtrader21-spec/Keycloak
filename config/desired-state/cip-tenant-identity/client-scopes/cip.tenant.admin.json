@@ -1,0 +1,10 @@
+{
+  "name": "cip.tenant.admin",
+  "description": "Codestra CIP optional product scope (tenant administration) managed by protected Keycloak GitOps. Administer the token tenant's own CIP settings, projects and member role requests. Never cross-tenant, never realm or platform administration. Requested explicitly per short-lived token, issued only to holders of its mapped CIP realm roles, bound to the token tenant_id, and never a realm or client default.",
+  "protocol": "openid-connect",
+  "attributes": {
+    "display.on.consent.screen": "false",
+    "include.in.token.scope": "true"
+  },
+  "protocolMappers": []
+}

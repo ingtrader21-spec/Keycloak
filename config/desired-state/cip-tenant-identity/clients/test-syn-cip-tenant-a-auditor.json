@@ -19,7 +19,9 @@
   "defaultClientScopes": [
     "basic"
   ],
-  "optionalClientScopes": [],
+  "optionalClientScopes": [
+    "cip.audit.read"
+  ],
   "attributes": {
     "access.token.lifespan": "300",
     "client_credentials.use_refresh_token": "false",
