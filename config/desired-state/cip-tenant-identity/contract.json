@@ -1,0 +1,302 @@
+{
+  "schemaVersion": 1,
+  "kind": "CodestraKeycloakCipTenantIdentityContract",
+  "mission": "CIP Foundation 3 / Agent I1: Keycloak identity authority for the Codestra Integration Platform tenant API path",
+  "status": "PREPARED_DISABLED",
+  "realm": "codestra",
+  "issuers": {
+    "production": "https://auth.codestra.co/realms/codestra",
+    "staging": "https://auth-staging.codestra.co/realms/codestra"
+  },
+  "jwksUris": {
+    "production": "https://auth.codestra.co/realms/codestra/protocol/openid-connect/certs",
+    "staging": "https://auth-staging.codestra.co/realms/codestra/protocol/openid-connect/certs"
+  },
+  "audience": "middleware-api",
+  "middlewareRouteContract": {
+    "repository": "ingtrader21-spec/Middleware-",
+    "path": "deploy/public-api-route-contract.json",
+    "sha256": "9c32daecd4a15104c6f9ff60ce19c8f7e78707fb31d9fd9fcb55b1b8dfa3512b",
+    "routeCount": 117,
+    "parityEvidence": "config/certification/cip-f3-cross-repo-parity-recertification.v1.json"
+  },
+  "tokenPolicy": {
+    "signingAlgorithms": [
+      "RS256"
+    ],
+    "maximumAccessTokenLifetimeSeconds": 300,
+    "requiredClaims": [
+      "iss",
+      "sub",
+      "aud",
+      "azp",
+      "iat",
+      "exp",
+      "jti",
+      "scope",
+      "tenant_id",
+      "codestra_actor_kind"
+    ],
+    "scopeClaimFormat": "space-separated string",
+    "audienceRule": "aud is a string or an array and MUST contain middleware-api",
+    "wildcardScopesAllowed": false,
+    "refreshTokensForServiceAccounts": false,
+    "tokenExchangeAllowed": false,
+    "passwordGrantAllowed": false,
+    "implicitGrantAllowed": false
+  },
+  "actorKinds": {
+    "user": {
+      "description": "A human signed in through the codestra-browser-mfa flow on a CIP browser client.",
+      "grantType": "authorization_code",
+      "pkceMethod": "S256",
+      "mfaRequired": true,
+      "mfaEvidence": {
+        "claim": "amr",
+        "mustContain": "mfa"
+      },
+      "tenantSource": "user-profile-attribute",
+      "clientShape": "browser"
+    },
+    "service": {
+      "description": "A confidential service account owned by exactly one tenant, reviewed in Git.",
+      "grantType": "client_credentials",
+      "pkceMethod": null,
+      "mfaRequired": false,
+      "mfaEvidence": null,
+      "mustNotCarryClaims": [
+        "amr"
+      ],
+      "tenantSource": "dedicated-client-hardcoded-claim",
+      "clientShape": "confidential-service-account",
+      "clientIdPattern": "^(cip-svc|test-syn-cip)-[a-z0-9][a-z0-9-]{2,50}$"
+    }
+  },
+  "claims": {
+    "tenant_id": {
+      "type": "string",
+      "required": true,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+      "cardinality": "exactly-one",
+      "authority": "The only authoritative tenant for a CIP request. Middleware app/security.py authorize_tenant and app/platform/principal.py tenants_from_claims read it; Kong's tenantClaim is tenant_id.",
+      "sources": {
+        "user": {
+          "keycloakMapper": "oidc-usermodel-attribute-mapper",
+          "userAttribute": "codestra_tenant_id",
+          "clientScope": "cip.user.context",
+          "attributePermissions": {
+            "view": [
+              "admin"
+            ],
+            "edit": [
+              "admin"
+            ]
+          }
+        },
+        "service": {
+          "keycloakMapper": "oidc-hardcoded-claim-mapper",
+          "boundOn": "the dedicated single-tenant CIP service client; the value is reviewed in Git and immutable for the client's lifetime"
+        }
+      }
+    },
+    "project_ids": {
+      "type": "array<string>",
+      "required": false,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+      "maximumItems": 64,
+      "authority": "Narrowing only. An absent or empty claim grants no project-scoped authority; it never means all projects. Middleware has no project dimension yet, so project enforcement is gateway selector validation plus coarse rate keys until Middleware adopts it.",
+      "sources": {
+        "user": {
+          "keycloakMapper": "oidc-usermodel-attribute-mapper",
+          "userAttribute": "codestra_project_ids",
+          "clientScope": "cip.user.context",
+          "attributePermissions": {
+            "view": [
+              "admin"
+            ],
+            "edit": [
+              "admin"
+            ]
+          }
+        },
+        "service": {
+          "keycloakMapper": "oidc-hardcoded-claim-mapper",
+          "boundOn": "the dedicated single-tenant CIP service client"
+        }
+      }
+    },
+    "codestra_actor_kind": {
+      "type": "string",
+      "required": true,
+      "enum": [
+        "user",
+        "service"
+      ],
+      "authority": "Emitted by a hardcoded mapper on the client. Every CIP client serves exactly one actor kind (browser clients have service accounts disabled; service clients have browser flows disabled), so the claim cannot disagree with the azp registry without a signing-key compromise.",
+      "sources": {
+        "user": {
+          "keycloakMapper": "oidc-hardcoded-claim-mapper",
+          "boundOn": "each CIP browser client"
+        },
+        "service": {
+          "keycloakMapper": "oidc-hardcoded-claim-mapper",
+          "boundOn": "each CIP service client"
+        }
+      }
+    },
+    "amr": {
+      "type": "array<string>",
+      "required": "user tokens only",
+      "authority": "Human MFA evidence. The OIDC AMR mapper in cip.user.context emits it; user tokens must contain mfa. Service tokens must not carry amr.",
+      "sources": {
+        "user": {
+          "keycloakMapper": "oidc-amr-mapper",
+          "clientScope": "cip.user.context"
+        }
+      }
+    }
+  },
+  "prohibitedTenantClaims": [
+    "tenant_ids",
+    "tenant",
+    "org_id",
+    "tid",
+    "organization"
+  ],
+  "prohibitedTenantClaimsReason": "Middleware also accepts tenant_ids (up to 64 tenants), and Kong's control-plane Lua reads claims.tenant. A CIP token carries exactly one tenant, so any second tenant-shaped claim is rejected as ambiguous instead of being merged.",
+  "tenantSelectors": {
+    "rule": "A tenant value in the request is a selector only. Absent is allowed. Present must equal the token tenant_id exactly (case-sensitive), otherwise the request is denied 403 cross_tenant_denied. A selector never replaces, widens or adds to the token tenant.",
+    "headers": [
+      "X-Tenant-ID"
+    ],
+    "bodyFields": [
+      "tenant_id",
+      "command.tenant_id"
+    ],
+    "queryParameters": [
+      "tenant_id"
+    ],
+    "pathParameters": [
+      "tenant_id"
+    ]
+  },
+  "projectSelectors": {
+    "rule": "A project value in the request is a selector only. Present requires a non-empty token project_ids that contains it exactly; otherwise the request is denied 403 cross_project_denied.",
+    "headers": [
+      "X-Project-ID"
+    ],
+    "bodyFields": [
+      "project_id"
+    ],
+    "queryParameters": [
+      "project_id"
+    ],
+    "pathParameters": [
+      "project_id"
+    ]
+  },
+  "userProfile": {
+    "unmanagedAttributePolicy": "ADMIN_VIEW",
+    "attributes": [
+      {
+        "name": "codestra_tenant_id",
+        "claim": "tenant_id",
+        "multivalued": false
+      },
+      {
+        "name": "codestra_project_ids",
+        "claim": "project_ids",
+        "multivalued": true,
+        "maximumValues": 64
+      }
+    ],
+    "rule": "Both attributes are view/edit admin only, are not required at registration, and never appear in the account console. The realm allows self-registration, so a self-registered user has no tenant_id and fails closed on every CIP route."
+  },
+  "clients": [
+    {
+      "clientId": "cip-portal",
+      "actorKind": "user",
+      "environment": "production",
+      "status": "BLOCKED_ORIGIN_UNRESOLVED",
+      "rendered": false,
+      "reason": "No reviewed production hostname for the CIP product portal exists in Caddy or the portal repository. A redirect URI is never guessed; the client is rendered only after the portal origin is reviewed."
+    },
+    {
+      "clientId": "test-syn-cip-portal",
+      "actorKind": "user",
+      "environment": "staging",
+      "status": "PREPARED_STAGING_ONLY",
+      "rendered": true,
+      "publicClient": true,
+      "redirectUris": [
+        "http://localhost:5173/auth/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:5173"
+      ],
+      "postLogoutRedirectUris": [
+        "http://localhost:5173/"
+      ],
+      "purpose": "Synthetic staging browser client for the P1 product portal (Vite dev origin) and TEST_SYN human certification. Serves many tenants, so it carries no tenant mapper; tenant comes only from the admin-only user attribute."
+    },
+    {
+      "clientId": "test-syn-cip-tenant-a-automation",
+      "actorKind": "service",
+      "environment": "staging",
+      "status": "PREPARED_STAGING_ONLY",
+      "rendered": true,
+      "tenant": "TEST_SYN_TENANT_A",
+      "projects": [
+        "TEST_SYN_PROJECT_A1"
+      ],
+      "secretReference": "secret://staging/keycloak/cip-tenant-identity/test-syn-cip-tenant-a-automation",
+      "purpose": "Tenant A automation service account: submits and reads tenant A commands and reads tenant A usage."
+    },
+    {
+      "clientId": "test-syn-cip-tenant-a-auditor",
+      "actorKind": "service",
+      "environment": "staging",
+      "status": "PREPARED_STAGING_ONLY",
+      "rendered": true,
+      "tenant": "TEST_SYN_TENANT_A",
+      "projects": [],
+      "secretReference": "secret://staging/keycloak/cip-tenant-identity/test-syn-cip-tenant-a-auditor",
+      "purpose": "Tenant A audit-export service account: reads the tenant A audit trail only."
+    },
+    {
+      "clientId": "test-syn-cip-tenant-b-automation",
+      "actorKind": "service",
+      "environment": "staging",
+      "status": "PREPARED_STAGING_ONLY",
+      "rendered": true,
+      "tenant": "TEST_SYN_TENANT_B",
+      "projects": [
+        "TEST_SYN_PROJECT_B1"
+      ],
+      "secretReference": "secret://staging/keycloak/cip-tenant-identity/test-syn-cip-tenant-b-automation",
+      "purpose": "Tenant B twin of the tenant A automation account. Exists only to prove cross-tenant isolation."
+    }
+  ],
+  "serviceClientProvisioningRule": "A production CIP service client is named cip-svc-<tenant-slug>-<purpose>, is bound to exactly one tenant by a hardcoded tenant_id mapper, and is created only by a reviewed desired-state change. Rebinding a client to another tenant is prohibited: retire it and create a new client.",
+  "sharedIdentitiesWithoutTenantAuthority": [
+    "kong-gateway",
+    "middleware-api",
+    "middleware-worker",
+    "n8n-automation"
+  ],
+  "sharedIdentitiesRule": "Shared identities serve many tenants. They never carry tenant_id, never join the CIP azp registry and cannot satisfy a CIP tenant route.",
+  "protectedUngrantableClientIds": [
+    "codestra-agent-desktop"
+  ],
+  "boundary": {
+    "managedClientPolicyMembership": false,
+    "liveApplyFromRepositoryCi": false,
+    "productionActivationAuthorized": false,
+    "realmDefaultScopes": false,
+    "tokensOrSecretsCommitted": false,
+    "frozenArtifactsModified": false
+  },
+  "reconcilerEnvironments": [
+    "staging"
+  ]
+}

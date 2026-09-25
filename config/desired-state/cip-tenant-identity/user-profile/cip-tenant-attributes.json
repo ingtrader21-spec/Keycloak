@@ -1,0 +1,63 @@
+{
+  "kind": "CodestraKeycloakUserProfileFragment",
+  "merge": "append-attributes; existing realm user-profile attributes are left unchanged",
+  "unmanagedAttributePolicy": "ADMIN_VIEW",
+  "attributes": [
+    {
+      "name": "codestra_tenant_id",
+      "displayName": "Codestra tenant",
+      "multivalued": false,
+      "permissions": {
+        "view": [
+          "admin"
+        ],
+        "edit": [
+          "admin"
+        ]
+      },
+      "validations": {
+        "pattern": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "error-message": "codestraInvalidTenantIdentifier"
+        },
+        "length": {
+          "min": 1,
+          "max": 128
+        }
+      },
+      "annotations": {
+        "codestra.claim": "tenant_id"
+      }
+    },
+    {
+      "name": "codestra_project_ids",
+      "displayName": "Codestra projects",
+      "multivalued": true,
+      "permissions": {
+        "view": [
+          "admin"
+        ],
+        "edit": [
+          "admin"
+        ]
+      },
+      "validations": {
+        "pattern": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+          "error-message": "codestraInvalidTenantIdentifier"
+        },
+        "length": {
+          "min": 1,
+          "max": 128
+        },
+        "multivalued": {
+          "min": "0",
+          "max": "64"
+        }
+      },
+      "annotations": {
+        "codestra.claim": "project_ids"
+      }
+    }
+  ]
+}
