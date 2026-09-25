@@ -1,0 +1,1452 @@
+{
+  "schemaVersion": 1,
+  "kind": "CodestraCipTenantTokenMatrix",
+  "mission": "CIP Foundation 3 / Agent I1 step 4",
+  "description": "Offline positive/negative token matrix for the CIP tenant identity contract. Fixtures are synthetic: no token is minted and Keycloak is not contacted. Issuance fixtures model Keycloak desired-state issuance; request fixtures model the checks Kong and Middleware must apply. The same cases are exported for Kong conformance.",
+  "contract": "config/desired-state/cip-tenant-identity/contract.json",
+  "requiredDimensions": [
+    "issuer",
+    "audience",
+    "azp",
+    "scope",
+    "tenant",
+    "expiry",
+    "service-account-misuse",
+    "privilege-escalation"
+  ],
+  "additionalDimensions": [
+    "project",
+    "mfa",
+    "algorithm"
+  ],
+  "statusRule": "401 when any of algorithm, issuer, audience, expiry or claims fails (the token is not authentic or not current); otherwise 403 for any authorization failure; 200 when accepted. A refused issuance has no HTTP status at the resource.",
+  "mutationRule": "Dotted paths are applied to a deep copy of the fixture; missing objects are created; {\"$delete\": true} removes a key. Issuance fixtures are mutated before Keycloak issuance is simulated.",
+  "fixtures": {
+    "userCommandSubmit": {
+      "kind": "request",
+      "description": "Tenant A operator submits a tenant A command through the portal.",
+      "environment": "staging",
+      "now": 1800000000,
+      "token": {
+        "header": {
+          "alg": "RS256",
+          "typ": "JWT"
+        },
+        "claims": {
+          "iss": "https://auth-staging.codestra.co/realms/codestra",
+          "sub": "test-syn-user-0001",
+          "aud": "middleware-api",
+          "azp": "test-syn-cip-portal",
+          "iat": 1800000000,
+          "exp": 1800000300,
+          "jti": "synthetic-test-syn-cip-portal-1800000000",
+          "scope": "platform.command platform.command.read",
+          "tenant_id": "TEST_SYN_TENANT_A",
+          "codestra_actor_kind": "user",
+          "project_ids": [
+            "TEST_SYN_PROJECT_A1"
+          ],
+          "amr": [
+            "pwd",
+            "mfa"
+          ]
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/platform/v1/commands",
+        "requiredScope": "platform.command",
+        "headers": {
+          "X-Tenant-ID": "TEST_SYN_TENANT_A"
+        },
+        "body": {
+          "command": {
+            "tenant_id": "TEST_SYN_TENANT_A"
+          }
+        },
+        "query": {},
+        "pathParams": {}
+      }
+    },
+    "userCommandRead": {
+      "kind": "request",
+      "description": "Tenant A viewer reads a tenant A operation.",
+      "environment": "staging",
+      "now": 1800000000,
+      "token": {
+        "header": {
+          "alg": "RS256",
+          "typ": "JWT"
+        },
+        "claims": {
+          "iss": "https://auth-staging.codestra.co/realms/codestra",
+          "sub": "test-syn-user-0001",
+          "aud": "middleware-api",
+          "azp": "test-syn-cip-portal",
+          "iat": 1800000000,
+          "exp": 1800000300,
+          "jti": "synthetic-test-syn-cip-portal-1800000000",
+          "scope": "platform.command.read",
+          "tenant_id": "TEST_SYN_TENANT_A",
+          "codestra_actor_kind": "user",
+          "project_ids": [
+            "TEST_SYN_PROJECT_A1"
+          ],
+          "amr": [
+            "pwd",
+            "mfa"
+          ]
+        }
+      },
+      "request": {
+        "method": "GET",
+        "path": "/platform/v1/operations/{operation_id}",
+        "requiredScope": "platform.command.read",
+        "headers": {},
+        "body": {},
+        "query": {},
+        "pathParams": {
+          "operation_id": "op-0001"
+        }
+      }
+    },
+    "userTenantAdmin": {
+      "kind": "request",
+      "description": "Tenant A administrator administers tenant A (capability not yet route-bound in Middleware).",
+      "environment": "staging",
+      "now": 1800000000,
+      "token": {
+        "header": {
+          "alg": "RS256",
+          "typ": "JWT"
+        },
+        "claims": {
+          "iss": "https://auth-staging.codestra.co/realms/codestra",
+          "sub": "test-syn-user-0001",
+          "aud": "middleware-api",
+          "azp": "test-syn-cip-portal",
+          "iat": 1800000000,
+          "exp": 1800000300,
+          "jti": "synthetic-test-syn-cip-portal-1800000000",
+          "scope": "cip.tenant.admin",
+          "tenant_id": "TEST_SYN_TENANT_A",
+          "codestra_actor_kind": "user",
+          "amr": [
+            "pwd",
+            "mfa"
+          ]
+        }
+      },
+      "request": {
+        "method": "PATCH",
+        "path": "unbound:cip.tenant.admin",
+        "requiredScope": "cip.tenant.admin",
+        "headers": {},
+        "body": {},
+        "query": {},
+        "pathParams": {
+          "tenant_id": "TEST_SYN_TENANT_A"
+        }
+      }
+    },
+    "serviceCommandSubmit": {
+      "kind": "request",
+      "description": "Tenant A automation service account submits a tenant A command.",
+      "environment": "staging",
+      "now": 1800000000,
+      "token": {
+        "header": {
+          "alg": "RS256",
+          "typ": "JWT"
+        },
+        "claims": {
+          "iss": "https://auth-staging.codestra.co/realms/codestra",
+          "sub": "service-account-test-syn-cip-tenant-a-automation",
+          "aud": "middleware-api",
+          "azp": "test-syn-cip-tenant-a-automation",
+          "iat": 1800000000,
+          "exp": 1800000300,
+          "jti": "synthetic-test-syn-cip-tenant-a-automation-1800000000",
+          "scope": "platform.command",
+          "tenant_id": "TEST_SYN_TENANT_A",
+          "codestra_actor_kind": "service",
+          "project_ids": [
+            "TEST_SYN_PROJECT_A1"
+          ]
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/platform/v1/commands",
+        "requiredScope": "platform.command",
+        "headers": {},
+        "body": {
+          "command": {
+            "tenant_id": "TEST_SYN_TENANT_A"
+          }
+        },
+        "query": {},
+        "pathParams": {}
+      }
+    },
+    "serviceUsageRead": {
+      "kind": "request",
+      "description": "Tenant A automation service account reads project A1 usage.",
+      "environment": "staging",
+      "now": 1800000000,
+      "token": {
+        "header": {
+          "alg": "RS256",
+          "typ": "JWT"
+        },
+        "claims": {
+          "iss": "https://auth-staging.codestra.co/realms/codestra",
+          "sub": "service-account-test-syn-cip-tenant-a-automation",
+          "aud": "middleware-api",
+          "azp": "test-syn-cip-tenant-a-automation",
+          "iat": 1800000000,
+          "exp": 1800000300,
+          "jti": "synthetic-test-syn-cip-tenant-a-automation-1800000000",
+          "scope": "cip.usage.read",
+          "tenant_id": "TEST_SYN_TENANT_A",
+          "codestra_actor_kind": "service",
+          "project_ids": [
+            "TEST_SYN_PROJECT_A1"
+          ]
+        }
+      },
+      "request": {
+        "method": "GET",
+        "path": "unbound:cip.usage.read",
+        "requiredScope": "cip.usage.read",
+        "headers": {},
+        "body": {},
+        "query": {
+          "project_id": "TEST_SYN_PROJECT_A1"
+        },
+        "pathParams": {}
+      }
+    },
+    "serviceAuditRead": {
+      "kind": "request",
+      "description": "Tenant A audit-export service account reads the tenant A audit trail.",
+      "environment": "staging",
+      "now": 1800000000,
+      "token": {
+        "header": {
+          "alg": "RS256",
+          "typ": "JWT"
+        },
+        "claims": {
+          "iss": "https://auth-staging.codestra.co/realms/codestra",
+          "sub": "service-account-test-syn-cip-tenant-a-auditor",
+          "aud": "middleware-api",
+          "azp": "test-syn-cip-tenant-a-auditor",
+          "iat": 1800000000,
+          "exp": 1800000300,
+          "jti": "synthetic-test-syn-cip-tenant-a-auditor-1800000000",
+          "scope": "cip.audit.read",
+          "tenant_id": "TEST_SYN_TENANT_A",
+          "codestra_actor_kind": "service"
+        }
+      },
+      "request": {
+        "method": "GET",
+        "path": "unbound:cip.audit.read",
+        "requiredScope": "cip.audit.read",
+        "headers": {
+          "X-Tenant-ID": "TEST_SYN_TENANT_A"
+        },
+        "body": {},
+        "query": {},
+        "pathParams": {}
+      }
+    },
+    "issueUser": {
+      "kind": "issuance",
+      "description": "Keycloak issuance for a tenant A human on the portal, then a command submit.",
+      "environment": "staging",
+      "now": 1800000000,
+      "clientId": "test-syn-cip-portal",
+      "grant": {
+        "type": "authorization_code",
+        "pkce": "S256"
+      },
+      "principal": {
+        "actorKind": "user",
+        "subject": "test-syn-user-0001",
+        "realmRoles": [
+          "cip-command-operator"
+        ],
+        "attributes": {
+          "codestra_tenant_id": {
+            "value": "TEST_SYN_TENANT_A",
+            "setBy": "admin"
+          },
+          "codestra_project_ids": {
+            "value": [
+              "TEST_SYN_PROJECT_A1"
+            ],
+            "setBy": "admin"
+          }
+        },
+        "authenticationMethods": [
+          "pwd",
+          "mfa"
+        ]
+      },
+      "requestedScopes": [
+        "platform.command"
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/platform/v1/commands",
+        "requiredScope": "platform.command",
+        "headers": {},
+        "body": {
+          "command": {
+            "tenant_id": "TEST_SYN_TENANT_A"
+          }
+        },
+        "query": {},
+        "pathParams": {}
+      }
+    },
+    "issueService": {
+      "kind": "issuance",
+      "description": "Keycloak client_credentials issuance for the tenant A automation account, then a command submit.",
+      "environment": "staging",
+      "now": 1800000000,
+      "clientId": "test-syn-cip-tenant-a-automation",
+      "grant": {
+        "type": "client_credentials"
+      },
+      "principal": {
+        "actorKind": "service"
+      },
+      "requestedScopes": [
+        "platform.command"
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/platform/v1/commands",
+        "requiredScope": "platform.command",
+        "headers": {},
+        "body": {
+          "command": {
+            "tenant_id": "TEST_SYN_TENANT_A"
+          }
+        },
+        "query": {},
+        "pathParams": {}
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "issuer-positive",
+      "dimension": "issuer",
+      "fixture": "serviceCommandSubmit",
+      "expect": "ACCEPT",
+      "expectedStatus": 200
+    },
+    {
+      "id": "issuer-foreign-realm",
+      "dimension": "issuer",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.iss": "https://issuer.invalid/realms/codestra"
+      },
+      "expect": "REJECT",
+      "mustFail": "issuer",
+      "expectedStatus": 401
+    },
+    {
+      "id": "issuer-production-token-at-staging",
+      "dimension": "issuer",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.iss": "https://auth.codestra.co/realms/codestra"
+      },
+      "expect": "REJECT",
+      "mustFail": "issuer",
+      "expectedStatus": 401
+    },
+    {
+      "id": "issuer-trailing-slash",
+      "dimension": "issuer",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.iss": "https://auth-staging.codestra.co/realms/codestra/"
+      },
+      "expect": "REJECT",
+      "mustFail": "issuer",
+      "expectedStatus": 401
+    },
+    {
+      "id": "issuer-http-downgrade",
+      "dimension": "issuer",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.iss": "http://auth-staging.codestra.co/realms/codestra"
+      },
+      "expect": "REJECT",
+      "mustFail": "issuer",
+      "expectedStatus": 401
+    },
+    {
+      "id": "issuer-other-realm-same-host",
+      "dimension": "issuer",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.iss": "https://auth-staging.codestra.co/realms/master"
+      },
+      "expect": "REJECT",
+      "mustFail": "issuer",
+      "expectedStatus": 401
+    },
+    {
+      "id": "algorithm-positive",
+      "dimension": "algorithm",
+      "fixture": "serviceCommandSubmit",
+      "expect": "ACCEPT",
+      "expectedStatus": 200
+    },
+    {
+      "id": "algorithm-none",
+      "dimension": "algorithm",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.header.alg": "none"
+      },
+      "expect": "REJECT",
+      "mustFail": "algorithm",
+      "expectedStatus": 401
+    },
+    {
+      "id": "algorithm-hs256-key-confusion",
+      "dimension": "algorithm",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.header.alg": "HS256"
+      },
+      "expect": "REJECT",
+      "mustFail": "algorithm",
+      "expectedStatus": 401
+    },
+    {
+      "id": "audience-positive-array",
+      "dimension": "audience",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "token.claims.aud": [
+          "middleware-api",
+          "account"
+        ]
+      },
+      "expect": "ACCEPT",
+      "expectedStatus": 200
+    },
+    {
+      "id": "audience-wrong",
+      "dimension": "audience",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.aud": "codestra-api"
+      },
+      "expect": "REJECT",
+      "mustFail": "audience",
+      "expectedStatus": 401
+    },
+    {
+      "id": "audience-missing",
+      "dimension": "audience",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.aud": {
+          "$delete": true
+        }
+      },
+      "expect": "REJECT",
+      "mustFail": "audience",
+      "expectedStatus": 401
+    },
+    {
+      "id": "audience-array-without-middleware-api",
+      "dimension": "audience",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.aud": [
+          "account",
+          "n8n-automation"
+        ]
+      },
+      "expect": "REJECT",
+      "mustFail": "audience",
+      "expectedStatus": 401
+    },
+    {
+      "id": "audience-odoo-for-middleware-route",
+      "dimension": "audience",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.aud": "codestra-odoo"
+      },
+      "expect": "REJECT",
+      "mustFail": "audience",
+      "expectedStatus": 401
+    },
+    {
+      "id": "azp-positive",
+      "dimension": "azp",
+      "fixture": "userCommandSubmit",
+      "expect": "ACCEPT",
+      "expectedStatus": 200
+    },
+    {
+      "id": "azp-unknown-client",
+      "dimension": "azp",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.azp": "test-syn-cip-rogue"
+      },
+      "expect": "REJECT",
+      "mustFail": "azp",
+      "expectedStatus": 403
+    },
+    {
+      "id": "azp-missing",
+      "dimension": "azp",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.azp": {
+          "$delete": true
+        }
+      },
+      "expect": "REJECT",
+      "mustFail": "azp",
+      "expectedStatus": 403
+    },
+    {
+      "id": "azp-shared-kong-gateway",
+      "dimension": "azp",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.azp": "kong-gateway"
+      },
+      "expect": "REJECT",
+      "mustFail": "azp",
+      "expectedStatus": 403
+    },
+    {
+      "id": "azp-protected-agent-desktop",
+      "dimension": "azp",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "token.claims.azp": "codestra-agent-desktop"
+      },
+      "expect": "REJECT",
+      "mustFail": "azp",
+      "expectedStatus": 403
+    },
+    {
+      "id": "azp-legacy-edge-test-syn-client",
+      "dimension": "azp",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.azp": "test-syn-n8n-submit"
+      },
+      "expect": "REJECT",
+      "mustFail": "azp",
+      "expectedStatus": 403
+    },
+    {
+      "id": "azp-staging-client-in-production",
+      "dimension": "azp",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "environment": "production",
+        "token.claims.iss": "https://auth.codestra.co/realms/codestra"
+      },
+      "expect": "REJECT",
+      "mustFail": "azp",
+      "expectedStatus": 403
+    },
+    {
+      "id": "scope-positive",
+      "dimension": "scope",
+      "fixture": "serviceCommandSubmit",
+      "expect": "ACCEPT",
+      "expectedStatus": 200
+    },
+    {
+      "id": "scope-read-used-for-submit",
+      "dimension": "scope",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "token.claims.scope": "platform.command.read"
+      },
+      "expect": "REJECT",
+      "mustFail": "scope",
+      "expectedStatus": 403
+    },
+    {
+      "id": "scope-empty",
+      "dimension": "scope",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.scope": ""
+      },
+      "expect": "REJECT",
+      "mustFail": "scope",
+      "expectedStatus": 403
+    },
+    {
+      "id": "scope-missing",
+      "dimension": "scope",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.scope": {
+          "$delete": true
+        }
+      },
+      "expect": "REJECT",
+      "mustFail": "scope",
+      "expectedStatus": 403
+    },
+    {
+      "id": "scope-wildcard",
+      "dimension": "scope",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.scope": "platform.command *"
+      },
+      "expect": "REJECT",
+      "mustFail": "scope",
+      "expectedStatus": 403
+    },
+    {
+      "id": "scope-array-not-space-separated-string",
+      "dimension": "scope",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.scope": [
+          "platform.command"
+        ]
+      },
+      "expect": "REJECT",
+      "mustFail": "scope",
+      "expectedStatus": 403
+    },
+    {
+      "id": "scope-admin-scope-on-command-route",
+      "dimension": "scope",
+      "fixture": "userTenantAdmin",
+      "mutations": {
+        "request.method": "POST",
+        "request.path": "/platform/v1/commands",
+        "request.requiredScope": "platform.command",
+        "request.pathParams": {}
+      },
+      "expect": "REJECT",
+      "mustFail": "scope",
+      "expectedStatus": 403
+    },
+    {
+      "id": "scope-prefix-lookalike",
+      "dimension": "scope",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.scope": "platform.commands"
+      },
+      "expect": "REJECT",
+      "mustFail": "scope",
+      "expectedStatus": 403
+    },
+    {
+      "id": "tenant-positive-matching-selectors",
+      "dimension": "tenant",
+      "fixture": "userCommandSubmit",
+      "expect": "ACCEPT",
+      "expectedStatus": 200
+    },
+    {
+      "id": "tenant-positive-no-selector",
+      "dimension": "tenant",
+      "fixture": "serviceAuditRead",
+      "mutations": {
+        "request.headers": {}
+      },
+      "expect": "ACCEPT",
+      "expectedStatus": 200
+    },
+    {
+      "id": "tenant-body-other-tenant",
+      "dimension": "tenant",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "request.body.command.tenant_id": "TEST_SYN_TENANT_B"
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant",
+      "expectedStatus": 403
+    },
+    {
+      "id": "tenant-body-top-level-other-tenant",
+      "dimension": "tenant",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "request.body.tenant_id": "TEST_SYN_TENANT_B"
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant",
+      "expectedStatus": 403
+    },
+    {
+      "id": "tenant-header-other-tenant",
+      "dimension": "tenant",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "request.headers.X-Tenant-ID": "TEST_SYN_TENANT_B"
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant",
+      "expectedStatus": 403
+    },
+    {
+      "id": "tenant-header-lowercase-name-other-tenant",
+      "dimension": "tenant",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "request.headers": {
+          "x-tenant-id": "TEST_SYN_TENANT_B"
+        }
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant",
+      "expectedStatus": 403
+    },
+    {
+      "id": "tenant-query-other-tenant",
+      "dimension": "tenant",
+      "fixture": "serviceUsageRead",
+      "mutations": {
+        "request.query.tenant_id": "TEST_SYN_TENANT_B"
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant",
+      "expectedStatus": 403
+    },
+    {
+      "id": "tenant-path-other-tenant",
+      "dimension": "tenant",
+      "fixture": "userTenantAdmin",
+      "mutations": {
+        "request.pathParams.tenant_id": "TEST_SYN_TENANT_B"
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant",
+      "expectedStatus": 403
+    },
+    {
+      "id": "tenant-selector-case-variant",
+      "dimension": "tenant",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "request.headers.X-Tenant-ID": "test_syn_tenant_a"
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant",
+      "expectedStatus": 403
+    },
+    {
+      "id": "tenant-claim-missing",
+      "dimension": "tenant",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "token.claims.tenant_id": {
+          "$delete": true
+        }
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant",
+      "expectedStatus": 403
+    },
+    {
+      "id": "tenant-body-only-without-claim",
+      "dimension": "tenant",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "token.claims.tenant_id": {
+          "$delete": true
+        },
+        "request.headers": {}
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant",
+      "expectedStatus": 403
+    },
+    {
+      "id": "tenant-claim-wildcard",
+      "dimension": "tenant",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "token.claims.tenant_id": "*",
+        "request.headers": {},
+        "request.body": {}
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant",
+      "expectedStatus": 403
+    },
+    {
+      "id": "tenant-claim-array",
+      "dimension": "tenant",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "token.claims.tenant_id": [
+          "TEST_SYN_TENANT_A"
+        ],
+        "request.headers": {},
+        "request.body": {}
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant",
+      "expectedStatus": 403
+    },
+    {
+      "id": "tenant-ids-multi-tenant-widening",
+      "dimension": "tenant",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "token.claims.tenant_ids": [
+          "TEST_SYN_TENANT_A",
+          "TEST_SYN_TENANT_B"
+        ]
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant",
+      "expectedStatus": 403
+    },
+    {
+      "id": "tenant-legacy-tenant-claim",
+      "dimension": "tenant",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "token.claims.tenant": "TEST_SYN_TENANT_B"
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant",
+      "expectedStatus": 403
+    },
+    {
+      "id": "tenant-org-id-claim",
+      "dimension": "tenant",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "token.claims.org_id": "TEST_SYN_TENANT_A"
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant",
+      "expectedStatus": 403
+    },
+    {
+      "id": "tenant-service-claim-differs-from-client-binding",
+      "dimension": "tenant",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.tenant_id": "TEST_SYN_TENANT_B",
+        "request.body": {
+          "command": {
+            "tenant_id": "TEST_SYN_TENANT_B"
+          }
+        }
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant",
+      "expectedStatus": 403
+    },
+    {
+      "id": "project-positive",
+      "dimension": "project",
+      "fixture": "serviceUsageRead",
+      "expect": "ACCEPT",
+      "expectedStatus": 200
+    },
+    {
+      "id": "project-selector-not-member",
+      "dimension": "project",
+      "fixture": "serviceUsageRead",
+      "mutations": {
+        "request.query.project_id": "TEST_SYN_PROJECT_A2"
+      },
+      "expect": "REJECT",
+      "mustFail": "project",
+      "expectedStatus": 403
+    },
+    {
+      "id": "project-selector-without-claim",
+      "dimension": "project",
+      "fixture": "serviceAuditRead",
+      "mutations": {
+        "request.headers.X-Project-ID": "TEST_SYN_PROJECT_A1"
+      },
+      "expect": "REJECT",
+      "mustFail": "project",
+      "expectedStatus": 403
+    },
+    {
+      "id": "project-claim-wildcard",
+      "dimension": "project",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "token.claims.project_ids": [
+          "*"
+        ]
+      },
+      "expect": "REJECT",
+      "mustFail": "project",
+      "expectedStatus": 403
+    },
+    {
+      "id": "project-service-claim-drift",
+      "dimension": "project",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.project_ids": [
+          "TEST_SYN_PROJECT_A1",
+          "TEST_SYN_PROJECT_B1"
+        ]
+      },
+      "expect": "REJECT",
+      "mustFail": "project",
+      "expectedStatus": 403
+    },
+    {
+      "id": "project-other-tenant-project",
+      "dimension": "project",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "request.headers.X-Project-ID": "TEST_SYN_PROJECT_B1"
+      },
+      "expect": "REJECT",
+      "mustFail": "project",
+      "expectedStatus": 403
+    },
+    {
+      "id": "expiry-positive",
+      "dimension": "expiry",
+      "fixture": "serviceCommandSubmit",
+      "expect": "ACCEPT",
+      "expectedStatus": 200
+    },
+    {
+      "id": "expiry-expired",
+      "dimension": "expiry",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.exp": 1799999999
+      },
+      "expect": "REJECT",
+      "mustFail": "expiry",
+      "expectedStatus": 401
+    },
+    {
+      "id": "expiry-exactly-now",
+      "dimension": "expiry",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.exp": 1800000000
+      },
+      "expect": "REJECT",
+      "mustFail": "expiry",
+      "expectedStatus": 401
+    },
+    {
+      "id": "expiry-lifetime-over-300",
+      "dimension": "expiry",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.exp": 1800000301
+      },
+      "expect": "REJECT",
+      "mustFail": "expiry",
+      "expectedStatus": 401
+    },
+    {
+      "id": "expiry-issued-in-future",
+      "dimension": "expiry",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.iat": 1800000060,
+        "token.claims.exp": 1800000300
+      },
+      "expect": "REJECT",
+      "mustFail": "expiry",
+      "expectedStatus": 401
+    },
+    {
+      "id": "expiry-not-before-in-future",
+      "dimension": "expiry",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.nbf": 1800000030
+      },
+      "expect": "REJECT",
+      "mustFail": "expiry",
+      "expectedStatus": 401
+    },
+    {
+      "id": "expiry-missing-exp",
+      "dimension": "expiry",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.exp": {
+          "$delete": true
+        }
+      },
+      "expect": "REJECT",
+      "mustFail": "expiry",
+      "expectedStatus": 401
+    },
+    {
+      "id": "expiry-string-exp",
+      "dimension": "expiry",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.exp": "1800000300"
+      },
+      "expect": "REJECT",
+      "mustFail": "expiry",
+      "expectedStatus": 401
+    },
+    {
+      "id": "mfa-positive",
+      "dimension": "mfa",
+      "fixture": "userCommandRead",
+      "expect": "ACCEPT",
+      "expectedStatus": 200
+    },
+    {
+      "id": "mfa-password-only",
+      "dimension": "mfa",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "token.claims.amr": [
+          "pwd"
+        ]
+      },
+      "expect": "REJECT",
+      "mustFail": "mfa",
+      "expectedStatus": 403
+    },
+    {
+      "id": "mfa-amr-missing",
+      "dimension": "mfa",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "token.claims.amr": {
+          "$delete": true
+        }
+      },
+      "expect": "REJECT",
+      "mustFail": "mfa",
+      "expectedStatus": 403
+    },
+    {
+      "id": "sa-positive-issued-submit",
+      "dimension": "service-account-misuse",
+      "fixture": "issueService",
+      "expect": "ACCEPT",
+      "expectedStatus": 200,
+      "expectIssuedScopes": [
+        "platform.command"
+      ]
+    },
+    {
+      "id": "sa-claims-user-actor-kind",
+      "dimension": "service-account-misuse",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.codestra_actor_kind": "user"
+      },
+      "expect": "REJECT",
+      "mustFail": "actor",
+      "expectedStatus": 403
+    },
+    {
+      "id": "sa-carries-human-mfa-evidence",
+      "dimension": "service-account-misuse",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.amr": [
+          "pwd",
+          "mfa"
+        ]
+      },
+      "expect": "REJECT",
+      "mustFail": "actor",
+      "expectedStatus": 403
+    },
+    {
+      "id": "sa-user-claims-service-actor-to-skip-mfa",
+      "dimension": "service-account-misuse",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "token.claims.codestra_actor_kind": "service",
+        "token.claims.amr": {
+          "$delete": true
+        }
+      },
+      "expect": "REJECT",
+      "mustFail": "actor",
+      "expectedStatus": 403
+    },
+    {
+      "id": "sa-forged-human-only-admin-scope",
+      "dimension": "service-account-misuse",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.scope": "cip.tenant.admin",
+        "request.method": "PATCH",
+        "request.path": "unbound:cip.tenant.admin",
+        "request.requiredScope": "cip.tenant.admin",
+        "request.body": {}
+      },
+      "expect": "REJECT",
+      "mustFail": "privilege",
+      "expectedStatus": 403
+    },
+    {
+      "id": "sa-requests-admin-scope-not-issued",
+      "dimension": "service-account-misuse",
+      "fixture": "issueService",
+      "mutations": {
+        "requestedScopes": [
+          "cip.tenant.admin",
+          "cip.connector.admin"
+        ],
+        "request.method": "PATCH",
+        "request.path": "unbound:cip.tenant.admin",
+        "request.requiredScope": "cip.tenant.admin",
+        "request.body": {}
+      },
+      "expect": "REJECT",
+      "mustFail": "scope",
+      "expectedStatus": 403,
+      "expectIssuedScopes": []
+    },
+    {
+      "id": "sa-authorization-code-grant-refused",
+      "dimension": "service-account-misuse",
+      "fixture": "issueService",
+      "mutations": {
+        "grant": {
+          "type": "authorization_code",
+          "pkce": "S256"
+        }
+      },
+      "expect": "REJECT",
+      "mustFail": "grant",
+      "expectTokenIssued": false
+    },
+    {
+      "id": "sa-password-grant-refused",
+      "dimension": "service-account-misuse",
+      "fixture": "issueService",
+      "mutations": {
+        "grant": {
+          "type": "password"
+        }
+      },
+      "expect": "REJECT",
+      "mustFail": "grant",
+      "expectTokenIssued": false
+    },
+    {
+      "id": "sa-human-on-service-client-refused",
+      "dimension": "service-account-misuse",
+      "fixture": "issueUser",
+      "mutations": {
+        "clientId": "test-syn-cip-tenant-a-automation"
+      },
+      "expect": "REJECT",
+      "mustFail": "grant",
+      "expectTokenIssued": false
+    },
+    {
+      "id": "sa-auditor-submits-command",
+      "dimension": "service-account-misuse",
+      "fixture": "serviceAuditRead",
+      "mutations": {
+        "request.method": "POST",
+        "request.path": "/platform/v1/commands",
+        "request.requiredScope": "platform.command",
+        "request.headers": {}
+      },
+      "expect": "REJECT",
+      "mustFail": "scope",
+      "expectedStatus": 403
+    },
+    {
+      "id": "sa-shared-gateway-token-on-cip-route",
+      "dimension": "service-account-misuse",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.azp": "kong-gateway",
+        "token.claims.scope": "middleware.request.forward",
+        "token.claims.tenant_id": {
+          "$delete": true
+        },
+        "token.claims.project_ids": {
+          "$delete": true
+        }
+      },
+      "expect": "REJECT",
+      "mustFail": "azp",
+      "expectedStatus": 403
+    },
+    {
+      "id": "sa-tenant-b-account-acts-for-tenant-a",
+      "dimension": "service-account-misuse",
+      "fixture": "serviceCommandSubmit",
+      "mutations": {
+        "token.claims.azp": "test-syn-cip-tenant-b-automation",
+        "token.claims.project_ids": [
+          "TEST_SYN_PROJECT_B1"
+        ]
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant",
+      "expectedStatus": 403
+    },
+    {
+      "id": "pe-positive-operator-issued-submit",
+      "dimension": "privilege-escalation",
+      "fixture": "issueUser",
+      "expect": "ACCEPT",
+      "expectedStatus": 200,
+      "expectIssuedScopes": [
+        "platform.command"
+      ]
+    },
+    {
+      "id": "pe-viewer-requests-submit",
+      "dimension": "privilege-escalation",
+      "fixture": "issueUser",
+      "mutations": {
+        "principal.realmRoles": [
+          "cip-command-viewer"
+        ],
+        "requestedScopes": [
+          "platform.command",
+          "platform.command.read"
+        ]
+      },
+      "expect": "REJECT",
+      "mustFail": "scope",
+      "expectedStatus": 403,
+      "expectIssuedScopes": [
+        "platform.command.read"
+      ]
+    },
+    {
+      "id": "pe-tenant-admin-requests-connector-admin",
+      "dimension": "privilege-escalation",
+      "fixture": "issueUser",
+      "mutations": {
+        "principal.realmRoles": [
+          "cip-tenant-admin"
+        ],
+        "requestedScopes": [
+          "cip.connector.admin"
+        ],
+        "request.method": "PUT",
+        "request.path": "unbound:cip.connector.admin",
+        "request.requiredScope": "cip.connector.admin",
+        "request.body": {}
+      },
+      "expect": "REJECT",
+      "mustFail": "scope",
+      "expectedStatus": 403,
+      "expectIssuedScopes": []
+    },
+    {
+      "id": "pe-tenant-admin-requests-audit-read",
+      "dimension": "privilege-escalation",
+      "fixture": "issueUser",
+      "mutations": {
+        "principal.realmRoles": [
+          "cip-tenant-admin"
+        ],
+        "requestedScopes": [
+          "cip.audit.read",
+          "cip.tenant.admin"
+        ],
+        "request.method": "GET",
+        "request.path": "unbound:cip.audit.read",
+        "request.requiredScope": "cip.audit.read",
+        "request.body": {}
+      },
+      "expect": "REJECT",
+      "mustFail": "scope",
+      "expectedStatus": 403,
+      "expectIssuedScopes": [
+        "cip.tenant.admin"
+      ]
+    },
+    {
+      "id": "pe-operator-requests-replay",
+      "dimension": "privilege-escalation",
+      "fixture": "issueUser",
+      "mutations": {
+        "requestedScopes": [
+          "platform.command",
+          "platform.command.replay"
+        ],
+        "request.method": "POST",
+        "request.path": "/platform/v1/operations/{operation_id}/replay",
+        "request.requiredScope": "platform.command.replay",
+        "request.body": {}
+      },
+      "expect": "REJECT",
+      "mustFail": "scope",
+      "expectedStatus": 403,
+      "expectIssuedScopes": [
+        "platform.command"
+      ]
+    },
+    {
+      "id": "pe-forged-replay-scope",
+      "dimension": "privilege-escalation",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "token.claims.scope": "platform.command platform.command.replay"
+      },
+      "expect": "REJECT",
+      "mustFail": "privilege",
+      "expectedStatus": 403
+    },
+    {
+      "id": "pe-cross-tenant-platform-scope",
+      "dimension": "privilege-escalation",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "token.claims.scope": "platform.command platform.tenants.read"
+      },
+      "expect": "REJECT",
+      "mustFail": "privilege",
+      "expectedStatus": 403
+    },
+    {
+      "id": "pe-platform-operator-role-in-token",
+      "dimension": "privilege-escalation",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "token.claims.realm_access": {
+          "roles": [
+            "platform-operator"
+          ]
+        }
+      },
+      "expect": "REJECT",
+      "mustFail": "privilege",
+      "expectedStatus": 403
+    },
+    {
+      "id": "pe-role-claim-without-scope",
+      "dimension": "privilege-escalation",
+      "fixture": "userCommandSubmit",
+      "mutations": {
+        "token.claims.scope": "platform.command.read",
+        "token.claims.realm_access": {
+          "roles": [
+            "cip-command-operator"
+          ]
+        }
+      },
+      "expect": "REJECT",
+      "mustFail": "scope",
+      "expectedStatus": 403
+    },
+    {
+      "id": "pe-user-self-sets-tenant-attribute",
+      "dimension": "privilege-escalation",
+      "fixture": "issueUser",
+      "mutations": {
+        "principal.attributes.codestra_tenant_id": {
+          "value": "TEST_SYN_TENANT_B",
+          "setBy": "user"
+        },
+        "request.body": {
+          "command": {
+            "tenant_id": "TEST_SYN_TENANT_B"
+          }
+        }
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant",
+      "expectedStatus": 403,
+      "expectIssuedScopes": [
+        "platform.command"
+      ]
+    },
+    {
+      "id": "pe-self-registered-user",
+      "dimension": "privilege-escalation",
+      "fixture": "issueUser",
+      "mutations": {
+        "principal.realmRoles": [],
+        "principal.attributes": {},
+        "requestedScopes": [
+          "cip.tenant.admin",
+          "cip.connector.admin",
+          "platform.command",
+          "platform.command.read",
+          "cip.usage.read",
+          "cip.audit.read"
+        ]
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant",
+      "expectedStatus": 403,
+      "expectIssuedScopes": []
+    },
+    {
+      "id": "pe-body-tenant-escalation-after-issuance",
+      "dimension": "privilege-escalation",
+      "fixture": "issueUser",
+      "mutations": {
+        "request.body.command.tenant_id": "TEST_SYN_TENANT_B"
+      },
+      "expect": "REJECT",
+      "mustFail": "tenant",
+      "expectedStatus": 403,
+      "expectIssuedScopes": [
+        "platform.command"
+      ]
+    },
+    {
+      "id": "pe-user-self-sets-project",
+      "dimension": "privilege-escalation",
+      "fixture": "issueUser",
+      "mutations": {
+        "principal.attributes.codestra_project_ids": {
+          "value": [
+            "TEST_SYN_PROJECT_A2"
+          ],
+          "setBy": "user"
+        },
+        "request.headers": {
+          "X-Project-ID": "TEST_SYN_PROJECT_A2"
+        }
+      },
+      "expect": "REJECT",
+      "mustFail": "project",
+      "expectedStatus": 403,
+      "expectIssuedScopes": [
+        "platform.command"
+      ]
+    }
+  ]
+}
