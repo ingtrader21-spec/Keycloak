@@ -1,0 +1,92 @@
+{
+  "clientId": "test-syn-cip-tenant-b-automation",
+  "name": "Codestra CIP identity: test-syn-cip-tenant-b-automation",
+  "description": "Tenant B twin of the tenant A automation account. Exists only to prove cross-tenant isolation. Staging-only desired state outside the protected managed-client policy.",
+  "enabled": true,
+  "protocol": "openid-connect",
+  "bearerOnly": false,
+  "consentRequired": false,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "authorizationServicesEnabled": false,
+  "fullScopeAllowed": false,
+  "publicClient": false,
+  "standardFlowEnabled": false,
+  "serviceAccountsEnabled": true,
+  "frontchannelLogout": false,
+  "redirectUris": [],
+  "webOrigins": [],
+  "defaultClientScopes": [
+    "basic"
+  ],
+  "optionalClientScopes": [
+    "cip.usage.read",
+    "platform.command",
+    "platform.command.read"
+  ],
+  "attributes": {
+    "access.token.lifespan": "300",
+    "client_credentials.use_refresh_token": "false",
+    "oauth2.device.authorization.grant.enabled": "false",
+    "oidc.ciba.grant.enabled": "false",
+    "standard.token.exchange.enabled": "false"
+  },
+  "protocolMappers": [
+    {
+      "name": "audience-middleware-api",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "consentRequired": false,
+      "config": {
+        "included.custom.audience": "middleware-api",
+        "id.token.claim": "false",
+        "access.token.claim": "true"
+      }
+    },
+    {
+      "name": "claim-codestra-actor-kind",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-hardcoded-claim-mapper",
+      "consentRequired": false,
+      "config": {
+        "claim.name": "codestra_actor_kind",
+        "claim.value": "service",
+        "jsonType.label": "String",
+        "id.token.claim": "false",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "false",
+        "access.tokenResponse.claim": "false"
+      }
+    },
+    {
+      "name": "claim-tenant-id",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-hardcoded-claim-mapper",
+      "consentRequired": false,
+      "config": {
+        "claim.name": "tenant_id",
+        "claim.value": "TEST_SYN_TENANT_B",
+        "jsonType.label": "String",
+        "id.token.claim": "false",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "false",
+        "access.tokenResponse.claim": "false"
+      }
+    },
+    {
+      "name": "claim-project-ids",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-hardcoded-claim-mapper",
+      "consentRequired": false,
+      "config": {
+        "claim.name": "project_ids",
+        "claim.value": "[\"TEST_SYN_PROJECT_B1\"]",
+        "jsonType.label": "JSON",
+        "id.token.claim": "false",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "false",
+        "access.tokenResponse.claim": "false"
+      }
+    }
+  ]
+}

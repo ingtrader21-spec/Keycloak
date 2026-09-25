@@ -1,0 +1,10 @@
+{
+  "name": "cip.connector.admin",
+  "description": "Codestra CIP optional product scope (connector administration) managed by protected Keycloak GitOps. Install, configure, enable and disable connectors for the token tenant and bind OpenBao credential references. Never reads secret values. Requested explicitly per short-lived token, issued only to holders of its mapped CIP realm roles, bound to the token tenant_id, and never a realm or client default.",
+  "protocol": "openid-connect",
+  "attributes": {
+    "display.on.consent.screen": "false",
+    "include.in.token.scope": "true"
+  },
+  "protocolMappers": []
+}

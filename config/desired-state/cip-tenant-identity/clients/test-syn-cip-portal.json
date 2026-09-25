@@ -1,0 +1,71 @@
+{
+  "clientId": "test-syn-cip-portal",
+  "name": "Codestra CIP identity: test-syn-cip-portal",
+  "description": "Synthetic staging browser client for the P1 product portal (Vite dev origin) and TEST_SYN human certification. Serves many tenants, so it carries no tenant mapper; tenant comes only from the admin-only user attribute. Staging-only desired state outside the protected managed-client policy.",
+  "enabled": true,
+  "protocol": "openid-connect",
+  "bearerOnly": false,
+  "consentRequired": false,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "authorizationServicesEnabled": false,
+  "fullScopeAllowed": false,
+  "publicClient": true,
+  "standardFlowEnabled": true,
+  "serviceAccountsEnabled": false,
+  "frontchannelLogout": true,
+  "redirectUris": [
+    "http://localhost:5173/auth/callback"
+  ],
+  "webOrigins": [
+    "http://localhost:5173"
+  ],
+  "defaultClientScopes": [
+    "basic",
+    "cip.user.context"
+  ],
+  "optionalClientScopes": [
+    "cip.audit.read",
+    "cip.connector.admin",
+    "cip.tenant.admin",
+    "cip.usage.read",
+    "platform.command",
+    "platform.command.read"
+  ],
+  "attributes": {
+    "access.token.lifespan": "300",
+    "oauth2.device.authorization.grant.enabled": "false",
+    "oidc.ciba.grant.enabled": "false",
+    "pkce.code.challenge.method": "S256",
+    "post.logout.redirect.uris": "http://localhost:5173/",
+    "standard.token.exchange.enabled": "false"
+  },
+  "protocolMappers": [
+    {
+      "name": "audience-middleware-api",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "consentRequired": false,
+      "config": {
+        "included.custom.audience": "middleware-api",
+        "id.token.claim": "false",
+        "access.token.claim": "true"
+      }
+    },
+    {
+      "name": "claim-codestra-actor-kind",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-hardcoded-claim-mapper",
+      "consentRequired": false,
+      "config": {
+        "claim.name": "codestra_actor_kind",
+        "claim.value": "user",
+        "jsonType.label": "String",
+        "id.token.claim": "false",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "false",
+        "access.tokenResponse.claim": "false"
+      }
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "name": "cip.user.context",
+  "description": "Codestra CIP human tenant context managed by protected Keycloak GitOps. Emits tenant_id and project_ids from the admin-only codestra_tenant_id / codestra_project_ids user-profile attributes and the amr MFA evidence. Default scope of CIP browser clients only; never a realm default, never on a service client, and not an authorization scope (excluded from the scope claim).",
+  "protocol": "openid-connect",
+  "attributes": {
+    "display.on.consent.screen": "false",
+    "include.in.token.scope": "false"
+  },
+  "protocolMappers": [
+    {
+      "name": "tenant-id-from-admin-attribute",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-usermodel-attribute-mapper",
+      "consentRequired": false,
+      "config": {
+        "user.attribute": "codestra_tenant_id",
+        "claim.name": "tenant_id",
+        "jsonType.label": "String",
+        "id.token.claim": "false",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "false",
+        "multivalued": "false",
+        "aggregate.attrs": "false"
+      }
+    },
+    {
+      "name": "project-ids-from-admin-attribute",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-usermodel-attribute-mapper",
+      "consentRequired": false,
+      "config": {
+        "user.attribute": "codestra_project_ids",
+        "claim.name": "project_ids",
+        "jsonType.label": "String",
+        "id.token.claim": "false",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "false",
+        "multivalued": "true",
+        "aggregate.attrs": "false"
+      }
+    },
+    {
+      "name": "amr",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-amr-mapper",
+      "consentRequired": false,
+      "config": {
+        "id.token.claim": "false",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "false"
+      }
+    }
+  ]
+}

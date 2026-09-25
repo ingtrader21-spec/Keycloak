@@ -1,0 +1,32 @@
+{
+  "name": "cip-audit-viewer",
+  "description": "Codestra CIP human user role: lets its holder obtain cip.audit.read for the holder's own tenant only. Non-composite, never a default role, never copied into the access token; prepared only and assigned by no planner.",
+  "composite": false,
+  "clientRole": false,
+  "attributes": {
+    "codestra.role.family": [
+      "cip-product"
+    ],
+    "codestra.actor.kind": [
+      "user"
+    ],
+    "codestra.grants.scopes": [
+      "cip.audit.read"
+    ],
+    "codestra.tenant.bound": [
+      "true"
+    ],
+    "codestra.mfa.required": [
+      "true"
+    ],
+    "codestra.default_role": [
+      "false"
+    ],
+    "codestra.cross_family_grant": [
+      "false"
+    ],
+    "codestra.activation": [
+      "PREPARED_DISABLED"
+    ]
+  }
+}

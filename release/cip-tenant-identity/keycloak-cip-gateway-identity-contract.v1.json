@@ -1,0 +1,395 @@
+{
+  "activationPreconditions": [
+    "protected merge SHA recorded and the plan regenerated from it",
+    "staging-only reconciliation with the protected staging administrator credential after independent plan review",
+    "the realm OTP execution configured so the AMR mapper emits mfa; until then every human CIP token fails closed on mfa",
+    "Middleware registers the proposed platform-command-client members in config/control-plane-callers.v1.json",
+    "Kong consumes this gateway contract by digest and reproduces every token-matrix verdict and status",
+    "service client secrets handed to runners only through 0600 secret files resolved from secretReference",
+    "production cip-portal remains blocked until its origin is reviewed; unbound scopes stay unbound until Middleware routes exist"
+  ],
+  "authority": {
+    "configurationChecksum": "cb3993ffdd5e691931ef842b8057f574b96994c049d3fdb5f31e5ae946506d2c",
+    "consumptionRule": "Kong imports this file as data only, pins it by sha256 and never edits Keycloak desired state.",
+    "contract": "config/desired-state/cip-tenant-identity/contract.json",
+    "contractSha256": "af7dc452969859370f82ac9a3479cd8cd01ed2bcb7b83bf2498f41fca19e978b",
+    "desiredStatePlan": "release/cip-tenant-identity/keycloak-cip-tenant-identity-desired-state-plan.json",
+    "desiredStatePlanSha256": "5b75a7ef69456e8e429addb846814068caaff94c9288463c617a6376067e993f",
+    "hashRule": "contractSha256, tokenMatrixSha256 and parityEvidenceSha256 are sha256 over json.dumps(document, sort_keys=True, separators=(',', ':')).encode('utf-8'); desiredStatePlanSha256 is sha256 over the committed plan file bytes, as recorded in its .sha256 file",
+    "parityEvidence": "config/certification/cip-f3-cross-repo-parity-recertification.v1.json",
+    "parityEvidenceSha256": "6fad70e4cf2c319210cbc9f4fc96e3830dc8efae3a12ed03f1cc4555a3c54b80",
+    "repository": "ingtrader21-spec/Keycloak",
+    "tokenMatrix": "config/certification/cip-tenant-token-matrix.v1.json",
+    "tokenMatrixSha256": "f5f98b3eb5658f1c180a15389ecc63cc5619c7df730140825b7d3fc549db1551"
+  },
+  "boundary": {
+    "liveApplyAuthorized": false,
+    "productionActivationAuthorized": false,
+    "secretsIncluded": false,
+    "tokensIncluded": false
+  },
+  "conformance": {
+    "matrix": "config/certification/cip-tenant-token-matrix.v1.json",
+    "negativeCases": 76,
+    "positiveCases": 12,
+    "requiredDimensions": [
+      "issuer",
+      "audience",
+      "azp",
+      "scope",
+      "tenant",
+      "expiry",
+      "service-account-misuse",
+      "privilege-escalation"
+    ],
+    "rule": "Kong must reproduce the verdict and HTTP status of every request-level and issued-token case; refused-issuance cases are enforced by Keycloak."
+  },
+  "enforcementOrder": [
+    "signature against the environment JWKS with an allowed algorithm (401 algorithm_or_kid_denied)",
+    "exact issuer, audience contains middleware-api, iat <= now < exp, exp - iat <= 300, nbf <= now (401 invalid_token)",
+    "azp is in the environment CIP azpRegistry (403 authorized_party_denied)",
+    "codestra_actor_kind equals the registry actorKind; service tokens carry no amr (403 actor_kind_denied)",
+    "user tokens carry amr containing mfa (403 mfa_required)",
+    "no prohibited scope or role, and every token scope is in the registry allowedScopes (403 scope_denied)",
+    "the route's required scope is present in the scope claim (403 insufficient_scope)",
+    "exactly one valid tenant_id, no prohibited tenant claim, equal to the registry tenant for service accounts, and every tenant selector equals it (403 cross_tenant_denied)",
+    "every project selector is in a non-empty project_ids; service project_ids equal the registry projects (403 cross_project_denied)",
+    "forward the original bearer token; Middleware re-validates it and applies business entitlements"
+  ],
+  "environments": {
+    "production": {
+      "azpRegistry": {},
+      "discoveryUrl": "https://auth.codestra.co/realms/codestra/.well-known/openid-configuration",
+      "issuer": "https://auth.codestra.co/realms/codestra",
+      "jwksUri": "https://auth.codestra.co/realms/codestra/protocol/openid-connect/certs",
+      "note": "No CIP client is active in production: every production CIP token is rejected authorized_party_denied."
+    },
+    "staging": {
+      "azpRegistry": {
+        "test-syn-cip-portal": {
+          "actorKind": "user",
+          "allowedScopes": [
+            "cip.audit.read",
+            "cip.connector.admin",
+            "cip.tenant.admin",
+            "cip.usage.read",
+            "platform.command",
+            "platform.command.read"
+          ]
+        },
+        "test-syn-cip-tenant-a-auditor": {
+          "actorKind": "service",
+          "allowedScopes": [
+            "cip.audit.read"
+          ],
+          "projects": [],
+          "tenant": "TEST_SYN_TENANT_A"
+        },
+        "test-syn-cip-tenant-a-automation": {
+          "actorKind": "service",
+          "allowedScopes": [
+            "cip.usage.read",
+            "platform.command",
+            "platform.command.read"
+          ],
+          "projects": [
+            "TEST_SYN_PROJECT_A1"
+          ],
+          "tenant": "TEST_SYN_TENANT_A"
+        },
+        "test-syn-cip-tenant-b-automation": {
+          "actorKind": "service",
+          "allowedScopes": [
+            "cip.usage.read",
+            "platform.command",
+            "platform.command.read"
+          ],
+          "projects": [
+            "TEST_SYN_PROJECT_B1"
+          ],
+          "tenant": "TEST_SYN_TENANT_B"
+        }
+      },
+      "discoveryUrl": "https://auth-staging.codestra.co/realms/codestra/.well-known/openid-configuration",
+      "issuer": "https://auth-staging.codestra.co/realms/codestra",
+      "jwksUri": "https://auth-staging.codestra.co/realms/codestra/protocol/openid-connect/certs"
+    }
+  },
+  "failureCodes": {
+    "actor": {
+      "error": "actor_kind_denied",
+      "status": 403
+    },
+    "algorithm": {
+      "error": "algorithm_or_kid_denied",
+      "status": 401
+    },
+    "audience": {
+      "error": "invalid_token",
+      "status": 401
+    },
+    "azp": {
+      "error": "authorized_party_denied",
+      "status": 403
+    },
+    "claims": {
+      "error": "invalid_token",
+      "status": 401
+    },
+    "expiry": {
+      "error": "invalid_token",
+      "status": 401
+    },
+    "issuer": {
+      "error": "invalid_token",
+      "status": 401
+    },
+    "mfa": {
+      "error": "mfa_required",
+      "status": 403
+    },
+    "privilege": {
+      "error": "scope_denied",
+      "status": 403
+    },
+    "project": {
+      "error": "cross_project_denied",
+      "status": 403
+    },
+    "scope": {
+      "error": "insufficient_scope",
+      "status": 403
+    },
+    "tenant": {
+      "error": "cross_tenant_denied",
+      "status": 403
+    }
+  },
+  "knownConsumerDrift": [
+    {
+      "finding": "deploy/kong/scope-policy.lua and deploy/kong/control-plane.yml read claims.tenant; the codestra-authz plugin schema allows tenant_claim tenant or org_id.",
+      "owner": "Kong (I2)",
+      "requiredChange": "Read tenant_id only for CIP routes and treat tenant, org_id, tid, organization and tenant_ids as prohibited on CIP tokens."
+    },
+    {
+      "finding": "authorize_tenant and tenants_from_claims also accept tenant_ids (up to 64 tenants); there is no project dimension and no MFA check.",
+      "owner": "Middleware (K1)",
+      "requiredChange": "None required for safety (CIP tokens never carry tenant_ids); project and MFA enforcement stay at the gateway until Middleware adopts them."
+    }
+  ],
+  "middlewareRouteContract": {
+    "path": "deploy/public-api-route-contract.json",
+    "repository": "ingtrader21-spec/Middleware-",
+    "routeCount": 117,
+    "sha256": "9c32daecd4a15104c6f9ff60ce19c8f7e78707fb31d9fd9fcb55b1b8dfa3512b"
+  },
+  "productScopes": [
+    {
+      "actorKinds": [
+        "user"
+      ],
+      "capability": "tenant administration",
+      "name": "cip.tenant.admin",
+      "routeBinding": {
+        "routes": [],
+        "status": "UNBOUND_PENDING_MIDDLEWARE_ROUTE"
+      },
+      "write": true
+    },
+    {
+      "actorKinds": [
+        "user"
+      ],
+      "capability": "connector administration",
+      "name": "cip.connector.admin",
+      "routeBinding": {
+        "routes": [],
+        "status": "UNBOUND_PENDING_MIDDLEWARE_ROUTE"
+      },
+      "write": true
+    },
+    {
+      "actorKinds": [
+        "user",
+        "service"
+      ],
+      "capability": "command submit",
+      "name": "platform.command",
+      "routeBinding": {
+        "routes": [
+          {
+            "method": "POST",
+            "operationId": "submit_command_platform_v1_commands_post",
+            "path": "/platform/v1/commands"
+          },
+          {
+            "method": "POST",
+            "operationId": "cancel_operation_platform_v1_operations__operation_id__cancel_post",
+            "path": "/platform/v1/operations/{operation_id}/cancel"
+          }
+        ],
+        "status": "BOUND"
+      },
+      "write": true
+    },
+    {
+      "actorKinds": [
+        "user",
+        "service"
+      ],
+      "capability": "command read",
+      "name": "platform.command.read",
+      "routeBinding": {
+        "routes": [
+          {
+            "method": "GET",
+            "operationId": "describe_kernel_platform_v1_kernel_describe_get",
+            "path": "/platform/v1/kernel/describe"
+          },
+          {
+            "method": "GET",
+            "operationId": "get_operation_platform_v1_operations__operation_id__get",
+            "path": "/platform/v1/operations/{operation_id}"
+          },
+          {
+            "method": "GET",
+            "operationId": "get_timeline_platform_v1_operations__operation_id__timeline_get",
+            "path": "/platform/v1/operations/{operation_id}/timeline"
+          }
+        ],
+        "status": "BOUND"
+      },
+      "write": false
+    },
+    {
+      "actorKinds": [
+        "user",
+        "service"
+      ],
+      "capability": "usage read",
+      "name": "cip.usage.read",
+      "routeBinding": {
+        "routes": [],
+        "status": "UNBOUND_PENDING_MIDDLEWARE_ROUTE"
+      },
+      "write": false
+    },
+    {
+      "actorKinds": [
+        "user",
+        "service"
+      ],
+      "capability": "audit read",
+      "name": "cip.audit.read",
+      "routeBinding": {
+        "routes": [],
+        "status": "UNBOUND_PENDING_MIDDLEWARE_ROUTE"
+      },
+      "write": false
+    }
+  ],
+  "projectSelectors": {
+    "bodyFields": [
+      "project_id"
+    ],
+    "headers": [
+      "X-Project-ID"
+    ],
+    "pathParameters": [
+      "project_id"
+    ],
+    "queryParameters": [
+      "project_id"
+    ],
+    "rule": "A project value in the request is a selector only. Present requires a non-empty token project_ids that contains it exactly; otherwise the request is denied 403 cross_project_denied."
+  },
+  "rateLimitKeys": {
+    "primary": "tenant_id",
+    "rule": "Coarse per-tenant/project abuse limits only; business quotas and entitlements stay in Middleware.",
+    "secondary": "the validated project selector, else the literal '-' (never an unvalidated header)"
+  },
+  "routeRules": {
+    "boundScopes": "On a BOUND route, keep the frozen per-route scope/azp checks from the Middleware authority and, when azp is a CIP registry client, add the CIP tenant/project/actor/MFA checks above.",
+    "platformCommandFamily": "The frozen caller authority keeps platform-command-client unresolved and membership-required. These staging CIP clients are proposed members only; Middleware rejects their azp on the command routes until it registers them, and Keycloak does not modify the frozen caller authority.",
+    "unboundScopes": "An UNBOUND product scope satisfies no route. Kong must not accept it anywhere until Middleware publishes a route and Keycloak repins this contract."
+  },
+  "schema": "codestra.keycloak.cip-gateway-identity-contract.v1",
+  "status": "PREPARED_DISABLED",
+  "tenantSelectors": {
+    "bodyFields": [
+      "tenant_id",
+      "command.tenant_id"
+    ],
+    "headers": [
+      "X-Tenant-ID"
+    ],
+    "pathParameters": [
+      "tenant_id"
+    ],
+    "queryParameters": [
+      "tenant_id"
+    ],
+    "rule": "A tenant value in the request is a selector only. Absent is allowed. Present must equal the token tenant_id exactly (case-sensitive), otherwise the request is denied 403 cross_tenant_denied. A selector never replaces, widens or adds to the token tenant."
+  },
+  "token": {
+    "actorKindClaim": "codestra_actor_kind",
+    "audience": "middleware-api",
+    "audienceRule": "aud is a string or an array and MUST contain middleware-api",
+    "consumerClaim": "azp",
+    "maximumAccessTokenLifetimeSeconds": 300,
+    "prohibitedRealmRoles": [
+      "platform-operator"
+    ],
+    "prohibitedScopes": [
+      "platform.command.replay",
+      "platform.tenants.read",
+      "platform.services.read",
+      "platform.services.write",
+      "platform.sync.read",
+      "platform.sync.reconcile",
+      "platform.runtime.observe",
+      "email.production.read",
+      "email.production.write",
+      "identity.request",
+      "identity.session",
+      "middleware.request.forward",
+      "middleware.status.read"
+    ],
+    "prohibitedTenantClaims": [
+      "tenant_ids",
+      "tenant",
+      "org_id",
+      "tid",
+      "organization"
+    ],
+    "projectClaim": "project_ids",
+    "requiredClaims": [
+      "iss",
+      "sub",
+      "aud",
+      "azp",
+      "iat",
+      "exp",
+      "jti",
+      "scope",
+      "tenant_id",
+      "codestra_actor_kind"
+    ],
+    "scopeClaim": {
+      "format": "space-separated string",
+      "name": "scope"
+    },
+    "serviceMustNotCarryClaims": [
+      "amr"
+    ],
+    "signingAlgorithms": [
+      "RS256"
+    ],
+    "subjectClaim": "sub",
+    "tenantClaim": "tenant_id",
+    "userMfaEvidence": {
+      "claim": "amr",
+      "mustContain": "mfa"
+    }
+  }
+}

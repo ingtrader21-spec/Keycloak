@@ -1,0 +1,10 @@
+{
+  "name": "cip.audit.read",
+  "description": "Codestra CIP optional product scope (audit read) managed by protected Keycloak GitOps. Read the token tenant's audit trail. Read-only and separate from tenant and connector administration. Requested explicitly per short-lived token, issued only to holders of its mapped CIP realm roles, bound to the token tenant_id, and never a realm or client default.",
+  "protocol": "openid-connect",
+  "attributes": {
+    "display.on.consent.screen": "false",
+    "include.in.token.scope": "true"
+  },
+  "protocolMappers": []
+}

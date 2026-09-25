@@ -1,0 +1,593 @@
+{
+  "schemaVersion": 1,
+  "kind": "CodestraKeycloakCipTenantIdentityContract",
+  "mission": "CIP Foundation 3 / Agent I1: Keycloak identity authority for the Codestra Integration Platform tenant API path",
+  "status": "PREPARED_DISABLED",
+  "realm": "codestra",
+  "issuers": {
+    "production": "https://auth.codestra.co/realms/codestra",
+    "staging": "https://auth-staging.codestra.co/realms/codestra"
+  },
+  "jwksUris": {
+    "production": "https://auth.codestra.co/realms/codestra/protocol/openid-connect/certs",
+    "staging": "https://auth-staging.codestra.co/realms/codestra/protocol/openid-connect/certs"
+  },
+  "audience": "middleware-api",
+  "middlewareRouteContract": {
+    "repository": "ingtrader21-spec/Middleware-",
+    "path": "deploy/public-api-route-contract.json",
+    "sha256": "9c32daecd4a15104c6f9ff60ce19c8f7e78707fb31d9fd9fcb55b1b8dfa3512b",
+    "routeCount": 117,
+    "parityEvidence": "config/certification/cip-f3-cross-repo-parity-recertification.v1.json"
+  },
+  "tokenPolicy": {
+    "signingAlgorithms": [
+      "RS256"
+    ],
+    "maximumAccessTokenLifetimeSeconds": 300,
+    "requiredClaims": [
+      "iss",
+      "sub",
+      "aud",
+      "azp",
+      "iat",
+      "exp",
+      "jti",
+      "scope",
+      "tenant_id",
+      "codestra_actor_kind"
+    ],
+    "scopeClaimFormat": "space-separated string",
+    "audienceRule": "aud is a string or an array and MUST contain middleware-api",
+    "wildcardScopesAllowed": false,
+    "refreshTokensForServiceAccounts": false,
+    "tokenExchangeAllowed": false,
+    "passwordGrantAllowed": false,
+    "implicitGrantAllowed": false
+  },
+  "actorKinds": {
+    "user": {
+      "description": "A human signed in through the codestra-browser-mfa flow on a CIP browser client.",
+      "grantType": "authorization_code",
+      "pkceMethod": "S256",
+      "mfaRequired": true,
+      "mfaEvidence": {
+        "claim": "amr",
+        "mustContain": "mfa"
+      },
+      "tenantSource": "user-profile-attribute",
+      "clientShape": "browser"
+    },
+    "service": {
+      "description": "A confidential service account owned by exactly one tenant, reviewed in Git.",
+      "grantType": "client_credentials",
+      "pkceMethod": null,
+      "mfaRequired": false,
+      "mfaEvidence": null,
+      "mustNotCarryClaims": [
+        "amr"
+      ],
+      "tenantSource": "dedicated-client-hardcoded-claim",
+      "clientShape": "confidential-service-account",
+      "clientIdPattern": "^(cip-svc|test-syn-cip)-[a-z0-9][a-z0-9-]{2,50}$"
+    }
+  },
+  "claims": {
+    "tenant_id": {
+      "type": "string",
+      "required": true,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+      "cardinality": "exactly-one",
+      "authority": "The only authoritative tenant for a CIP request. Middleware app/security.py authorize_tenant and app/platform/principal.py tenants_from_claims read it; Kong's tenantClaim is tenant_id.",
+      "sources": {
+        "user": {
+          "keycloakMapper": "oidc-usermodel-attribute-mapper",
+          "userAttribute": "codestra_tenant_id",
+          "clientScope": "cip.user.context",
+          "attributePermissions": {
+            "view": [
+              "admin"
+            ],
+            "edit": [
+              "admin"
+            ]
+          }
+        },
+        "service": {
+          "keycloakMapper": "oidc-hardcoded-claim-mapper",
+          "boundOn": "the dedicated single-tenant CIP service client; the value is reviewed in Git and immutable for the client's lifetime"
+        }
+      }
+    },
+    "project_ids": {
+      "type": "array<string>",
+      "required": false,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+      "maximumItems": 64,
+      "authority": "Narrowing only. An absent or empty claim grants no project-scoped authority; it never means all projects. Middleware has no project dimension yet, so project enforcement is gateway selector validation plus coarse rate keys until Middleware adopts it.",
+      "sources": {
+        "user": {
+          "keycloakMapper": "oidc-usermodel-attribute-mapper",
+          "userAttribute": "codestra_project_ids",
+          "clientScope": "cip.user.context",
+          "attributePermissions": {
+            "view": [
+              "admin"
+            ],
+            "edit": [
+              "admin"
+            ]
+          }
+        },
+        "service": {
+          "keycloakMapper": "oidc-hardcoded-claim-mapper",
+          "boundOn": "the dedicated single-tenant CIP service client"
+        }
+      }
+    },
+    "codestra_actor_kind": {
+      "type": "string",
+      "required": true,
+      "enum": [
+        "user",
+        "service"
+      ],
+      "authority": "Emitted by a hardcoded mapper on the client. Every CIP client serves exactly one actor kind (browser clients have service accounts disabled; service clients have browser flows disabled), so the claim cannot disagree with the azp registry without a signing-key compromise.",
+      "sources": {
+        "user": {
+          "keycloakMapper": "oidc-hardcoded-claim-mapper",
+          "boundOn": "each CIP browser client"
+        },
+        "service": {
+          "keycloakMapper": "oidc-hardcoded-claim-mapper",
+          "boundOn": "each CIP service client"
+        }
+      }
+    },
+    "amr": {
+      "type": "array<string>",
+      "required": "user tokens only",
+      "authority": "Human MFA evidence. The OIDC AMR mapper in cip.user.context emits it; user tokens must contain mfa. Service tokens must not carry amr.",
+      "sources": {
+        "user": {
+          "keycloakMapper": "oidc-amr-mapper",
+          "clientScope": "cip.user.context"
+        }
+      }
+    }
+  },
+  "prohibitedTenantClaims": [
+    "tenant_ids",
+    "tenant",
+    "org_id",
+    "tid",
+    "organization"
+  ],
+  "prohibitedTenantClaimsReason": "Middleware also accepts tenant_ids (up to 64 tenants), and Kong's control-plane Lua reads claims.tenant. A CIP token carries exactly one tenant, so any second tenant-shaped claim is rejected as ambiguous instead of being merged.",
+  "tenantSelectors": {
+    "rule": "A tenant value in the request is a selector only. Absent is allowed. Present must equal the token tenant_id exactly (case-sensitive), otherwise the request is denied 403 cross_tenant_denied. A selector never replaces, widens or adds to the token tenant.",
+    "headers": [
+      "X-Tenant-ID"
+    ],
+    "bodyFields": [
+      "tenant_id",
+      "command.tenant_id"
+    ],
+    "queryParameters": [
+      "tenant_id"
+    ],
+    "pathParameters": [
+      "tenant_id"
+    ]
+  },
+  "projectSelectors": {
+    "rule": "A project value in the request is a selector only. Present requires a non-empty token project_ids that contains it exactly; otherwise the request is denied 403 cross_project_denied.",
+    "headers": [
+      "X-Project-ID"
+    ],
+    "bodyFields": [
+      "project_id"
+    ],
+    "queryParameters": [
+      "project_id"
+    ],
+    "pathParameters": [
+      "project_id"
+    ]
+  },
+  "userProfile": {
+    "unmanagedAttributePolicy": "ADMIN_VIEW",
+    "attributes": [
+      {
+        "name": "codestra_tenant_id",
+        "claim": "tenant_id",
+        "multivalued": false
+      },
+      {
+        "name": "codestra_project_ids",
+        "claim": "project_ids",
+        "multivalued": true,
+        "maximumValues": 64
+      }
+    ],
+    "rule": "Both attributes are view/edit admin only, are not required at registration, and never appear in the account console. The realm allows self-registration, so a self-registered user has no tenant_id and fails closed on every CIP route."
+  },
+  "productScopes": [
+    {
+      "name": "cip.tenant.admin",
+      "capability": "tenant administration",
+      "description": "Administer the token tenant's own CIP settings, projects and member role requests. Never cross-tenant, never realm or platform administration.",
+      "actorKinds": [
+        "user"
+      ],
+      "write": true,
+      "definitionOwner": "cip-tenant-identity",
+      "keycloakDefinition": "config/desired-state/cip-tenant-identity/client-scopes/cip.tenant.admin.json",
+      "routeBinding": {
+        "status": "UNBOUND_PENDING_MIDDLEWARE_ROUTE",
+        "routes": [],
+        "note": "No Middleware route requires this scope at 9c32dae. Kong must not accept it on any route until Middleware publishes one and Keycloak repins."
+      }
+    },
+    {
+      "name": "cip.connector.admin",
+      "capability": "connector administration",
+      "description": "Install, configure, enable and disable connectors for the token tenant and bind OpenBao credential references. Never reads secret values.",
+      "actorKinds": [
+        "user"
+      ],
+      "write": true,
+      "definitionOwner": "cip-tenant-identity",
+      "keycloakDefinition": "config/desired-state/cip-tenant-identity/client-scopes/cip.connector.admin.json",
+      "routeBinding": {
+        "status": "UNBOUND_PENDING_MIDDLEWARE_ROUTE",
+        "routes": [],
+        "note": "The unmerged Middleware kernel draft 0bc8d07 adds read-only GET /platform/v1/connectors and /adapters under identity.request; no connector write route exists. Binding waits for Middleware connector-admin routes."
+      }
+    },
+    {
+      "name": "platform.command",
+      "capability": "command submit",
+      "description": "Submit or cancel a Middleware platform-kernel command for the token tenant. Reuses the frozen Middleware V3 kernel scope; Middleware checks the command tenant_id against the token tenant.",
+      "actorKinds": [
+        "user",
+        "service"
+      ],
+      "write": true,
+      "definitionOwner": "frozen-platform-kernel",
+      "keycloakDefinition": "config/client-scopes/platform.command.json",
+      "routeBinding": {
+        "status": "BOUND",
+        "routes": [
+          {
+            "method": "POST",
+            "path": "/platform/v1/commands",
+            "operationId": "submit_command_platform_v1_commands_post",
+            "callingClient": "platform-command-client"
+          },
+          {
+            "method": "POST",
+            "path": "/platform/v1/operations/{operation_id}/cancel",
+            "operationId": "cancel_operation_platform_v1_operations__operation_id__cancel_post",
+            "callingClient": "platform-command-client"
+          }
+        ]
+      }
+    },
+    {
+      "name": "platform.command.read",
+      "capability": "command read",
+      "description": "Read operations, operation timelines and the kernel description for the token tenant. Reuses the frozen Middleware V3 kernel scope.",
+      "actorKinds": [
+        "user",
+        "service"
+      ],
+      "write": false,
+      "definitionOwner": "frozen-platform-kernel",
+      "keycloakDefinition": "config/client-scopes/platform.command.read.json",
+      "routeBinding": {
+        "status": "BOUND",
+        "routes": [
+          {
+            "method": "GET",
+            "path": "/platform/v1/kernel/describe",
+            "operationId": "describe_kernel_platform_v1_kernel_describe_get",
+            "callingClient": "platform-command-client"
+          },
+          {
+            "method": "GET",
+            "path": "/platform/v1/operations/{operation_id}",
+            "operationId": "get_operation_platform_v1_operations__operation_id__get",
+            "callingClient": "platform-command-client"
+          },
+          {
+            "method": "GET",
+            "path": "/platform/v1/operations/{operation_id}/timeline",
+            "operationId": "get_timeline_platform_v1_operations__operation_id__timeline_get",
+            "callingClient": "platform-command-client"
+          }
+        ]
+      }
+    },
+    {
+      "name": "cip.usage.read",
+      "capability": "usage read",
+      "description": "Read metering and usage for the token tenant (and its projects when narrowed). Read-only; no billing or quota mutation.",
+      "actorKinds": [
+        "user",
+        "service"
+      ],
+      "write": false,
+      "definitionOwner": "cip-tenant-identity",
+      "keycloakDefinition": "config/desired-state/cip-tenant-identity/client-scopes/cip.usage.read.json",
+      "routeBinding": {
+        "status": "UNBOUND_PENDING_MIDDLEWARE_ROUTE",
+        "routes": [],
+        "note": "No Middleware usage route exists at 9c32dae."
+      }
+    },
+    {
+      "name": "cip.audit.read",
+      "capability": "audit read",
+      "description": "Read the token tenant's audit trail. Read-only and separate from tenant and connector administration.",
+      "actorKinds": [
+        "user",
+        "service"
+      ],
+      "write": false,
+      "definitionOwner": "cip-tenant-identity",
+      "keycloakDefinition": "config/desired-state/cip-tenant-identity/client-scopes/cip.audit.read.json",
+      "routeBinding": {
+        "status": "UNBOUND_PENDING_MIDDLEWARE_ROUTE",
+        "routes": [],
+        "note": "No tenant audit route exists at 9c32dae; GET /platform/v1/email/production/audit is a production-operator route under email.production.read and is not a CIP route."
+      }
+    }
+  ],
+  "realmRoles": [
+    {
+      "name": "cip-tenant-admin",
+      "actorKind": "user",
+      "grantsScopes": [
+        "cip.tenant.admin",
+        "cip.usage.read"
+      ]
+    },
+    {
+      "name": "cip-connector-admin",
+      "actorKind": "user",
+      "grantsScopes": [
+        "cip.connector.admin"
+      ]
+    },
+    {
+      "name": "cip-command-operator",
+      "actorKind": "user",
+      "grantsScopes": [
+        "platform.command",
+        "platform.command.read"
+      ]
+    },
+    {
+      "name": "cip-command-viewer",
+      "actorKind": "user",
+      "grantsScopes": [
+        "platform.command.read"
+      ]
+    },
+    {
+      "name": "cip-usage-viewer",
+      "actorKind": "user",
+      "grantsScopes": [
+        "cip.usage.read"
+      ]
+    },
+    {
+      "name": "cip-audit-viewer",
+      "actorKind": "user",
+      "grantsScopes": [
+        "cip.audit.read"
+      ]
+    },
+    {
+      "name": "cip-svc-command-submitter",
+      "actorKind": "service",
+      "grantsScopes": [
+        "platform.command"
+      ]
+    },
+    {
+      "name": "cip-svc-command-reader",
+      "actorKind": "service",
+      "grantsScopes": [
+        "platform.command.read"
+      ]
+    },
+    {
+      "name": "cip-svc-usage-reader",
+      "actorKind": "service",
+      "grantsScopes": [
+        "cip.usage.read"
+      ]
+    },
+    {
+      "name": "cip-svc-audit-reader",
+      "actorKind": "service",
+      "grantsScopes": [
+        "cip.audit.read"
+      ]
+    }
+  ],
+  "scopeIssuanceRule": "Keycloak issues a CIP product scope only when (1) the client lists it as an optional client scope, (2) the token request names it in the scope parameter, and (3) the principal holds at least one realm role in the scope's role scope-mappings (Keycloak permits a client scope that has role scope-mappings only to users holding one of those roles). CIP roles are non-composite and never default roles. No CIP client carries the roles client scope (defaults are exactly basic, plus cip.user.context for browser clients), so realm_access is never emitted: the scope claim is the authority, not a role. The mappings on platform.command and platform.command.read are overlays; the frozen scope definitions are unchanged, and any future non-CIP holder needs its own reviewed mapping.",
+  "separationOfDuties": [
+    [
+      "cip.tenant.admin",
+      "cip.connector.admin"
+    ],
+    [
+      "cip.tenant.admin",
+      "cip.audit.read"
+    ],
+    [
+      "cip.connector.admin",
+      "cip.audit.read"
+    ],
+    [
+      "platform.command",
+      "cip.audit.read"
+    ]
+  ],
+  "prohibitedOnCipPrincipals": {
+    "scopes": [
+      "platform.command.replay",
+      "platform.tenants.read",
+      "platform.services.read",
+      "platform.services.write",
+      "platform.sync.read",
+      "platform.sync.reconcile",
+      "platform.runtime.observe",
+      "email.production.read",
+      "email.production.write",
+      "identity.request",
+      "identity.session",
+      "middleware.request.forward",
+      "middleware.status.read"
+    ],
+    "realmRoles": [
+      "platform-operator"
+    ],
+    "rule": "A CIP client may hold only CIP product scopes. Platform-operator, cross-tenant, provisioning and gateway scopes are never attached to a CIP client and a CIP token that carries one is rejected as privilege escalation."
+  },
+  "platformCommandClientFamily": {
+    "family": "platform-command-client",
+    "status": "PROPOSED_PENDING_MIDDLEWARE_REGISTRY",
+    "proposedMembers": [
+      "test-syn-cip-portal",
+      "test-syn-cip-tenant-a-automation",
+      "test-syn-cip-tenant-b-automation"
+    ],
+    "membershipAuthority": "Middleware config/control-plane-callers.v1.json plus this contract",
+    "rule": "The frozen caller authority keeps platform-command-client unresolved and membership-required. These staging CIP clients are proposed members only; Middleware rejects their azp on the command routes until it registers them, and Keycloak does not modify the frozen caller authority."
+  },
+  "clients": [
+    {
+      "clientId": "cip-portal",
+      "actorKind": "user",
+      "environment": "production",
+      "status": "BLOCKED_ORIGIN_UNRESOLVED",
+      "rendered": false,
+      "reason": "No reviewed production hostname for the CIP product portal exists in Caddy or the portal repository. A redirect URI is never guessed; the client is rendered only after the portal origin is reviewed."
+    },
+    {
+      "clientId": "test-syn-cip-portal",
+      "actorKind": "user",
+      "environment": "staging",
+      "status": "PREPARED_STAGING_ONLY",
+      "rendered": true,
+      "publicClient": true,
+      "redirectUris": [
+        "http://localhost:5173/auth/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:5173"
+      ],
+      "postLogoutRedirectUris": [
+        "http://localhost:5173/"
+      ],
+      "purpose": "Synthetic staging browser client for the P1 product portal (Vite dev origin) and TEST_SYN human certification. Serves many tenants, so it carries no tenant mapper; tenant comes only from the admin-only user attribute.",
+      "optionalClientScopes": [
+        "cip.audit.read",
+        "cip.connector.admin",
+        "cip.tenant.admin",
+        "cip.usage.read",
+        "platform.command",
+        "platform.command.read"
+      ]
+    },
+    {
+      "clientId": "test-syn-cip-tenant-a-automation",
+      "actorKind": "service",
+      "environment": "staging",
+      "status": "PREPARED_STAGING_ONLY",
+      "rendered": true,
+      "tenant": "TEST_SYN_TENANT_A",
+      "projects": [
+        "TEST_SYN_PROJECT_A1"
+      ],
+      "secretReference": "secret://staging/keycloak/cip-tenant-identity/test-syn-cip-tenant-a-automation",
+      "purpose": "Tenant A automation service account: submits and reads tenant A commands and reads tenant A usage.",
+      "optionalClientScopes": [
+        "cip.usage.read",
+        "platform.command",
+        "platform.command.read"
+      ],
+      "serviceAccountRealmRoles": [
+        "cip-svc-command-reader",
+        "cip-svc-command-submitter",
+        "cip-svc-usage-reader"
+      ]
+    },
+    {
+      "clientId": "test-syn-cip-tenant-a-auditor",
+      "actorKind": "service",
+      "environment": "staging",
+      "status": "PREPARED_STAGING_ONLY",
+      "rendered": true,
+      "tenant": "TEST_SYN_TENANT_A",
+      "projects": [],
+      "secretReference": "secret://staging/keycloak/cip-tenant-identity/test-syn-cip-tenant-a-auditor",
+      "purpose": "Tenant A audit-export service account: reads the tenant A audit trail only.",
+      "optionalClientScopes": [
+        "cip.audit.read"
+      ],
+      "serviceAccountRealmRoles": [
+        "cip-svc-audit-reader"
+      ]
+    },
+    {
+      "clientId": "test-syn-cip-tenant-b-automation",
+      "actorKind": "service",
+      "environment": "staging",
+      "status": "PREPARED_STAGING_ONLY",
+      "rendered": true,
+      "tenant": "TEST_SYN_TENANT_B",
+      "projects": [
+        "TEST_SYN_PROJECT_B1"
+      ],
+      "secretReference": "secret://staging/keycloak/cip-tenant-identity/test-syn-cip-tenant-b-automation",
+      "purpose": "Tenant B twin of the tenant A automation account. Exists only to prove cross-tenant isolation.",
+      "optionalClientScopes": [
+        "cip.usage.read",
+        "platform.command",
+        "platform.command.read"
+      ],
+      "serviceAccountRealmRoles": [
+        "cip-svc-command-reader",
+        "cip-svc-command-submitter",
+        "cip-svc-usage-reader"
+      ]
+    }
+  ],
+  "serviceClientProvisioningRule": "A production CIP service client is named cip-svc-<tenant-slug>-<purpose>, is bound to exactly one tenant by a hardcoded tenant_id mapper, and is created only by a reviewed desired-state change. Rebinding a client to another tenant is prohibited: retire it and create a new client.",
+  "sharedIdentitiesWithoutTenantAuthority": [
+    "kong-gateway",
+    "middleware-api",
+    "middleware-worker",
+    "n8n-automation"
+  ],
+  "sharedIdentitiesRule": "Shared identities serve many tenants. They never carry tenant_id, never join the CIP azp registry and cannot satisfy a CIP tenant route.",
+  "protectedUngrantableClientIds": [
+    "codestra-agent-desktop"
+  ],
+  "boundary": {
+    "managedClientPolicyMembership": false,
+    "liveApplyFromRepositoryCi": false,
+    "productionActivationAuthorized": false,
+    "realmDefaultScopes": false,
+    "tokensOrSecretsCommitted": false,
+    "frozenArtifactsModified": false
+  },
+  "reconcilerEnvironments": [
+    "staging"
+  ]
+}
