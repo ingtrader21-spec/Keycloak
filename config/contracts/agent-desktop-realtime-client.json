@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "clientId": "codestra-agent-desktop",
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "audience": "codestra-agent-desktop",
+  "clientType": "public-browser",
+  "grantType": "authorization_code",
+  "pkce": "S256",
+  "redirectUris": [
+    "https://crm.codestra.agency/codestra/realtime/callback",
+    "https://phone.codestra.agency/codestra/realtime/callback",
+    "https://dialer.codestra.agency/codestra/realtime/callback"
+  ],
+  "webOrigins": [
+    "https://crm.codestra.agency",
+    "https://phone.codestra.agency",
+    "https://dialer.codestra.agency"
+  ],
+  "requiredRealmRoles": [
+    "telephony.webphone.use"
+  ],
+  "requiredClientRoles": {
+    "codestra-agent-desktop": [
+      "realtime.agent.connect"
+    ]
+  },
+  "consumer": "middleware-websocket-gateway",
+  "directAccessGrantsEnabled": false,
+  "serviceAccountsEnabled": false,
+  "implicitFlowEnabled": false,
+  "secretStorage": "not_applicable_public_client"
+}
