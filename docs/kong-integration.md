@@ -71,3 +71,12 @@ Source alignment does not prove runtime wiring. Before staging or production pro
 - Middleware receives the expected identity context and still rejects unauthorized commands.
 
 No merge or source validation by itself authorizes live deployment.
+## CIP tenant identity (Foundation 3)
+
+For the Codestra Integration Platform tenant API path, Kong consumes
+`release/cip-tenant-identity/keycloak-cip-gateway-identity-contract.v1.json`
+by sha256 as data only. It carries the per-environment `azp` registry, the
+`tenant_id` / `project_ids` / `codestra_actor_kind` claim rules,
+selector-only tenant handling, product-scope route bindings, failure codes and
+the token-matrix conformance suite. See
+[`CIP_TENANT_IDENTITY.md`](CIP_TENANT_IDENTITY.md).

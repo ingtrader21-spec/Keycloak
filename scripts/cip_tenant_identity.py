@@ -27,6 +27,8 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 DESIRED_ROOT = ROOT / "config" / "desired-state" / "cip-tenant-identity"
 CONTRACT_PATH = DESIRED_ROOT / "contract.json"
 PARITY_RECORD = ROOT / "config" / "certification" / "cip-f3-cross-repo-parity-recertification.v1.json"
@@ -855,7 +857,295 @@ def check_desired_state(rendered: dict[Path, dict[str, Any]]) -> None:
     _require(not extra, f"unrendered desired-state files: {extra}")
     for path, document in sorted(rendered.items()):
         _require(path.is_file(), f"{relative(path)} is missing; run with --write")
-        _require(path.read_bytes() == rendered_bytes(document), f"{relative(path)} is stale; run with --write")
+        _require(
+            path.read_bytes().replace(b"\r\n", b"\n") == rendered_bytes(document),
+            f"{relative(path)} is stale; run with --write",
+        )
+
+
+# --- release evidence for gateway consumption --------------------------------------------
+
+RELEASE_DIR = ROOT / "release" / "cip-tenant-identity"
+PLAN_PATH = RELEASE_DIR / "keycloak-cip-tenant-identity-desired-state-plan.json"
+GATEWAY_PATH = RELEASE_DIR / "keycloak-cip-gateway-identity-contract.v1.json"
+MATRIX_PATH = ROOT / "config" / "certification" / "cip-tenant-token-matrix.v1.json"
+STAGING_ACTION = "RECONCILE_IN_STAGING_ONLY_AUTHORIZED_MISSION"
+FAILURE_CODES = {
+    "algorithm": (401, "algorithm_or_kid_denied"),
+    "issuer": (401, "invalid_token"),
+    "audience": (401, "invalid_token"),
+    "claims": (401, "invalid_token"),
+    "expiry": (401, "invalid_token"),
+    "azp": (403, "authorized_party_denied"),
+    "actor": (403, "actor_kind_denied"),
+    "mfa": (403, "mfa_required"),
+    "scope": (403, "insufficient_scope"),
+    "privilege": (403, "scope_denied"),
+    "tenant": (403, "cross_tenant_denied"),
+    "project": (403, "cross_project_denied"),
+}
+
+
+def checksum_path(path: Path) -> Path:
+    return path.with_suffix(".sha256")
+
+
+def release_bytes(document: dict[str, Any]) -> bytes:
+    return (json.dumps(document, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+
+def build_plan(contract: dict[str, Any], rendered: dict[Path, dict[str, Any]]) -> dict[str, Any]:
+    documents = dict(rendered)
+    documents[CONTRACT_PATH] = contract
+    source_files = []
+    checksum_input = bytearray()
+    for path, value in sorted(documents.items(), key=lambda item: relative(item[0])):
+        payload = canonical(value)
+        checksum_input.extend(relative(path).encode() + b"\0" + payload)
+        source_files.append({"path": relative(path), "sha256": hashlib.sha256(payload).hexdigest()})
+
+    def op(resource_type: str, resource_id: str, desired: Any, action: str = STAGING_ACTION) -> dict[str, Any]:
+        return {"resourceType": resource_type, "resourceId": resource_id, "action": action, "desiredSha256": sha256_of(desired)}
+
+    profile = rendered[DESIRED_ROOT / "user-profile" / "cip-tenant-attributes.json"]
+    operations = [op("user-profile-attributes", "cip-tenant-attributes", profile)]
+    operations.append(op("client-scope", USER_CONTEXT_SCOPE, rendered[DESIRED_ROOT / "client-scopes" / f"{USER_CONTEXT_SCOPE}.json"]))
+    for scope in contract["productScopes"]:
+        if scope["definitionOwner"] == "cip-tenant-identity":
+            operations.append(op("client-scope", scope["name"], rendered[DESIRED_ROOT / "client-scopes" / f"{scope['name']}.json"]))
+        else:
+            frozen = load_json(ROOT / scope["keycloakDefinition"])
+            operations.append(op("client-scope", scope["name"], frozen, "REFERENCE_FROZEN_DEFINITION_UNCHANGED"))
+    for role in contract["realmRoles"]:
+        operations.append(op("realm-role", role["name"], rendered[DESIRED_ROOT / "realm-roles" / f"{role['name']}.json"]))
+    for mapping in rendered[DESIRED_ROOT / "scope-role-mappings" / "cip-product-scopes.json"]["scopeMappings"]:
+        operations.append(op("client-scope-role-mappings", mapping["clientScope"], mapping["roles"]))
+    for entry in rendered_clients(contract):
+        client = rendered[DESIRED_ROOT / "clients" / f"{entry['clientId']}.json"]
+        operations.append(op("client", entry["clientId"], client))
+        operations.append(op("client-default-scope-links", entry["clientId"], client["defaultClientScopes"]))
+        operations.append(op("client-optional-scope-links", entry["clientId"], client["optionalClientScopes"]))
+        if entry["actorKind"] == "service":
+            operations.append(op("service-account-realm-roles", entry["clientId"], entry["serviceAccountRealmRoles"]))
+    for entry in contract["clients"]:
+        if entry.get("rendered") is not True:
+            operations.append(
+                {"resourceType": "client", "resourceId": entry["clientId"], "action": entry["status"], "desiredSha256": None}
+            )
+
+    return {
+        "schemaVersion": 1,
+        "kind": "CodestraKeycloakCipTenantIdentityDesiredStatePlan",
+        "environment": "staging",
+        "realm": contract["realm"],
+        "issuer": contract["issuers"]["staging"],
+        "audience": contract["audience"],
+        "middlewareRouteContract": contract["middlewareRouteContract"],
+        "configurationChecksum": hashlib.sha256(checksum_input).hexdigest(),
+        "sourceFiles": source_files,
+        "operations": operations,
+        "repositoryBoundary": {
+            "runtimeStateRead": False,
+            "liveApplyAuthorized": False,
+            "liveApplyPerformed": False,
+            "secretsGenerated": False,
+            "tokensMinted": False,
+            "productionTargetAllowed": False,
+            "managedClientPolicyChanged": False,
+            "frozenArtifactsModified": False,
+        },
+        "activationPreconditions": activation_preconditions(),
+        "rollback": {
+            "newClientSequence": ["disable", "verify no active use", "separately approve deletion"],
+            "newClientScopeSequence": ["unlink from every client", "verify zero links", "separately approve deletion"],
+            "roleScopeMappingSequence": [
+                "remove the CIP role mappings from the client scope",
+                "verify platform.command and platform.command.read definitions are byte-identical to the frozen files",
+            ],
+            "userProfileSequence": ["remove the two appended attributes only", "leave every other user-profile attribute unchanged"],
+        },
+    }
+
+
+def activation_preconditions() -> list[str]:
+    return [
+        "protected merge SHA recorded and the plan regenerated from it",
+        "staging-only reconciliation with the protected staging administrator credential after independent plan review",
+        "the realm OTP execution configured so the AMR mapper emits mfa; until then every human CIP token fails closed on mfa",
+        "Middleware registers the proposed platform-command-client members in config/control-plane-callers.v1.json",
+        "Kong consumes this gateway contract by digest and reproduces every token-matrix verdict and status",
+        "service client secrets handed to runners only through 0600 secret files resolved from secretReference",
+        "production cip-portal remains blocked until its origin is reviewed; unbound scopes stay unbound until Middleware routes exist",
+    ]
+
+
+def build_gateway_contract(contract: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
+    from scripts import cip_tenant_token_matrix as matrix_cert  # lazy: the matrix module imports this one
+
+    matrix = load_json(MATRIX_PATH)
+    report = matrix_cert.validate_matrix(contract, matrix)
+    production = load_json(PRODUCTION_ENDPOINTS)
+    staging = load_json(STAGING_ENDPOINTS)
+
+    def registry(environment: str) -> dict[str, Any]:
+        entries = {}
+        for entry in rendered_clients(contract):
+            if entry["environment"] != environment:
+                continue
+            record: dict[str, Any] = {"actorKind": entry["actorKind"], "allowedScopes": entry["optionalClientScopes"]}
+            if entry["actorKind"] == "service":
+                record["tenant"] = entry["tenant"]
+                record["projects"] = entry["projects"]
+            entries[entry["clientId"]] = record
+        return entries
+
+    return {
+        "schema": "codestra.keycloak.cip-gateway-identity-contract.v1",
+        "status": contract["status"],
+        "authority": {
+            "repository": "ingtrader21-spec/Keycloak",
+            "contract": relative(CONTRACT_PATH),
+            "contractSha256": sha256_of(contract),
+            "desiredStatePlan": relative(PLAN_PATH),
+            "desiredStatePlanSha256": hashlib.sha256(release_bytes(plan)).hexdigest(),
+            "configurationChecksum": plan["configurationChecksum"],
+            "tokenMatrix": relative(MATRIX_PATH),
+            "tokenMatrixSha256": sha256_of(matrix),
+            "parityEvidence": contract["middlewareRouteContract"]["parityEvidence"],
+            "parityEvidenceSha256": sha256_of(load_json(PARITY_RECORD)),
+            "hashRule": (
+                "contractSha256, tokenMatrixSha256 and parityEvidenceSha256 are sha256 over json.dumps(document, "
+                "sort_keys=True, separators=(',', ':')).encode('utf-8'); desiredStatePlanSha256 is sha256 over the "
+                "committed plan file bytes, as recorded in its .sha256 file"
+            ),
+            "consumptionRule": "Kong imports this file as data only, pins it by sha256 and never edits Keycloak desired state.",
+        },
+        "middlewareRouteContract": {
+            key: contract["middlewareRouteContract"][key] for key in ("repository", "path", "sha256", "routeCount")
+        },
+        "environments": {
+            "production": {
+                "issuer": production["issuer"],
+                "discoveryUrl": production["discoveryUrl"],
+                "jwksUri": production["jwksUri"],
+                "azpRegistry": registry("production"),
+                "note": "No CIP client is active in production: every production CIP token is rejected authorized_party_denied.",
+            },
+            "staging": {
+                "issuer": staging["issuer"],
+                "discoveryUrl": staging["discoveryUrl"],
+                "jwksUri": staging["jwksUri"],
+                "azpRegistry": registry("staging"),
+            },
+        },
+        "token": {
+            "signingAlgorithms": contract["tokenPolicy"]["signingAlgorithms"],
+            "audience": contract["audience"],
+            "audienceRule": contract["tokenPolicy"]["audienceRule"],
+            "maximumAccessTokenLifetimeSeconds": contract["tokenPolicy"]["maximumAccessTokenLifetimeSeconds"],
+            "requiredClaims": contract["tokenPolicy"]["requiredClaims"],
+            "scopeClaim": {"name": "scope", "format": contract["tokenPolicy"]["scopeClaimFormat"]},
+            "consumerClaim": "azp",
+            "subjectClaim": "sub",
+            "tenantClaim": TENANT_CLAIM,
+            "projectClaim": PROJECT_CLAIM,
+            "actorKindClaim": ACTOR_CLAIM,
+            "userMfaEvidence": contract["actorKinds"]["user"]["mfaEvidence"],
+            "serviceMustNotCarryClaims": contract["actorKinds"]["service"]["mustNotCarryClaims"],
+            "prohibitedTenantClaims": contract["prohibitedTenantClaims"],
+            "prohibitedScopes": contract["prohibitedOnCipPrincipals"]["scopes"],
+            "prohibitedRealmRoles": contract["prohibitedOnCipPrincipals"]["realmRoles"],
+        },
+        "tenantSelectors": contract["tenantSelectors"],
+        "projectSelectors": contract["projectSelectors"],
+        "productScopes": [
+            {
+                "name": scope["name"],
+                "capability": scope["capability"],
+                "actorKinds": scope["actorKinds"],
+                "write": scope["write"],
+                "routeBinding": {
+                    "status": scope["routeBinding"]["status"],
+                    "routes": [
+                        {key: route[key] for key in ("method", "path", "operationId")}
+                        for route in scope["routeBinding"]["routes"]
+                    ],
+                },
+            }
+            for scope in contract["productScopes"]
+        ],
+        "enforcementOrder": [
+            "signature against the environment JWKS with an allowed algorithm (401 algorithm_or_kid_denied)",
+            "exact issuer, audience contains middleware-api, iat <= now < exp, exp - iat <= 300, nbf <= now (401 invalid_token)",
+            "azp is in the environment CIP azpRegistry (403 authorized_party_denied)",
+            "codestra_actor_kind equals the registry actorKind; service tokens carry no amr (403 actor_kind_denied)",
+            "user tokens carry amr containing mfa (403 mfa_required)",
+            "no prohibited scope or role, and every token scope is in the registry allowedScopes (403 scope_denied)",
+            "the route's required scope is present in the scope claim (403 insufficient_scope)",
+            "exactly one valid tenant_id, no prohibited tenant claim, equal to the registry tenant for service accounts, and every tenant selector equals it (403 cross_tenant_denied)",
+            "every project selector is in a non-empty project_ids; service project_ids equal the registry projects (403 cross_project_denied)",
+            "forward the original bearer token; Middleware re-validates it and applies business entitlements",
+        ],
+        "routeRules": {
+            "boundScopes": "On a BOUND route, keep the frozen per-route scope/azp checks from the Middleware authority and, when azp is a CIP registry client, add the CIP tenant/project/actor/MFA checks above.",
+            "unboundScopes": "An UNBOUND product scope satisfies no route. Kong must not accept it anywhere until Middleware publishes a route and Keycloak repins this contract.",
+            "platformCommandFamily": contract["platformCommandClientFamily"]["rule"],
+        },
+        "rateLimitKeys": {
+            "primary": TENANT_CLAIM,
+            "secondary": "the validated project selector, else the literal '-' (never an unvalidated header)",
+            "rule": "Coarse per-tenant/project abuse limits only; business quotas and entitlements stay in Middleware.",
+        },
+        "failureCodes": {name: {"status": status, "error": error} for name, (status, error) in FAILURE_CODES.items()},
+        "conformance": {
+            "matrix": relative(MATRIX_PATH),
+            "positiveCases": report["positiveCases"],
+            "negativeCases": report["negativeCases"],
+            "requiredDimensions": matrix["requiredDimensions"],
+            "rule": "Kong must reproduce the verdict and HTTP status of every request-level and issued-token case; refused-issuance cases are enforced by Keycloak.",
+        },
+        "knownConsumerDrift": [
+            {
+                "owner": "Kong (I2)",
+                "finding": "deploy/kong/scope-policy.lua and deploy/kong/control-plane.yml read claims.tenant; the codestra-authz plugin schema allows tenant_claim tenant or org_id.",
+                "requiredChange": "Read tenant_id only for CIP routes and treat tenant, org_id, tid, organization and tenant_ids as prohibited on CIP tokens.",
+            },
+            {
+                "owner": "Middleware (K1)",
+                "finding": "authorize_tenant and tenants_from_claims also accept tenant_ids (up to 64 tenants); there is no project dimension and no MFA check.",
+                "requiredChange": "None required for safety (CIP tokens never carry tenant_ids); project and MFA enforcement stay at the gateway until Middleware adopts them.",
+            },
+        ],
+        "boundary": {
+            "liveApplyAuthorized": False,
+            "productionActivationAuthorized": False,
+            "secretsIncluded": False,
+            "tokensIncluded": False,
+        },
+        "activationPreconditions": activation_preconditions(),
+    }
+
+
+def build_release(contract: dict[str, Any], rendered: dict[Path, dict[str, Any]]) -> dict[Path, dict[str, Any]]:
+    plan = build_plan(contract, rendered)
+    return {PLAN_PATH: plan, GATEWAY_PATH: build_gateway_contract(contract, plan)}
+
+
+def write_release(release: dict[Path, dict[str, Any]]) -> None:
+    RELEASE_DIR.mkdir(parents=True, exist_ok=True)
+    for path, document in release.items():
+        payload = release_bytes(document)
+        path.write_bytes(payload)
+        checksum_path(path).write_text(f"{hashlib.sha256(payload).hexdigest()}  {path.name}\n", encoding="utf-8")
+
+
+def check_release(release: dict[Path, dict[str, Any]]) -> None:
+    for path, document in release.items():
+        expected = release_bytes(document)
+        _require(path.is_file() and checksum_path(path).is_file(), f"{relative(path)} is missing; run with --write")
+        _require(path.read_bytes().replace(b"\r\n", b"\n") == expected, f"{relative(path)} is stale; run with --write")
+        checksum = checksum_path(path).read_text(encoding="utf-8").replace("\r\n", "\n")
+        _require(checksum == f"{hashlib.sha256(expected).hexdigest()}  {path.name}\n", f"{relative(checksum_path(path))} is stale")
 
 
 def build(contract_path: Path = CONTRACT_PATH) -> tuple[dict[str, Any], dict[Path, dict[str, Any]]]:
@@ -877,10 +1167,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.write:
             write_desired_state(rendered)
         check_desired_state(rendered)
-    except IdentityError as exc:
+        release = build_release(contract, rendered)
+        if args.write:
+            write_release(release)
+        check_release(release)
+    except (IdentityError, ValueError) as exc:
         print("CIP_TENANT_IDENTITY=FAIL")
         print(f"ERROR={exc}")
         return 1
+    gateway = release[GATEWAY_PATH]
     clients = rendered_clients(contract)
     print("CIP_TENANT_IDENTITY=PASS")
     print(f"CIP_AUDIENCE={contract['audience']}")
@@ -892,6 +1187,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"CIP_PRODUCT_SCOPES={len(contract['productScopes'])}")
     print(f"CIP_REALM_ROLES={len(contract['realmRoles'])}")
     print("CIP_UNMAPPED_PRODUCT_SCOPES=0")
+    print(f"CIP_PLAN_OPERATIONS={len(release[PLAN_PATH]['operations'])}")
+    print(f"CIP_CONFIGURATION_CHECKSUM={release[PLAN_PATH]['configurationChecksum']}")
+    print(f"CIP_GATEWAY_CONTRACT_SHA256={hashlib.sha256(release_bytes(gateway)).hexdigest()}")
+    print(f"CIP_TOKEN_MATRIX_CASES={gateway['conformance']['positiveCases']}+/{gateway['conformance']['negativeCases']}-")
     print("CIP_TENANT_BODY_SELF_ASSERTION=PROHIBITED")
     print("KEYCLOAK_LIVE_APPLY=PROHIBITED")
     return 0
