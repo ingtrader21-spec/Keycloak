@@ -22,6 +22,7 @@ else
   python3 "$ROOT_DIR/scripts/validate-password-reset-contract.py"
 fi
 python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_password_reset_smtp_transport.py' -v
+python3 "$ROOT_DIR/scripts/keycloak_identity_compiler.py" --check
 python3 "$ROOT_DIR/scripts/validate-authority-controls.py"
 python3 "$ROOT_DIR/scripts/validate-kyyow-identity.py"
 python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_kyyow_identity.py' -v

@@ -1,0 +1,3236 @@
+{
+  "clientScopes": [
+    {
+      "attributes": {
+        "display.on.consent.screen": "false",
+        "include.in.token.scope": "true"
+      },
+      "description": "Codestra optional monitoring scope managed by protected Keycloak GitOps. It is requested explicitly per short-lived service-account token.",
+      "name": "health.read",
+      "protocol": "openid-connect",
+      "protocolMappers": []
+    },
+    {
+      "attributes": {
+        "display.on.consent.screen": "false",
+        "include.in.token.scope": "true"
+      },
+      "description": "Codestra optional monitoring scope managed by protected Keycloak GitOps. It is requested explicitly per short-lived service-account token.",
+      "name": "metrics.read",
+      "protocol": "openid-connect",
+      "protocolMappers": []
+    },
+    {
+      "attributes": {
+        "display.on.consent.screen": "false",
+        "include.in.token.scope": "true"
+      },
+      "description": "Codestra shared-edge ingress scope managed by protected Keycloak GitOps. n8n reads back a delivered automation result: GET /api/v1/integrations/n8n/results/{event_id}. Attached only as an explicit per-client default scope; never a realm default or optional scope.",
+      "name": "n8n.results.read",
+      "protocol": "openid-connect",
+      "protocolMappers": []
+    },
+    {
+      "attributes": {
+        "display.on.consent.screen": "false",
+        "include.in.token.scope": "true"
+      },
+      "description": "Codestra shared-edge ingress scope managed by protected Keycloak GitOps. n8n submits automation results to Middleware: POST /api/v1/integrations/n8n/results. Attached only as an explicit per-client default scope; never a realm default or optional scope.",
+      "name": "n8n.results.submit",
+      "protocol": "openid-connect",
+      "protocolMappers": []
+    },
+    {
+      "attributes": {
+        "display.on.consent.screen": "false",
+        "include.in.token.scope": "true"
+      },
+      "description": "Codestra shared-edge ingress scope managed by protected Keycloak GitOps. Reads a campaign and its desired state through Middleware: GET /api/v1/integrations/odoo/campaigns/{campaign_id}[/desired-state]. Attached only as an explicit per-client default scope; never a realm default or optional scope.",
+      "name": "odoo.campaigns.read",
+      "protocol": "openid-connect",
+      "protocolMappers": []
+    },
+    {
+      "attributes": {
+        "display.on.consent.screen": "false",
+        "include.in.token.scope": "true"
+      },
+      "description": "Codestra optional workload scope managed by repository desired state. Requested explicitly per short-lived service-account token when a workload authenticates to OpenBao; it adds the openbao audience and the codestra_environment claim OpenBao roles require. Never a realm default scope.",
+      "name": "openbao.workload",
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "openbao"
+          },
+          "consentRequired": false,
+          "name": "audience-openbao",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "codestra_environment",
+            "claim.value": "${CODESTRA_ENVIRONMENT}",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "claim-codestra-environment",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        }
+      ]
+    },
+    {
+      "attributes": {
+        "display.on.consent.screen": "false",
+        "include.in.token.scope": "true"
+      },
+      "description": "Codestra optional Middleware V3 scope managed by protected Keycloak GitOps: submit, cancel or otherwise drive a Middleware V3 platform-kernel command (POST /platform/v1/commands, POST /platform/v1/operations/{operation_id}/cancel). Requested explicitly per short-lived service-account token; never a realm default. Pinned to Middleware V3 route digest 9c32daecd4a15104c6f9ff60ce19c8f7e78707fb31d9fd9fcb55b1b8dfa3512b; attached to no client until PAS-157 caller/token certification resolves the authorized caller.",
+      "name": "platform.command",
+      "protocol": "openid-connect",
+      "protocolMappers": []
+    },
+    {
+      "attributes": {
+        "display.on.consent.screen": "false",
+        "include.in.token.scope": "true"
+      },
+      "description": "Codestra optional Middleware V3 scope managed by protected Keycloak GitOps: read Middleware V3 platform-kernel operations, timelines and the kernel description. Requested explicitly per short-lived service-account token; never a realm default. Pinned to Middleware V3 route digest 9c32daecd4a15104c6f9ff60ce19c8f7e78707fb31d9fd9fcb55b1b8dfa3512b; attached to no client until PAS-157 caller/token certification resolves the authorized caller.",
+      "name": "platform.command.read",
+      "protocol": "openid-connect",
+      "protocolMappers": []
+    },
+    {
+      "attributes": {
+        "display.on.consent.screen": "false",
+        "include.in.token.scope": "true"
+      },
+      "description": "Codestra optional Middleware V3 scope managed by protected Keycloak GitOps: replay a Middleware V3 platform-kernel operation (POST /platform/v1/operations/{operation_id}/replay). Requested explicitly per short-lived service-account token; never a realm default. Pinned to Middleware V3 route digest 9c32daecd4a15104c6f9ff60ce19c8f7e78707fb31d9fd9fcb55b1b8dfa3512b; attached to no client until PAS-157 caller/token certification resolves the authorized caller.",
+      "name": "platform.command.replay",
+      "protocol": "openid-connect",
+      "protocolMappers": []
+    }
+  ],
+  "clients": [
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "ai-provider-adapter",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential machine identity managed by protected Keycloak GitOps.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra service identity: ai-provider-adapter",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "ai-provider-adapter"
+          },
+          "consentRequired": false,
+          "name": "audience-ai-provider-adapter",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-service-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "alertmanager",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential machine identity managed by protected Keycloak GitOps.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra service identity: alertmanager",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "alerts.write",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-service-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "beyvra-backend",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential product backend identity for Kong -> Middleware command access. Secrets and tenant values remain external to Git.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra product service identity: beyvra-backend",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "beyvra.middleware.command.write beyvra.middleware.status.read",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-product-middleware-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "claim.name": "tenant_id",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "multivalued": "false",
+            "user.attribute": "tenant_id",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "tenant-id-from-service-account",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "breero-backend",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential product backend identity for Kong -> Middleware command access. Secrets and tenant values remain external to Git.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra product service identity: breero-backend",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "breero.middleware.command.write breero.middleware.status.read",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-product-middleware-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "claim.name": "tenant_id",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "multivalued": "false",
+            "user.attribute": "tenant_id",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "tenant-id-from-service-account",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "codestra-ai",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential machine identity managed by protected Keycloak GitOps.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra service identity: codestra-ai",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "ai.inference.request",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-service-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "codestra-communication",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential machine identity managed by protected Keycloak GitOps.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra service identity: codestra-communication",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "communication.email.request communication.sms.request",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-service-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "codestra-marketing",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential machine identity managed by protected Keycloak GitOps.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra service identity: codestra-marketing",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "marketing.campaign.request",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-service-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "codestra-provisioning-service",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Compatibility identity dedicated to the webphone session issuer; read-only Keycloak user lookup.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra production webphone provisioning client",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "codestra-provisioning-service"
+          },
+          "consentRequired": false,
+          "name": "audience-codestra-provisioning-service",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "codestra_scopes",
+            "claim.value": "identity:rotate provisioning:execute provisioning:read",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-service-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "claim.name": "resource_access.realm-management.roles",
+            "id.token.claim": "false",
+            "introspection.token.claim": "false",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "userinfo.token.claim": "false",
+            "usermodel.clientRoleMapping.clientId": "realm-management"
+          },
+          "consentRequired": false,
+          "name": "realm-management-read-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-client-role-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "codestra-social",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential machine identity managed by protected Keycloak GitOps.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra service identity: codestra-social",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "social.publish.request",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-service-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "klyrow-gateway",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential machine identity managed by protected Keycloak GitOps.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra service identity: klyrow-gateway",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "email.events.publish email.inbound.publish",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-service-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false",
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "https://klyrow.com/"
+      },
+      "baseUrl": "https://klyrow.com/",
+      "bearerOnly": false,
+      "clientId": "klyrow-portal",
+      "consentRequired": false,
+      "description": "Klyrow browser portal using Authorization Code Flow with PKCE.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": true,
+      "implicitFlowEnabled": false,
+      "name": "Klyrow Portal",
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "redirectUris": [
+        "https://klyrow.com/"
+      ],
+      "rootUrl": "https://klyrow.com",
+      "serviceAccountsEnabled": false,
+      "standardFlowEnabled": true,
+      "webOrigins": [
+        "https://klyrow.com"
+      ]
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "kong-gateway",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential machine identity managed by protected Keycloak GitOps.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra service identity: kong-gateway",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "middleware.request.forward middleware.status.read",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-service-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "kyqra-gateway",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential machine identity managed by protected Keycloak GitOps.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra service identity: kyqra-gateway",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "crawler.progress.publish crawler.results.publish",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-service-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "larim-a-backend",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential product backend identity for Kong -> Middleware command access. Secrets and tenant values remain external to Git.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra product service identity: larim-a-backend",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "larim-a.middleware.command.write larim-a.middleware.status.read",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-product-middleware-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "claim.name": "tenant_id",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "multivalued": "false",
+            "user.attribute": "tenant_id",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "tenant-id-from-service-account",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "marketing-provider-adapter",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential machine identity managed by protected Keycloak GitOps.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra service identity: marketing-provider-adapter",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "marketing-provider-adapter"
+          },
+          "consentRequired": false,
+          "name": "audience-marketing-provider-adapter",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-service-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "middleware-api",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential machine identity managed by protected Keycloak GitOps.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra service identity: middleware-api",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "kyqra-gateway"
+          },
+          "consentRequired": false,
+          "name": "audience-kyqra-gateway",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "n8n-automation"
+          },
+          "consentRequired": false,
+          "name": "audience-n8n-automation",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "odoo-integration"
+          },
+          "consentRequired": false,
+          "name": "audience-odoo-integration",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "vicidial-adapter"
+          },
+          "consentRequired": false,
+          "name": "audience-vicidial-adapter",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "callbacks.dispatch crawler.jobs.read crawler.jobs.submit crawler.results.read odoo.activities.write odoo.leads.read odoo.leads.write telephony.commands.write workflow.status.read workflow.trigger",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-service-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "middleware-worker",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential machine identity managed by protected Keycloak GitOps.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra service identity: middleware-worker",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "ai-provider-adapter"
+          },
+          "consentRequired": false,
+          "name": "audience-ai-provider-adapter",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "klyrow-gateway"
+          },
+          "consentRequired": false,
+          "name": "audience-klyrow-gateway",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "marketing-provider-adapter"
+          },
+          "consentRequired": false,
+          "name": "audience-marketing-provider-adapter",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "postly-adapter"
+          },
+          "consentRequired": false,
+          "name": "audience-postly-adapter",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "telnexa-gateway"
+          },
+          "consentRequired": false,
+          "name": "audience-telnexa-gateway",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "ai.provider.dispatch ai.provider.status.read delivery.retry dlq.replay email.send email.status.read inbox.process marketing.provider.dispatch marketing.provider.status.read outbox.dispatch sms.send sms.status.read social.publish social.status.read",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-service-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false",
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "https://admin.moneybeeloan.com/auth/login"
+      },
+      "baseUrl": "https://admin.moneybeeloan.com/",
+      "bearerOnly": false,
+      "clientId": "moneybee-admin",
+      "consentRequired": false,
+      "description": "MoneyBee admin browser portal using Authorization Code Flow with PKCE S256.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": true,
+      "implicitFlowEnabled": false,
+      "name": "MoneyBee Admin Portal",
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "moneybee-api"
+          },
+          "consentRequired": false,
+          "name": "moneybee-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        }
+      ],
+      "publicClient": true,
+      "redirectUris": [
+        "https://admin.moneybeeloan.com/auth/callback",
+        "https://admin.moneybeeloan.com/auth/silent-callback"
+      ],
+      "rootUrl": "https://admin.moneybeeloan.com",
+      "serviceAccountsEnabled": false,
+      "standardFlowEnabled": true,
+      "webOrigins": [
+        "https://admin.moneybeeloan.com"
+      ]
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "moneybee-backend",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential product backend identity for Kong -> Middleware command access. Secrets and tenant values remain external to Git.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra product service identity: moneybee-backend",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "moneybee.middleware.command.write moneybee.middleware.status.read",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-product-middleware-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "claim.name": "tenant_id",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "multivalued": "false",
+            "user.attribute": "tenant_id",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "tenant-id-from-service-account",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false",
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "https://app.moneybeeloan.com/auth/login"
+      },
+      "baseUrl": "https://app.moneybeeloan.com/",
+      "bearerOnly": false,
+      "clientId": "moneybee-borrower",
+      "consentRequired": false,
+      "description": "MoneyBee borrower browser portal using Authorization Code Flow with PKCE S256.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": true,
+      "implicitFlowEnabled": false,
+      "name": "MoneyBee Borrower Portal",
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "moneybee-api"
+          },
+          "consentRequired": false,
+          "name": "moneybee-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        }
+      ],
+      "publicClient": true,
+      "redirectUris": [
+        "https://app.moneybeeloan.com/auth/callback",
+        "https://app.moneybeeloan.com/auth/silent-callback"
+      ],
+      "rootUrl": "https://app.moneybeeloan.com",
+      "serviceAccountsEnabled": false,
+      "standardFlowEnabled": true,
+      "webOrigins": [
+        "https://app.moneybeeloan.com"
+      ]
+    },
+    {
+      "attributes": {
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false",
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "https://lenders.moneybeeloan.com/auth/login"
+      },
+      "baseUrl": "https://lenders.moneybeeloan.com/",
+      "bearerOnly": false,
+      "clientId": "moneybee-lender",
+      "consentRequired": false,
+      "description": "MoneyBee lender browser portal using Authorization Code Flow with PKCE S256.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": true,
+      "implicitFlowEnabled": false,
+      "name": "MoneyBee Lender Portal",
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "moneybee-api"
+          },
+          "consentRequired": false,
+          "name": "moneybee-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        }
+      ],
+      "publicClient": true,
+      "redirectUris": [
+        "https://lenders.moneybeeloan.com/auth/callback",
+        "https://lenders.moneybeeloan.com/auth/silent-callback"
+      ],
+      "rootUrl": "https://lenders.moneybeeloan.com",
+      "serviceAccountsEnabled": false,
+      "standardFlowEnabled": true,
+      "webOrigins": [
+        "https://lenders.moneybeeloan.com"
+      ]
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "monitoring-readonly",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential machine identity managed by protected Keycloak GitOps.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra service identity: monitoring-readonly",
+      "optionalClientScopes": [
+        "health.read",
+        "metrics.read"
+      ],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "n8n-automation",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential machine identity managed by protected Keycloak GitOps.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra service identity: n8n-automation",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "middleware.request.forward middleware.status.read workflow.result.publish",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-service-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "login_theme": "codestra",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false",
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "https://n8n.codestra.agency/##https://n8n-staging.codestra.agency/"
+      },
+      "authorizationServicesEnabled": false,
+      "baseUrl": "https://n8n.codestra.agency/",
+      "bearerOnly": false,
+      "clientId": "n8n-editor-gateway",
+      "consentRequired": false,
+      "defaultClientScopes": [
+        "profile",
+        "email",
+        "roles"
+      ],
+      "description": "Confidential oauth2-proxy client protecting the community-edition n8n editor.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": true,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra n8n editor gateway",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "redirectUris": [
+        "https://n8n.codestra.agency/oauth2/callback",
+        "https://n8n-staging.codestra.agency/oauth2/callback"
+      ],
+      "rootUrl": "https://n8n.codestra.agency",
+      "serviceAccountsEnabled": false,
+      "standardFlowEnabled": true,
+      "webOrigins": [
+        "https://n8n.codestra.agency",
+        "https://n8n-staging.codestra.agency"
+      ]
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "odoo-integration",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential machine identity managed by protected Keycloak GitOps.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra service identity: odoo-integration",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "odoo.delivery.result.publish odoo.events.publish",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-service-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false",
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "https://crm.codestra.agency/web/login?logout=1"
+      },
+      "baseUrl": "https://crm.codestra.agency/",
+      "bearerOnly": false,
+      "clientId": "odoo-web",
+      "consentRequired": false,
+      "description": "Odoo browser sign-in using Authorization Code Flow with PKCE; no client secret is stored in Odoo.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": true,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra Odoo 19 Web SSO",
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "redirectUris": [
+        "https://crm.codestra.agency/codestra/sso/callback"
+      ],
+      "rootUrl": "https://crm.codestra.agency",
+      "serviceAccountsEnabled": false,
+      "standardFlowEnabled": true,
+      "webOrigins": [
+        "https://crm.codestra.agency"
+      ]
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "postly-adapter",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential machine identity managed by protected Keycloak GitOps.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra service identity: postly-adapter",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "social.events.publish",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-service-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "provisioning-service",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential machine identity managed by protected Keycloak GitOps.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra service identity: provisioning-service",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "identity.request integration.configure tenant.provision",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-service-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "sdk-intake",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential machine identity managed by protected Keycloak GitOps.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra service identity: sdk-intake",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "leads.write surveys.write",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-service-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "social-codestra",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential product backend identity for Kong -> Middleware command access. Secrets and tenant values remain external to Git.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra product service identity: social-codestra",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "social.middleware.command.write social.middleware.status.read",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-product-middleware-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "claim.name": "tenant_id",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "multivalued": "false",
+            "user.attribute": "tenant_id",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "tenant-id-from-service-account",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "telnexa-gateway",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential machine identity managed by protected Keycloak GitOps.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra service identity: telnexa-gateway",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "sms.events.publish sms.inbound.publish",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-service-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "claim.name": "tenant_ids",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "user.attribute": "tenant_ids",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "tenant-ids-from-service-account",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "transportation-backend",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential product backend identity for Kong -> Middleware command access. Secrets and tenant values remain external to Git.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra product service identity: transportation-backend",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "transportation.middleware.command.write transportation.middleware.status.read",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-product-middleware-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "claim.name": "tenant_id",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "multivalued": "false",
+            "user.attribute": "tenant_id",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "tenant-id-from-service-account",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    },
+    {
+      "attributes": {
+        "access.token.lifespan": "300",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "authorizationServicesEnabled": false,
+      "bearerOnly": false,
+      "clientId": "vicidial-adapter",
+      "consentRequired": false,
+      "defaultClientScopes": [],
+      "description": "Confidential machine identity managed by protected Keycloak GitOps.",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "implicitFlowEnabled": false,
+      "name": "Codestra service identity: vicidial-adapter",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.custom.audience": "middleware-api"
+          },
+          "consentRequired": false,
+          "name": "audience-middleware-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "access.tokenResponse.claim": "false",
+            "claim.name": "scope",
+            "claim.value": "callbacks.update recordings.metadata.publish telephony.events.publish",
+            "id.token.claim": "false",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "false"
+          },
+          "consentRequired": false,
+          "name": "reviewed-service-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper"
+        }
+      ],
+      "publicClient": false,
+      "redirectUris": [],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "webOrigins": []
+    }
+  ],
+  "environmentBoundaries": {
+    "production": {
+      "issuer": "https://auth.codestra.co/realms/codestra"
+    },
+    "staging": {
+      "issuer": "https://auth-staging.codestra.co/realms/codestra"
+    },
+    "testSyn": {
+      "namingPrefix": "test-syn-",
+      "productionPromotion": false
+    }
+  },
+  "realm": {
+    "accessTokenLifespan": 300,
+    "bruteForceProtected": true,
+    "enabled": true,
+    "realm": "codestra",
+    "resetPasswordAllowed": true,
+    "sslRequired": "external",
+    "verifyEmail": false
+  },
+  "realmRoles": [
+    {
+      "attributes": {
+        "codestra.assignment.independent_approval": [
+          "true"
+        ],
+        "codestra.cross_family_grant": [
+          "false"
+        ],
+        "codestra.mfa.required": [
+          "true"
+        ],
+        "codestra.role.family": [
+          "observability"
+        ],
+        "codestra.role.level": [
+          "admin"
+        ]
+      },
+      "clientRole": false,
+      "composite": false,
+      "description": "Observability application administration; never grants OpenBao access.",
+      "name": "observability-admin"
+    },
+    {
+      "attributes": {
+        "codestra.assignment.independent_approval": [
+          "true"
+        ],
+        "codestra.cross_family_grant": [
+          "false"
+        ],
+        "codestra.mfa.required": [
+          "true"
+        ],
+        "codestra.role.family": [
+          "observability"
+        ],
+        "codestra.role.level": [
+          "operator"
+        ]
+      },
+      "clientRole": false,
+      "composite": false,
+      "description": "Operational access without identity, secrets, or business administration.",
+      "name": "observability-operator"
+    },
+    {
+      "attributes": {
+        "codestra.assignment.independent_approval": [
+          "true"
+        ],
+        "codestra.cross_family_grant": [
+          "false"
+        ],
+        "codestra.mfa.required": [
+          "true"
+        ],
+        "codestra.role.family": [
+          "observability"
+        ],
+        "codestra.role.level": [
+          "viewer"
+        ]
+      },
+      "clientRole": false,
+      "composite": false,
+      "description": "Read-only access to approved observability dashboards and queries.",
+      "name": "observability-viewer"
+    },
+    {
+      "attributes": {
+        "codestra.activation": [
+          "PREPARED_DISABLED"
+        ],
+        "codestra.assignment.independent_approval": [
+          "true"
+        ],
+        "codestra.cross_family_grant": [
+          "false"
+        ],
+        "codestra.mfa.required": [
+          "true"
+        ],
+        "codestra.role.family": [
+          "platform-kernel"
+        ],
+        "codestra.role.level": [
+          "operator"
+        ]
+      },
+      "clientRole": false,
+      "composite": false,
+      "description": "Middleware V3 platform-kernel operator: required, together with the platform.command.replay scope, to replay an operation (POST /platform/v1/operations/{operation_id}/replay). Never grants provider, secrets, identity or business administration. Pinned to Middleware V3 route digest 9c32daecd4a15104c6f9ff60ce19c8f7e78707fb31d9fd9fcb55b1b8dfa3512b; prepared only, provisioned by no planner, and not assigned until PAS-157 caller/token certification is complete.",
+      "name": "platform-operator"
+    },
+    {
+      "attributes": {
+        "codestra.assignment.independent_approval": [
+          "true"
+        ],
+        "codestra.cross_family_grant": [
+          "false"
+        ],
+        "codestra.mfa.required": [
+          "true"
+        ],
+        "codestra.role.family": [
+          "secrets"
+        ],
+        "codestra.role.level": [
+          "admin"
+        ]
+      },
+      "clientRole": false,
+      "composite": false,
+      "description": "Administrative access to approved OpenBao policy and secret paths only.",
+      "name": "secrets-admin"
+    },
+    {
+      "attributes": {
+        "codestra.assignment.independent_approval": [
+          "true"
+        ],
+        "codestra.cross_family_grant": [
+          "false"
+        ],
+        "codestra.mfa.required": [
+          "true"
+        ],
+        "codestra.role.family": [
+          "secrets"
+        ],
+        "codestra.role.level": [
+          "operator"
+        ]
+      },
+      "clientRole": false,
+      "composite": false,
+      "description": "Restricted operational access to approved OpenBao paths only.",
+      "name": "secrets-operator"
+    }
+  ],
+  "schema": "codestra.keycloak.identity-authority.v1",
+  "sourceSha256": "0019f9e383db6eb54ff008effd5e67dc482d14a282abbd3a0ffbf6d168db5c53",
+  "stagedClients": [
+    {
+      "authorityGroup": "edge-integration-certification",
+      "client": {
+        "attributes": {
+          "access.token.lifespan": "300",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "oidc.ciba.grant.enabled": "false"
+        },
+        "authorizationServicesEnabled": false,
+        "bearerOnly": false,
+        "clientId": "test-syn-n8n-read",
+        "consentRequired": false,
+        "defaultClientScopes": [
+          "basic",
+          "n8n.results.read"
+        ],
+        "description": "Isolated staging service identity for the TEST_SYN Keycloak -> Caddy -> Kong -> Middleware edge certification. Reads the seeded TEST_SYN n8n result back; expected 200, missing 404, and 403 on the submit route. Repository-only desired state outside the protected managed-client policy; never a production client.",
+        "directAccessGrantsEnabled": false,
+        "enabled": true,
+        "frontchannelLogout": false,
+        "fullScopeAllowed": false,
+        "implicitFlowEnabled": false,
+        "name": "Codestra edge-certification identity: test-syn-n8n-read",
+        "optionalClientScopes": [],
+        "protocol": "openid-connect",
+        "protocolMappers": [
+          {
+            "config": {
+              "access.token.claim": "true",
+              "id.token.claim": "false",
+              "included.custom.audience": "middleware-api"
+            },
+            "consentRequired": false,
+            "name": "audience-middleware-api",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-audience-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "environment",
+              "claim.value": "staging",
+              "id.token.claim": "false",
+              "jsonType.label": "String",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "claim-environment",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "tenant_id",
+              "claim.value": "TEST_SYN_TENANT",
+              "id.token.claim": "false",
+              "jsonType.label": "String",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "claim-tenant-id",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "business_units",
+              "claim.value": "[\"TEST_SYN\"]",
+              "id.token.claim": "false",
+              "jsonType.label": "JSON",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "claim-business-units",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "campaigns",
+              "claim.value": "[\"TEST_SYN\"]",
+              "id.token.claim": "false",
+              "jsonType.label": "JSON",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "claim-campaigns",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          }
+        ],
+        "publicClient": false,
+        "redirectUris": [],
+        "serviceAccountsEnabled": true,
+        "standardFlowEnabled": false,
+        "webOrigins": []
+      },
+      "sourcePath": "config/desired-state/edge-integration-certification/clients/test-syn-n8n-read.json"
+    },
+    {
+      "authorityGroup": "edge-integration-certification",
+      "client": {
+        "attributes": {
+          "access.token.lifespan": "300",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "oidc.ciba.grant.enabled": "false"
+        },
+        "authorizationServicesEnabled": false,
+        "bearerOnly": false,
+        "clientId": "test-syn-n8n-submit",
+        "consentRequired": false,
+        "defaultClientScopes": [
+          "basic",
+          "n8n.results.submit"
+        ],
+        "description": "Isolated staging service identity for the TEST_SYN Keycloak -> Caddy -> Kong -> Middleware edge certification. Submits one safe TEST_SYN n8n result through the shared edge; expected 202. Repository-only desired state outside the protected managed-client policy; never a production client.",
+        "directAccessGrantsEnabled": false,
+        "enabled": true,
+        "frontchannelLogout": false,
+        "fullScopeAllowed": false,
+        "implicitFlowEnabled": false,
+        "name": "Codestra edge-certification identity: test-syn-n8n-submit",
+        "optionalClientScopes": [],
+        "protocol": "openid-connect",
+        "protocolMappers": [
+          {
+            "config": {
+              "access.token.claim": "true",
+              "id.token.claim": "false",
+              "included.custom.audience": "middleware-api"
+            },
+            "consentRequired": false,
+            "name": "audience-middleware-api",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-audience-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "environment",
+              "claim.value": "staging",
+              "id.token.claim": "false",
+              "jsonType.label": "String",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "claim-environment",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "tenant_id",
+              "claim.value": "TEST_SYN_TENANT",
+              "id.token.claim": "false",
+              "jsonType.label": "String",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "claim-tenant-id",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "business_units",
+              "claim.value": "[\"TEST_SYN\"]",
+              "id.token.claim": "false",
+              "jsonType.label": "JSON",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "claim-business-units",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "campaigns",
+              "claim.value": "[\"TEST_SYN\"]",
+              "id.token.claim": "false",
+              "jsonType.label": "JSON",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "claim-campaigns",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          }
+        ],
+        "publicClient": false,
+        "redirectUris": [],
+        "serviceAccountsEnabled": true,
+        "standardFlowEnabled": false,
+        "webOrigins": []
+      },
+      "sourcePath": "config/desired-state/edge-integration-certification/clients/test-syn-n8n-submit.json"
+    },
+    {
+      "authorityGroup": "edge-integration-certification",
+      "client": {
+        "attributes": {
+          "access.token.lifespan": "300",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "oidc.ciba.grant.enabled": "false"
+        },
+        "authorizationServicesEnabled": false,
+        "bearerOnly": false,
+        "clientId": "test-syn-odoo-reader",
+        "consentRequired": false,
+        "defaultClientScopes": [
+          "basic",
+          "odoo.campaigns.read"
+        ],
+        "description": "Isolated staging service identity for the TEST_SYN Keycloak -> Caddy -> Kong -> Middleware edge certification. Reads campaign TEST_SYN and its desired state; expected 200 from staging Odoo through Middleware. Repository-only desired state outside the protected managed-client policy; never a production client.",
+        "directAccessGrantsEnabled": false,
+        "enabled": true,
+        "frontchannelLogout": false,
+        "fullScopeAllowed": false,
+        "implicitFlowEnabled": false,
+        "name": "Codestra edge-certification identity: test-syn-odoo-reader",
+        "optionalClientScopes": [],
+        "protocol": "openid-connect",
+        "protocolMappers": [
+          {
+            "config": {
+              "access.token.claim": "true",
+              "id.token.claim": "false",
+              "included.custom.audience": "middleware-api"
+            },
+            "consentRequired": false,
+            "name": "audience-middleware-api",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-audience-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "environment",
+              "claim.value": "staging",
+              "id.token.claim": "false",
+              "jsonType.label": "String",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "claim-environment",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "tenant_id",
+              "claim.value": "TEST_SYN_TENANT",
+              "id.token.claim": "false",
+              "jsonType.label": "String",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "claim-tenant-id",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "business_units",
+              "claim.value": "[\"TEST_SYN\"]",
+              "id.token.claim": "false",
+              "jsonType.label": "JSON",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "claim-business-units",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "campaigns",
+              "claim.value": "[\"TEST_SYN\"]",
+              "id.token.claim": "false",
+              "jsonType.label": "JSON",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "claim-campaigns",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          }
+        ],
+        "publicClient": false,
+        "redirectUris": [],
+        "serviceAccountsEnabled": true,
+        "standardFlowEnabled": false,
+        "webOrigins": []
+      },
+      "sourcePath": "config/desired-state/edge-integration-certification/clients/test-syn-odoo-reader.json"
+    },
+    {
+      "authorityGroup": "edge-integration-certification",
+      "client": {
+        "attributes": {
+          "access.token.lifespan": "300",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "oidc.ciba.grant.enabled": "false"
+        },
+        "authorizationServicesEnabled": false,
+        "bearerOnly": false,
+        "clientId": "test-syn-wrong-audience",
+        "consentRequired": false,
+        "defaultClientScopes": [
+          "basic"
+        ],
+        "description": "Isolated staging service identity for the TEST_SYN Keycloak -> Caddy -> Kong -> Middleware edge certification. Valid staging token whose audience is not the Middleware/Kong audience; expected 401 on every route. Repository-only desired state outside the protected managed-client policy; never a production client.",
+        "directAccessGrantsEnabled": false,
+        "enabled": true,
+        "frontchannelLogout": false,
+        "fullScopeAllowed": false,
+        "implicitFlowEnabled": false,
+        "name": "Codestra edge-certification identity: test-syn-wrong-audience",
+        "optionalClientScopes": [],
+        "protocol": "openid-connect",
+        "protocolMappers": [
+          {
+            "config": {
+              "access.token.claim": "true",
+              "id.token.claim": "false",
+              "included.custom.audience": "test-syn-wrong-audience"
+            },
+            "consentRequired": false,
+            "name": "audience-test-syn-wrong-audience",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-audience-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "environment",
+              "claim.value": "staging",
+              "id.token.claim": "false",
+              "jsonType.label": "String",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "claim-environment",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "tenant_id",
+              "claim.value": "TEST_SYN_TENANT",
+              "id.token.claim": "false",
+              "jsonType.label": "String",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "claim-tenant-id",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "business_units",
+              "claim.value": "[\"TEST_SYN\"]",
+              "id.token.claim": "false",
+              "jsonType.label": "JSON",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "claim-business-units",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "campaigns",
+              "claim.value": "[\"TEST_SYN\"]",
+              "id.token.claim": "false",
+              "jsonType.label": "JSON",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "claim-campaigns",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          }
+        ],
+        "publicClient": false,
+        "redirectUris": [],
+        "serviceAccountsEnabled": true,
+        "standardFlowEnabled": false,
+        "webOrigins": []
+      },
+      "sourcePath": "config/desired-state/edge-integration-certification/clients/test-syn-wrong-audience.json"
+    },
+    {
+      "authorityGroup": "edge-integration-certification",
+      "client": {
+        "attributes": {
+          "access.token.lifespan": "300",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "oidc.ciba.grant.enabled": "false"
+        },
+        "authorizationServicesEnabled": false,
+        "bearerOnly": false,
+        "clientId": "test-syn-wrong-tenant",
+        "consentRequired": false,
+        "defaultClientScopes": [
+          "basic",
+          "n8n.results.read",
+          "odoo.campaigns.read"
+        ],
+        "description": "Isolated staging service identity for the TEST_SYN Keycloak -> Caddy -> Kong -> Middleware edge certification. Valid audience and scopes bound to another tenant; expected the same 404 body as a missing result and an indistinguishable campaign denial. Repository-only desired state outside the protected managed-client policy; never a production client.",
+        "directAccessGrantsEnabled": false,
+        "enabled": true,
+        "frontchannelLogout": false,
+        "fullScopeAllowed": false,
+        "implicitFlowEnabled": false,
+        "name": "Codestra edge-certification identity: test-syn-wrong-tenant",
+        "optionalClientScopes": [],
+        "protocol": "openid-connect",
+        "protocolMappers": [
+          {
+            "config": {
+              "access.token.claim": "true",
+              "id.token.claim": "false",
+              "included.custom.audience": "middleware-api"
+            },
+            "consentRequired": false,
+            "name": "audience-middleware-api",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-audience-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "environment",
+              "claim.value": "staging",
+              "id.token.claim": "false",
+              "jsonType.label": "String",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "claim-environment",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "tenant_id",
+              "claim.value": "TEST_SYN_OTHER_TENANT",
+              "id.token.claim": "false",
+              "jsonType.label": "String",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "claim-tenant-id",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "business_units",
+              "claim.value": "[\"TEST_SYN_OTHER\"]",
+              "id.token.claim": "false",
+              "jsonType.label": "JSON",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "claim-business-units",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "campaigns",
+              "claim.value": "[\"TEST_SYN_OTHER\"]",
+              "id.token.claim": "false",
+              "jsonType.label": "JSON",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "claim-campaigns",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          }
+        ],
+        "publicClient": false,
+        "redirectUris": [],
+        "serviceAccountsEnabled": true,
+        "standardFlowEnabled": false,
+        "webOrigins": []
+      },
+      "sourcePath": "config/desired-state/edge-integration-certification/clients/test-syn-wrong-tenant.json"
+    },
+    {
+      "authorityGroup": "observability",
+      "client": {
+        "attributes": {
+          "access.token.lifespan": "300",
+          "client.session.idle.timeout": "900",
+          "client.session.max.lifespan": "14400",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "oidc.ciba.grant.enabled": "false",
+          "pkce.code.challenge.method": "S256",
+          "post.logout.redirect.uris": "https://graf.codestra.media/"
+        },
+        "authorizationServicesEnabled": false,
+        "baseUrl": "https://graf.codestra.media/",
+        "bearerOnly": false,
+        "clientAuthenticatorType": "client-secret",
+        "clientId": "grafana-observability",
+        "consentRequired": false,
+        "defaultClientScopes": [
+          "web-origins",
+          "acr",
+          "profile",
+          "email"
+        ],
+        "description": "Grafana browser client for the Codestra observability portal.",
+        "directAccessGrantsEnabled": false,
+        "enabled": true,
+        "frontchannelLogout": true,
+        "fullScopeAllowed": false,
+        "implicitFlowEnabled": false,
+        "name": "Codestra Grafana",
+        "optionalClientScopes": [],
+        "protocol": "openid-connect",
+        "protocolMappers": [
+          {
+            "config": {
+              "access.token.claim": "true",
+              "claim.name": "realm_access.roles",
+              "id.token.claim": "true",
+              "jsonType.label": "String",
+              "multivalued": "true",
+              "userinfo.token.claim": "true"
+            },
+            "consentRequired": false,
+            "name": "codestra-realm-roles",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-usermodel-realm-role-mapper"
+          }
+        ],
+        "publicClient": false,
+        "redirectUris": [
+          "https://graf.codestra.media/login/generic_oauth"
+        ],
+        "rootUrl": "https://graf.codestra.media",
+        "serviceAccountsEnabled": false,
+        "standardFlowEnabled": true,
+        "webOrigins": [
+          "https://graf.codestra.media"
+        ]
+      },
+      "sourcePath": "config/desired-state/observability/clients/grafana-observability.json"
+    },
+    {
+      "authorityGroup": "observability",
+      "client": {
+        "attributes": {
+          "access.token.lifespan": "300",
+          "client.session.idle.timeout": "600",
+          "client.session.max.lifespan": "3600",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "oidc.ciba.grant.enabled": "false",
+          "pkce.code.challenge.method": "S256",
+          "post.logout.redirect.uris": "https://bao.codestra.media/"
+        },
+        "authorizationServicesEnabled": false,
+        "baseUrl": "https://bao.codestra.media/ui/",
+        "bearerOnly": false,
+        "clientAuthenticatorType": "client-secret",
+        "clientId": "openbao-secrets",
+        "consentRequired": false,
+        "defaultClientScopes": [
+          "web-origins",
+          "acr",
+          "profile",
+          "email"
+        ],
+        "description": "OpenBao browser and CLI OIDC client for the restricted Codestra secrets service.",
+        "directAccessGrantsEnabled": false,
+        "enabled": true,
+        "frontchannelLogout": true,
+        "fullScopeAllowed": false,
+        "implicitFlowEnabled": false,
+        "name": "Codestra OpenBao",
+        "optionalClientScopes": [],
+        "protocol": "openid-connect",
+        "protocolMappers": [
+          {
+            "config": {
+              "access.token.claim": "true",
+              "claim.name": "realm_access.roles",
+              "id.token.claim": "true",
+              "jsonType.label": "String",
+              "multivalued": "true",
+              "userinfo.token.claim": "true"
+            },
+            "consentRequired": false,
+            "name": "codestra-realm-roles",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-usermodel-realm-role-mapper"
+          }
+        ],
+        "publicClient": false,
+        "redirectUris": [
+          "https://bao.codestra.media/v1/auth/oidc/callback",
+          "https://bao.codestra.media/ui/vault/auth/oidc/oidc/callback",
+          "http://localhost:8250/oidc/callback"
+        ],
+        "rootUrl": "https://bao.codestra.media",
+        "serviceAccountsEnabled": false,
+        "standardFlowEnabled": true,
+        "webOrigins": [
+          "https://bao.codestra.media"
+        ]
+      },
+      "sourcePath": "config/desired-state/observability/clients/openbao-secrets.json"
+    },
+    {
+      "authorityGroup": "observability",
+      "client": {
+        "attributes": {
+          "access.token.lifespan": "300",
+          "client.session.idle.timeout": "900",
+          "client.session.max.lifespan": "14400",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "oidc.ciba.grant.enabled": "false",
+          "pkce.code.challenge.method": "S256",
+          "post.logout.redirect.uris": "https://supe.codestra.media/"
+        },
+        "authorizationServicesEnabled": false,
+        "baseUrl": "https://supe.codestra.media/",
+        "bearerOnly": false,
+        "clientAuthenticatorType": "client-secret",
+        "clientId": "superset-analytics",
+        "consentRequired": false,
+        "defaultClientScopes": [
+          "web-origins",
+          "acr",
+          "profile",
+          "email"
+        ],
+        "description": "Superset browser client for the Codestra analytics portal.",
+        "directAccessGrantsEnabled": false,
+        "enabled": true,
+        "frontchannelLogout": true,
+        "fullScopeAllowed": false,
+        "implicitFlowEnabled": false,
+        "name": "Codestra Superset",
+        "optionalClientScopes": [],
+        "protocol": "openid-connect",
+        "protocolMappers": [
+          {
+            "config": {
+              "access.token.claim": "true",
+              "claim.name": "realm_access.roles",
+              "id.token.claim": "true",
+              "jsonType.label": "String",
+              "multivalued": "true",
+              "userinfo.token.claim": "true"
+            },
+            "consentRequired": false,
+            "name": "codestra-realm-roles",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-usermodel-realm-role-mapper"
+          }
+        ],
+        "publicClient": false,
+        "redirectUris": [
+          "https://supe.codestra.media/oauth-authorized/keycloak"
+        ],
+        "rootUrl": "https://supe.codestra.media",
+        "serviceAccountsEnabled": false,
+        "standardFlowEnabled": true,
+        "webOrigins": [
+          "https://supe.codestra.media"
+        ]
+      },
+      "sourcePath": "config/desired-state/observability/clients/superset-analytics.json"
+    },
+    {
+      "authorityGroup": "openbao-workload-identity",
+      "client": {
+        "attributes": {
+          "access.token.lifespan": "300",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "oidc.ciba.grant.enabled": "false"
+        },
+        "authorizationServicesEnabled": false,
+        "bearerOnly": false,
+        "clientId": "alloy-collector",
+        "consentRequired": false,
+        "defaultClientScopes": [
+          "basic"
+        ],
+        "description": "Confidential machine identity for the monitoring plane. Reads Loki push and OTLP gateway client credentials for the local Alloy collector. Repository-only desired state applied to staging by the narrow OpenBao workload-identity reconciler; production binding requires the protected managed-client process.",
+        "directAccessGrantsEnabled": false,
+        "enabled": true,
+        "frontchannelLogout": false,
+        "fullScopeAllowed": false,
+        "implicitFlowEnabled": false,
+        "name": "Codestra service identity: alloy-collector",
+        "optionalClientScopes": [
+          "openbao.workload"
+        ],
+        "protocol": "openid-connect",
+        "protocolMappers": [],
+        "publicClient": false,
+        "redirectUris": [],
+        "serviceAccountsEnabled": true,
+        "standardFlowEnabled": false,
+        "webOrigins": []
+      },
+      "sourcePath": "config/desired-state/openbao-workload-identity/clients/alloy-collector.json"
+    },
+    {
+      "authorityGroup": "openbao-workload-identity",
+      "client": {
+        "attributes": {
+          "access.token.lifespan": "300",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "oidc.ciba.grant.enabled": "false"
+        },
+        "authorizationServicesEnabled": false,
+        "bearerOnly": false,
+        "clientId": "grafana-runtime",
+        "consentRequired": false,
+        "defaultClientScopes": [
+          "basic"
+        ],
+        "description": "Confidential machine identity for the monitoring plane. Reads Grafana datasource credentials, the Middleware observability read token and the Grafana OIDC client secret; reads Middleware operational views. Repository-only desired state applied to staging by the narrow OpenBao workload-identity reconciler; production binding requires the protected managed-client process.",
+        "directAccessGrantsEnabled": false,
+        "enabled": true,
+        "frontchannelLogout": false,
+        "fullScopeAllowed": false,
+        "implicitFlowEnabled": false,
+        "name": "Codestra service identity: grafana-runtime",
+        "optionalClientScopes": [
+          "openbao.workload"
+        ],
+        "protocol": "openid-connect",
+        "protocolMappers": [
+          {
+            "config": {
+              "access.token.claim": "true",
+              "id.token.claim": "false",
+              "included.custom.audience": "middleware-api"
+            },
+            "consentRequired": false,
+            "name": "audience-middleware-api",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-audience-mapper"
+          },
+          {
+            "config": {
+              "access.token.claim": "true",
+              "access.tokenResponse.claim": "false",
+              "claim.name": "scope",
+              "claim.value": "platform.services.read platform.sync.read observability.health.read observability.integrations.read observability.secrets.health.read observability.alerts.read",
+              "id.token.claim": "false",
+              "jsonType.label": "String",
+              "userinfo.token.claim": "false"
+            },
+            "consentRequired": false,
+            "name": "reviewed-service-scopes",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-hardcoded-claim-mapper"
+          }
+        ],
+        "publicClient": false,
+        "redirectUris": [],
+        "serviceAccountsEnabled": true,
+        "standardFlowEnabled": false,
+        "webOrigins": []
+      },
+      "sourcePath": "config/desired-state/openbao-workload-identity/clients/grafana-runtime.json"
+    },
+    {
+      "authorityGroup": "openbao-workload-identity",
+      "client": {
+        "attributes": {
+          "access.token.lifespan": "300",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "oidc.ciba.grant.enabled": "false"
+        },
+        "authorizationServicesEnabled": false,
+        "bearerOnly": false,
+        "clientId": "loki-runtime",
+        "consentRequired": false,
+        "defaultClientScopes": [
+          "basic"
+        ],
+        "description": "Confidential machine identity for the monitoring plane. Reads Loki object-storage and ingestion authentication material. Repository-only desired state applied to staging by the narrow OpenBao workload-identity reconciler; production binding requires the protected managed-client process.",
+        "directAccessGrantsEnabled": false,
+        "enabled": true,
+        "frontchannelLogout": false,
+        "fullScopeAllowed": false,
+        "implicitFlowEnabled": false,
+        "name": "Codestra service identity: loki-runtime",
+        "optionalClientScopes": [
+          "openbao.workload"
+        ],
+        "protocol": "openid-connect",
+        "protocolMappers": [],
+        "publicClient": false,
+        "redirectUris": [],
+        "serviceAccountsEnabled": true,
+        "standardFlowEnabled": false,
+        "webOrigins": []
+      },
+      "sourcePath": "config/desired-state/openbao-workload-identity/clients/loki-runtime.json"
+    },
+    {
+      "authorityGroup": "openbao-workload-identity",
+      "client": {
+        "attributes": {
+          "access.token.lifespan": "300",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "oidc.ciba.grant.enabled": "false"
+        },
+        "authorizationServicesEnabled": false,
+        "bearerOnly": false,
+        "clientId": "otel-gateway",
+        "consentRequired": false,
+        "defaultClientScopes": [
+          "basic"
+        ],
+        "description": "Confidential machine identity for the monitoring plane. Reads the central OpenTelemetry gateway receiver and Tempo/Loki exporter credentials. Repository-only desired state applied to staging by the narrow OpenBao workload-identity reconciler; production binding requires the protected managed-client process.",
+        "directAccessGrantsEnabled": false,
+        "enabled": true,
+        "frontchannelLogout": false,
+        "fullScopeAllowed": false,
+        "implicitFlowEnabled": false,
+        "name": "Codestra service identity: otel-gateway",
+        "optionalClientScopes": [
+          "openbao.workload"
+        ],
+        "protocol": "openid-connect",
+        "protocolMappers": [],
+        "publicClient": false,
+        "redirectUris": [],
+        "serviceAccountsEnabled": true,
+        "standardFlowEnabled": false,
+        "webOrigins": []
+      },
+      "sourcePath": "config/desired-state/openbao-workload-identity/clients/otel-gateway.json"
+    },
+    {
+      "authorityGroup": "openbao-workload-identity",
+      "client": {
+        "attributes": {
+          "access.token.lifespan": "300",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "oidc.ciba.grant.enabled": "false"
+        },
+        "authorizationServicesEnabled": false,
+        "bearerOnly": false,
+        "clientId": "postgres-exporter",
+        "consentRequired": false,
+        "defaultClientScopes": [
+          "basic"
+        ],
+        "description": "Confidential machine identity for the monitoring plane. Reads the monitoring-only PostgreSQL role credential for the Postgres exporter. Repository-only desired state applied to staging by the narrow OpenBao workload-identity reconciler; production binding requires the protected managed-client process.",
+        "directAccessGrantsEnabled": false,
+        "enabled": true,
+        "frontchannelLogout": false,
+        "fullScopeAllowed": false,
+        "implicitFlowEnabled": false,
+        "name": "Codestra service identity: postgres-exporter",
+        "optionalClientScopes": [
+          "openbao.workload"
+        ],
+        "protocol": "openid-connect",
+        "protocolMappers": [],
+        "publicClient": false,
+        "redirectUris": [],
+        "serviceAccountsEnabled": true,
+        "standardFlowEnabled": false,
+        "webOrigins": []
+      },
+      "sourcePath": "config/desired-state/openbao-workload-identity/clients/postgres-exporter.json"
+    },
+    {
+      "authorityGroup": "openbao-workload-identity",
+      "client": {
+        "attributes": {
+          "access.token.lifespan": "300",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "oidc.ciba.grant.enabled": "false"
+        },
+        "authorizationServicesEnabled": false,
+        "bearerOnly": false,
+        "clientId": "prometheus-openbao",
+        "consentRequired": false,
+        "defaultClientScopes": [
+          "basic"
+        ],
+        "description": "Confidential machine identity for the monitoring plane. Reads the private OpenBao metrics-client material and the reviewed scrape credentials; the only OpenBao role with sys/metrics read. Repository-only desired state applied to staging by the narrow OpenBao workload-identity reconciler; production binding requires the protected managed-client process.",
+        "directAccessGrantsEnabled": false,
+        "enabled": true,
+        "frontchannelLogout": false,
+        "fullScopeAllowed": false,
+        "implicitFlowEnabled": false,
+        "name": "Codestra service identity: prometheus-openbao",
+        "optionalClientScopes": [
+          "openbao.workload"
+        ],
+        "protocol": "openid-connect",
+        "protocolMappers": [],
+        "publicClient": false,
+        "redirectUris": [],
+        "serviceAccountsEnabled": true,
+        "standardFlowEnabled": false,
+        "webOrigins": []
+      },
+      "sourcePath": "config/desired-state/openbao-workload-identity/clients/prometheus-openbao.json"
+    },
+    {
+      "authorityGroup": "openbao-workload-identity",
+      "client": {
+        "attributes": {
+          "access.token.lifespan": "300",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "oidc.ciba.grant.enabled": "false"
+        },
+        "authorizationServicesEnabled": false,
+        "bearerOnly": false,
+        "clientId": "redis-exporter",
+        "consentRequired": false,
+        "defaultClientScopes": [
+          "basic"
+        ],
+        "description": "Confidential machine identity for the monitoring plane. Reads the monitoring-only Redis ACL credential for the Redis exporter. Repository-only desired state applied to staging by the narrow OpenBao workload-identity reconciler; production binding requires the protected managed-client process.",
+        "directAccessGrantsEnabled": false,
+        "enabled": true,
+        "frontchannelLogout": false,
+        "fullScopeAllowed": false,
+        "implicitFlowEnabled": false,
+        "name": "Codestra service identity: redis-exporter",
+        "optionalClientScopes": [
+          "openbao.workload"
+        ],
+        "protocol": "openid-connect",
+        "protocolMappers": [],
+        "publicClient": false,
+        "redirectUris": [],
+        "serviceAccountsEnabled": true,
+        "standardFlowEnabled": false,
+        "webOrigins": []
+      },
+      "sourcePath": "config/desired-state/openbao-workload-identity/clients/redis-exporter.json"
+    },
+    {
+      "authorityGroup": "openbao-workload-identity",
+      "client": {
+        "attributes": {
+          "access.token.lifespan": "300",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "oidc.ciba.grant.enabled": "false"
+        },
+        "authorizationServicesEnabled": false,
+        "bearerOnly": false,
+        "clientId": "superset-analytics",
+        "consentRequired": false,
+        "defaultClientScopes": [
+          "basic"
+        ],
+        "description": "Confidential machine identity for the monitoring plane. Reads the read-only analytics projection database, metadata database and Superset OIDC client secret. Repository-only desired state applied to staging by the narrow OpenBao workload-identity reconciler; production binding requires the protected managed-client process.",
+        "directAccessGrantsEnabled": false,
+        "enabled": true,
+        "frontchannelLogout": false,
+        "fullScopeAllowed": false,
+        "implicitFlowEnabled": false,
+        "name": "Codestra service identity: superset-analytics",
+        "optionalClientScopes": [
+          "openbao.workload"
+        ],
+        "protocol": "openid-connect",
+        "protocolMappers": [],
+        "publicClient": false,
+        "redirectUris": [],
+        "serviceAccountsEnabled": true,
+        "standardFlowEnabled": false,
+        "webOrigins": []
+      },
+      "sourcePath": "config/desired-state/openbao-workload-identity/clients/superset-analytics.json"
+    },
+    {
+      "authorityGroup": "openbao-workload-identity",
+      "client": {
+        "attributes": {
+          "access.token.lifespan": "300",
+          "oauth2.device.authorization.grant.enabled": "false",
+          "oidc.ciba.grant.enabled": "false"
+        },
+        "authorizationServicesEnabled": false,
+        "bearerOnly": false,
+        "clientId": "tempo-runtime",
+        "consentRequired": false,
+        "defaultClientScopes": [
+          "basic"
+        ],
+        "description": "Confidential machine identity for the monitoring plane. Reads Tempo object-storage and ingestion authentication material. Repository-only desired state applied to staging by the narrow OpenBao workload-identity reconciler; production binding requires the protected managed-client process.",
+        "directAccessGrantsEnabled": false,
+        "enabled": true,
+        "frontchannelLogout": false,
+        "fullScopeAllowed": false,
+        "implicitFlowEnabled": false,
+        "name": "Codestra service identity: tempo-runtime",
+        "optionalClientScopes": [
+          "openbao.workload"
+        ],
+        "protocol": "openid-connect",
+        "protocolMappers": [],
+        "publicClient": false,
+        "redirectUris": [],
+        "serviceAccountsEnabled": true,
+        "standardFlowEnabled": false,
+        "webOrigins": []
+      },
+      "sourcePath": "config/desired-state/openbao-workload-identity/clients/tempo-runtime.json"
+    }
+  ]
+}
