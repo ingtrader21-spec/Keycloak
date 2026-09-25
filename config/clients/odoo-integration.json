@@ -42,7 +42,7 @@
       "consentRequired": false,
       "config": {
         "claim.name": "scope",
-        "claim.value": "odoo.delivery.result.publish odoo.events.publish",
+        "claim.value": "campaign.engine.read campaign.suppressions.write leads.journey.read odoo.delivery.result.publish odoo.events.publish",
         "jsonType.label": "String",
         "id.token.claim": "false",
         "access.token.claim": "true",

@@ -89,6 +89,9 @@ EXPECTED_GRANTS: dict[tuple[str, str], set[str]] = {
     ("sdk-intake", "middleware-api"): {"leads.write", "surveys.write"},
     ("alertmanager", "middleware-api"): {"alerts.write"},
     ("odoo-integration", "middleware-api"): {
+        "campaign.engine.read",
+        "campaign.suppressions.write",
+        "leads.journey.read",
         "odoo.delivery.result.publish",
         "odoo.events.publish",
     },
@@ -117,6 +120,7 @@ EXPECTED_GRANTS: dict[tuple[str, str], set[str]] = {
     },
     ("middleware-worker", "telnexa-gateway"): {"sms.send", "sms.status.read"},
     ("telnexa-gateway", "middleware-api"): {
+        "campaign.delivery_events.publish",
         "sms.events.publish",
         "sms.inbound.publish",
     },
@@ -125,6 +129,7 @@ EXPECTED_GRANTS: dict[tuple[str, str], set[str]] = {
         "email.status.read",
     },
     ("klyrow-gateway", "middleware-api"): {
+        "campaign.delivery_events.publish",
         "email.events.publish",
         "email.inbound.publish",
     },
@@ -239,7 +244,7 @@ WEBHOOK_SIGNATURE_FIELDS = [
     "bodySha256",
 ]
 
-SCOPE_RE = re.compile(r"^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$")
+SCOPE_RE = re.compile(r"^[a-z][a-z0-9_]*(?:[.-][a-z0-9_]+)+$")
 EVENT_RE = re.compile(
     r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*(?:\.[a-z0-9]+(?:_[a-z0-9]+)*){2,}$"
 )

@@ -42,7 +42,7 @@
       "consentRequired": false,
       "config": {
         "claim.name": "scope",
-        "claim.value": "email.events.publish email.inbound.publish",
+        "claim.value": "campaign.delivery_events.publish email.events.publish email.inbound.publish",
         "jsonType.label": "String",
         "id.token.claim": "false",
         "access.token.claim": "true",

@@ -1,0 +1,10 @@
+{
+  "name": "campaign.delivery_events.publish",
+  "description": "Codestra MCR v1 scope managed by protected Keycloak GitOps: Publish normalized signed MCR delivery/engagement events.",
+  "protocol": "openid-connect",
+  "attributes": {
+    "display.on.consent.screen": "false",
+    "include.in.token.scope": "true"
+  },
+  "protocolMappers": []
+}

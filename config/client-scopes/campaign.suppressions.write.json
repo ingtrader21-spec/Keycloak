@@ -1,0 +1,10 @@
+{
+  "name": "campaign.suppressions.write",
+  "description": "Codestra MCR v1 scope managed by protected Keycloak GitOps: Record canonical MCR suppression evidence.",
+  "protocol": "openid-connect",
+  "attributes": {
+    "display.on.consent.screen": "false",
+    "include.in.token.scope": "true"
+  },
+  "protocolMappers": []
+}

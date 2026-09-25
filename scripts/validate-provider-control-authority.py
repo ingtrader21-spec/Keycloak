@@ -20,7 +20,8 @@ EXPECTED_APPLICATION_GRANTS = {
         "workflow.result.publish",
     },
     ("odoo-integration", "middleware-api"): {
-        "odoo.delivery.result.publish", "odoo.events.publish",
+        "campaign.engine.read", "campaign.suppressions.write",
+        "leads.journey.read", "odoo.delivery.result.publish", "odoo.events.publish",
     },
 }
 EXPECTED_PROVIDER_GRANTS = {

@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "mission": "MCR-H",
+  "audience": "middleware-api",
+  "production_execution_authorized": false,
+  "provider_effects_enabled": false,
+  "scopes": [
+    "campaign.delivery_events.publish",
+    "campaign.engine.candidates.read",
+    "campaign.engine.execute",
+    "campaign.engine.plan",
+    "campaign.engine.read",
+    "campaign.suppressions.write",
+    "leads.journey.read"
+  ],
+  "operations": {
+    "POST /platform/v1/campaign-engine/plan": "campaign.engine.plan",
+    "POST /platform/v1/campaign-engine/execute": "campaign.engine.execute",
+    "GET /platform/v1/leads/{lead_id}/journey": "leads.journey.read",
+    "GET /platform/v1/leads/{lead_id}/next-action": "campaign.engine.read",
+    "GET /platform/v1/campaigns/{campaign_id}/eligible-leads": "campaign.engine.read",
+    "POST /platform/v1/delivery-events": "campaign.delivery_events.publish",
+    "POST /platform/v1/suppressions": "campaign.suppressions.write",
+    "GET /platform/v1/campaign-engine/status": "campaign.engine.read"
+  },
+  "optional_scopes": {
+    "campaign.engine.candidates.read": "May disclose candidate detail on next-action reads; absence must redact, not deny the decision."
+  },
+  "client_grants": {
+    "klyrow-gateway": [
+      "campaign.delivery_events.publish"
+    ],
+    "telnexa-gateway": [
+      "campaign.delivery_events.publish"
+    ],
+    "odoo-integration": [
+      "campaign.engine.read",
+      "campaign.suppressions.write",
+      "leads.journey.read"
+    ],
+    "n8n-automation": [],
+    "middleware-worker": []
+  },
+  "forbidden_grants": {
+    "campaign.engine.execute": "no client until separate production-effect approval",
+    "campaign.engine.plan": "no provider/service client grant in MCR-H; operator/service assignment requires separate approval",
+    "campaign.engine.candidates.read": "not granted to provider gateways or automation workers"
+  }
+}

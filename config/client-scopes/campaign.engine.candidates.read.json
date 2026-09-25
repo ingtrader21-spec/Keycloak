@@ -1,0 +1,10 @@
+{
+  "name": "campaign.engine.candidates.read",
+  "description": "Codestra MCR v1 scope managed by protected Keycloak GitOps: Optional disclosure of evaluated MCR candidates; never required to obtain the redacted decision.",
+  "protocol": "openid-connect",
+  "attributes": {
+    "display.on.consent.screen": "false",
+    "include.in.token.scope": "true"
+  },
+  "protocolMappers": []
+}

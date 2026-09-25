@@ -208,7 +208,7 @@ class PlatformApiIdentityTests(unittest.TestCase):
         VALIDATOR.validate_client_document(
             "telnexa-gateway",
             client,
-            {"sms.events.publish", "sms.inbound.publish"},
+            {"campaign.delivery_events.publish", "sms.events.publish", "sms.inbound.publish"},
         )
 
     def test_telnexa_hardcoded_or_missing_tenant_claim_is_rejected(self) -> None:
@@ -224,7 +224,7 @@ class PlatformApiIdentityTests(unittest.TestCase):
             VALIDATOR.validate_client_document(
                 "telnexa-gateway",
                 client,
-                {"sms.events.publish", "sms.inbound.publish"},
+                {"campaign.delivery_events.publish", "sms.events.publish", "sms.inbound.publish"},
             )
 
         client = copy.deepcopy(self.clients["telnexa-gateway"])
@@ -237,7 +237,7 @@ class PlatformApiIdentityTests(unittest.TestCase):
             VALIDATOR.validate_client_document(
                 "telnexa-gateway",
                 client,
-                {"sms.events.publish", "sms.inbound.publish"},
+                {"campaign.delivery_events.publish", "sms.events.publish", "sms.inbound.publish"},
             )
 
 

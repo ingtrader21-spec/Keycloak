@@ -1,0 +1,10 @@
+{
+  "name": "campaign.engine.execute",
+  "description": "Codestra MCR v1 scope managed by protected Keycloak GitOps: MCR execution authorization scope. Defined but attached to no client while production execution is disabled.",
+  "protocol": "openid-connect",
+  "attributes": {
+    "display.on.consent.screen": "false",
+    "include.in.token.scope": "true"
+  },
+  "protocolMappers": []
+}

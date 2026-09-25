@@ -1,0 +1,10 @@
+{
+  "name": "campaign.engine.read",
+  "description": "Codestra MCR v1 scope managed by protected Keycloak GitOps: Read-only MCR next-action and eligible-lead evaluation.",
+  "protocol": "openid-connect",
+  "attributes": {
+    "display.on.consent.screen": "false",
+    "include.in.token.scope": "true"
+  },
+  "protocolMappers": []
+}

@@ -1,0 +1,10 @@
+{
+  "name": "campaign.engine.plan",
+  "description": "Codestra MCR v1 scope managed by protected Keycloak GitOps: Dry-run MCR planning. No provider effects.",
+  "protocol": "openid-connect",
+  "attributes": {
+    "display.on.consent.screen": "false",
+    "include.in.token.scope": "true"
+  },
+  "protocolMappers": []
+}

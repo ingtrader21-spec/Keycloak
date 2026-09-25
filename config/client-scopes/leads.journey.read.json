@@ -1,0 +1,10 @@
+{
+  "name": "leads.journey.read",
+  "description": "Codestra MCR v1 scope managed by protected Keycloak GitOps: Read canonical MCR lead lifecycle/channel/exposure journey.",
+  "protocol": "openid-connect",
+  "attributes": {
+    "display.on.consent.screen": "false",
+    "include.in.token.scope": "true"
+  },
+  "protocolMappers": []
+}
