@@ -237,3 +237,54 @@ traversal samples (review finding 4), the token-matrix negative cases, and the
 live Middleware cross-check in CI (finding 6). These external gates remain
 blocked: hosted Actions billing, exact-head independent approval, staging
 readback, TEST_SYN, restore rehearsal, and rotation/revocation.
+
+## Final certification — 2026-09-25
+
+`PRODUCTION_GO=NO`. Branch `mission/pas8-final-20260925`, based on
+`521403d518b78e625eba5c2394131548819cd5ab` (the same commit as
+`origin/mission/pas8-fresh-20260924`).
+
+Defect fixed in `scripts/certify_cross_repo_identity_parity.py`: the Caddy parser
+recognised only block matchers made of one `method` and one `path_regexp`. It
+silently skipped every other matcher on a handler that proxies to
+`{$CADDY_KONG_UPSTREAM}`. Skipped matchers included the single-line `@kong path …`
+family on Caddy `main`, multi-method or extra-clause blocks, and undefined matchers.
+So a `private_only` route under a Kong path family, or a wide Kong matcher, still
+certified PASS.
+
+What the certifier does now:
+
+* It parses single-line `@name path …` families (case-insensitive `*` globs).
+* A `private_only` route matched by any Kong family fails.
+* Any Kong-proxied matcher it cannot parse fails closed with
+  `caddy site cannot be certified: …`.
+
+`denied` routes may still ride a Kong path family, which matches Caddy's documented
+design: Kong has no route for them, so they 404. The Kong check separately proves
+that Kong exposes no non-shared_edge route. Denied routes in a canonical method
+matcher still fail.
+
+Two new tests cover this. On the pre-fix certifier, all six new subtests PASS
+(fail-open).
+
+Cross-repo pins, as a live read-only `gh api` readback of `main` on 2026-09-25:
+
+| Repository | Commit | Change |
+| --- | --- | --- |
+| Middleware | `0606b0d` | unchanged, contract SHA-256 `0724a0c6…` |
+| Kong | `3e68cb2` | unchanged, authority SHA-256 `33ed6175…` |
+| Caddy | `64b2992` | **advanced** from `0feae8a`: PAS-235 #186 and CI #188. `sites/api.codestra.co.caddy` SHA-256 is now `545ef6ad…` |
+
+The certifier (fixed version) still reports `CROSS_REPO_IDENTITY_PARITY=PASS`: 117
+routes, 105 shared_edge, 0 mismatches on every surface.
+
+Observation for the Caddy owner: the two `private_only` routes
+(`/api/v1/integration/automation-results` and
+`/api/v1/integration/campaigns/actual-state`) are matched by no Caddy handler, so
+they fall through to the transitional `CADDY_LEGACY_API_UPSTREAM` fallback. They are
+middleware-worker → Odoo calls (audience `codestra-odoo`). This is outside
+Keycloak's authority, and the certifier only asserts that they never reach Kong.
+
+The external gates are unchanged and not fabricated: hosted Actions/billing,
+exact-head independent approval and the release trust root on merged main, staging
+TEST_SYN and readback, restore rehearsal, and rotation/revocation.

@@ -39,6 +39,7 @@ CADDY_METHOD = re.compile(r"^\s*method\s+([A-Z]+)\s*$")
 CADDY_PATH_REGEXP = re.compile(r"^\s*path_regexp\s+(\S+)\s*$")
 CADDY_MATCHER_START = re.compile(r"^\s*@([A-Za-z0-9_-]+)\s*\{\s*$")
 CADDY_HANDLE_START = re.compile(r"^\s*handle\s+@([A-Za-z0-9_-]+)\s*\{\s*$")
+CADDY_PATH_MATCHER = re.compile(r"^\s*@([A-Za-z0-9_-]+)\s+path\s+(\S.*?)\s*$")
 CADDY_KONG_PROXY = re.compile(
     r"^\s*reverse_proxy\s+\{\$CADDY_KONG_UPSTREAM\}\s*\{?\s*$"
 )
@@ -136,23 +137,53 @@ def _caddy_block(lines: list[str], start: int) -> tuple[list[str], int]:
     raise ValueError(f"unterminated Caddy block at line {start + 1}")
 
 
-def caddy_matchers(site: str) -> dict[str, re.Pattern[str]]:
-    lines = site.splitlines()
-    kong_handlers: set[str] = set()
+def _kong_handlers(lines: list[str]) -> set[str]:
+    handlers: set[str] = set()
     for index, line in enumerate(lines):
         handle = CADDY_HANDLE_START.match(line)
         if not handle:
             continue
         body, _end = _caddy_block(lines, index)
         if any(CADDY_KONG_PROXY.match(item) for item in body):
-            kong_handlers.add(handle.group(1))
+            handlers.add(handle.group(1))
+    return handlers
 
+
+def _caddy_path_glob(pattern: str) -> re.Pattern[str]:
+    # Caddy path matchers are case-insensitive and treat * as a wildcard.
+    return re.compile(
+        ".*".join(re.escape(part) for part in pattern.split("*")), re.IGNORECASE
+    )
+
+
+def caddy_matchers(
+    site: str,
+) -> tuple[dict[str, re.Pattern[str]], list[re.Pattern[str]]]:
+    """Return (canonical method matchers, method-less path families) proxied to Kong.
+
+    Every matcher used by a Kong handler must be parsed; anything else fails closed.
+    """
+    lines = site.splitlines()
+    kong_handlers = _kong_handlers(lines)
+    parsed: set[str] = set()
     matchers: dict[str, re.Pattern[str]] = {}
+    families: list[re.Pattern[str]] = []
     for index, line in enumerate(lines):
+        single = CADDY_PATH_MATCHER.match(line)
+        if single and single.group(1) in kong_handlers:
+            if single.group(1) in parsed:
+                raise ValueError(f"duplicate Caddy matcher @{single.group(1)}")
+            parsed.add(single.group(1))
+            families.extend(_caddy_path_glob(p) for p in single.group(2).split())
+            continue
         start = CADDY_MATCHER_START.match(line)
         if not start or start.group(1) not in kong_handlers:
             continue
+        if start.group(1) in parsed:
+            raise ValueError(f"duplicate Caddy matcher @{start.group(1)}")
+        parsed.add(start.group(1))
         body, _end = _caddy_block(lines, index)
+        body = [item for item in body if item.strip() and not item.strip().startswith("#")]
         methods = [
             match.group(1)
             for item in body
@@ -163,13 +194,17 @@ def caddy_matchers(site: str) -> dict[str, re.Pattern[str]]:
             for item in body
             if (match := CADDY_PATH_REGEXP.match(item))
         ]
-        if len(methods) != 1 or len(patterns) != 1:
-            continue
+        if len(methods) != 1 or len(patterns) != 1 or len(body) != 2:
+            raise ValueError(
+                f"unrecognised Caddy matcher @{start.group(1)} proxied to kong"
+            )
         method = methods[0]
         if method in matchers:
             raise ValueError(f"duplicate Caddy canonical matcher for {method}")
         matchers[method] = re.compile(patterns[0])
-    return matchers
+    for name in sorted(kong_handlers - parsed):
+        raise ValueError(f"unrecognised Caddy matcher @{name} proxied to kong")
+    return matchers, families
 
 
 def _route_samples(path: str) -> tuple[str, ...]:
@@ -183,13 +218,22 @@ def _route_samples(path: str) -> tuple[str, ...]:
 
 def compare_caddy(middleware: dict, site: str) -> list[str]:
     problems = []
-    matchers = caddy_matchers(site)
+    try:
+        matchers, families = caddy_matchers(site)
+    except ValueError as error:
+        return [f"caddy site cannot be certified: {error}"]
     for route in middleware["routes"]:
         samples = _route_samples(route["path"])
         matcher = matchers.get(route["method"])
         results = [bool(matcher and matcher.fullmatch(sample)) for sample in samples]
         routed = all(results)
         exposed = any(results)
+        # Method-less Kong path families may carry denied routes (Kong has no
+        # route for them, so they 404), but never a private_only route.
+        if route["classification"] == "private_only" and any(
+            family.fullmatch(sample) for family in families for sample in samples
+        ):
+            exposed = True
         if route["classification"] == "shared_edge" and not routed:
             problems.append(
                 f"shared_edge route not routed to kong by caddy: {route_key(route)}"

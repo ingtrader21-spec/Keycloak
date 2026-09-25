@@ -200,6 +200,55 @@ class CrossRepoIdentityParityCertificationTests(unittest.TestCase):
         self.assertEqual(report["verdict"], "FAIL")
         self.assertTrue(report["problems"]["caddy"])
 
+    def test_caddy_kong_path_family_may_carry_denied_but_not_private_only(self) -> None:
+        def with_family(paths: str) -> str:
+            return caddy_fixture(CONTRACT) + (
+                f"\t@kong path {paths}\n"
+                "\thandle @kong {\n"
+                "\t\treverse_proxy {$CADDY_KONG_UPSTREAM} {\n"
+                "\t\t}\n"
+                "\t}\n"
+            )
+
+        denied = [r for r in CONTRACT["routes"] if r["classification"] == "denied"]
+        families = " ".join(sorted({r["path"].split("{")[0].rstrip("/") + "*" for r in denied}))
+        report = self.run_certify(CONTRACT, kong_fixture(CONTRACT), with_family(families))
+        self.assertEqual(report["verdict"], "PASS", report["problems"])
+
+        private = [r for r in CONTRACT["routes"] if r["classification"] == "private_only"]
+        for route in private:
+            with self.subTest(route=parity.route_key(route)):
+                prefix = "/".join(route["path"].split("/")[:4]) + "*"
+                report = self.run_certify(
+                    CONTRACT, kong_fixture(CONTRACT), with_family(f"/v1/crm* {prefix.upper()}")
+                )
+                self.assertEqual(report["verdict"], "FAIL")
+                self.assertIn(
+                    f"caddy routes a private_only route: {parity.route_key(route)}",
+                    report["problems"]["caddy"],
+                )
+
+    def test_unrecognised_caddy_kong_matcher_fails_closed(self) -> None:
+        for matcher in (
+            "\t@wide {\n\t\tmethod GET POST\n\t\tpath_regexp ^/.*$\n\t}\n",
+            "\t@wide {\n\t\tmethod POST\n\t\tpath_regexp ^/.*$\n\t\tnot path /x\n\t}\n",
+            "\t@wide path_regexp ^/.*$\n",
+            "",
+        ):
+            with self.subTest(matcher=matcher):
+                caddy = caddy_fixture(CONTRACT) + matcher + (
+                    "\thandle @wide {\n"
+                    "\t\treverse_proxy {$CADDY_KONG_UPSTREAM}\n"
+                    "\t}\n"
+                )
+                report = self.run_certify(CONTRACT, kong_fixture(CONTRACT), caddy)
+                self.assertEqual(report["verdict"], "FAIL")
+                self.assertEqual(
+                    report["problems"]["caddy"],
+                    ["caddy site cannot be certified: "
+                     "unrecognised Caddy matcher @wide proxied to kong"],
+                )
+
     def test_parameterized_caddy_route_requires_multiple_values(self) -> None:
         route = next(
             row
