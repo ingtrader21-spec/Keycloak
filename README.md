@@ -152,3 +152,7 @@ See `docs/GITOPS.md`, `docs/GITHUB_SECURITY.md`,
 procedures. The staging edge-certification identities and the Keycloak half of the
 Keycloak → Caddy → Kong → Middleware certification are described in
 `docs/EDGE_INTEGRATION_CERTIFICATION.md`.
+
+MCR human/service caller policy, offline certification and the readback procedure
+are documented in [MCR identity contracts](docs/MCR_IDENTITY_CONTRACT.md).
+Run `make mcr-identity-check`; all MCR live bindings remain disabled.
