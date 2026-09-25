@@ -8,18 +8,18 @@
   ],
   "audience": "middleware-api",
   "campaign": "TEST_SYN",
-  "configurationChecksum": "d8e45d665c1dbad14484af898bee21aa04a93d97c2cf07d72986f7cbf644ca7b",
+  "configurationChecksum": "d17f874fd68cda12780464236a099e89f20465c47b4f2e6d702c9c308c1285ec",
   "edgeContract": {
     "hashRule": "sha256 over json.dumps(contract, sort_keys=True, separators=(',', ':')).encode('utf-8')",
     "path": "deploy/public-api-route-contract.json",
     "pinnedIn": "deploy/public-api-route-contract.sha256",
     "repository": "appolon1908-hue/Middleware-",
     "schema": "codestra.middleware.public-api-route-contract.v2",
-    "sha256": "7580123dead97ea342c704a57a3c8eed9f5dce69aab247d4b693db96bc7334d5",
+    "sha256": "9c32daecd4a15104c6f9ff60ce19c8f7e78707fb31d9fd9fcb55b1b8dfa3512b",
     "source": {
-      "branch": "codex/cross-repo-authority-20260916",
-      "contractCommit": "4c353df",
-      "verifiedAtCommit": "bd6adaf"
+      "branch": "main",
+      "contractCommit": "0606b0d",
+      "verifiedAtCommit": "0606b0d"
     },
     "supersedes": {
       "schema": "codestra.middleware.public-api-route-contract.v1",
@@ -171,7 +171,7 @@
     },
     {
       "path": "config/desired-state/edge-integration-certification/contract.json",
-      "sha256": "352868f9a459c09f9f5dd9b2acb48d4e67d6cb452b14d83b1df3535765e3d676"
+      "sha256": "fc1450d3940e8a9dc1e3d178c07072a0620de93be302c97d35d95580263486a8"
     }
   ]
 }
