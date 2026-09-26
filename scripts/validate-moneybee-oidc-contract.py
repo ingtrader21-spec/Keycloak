@@ -203,6 +203,7 @@ def main() -> int:
     if None in product_ids:
         fail("product Middleware client contract contains an invalid clientId")
     expected_creatable = EXPECTED_CLIENT_IDS | machine_ids | product_ids | {
+        "codestra-agent-desktop",
         "klyrow-portal",
         "n8n-editor-gateway",
         "codestra-provisioning-service",

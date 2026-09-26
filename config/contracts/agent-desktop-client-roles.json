@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "clientId": "codestra-agent-desktop",
+  "roles": [
+    {
+      "name": "realtime.agent.connect",
+      "description": "Connect an authenticated agent desktop to the Middleware realtime gateway."
+    }
+  ]
+}
