@@ -124,3 +124,43 @@ def test_dry_run_persists_evidence(tmp_path):
     s=Local(); rec=s.dry_run("idem")
     evidence=s.evidence(rec["executionId"])
     assert evidence["payload"]["idempotencyKey"]=="idem" and evidence["sha256"]
+
+
+def test_compiler_includes_explicit_scope_mappings():
+    from keycloak_identity_compiler import compile_identity
+    d=compile_identity()
+    ids={x["clientId"] for x in d["scopeMappings"]}
+    assert {"grafana-observability","openbao-secrets","superset-analytics"} <= ids
+
+def test_scope_mapping_authority_is_explicit_and_fail_closed():
+    from keycloak_identity_compiler import compile_identity
+    d=compile_identity()
+    for m in d["scopeMappings"]:
+        assert m["fullScopeAllowed"] is False
+        assert m.get("crossFamilyRolesAllowed") is False
+        assert isinstance(m.get("realmRoles"),list)
+
+
+def test_scope_mapping_plan_detects_role_drift():
+    from keycloak_reconciliation import plan
+    desired={"scopeMappings":[{"clientId":"grafana","fullScopeAllowed":False,"realmRoles":["viewer"],"crossFamilyRolesAllowed":False}]}
+    live={"scopeMappings":[{"clientId":"grafana","fullScopeAllowed":False,"realmRoles":[],"crossFamilyRolesAllowed":False}]}
+    a=[x for x in plan(desired,live)["actions"] if x["resource_type"]=="scope_mapping"]
+    assert len(a)==1 and a[0]["kind"]=="UPDATE"
+
+def test_scope_mapping_apply_adds_and_removes_exact_roles():
+    from keycloak_reconciliation import apply_plan
+    class API:
+        def __init__(self): self.added=[]; self.removed=[]
+        def client_by_client_id(self,x): return {"id":"c1","clientId":x}
+        def client_realm_role_mappings(self,x): return [{"id":"r2","name":"old"}]
+        def realm_roles(self): return [{"id":"r1","name":"viewer"},{"id":"r2","name":"old"}]
+        def add_client_realm_role_mappings(self,x,roles): self.added=roles
+        def delete_client_realm_role_mappings(self,x,roles): self.removed=roles
+    api=API()
+    desired={"scopeMappings":[{"clientId":"grafana","realmRoles":["viewer"],"fullScopeAllowed":False,"crossFamilyRolesAllowed":False}]}
+    live={"scopeMappings":[{"clientId":"grafana","realmRoles":["old"],"fullScopeAllowed":False,"crossFamilyRolesAllowed":False}]}
+    p={"environment":"test","actions":[{"kind":"UPDATE","resource_type":"scope_mapping","resource_id":"grafana","managed":True}]}
+    out=apply_plan(p,desired,live,api,enabled=True,environment="test")
+    assert out["status"]=="APPLIED"
+    assert [x["name"] for x in api.added]==["viewer"] and [x["name"] for x in api.removed]==["old"]

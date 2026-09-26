@@ -10,7 +10,7 @@ REALM_FIELDS=("enabled","sslRequired","verifyEmail","resetPasswordAllowed","brut
 SCOPE_FIELDS=("name","description","protocol","attributes","protocolMappers")
 ROLE_FIELDS=("name","description","composite","attributes")
 ACTION_FIELDS=("alias","name","enabled","defaultAction","priority","config")
-RESOURCE_ORDER=("realm","client_scope","realm_role","client","required_action")
+RESOURCE_ORDER=("realm","client_scope","realm_role","client","scope_mapping","required_action")
 
 @dataclass(frozen=True)
 class Action:
@@ -22,7 +22,7 @@ def _index(rows:list[dict[str,Any]],key:str)->dict[str,dict[str,Any]]: return {s
 
 def normalize_state(state:dict[str,Any])->dict[str,Any]:
     realm=projection(state.get("realm") or {},REALM_FIELDS)
-    return {"realm":realm,"clients":[projection(x,CLIENT_FIELDS) for x in state.get("clients",[])],"clientScopes":[projection(x,SCOPE_FIELDS) for x in state.get("clientScopes",[])],"realmRoles":[projection(x,ROLE_FIELDS) for x in state.get("realmRoles",[])],"requiredActions":[projection(x,ACTION_FIELDS) for x in state.get("requiredActions",[])]}
+    return {"realm":realm,"clients":[projection(x,CLIENT_FIELDS) for x in state.get("clients",[])],"clientScopes":[projection(x,SCOPE_FIELDS) for x in state.get("clientScopes",[])],"realmRoles":[projection(x,ROLE_FIELDS) for x in state.get("realmRoles",[])],"scopeMappings":[{"clientId":x.get("clientId"),"fullScopeAllowed":x.get("fullScopeAllowed"),"realmRoles":sorted(x.get("realmRoles",[])),"crossFamilyRolesAllowed":x.get("crossFamilyRolesAllowed")} for x in state.get("scopeMappings",[])],"requiredActions":[projection(x,ACTION_FIELDS) for x in state.get("requiredActions",[])]}
 
 def _plan_collection(actions:list[Action],rtype:str,desired_rows:list[dict[str,Any]],live_rows:list[dict[str,Any]],key:str,fields,managed_ids:set[str]|None=None):
     d=_index(desired_rows,key); l=_index(live_rows,key)
@@ -42,6 +42,7 @@ def plan(desired:dict[str,Any],live:dict[str,Any],*,managed_inventory:dict[str,l
     _plan_collection(actions,"client_scope",desired.get("clientScopes",[]),live.get("clientScopes",[]),"name",SCOPE_FIELDS,set(managed_inventory.get("clientScopes",[])))
     _plan_collection(actions,"realm_role",desired.get("realmRoles",[]),live.get("realmRoles",[]),"name",ROLE_FIELDS,set(managed_inventory.get("realmRoles",[])))
     _plan_collection(actions,"client",desired.get("clients",[]),live.get("clients",[]),"clientId",CLIENT_FIELDS,set(managed_inventory.get("clients",[])))
+    _plan_collection(actions,"scope_mapping",desired.get("scopeMappings",[]),live.get("scopeMappings",[]),"clientId",("clientId","fullScopeAllowed","realmRoles","crossFamilyRolesAllowed"),set())
     if desired.get("requiredActions") is not None:
         _plan_collection(actions,"required_action",desired.get("requiredActions",[]),live.get("requiredActions",[]),"alias",ACTION_FIELDS,set())
     actions.sort(key=lambda a:(RESOURCE_ORDER.index(a.resource_type),a.resource_id,a.kind))
@@ -85,6 +86,23 @@ def apply_plan(plan_doc:dict[str,Any],desired:dict[str,Any],live:dict[str,Any],a
                 if kind=="CREATE": api.create_realm_role(d)
                 elif kind=="UPDATE": api.update_realm_role(rid,d)
                 elif kind=="DELETE": api.delete_realm_role(rid)
+            elif rt=="scope_mapping":
+                if kind!="UPDATE": raise RuntimeError(f"unsupported_scope_mapping:{kind}")
+                mapping=next((x for x in desired.get("scopeMappings",[]) if x.get("clientId")==rid),None)
+                client=api.client_by_client_id(rid)
+                if not mapping or not client or not client.get("id"): raise RuntimeError(f"scope_mapping_client_missing:{rid}")
+                existing=api.client_realm_role_mappings(str(client["id"]))
+                existing_by={r.get("name"):r for r in existing if r.get("name")}
+                wanted=set(mapping.get("realmRoles",[])); current=set(existing_by)
+                realm_by={r.get("name"):r for r in api.realm_roles() if r.get("name")}
+                add=[]
+                for name in sorted(wanted-current):
+                    role=realm_by.get(name)
+                    if not role: raise RuntimeError(f"scope_mapping_role_missing:{name}")
+                    add.append(role)
+                remove=[existing_by[name] for name in sorted(current-wanted)]
+                if add: api.add_client_realm_role_mappings(str(client["id"]),add)
+                if remove: api.delete_client_realm_role_mappings(str(client["id"]),remove)
             elif rt=="required_action":
                 if kind!="UPDATE": raise RuntimeError(f"unsupported_required_action:{kind}")
                 api.update_required_action(rid,maps["requiredActions"][rid])

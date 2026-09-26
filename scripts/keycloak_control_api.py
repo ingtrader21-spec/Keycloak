@@ -28,7 +28,14 @@ class Service:
         return KeycloakAdminAPI(base,"codestra",token)
     def live(self):
         api=self._api()
-        return {"realm":api.realm_state(),"clients":api.clients(),"clientScopes":api.client_scopes(),"realmRoles":api.realm_roles(),"requiredActions":api.required_actions()}
+        clients=api.clients()
+        mappings=[]
+        desired_ids={x.get("clientId") for x in self.desired().get("scopeMappings",[])}
+        for client in clients:
+            if client.get("clientId") not in desired_ids or not client.get("id"): continue
+            roles=api.client_realm_role_mappings(str(client["id"]))
+            mappings.append({"clientId":client["clientId"],"fullScopeAllowed":bool(client.get("fullScopeAllowed",False)),"realmRoles":sorted(r.get("name") for r in roles if r.get("name")),"crossFamilyRolesAllowed":False})
+        return {"realm":api.realm_state(),"clients":clients,"clientScopes":api.client_scopes(),"realmRoles":api.realm_roles(),"scopeMappings":mappings,"requiredActions":api.required_actions()}
     def drift(self): return plan(self.desired(),self.live(),environment=os.environ.get("KEYCLOAK_ENVIRONMENT","unknown"))
     def compile(self): return {"compiled":True,"identity":write_output(False)}
     def validate(self):

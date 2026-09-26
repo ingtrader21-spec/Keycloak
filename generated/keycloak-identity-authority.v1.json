@@ -2170,7 +2170,38 @@
     }
   ],
   "schema": "codestra.keycloak.identity-authority.v1",
-  "sourceSha256": "0019f9e383db6eb54ff008effd5e67dc482d14a282abbd3a0ffbf6d168db5c53",
+  "scopeMappings": [
+    {
+      "clientId": "grafana-observability",
+      "crossFamilyRolesAllowed": false,
+      "fullScopeAllowed": false,
+      "realmRoles": [
+        "observability-viewer",
+        "observability-operator",
+        "observability-admin"
+      ]
+    },
+    {
+      "clientId": "openbao-secrets",
+      "crossFamilyRolesAllowed": false,
+      "fullScopeAllowed": false,
+      "realmRoles": [
+        "secrets-operator",
+        "secrets-admin"
+      ]
+    },
+    {
+      "clientId": "superset-analytics",
+      "crossFamilyRolesAllowed": false,
+      "fullScopeAllowed": false,
+      "realmRoles": [
+        "observability-viewer",
+        "observability-operator",
+        "observability-admin"
+      ]
+    }
+  ],
+  "sourceSha256": "88c00354c81e70782841d2a3bdbf2fc6fdf76f35e710ef55e8e3f00d4a5932ba",
   "stagedClients": [
     {
       "authorityGroup": "edge-integration-certification",

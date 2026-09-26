@@ -62,3 +62,12 @@ class KeycloakAdminAPI:
     def admin_events(self,*,first:int=0,max_results:int=100)->list[dict[str,Any]]:
         max_results=max(1,min(int(max_results),500))
         return self.request("GET",f"/admin-events?first={max(0,int(first))}&max={max_results}") or []
+    def client_by_client_id(self,client_id:str)->dict[str,Any]|None:
+        rows=self.request("GET",f"/clients?clientId={urllib.parse.quote(client_id)}") or []
+        return rows[0] if len(rows)==1 else None
+    def client_realm_role_mappings(self,client_internal_id:str)->list[dict[str,Any]]:
+        return self.request("GET",f"/clients/{urllib.parse.quote(client_internal_id)}/scope-mappings/realm") or []
+    def add_client_realm_role_mappings(self,client_internal_id:str,roles:list[dict[str,Any]])->None:
+        self.request("POST",f"/clients/{urllib.parse.quote(client_internal_id)}/scope-mappings/realm",roles,{204})
+    def delete_client_realm_role_mappings(self,client_internal_id:str,roles:list[dict[str,Any]])->None:
+        self.request("DELETE",f"/clients/{urllib.parse.quote(client_internal_id)}/scope-mappings/realm",roles,{204})
