@@ -108,6 +108,7 @@ def compile_identity() -> dict[str, Any]:
     top_scope_docs = [(path, load_json(path)) for path in sorted(SCOPES.glob("*.json"))]
     nested_scope_docs = _nested_documents("client-scopes")
     role_docs = _nested_documents("realm-roles")
+    scope_mapping_docs = _nested_documents("scope-mappings")
 
     if realm.get("realm") != "codestra" or realm.get("enabled") is not True:
         raise IdentityModelError("realm_invalid")
@@ -119,6 +120,7 @@ def compile_identity() -> dict[str, Any]:
     protected_ids = {client["clientId"] for client in protected_clients}
     scopes = _unique_by(top_scope_docs + nested_scope_docs, "name", "scope")
     roles = _unique_by(role_docs, "name", "realm_role")
+    scope_mappings = _unique_by(scope_mapping_docs, "clientId", "scope_mapping")
 
     staged_with_provenance = []
     staged_group_ids: set[tuple[str, str]] = set()
@@ -156,6 +158,7 @@ def compile_identity() -> dict[str, Any]:
         "stagedClients": staged_with_provenance,
         "clientScopes": scopes,
         "realmRoles": roles,
+        "scopeMappings": scope_mappings,
         "environmentBoundaries": {
             "production": {"issuer": "https://auth.codestra.co/realms/codestra"},
             "staging": {"issuer": "https://auth-staging.codestra.co/realms/codestra"},

@@ -23,6 +23,7 @@ else
 fi
 python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_password_reset_smtp_transport.py' -v
 python3 "$ROOT_DIR/scripts/keycloak_identity_compiler.py" --check
+python3 -m pytest -q "$ROOT_DIR/tests/test_pas237_keycloak_control_plane.py" "$ROOT_DIR/tests/test_keycloak_core_build.py"
 python3 "$ROOT_DIR/scripts/validate-authority-controls.py"
 python3 "$ROOT_DIR/scripts/validate-kyyow-identity.py"
 python3 -m unittest discover -s "$ROOT_DIR/tests" -p 'test_kyyow_identity.py' -v

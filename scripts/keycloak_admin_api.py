@@ -42,3 +42,32 @@ class KeycloakAdminAPI:
         self.request("PUT",f"/clients/{urllib.parse.quote(internal_id)}",payload,{204})
     def delete_client(self,internal_id:str)->None:
         self.request("DELETE",f"/clients/{urllib.parse.quote(internal_id)}",expected={204})
+
+    def required_actions(self)->list[dict[str,Any]]: return self.request("GET","/authentication/required-actions") or []
+    def update_realm(self,payload:dict[str,Any])->None: self.request("PUT","",payload,{204})
+    def create_client_scope(self,payload:dict[str,Any])->None: self.request("POST","/client-scopes",payload,{201})
+    def update_client_scope(self,internal_id:str,payload:dict[str,Any])->None: self.request("PUT",f"/client-scopes/{urllib.parse.quote(internal_id)}",payload,{204})
+    def delete_client_scope(self,internal_id:str)->None: self.request("DELETE",f"/client-scopes/{urllib.parse.quote(internal_id)}",expected={204})
+    def create_realm_role(self,payload:dict[str,Any])->None: self.request("POST","/roles",payload,{201})
+    def update_realm_role(self,name:str,payload:dict[str,Any])->None: self.request("PUT",f"/roles/{urllib.parse.quote(name)}",payload,{204})
+    def delete_realm_role(self,name:str)->None: self.request("DELETE",f"/roles/{urllib.parse.quote(name)}",expected={204})
+    def client_roles(self,client_internal_id:str)->list[dict[str,Any]]: return self.request("GET",f"/clients/{urllib.parse.quote(client_internal_id)}/roles") or []
+    def create_client_role(self,client_internal_id:str,payload:dict[str,Any])->None: self.request("POST",f"/clients/{urllib.parse.quote(client_internal_id)}/roles",payload,{201})
+    def update_client_role(self,client_internal_id:str,name:str,payload:dict[str,Any])->None: self.request("PUT",f"/clients/{urllib.parse.quote(client_internal_id)}/roles/{urllib.parse.quote(name)}",payload,{204})
+    def delete_client_role(self,client_internal_id:str,name:str)->None: self.request("DELETE",f"/clients/{urllib.parse.quote(client_internal_id)}/roles/{urllib.parse.quote(name)}",expected={204})
+    def update_required_action(self,alias:str,payload:dict[str,Any])->None: self.request("PUT",f"/authentication/required-actions/{urllib.parse.quote(alias)}",payload,{204})
+    def events(self,*,first:int=0,max_results:int=100)->list[dict[str,Any]]:
+        max_results=max(1,min(int(max_results),500))
+        return self.request("GET",f"/events?first={max(0,int(first))}&max={max_results}") or []
+    def admin_events(self,*,first:int=0,max_results:int=100)->list[dict[str,Any]]:
+        max_results=max(1,min(int(max_results),500))
+        return self.request("GET",f"/admin-events?first={max(0,int(first))}&max={max_results}") or []
+    def client_by_client_id(self,client_id:str)->dict[str,Any]|None:
+        rows=self.request("GET",f"/clients?clientId={urllib.parse.quote(client_id)}") or []
+        return rows[0] if len(rows)==1 else None
+    def client_realm_role_mappings(self,client_internal_id:str)->list[dict[str,Any]]:
+        return self.request("GET",f"/clients/{urllib.parse.quote(client_internal_id)}/scope-mappings/realm") or []
+    def add_client_realm_role_mappings(self,client_internal_id:str,roles:list[dict[str,Any]])->None:
+        self.request("POST",f"/clients/{urllib.parse.quote(client_internal_id)}/scope-mappings/realm",roles,{204})
+    def delete_client_realm_role_mappings(self,client_internal_id:str,roles:list[dict[str,Any]])->None:
+        self.request("DELETE",f"/clients/{urllib.parse.quote(client_internal_id)}/scope-mappings/realm",roles,{204})
