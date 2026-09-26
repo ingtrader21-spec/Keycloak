@@ -96,3 +96,31 @@ def test_promotion_collision_blocks_policy_mismatch():
     req={"promotionId":"p2","sourceAuthorityGroup":"stage","targetEnvironment":"production","targetIssuer":"https://auth.codestra.co/realms/codestra","targetMapping":{"source":"target"}}
     out=promotion_plan(desired,req)
     assert out["promotionStatus"]=="BLOCK" and "protected_client_collision:target" in out["blockers"]
+
+
+def test_api_rejects_bad_observability_limit(tmp_path):
+    import http.client,threading
+    from http.server import ThreadingHTTPServer
+    from keycloak_control_api import Handler,Service
+    class Local(Service):
+        def __init__(self): super().__init__(EvidenceStore(tmp_path/"store"))
+        def events(self,limit=100): return []
+    class T(Handler): service=Local()
+    server=ThreadingHTTPServer(("127.0.0.1",0),T); threading.Thread(target=server.serve_forever,daemon=True).start()
+    try:
+        c=http.client.HTTPConnection("127.0.0.1",server.server_port,timeout=3)
+        for value in ("nope","0","501"):
+            c.request("GET",f"/platform/v1/keycloak/observability/events?limit={value}")
+            r=c.getresponse(); body=json.loads(r.read())
+            assert r.status==400 and body["error"]["code"]=="invalid_query"
+    finally:
+        server.shutdown(); server.server_close()
+
+def test_dry_run_persists_evidence(tmp_path):
+    from keycloak_control_api import Service
+    class Local(Service):
+        def __init__(self): super().__init__(EvidenceStore(tmp_path/"store"))
+        def drift(self): return {"planSha256":"p","desiredSha256":"d","liveSha256":"l","actions":[]}
+    s=Local(); rec=s.dry_run("idem")
+    evidence=s.evidence(rec["executionId"])
+    assert evidence["payload"]["idempotencyKey"]=="idem" and evidence["sha256"]

@@ -116,6 +116,13 @@ class Handler(BaseHTTPRequestHandler):
         if not isinstance(value,dict): raise KeycloakAdminError("invalid_request","request body must be an object",400)
         return value
 
+    def bounded_int(self,query,name,default,minimum,maximum):
+        raw=query.get(name,[str(default)])[0]
+        try:value=int(raw)
+        except (TypeError,ValueError) as exc: raise KeycloakAdminError("invalid_query",f"{name} must be an integer",400) from exc
+        if value<minimum or value>maximum: raise KeycloakAdminError("invalid_query",f"{name} must be between {minimum} and {maximum}",400)
+        return value
+
     def runfn(self,fn):
         rid=self.rid()
         try:
@@ -136,7 +143,7 @@ class Handler(BaseHTTPRequestHandler):
         if p=="/platform/v1/keycloak/recovery/restores": return self.runfn(lambda:{"restores":self.service.recovery().restores()})
         if p=="/platform/v1/keycloak/observability/status": return self.runfn(lambda:{"observability":self.service.observability_status()})
         if p=="/platform/v1/keycloak/observability/events":
-            return self.runfn(lambda:{"events":self.service.events(int(q.get("limit",["100"])[0]))})
+            return self.runfn(lambda:{"events":self.service.events(self.bounded_int(q,"limit",100,1,500))})
         if p=="/platform/v1/keycloak/observability/metrics": return self.runfn(lambda:{"metrics":self.service.metrics()})
         if p=="/platform/v1/keycloak/promotion/policy": return self.runfn(lambda:{"policy":PROMOTION_POLICY})
         if p.startswith("/platform/v1/keycloak/promotion/plans/"): return self.runfn(lambda:{"promotion":self.service.promotion_get(p.rsplit("/",1)[-1])})
